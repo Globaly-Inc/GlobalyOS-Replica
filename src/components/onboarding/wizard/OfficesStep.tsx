@@ -584,25 +584,13 @@ export function OfficesStep({
                         </div>
 
                         {/* Location */}
-                        <div className="col-span-12 sm:col-span-4">
+                        <div className="col-span-10 sm:col-span-6">
                           <Label className="text-xs text-muted-foreground mb-1.5 block">Location</Label>
                           <AddressAutocomplete
                             value={office.address}
                             onChange={(address, components) => handleAddressChange(index, address, components)}
                             placeholder="Search address..."
                             disabled={isLoading}
-                          />
-                        </div>
-
-                        {/* Timezone */}
-                        <div className="col-span-10 sm:col-span-4">
-                          <Label className="text-xs text-muted-foreground mb-1.5 block">Timezone</Label>
-                          <TimezoneSelector
-                            value={office.timezone || 'UTC'}
-                            onChange={(v) => updateOffice(index, 'timezone', v)}
-                            disabled={isLoading}
-                            countryCode={office.address_components?.country_code}
-                            placeholder="Select timezone"
                           />
                         </div>
 
@@ -652,15 +640,26 @@ export function OfficesStep({
 
                               {office.attendance_enabled && (
                                 <>
-
-                              {/* Work Days */}
-                              <div className="space-y-2">
-                                <Label className="text-xs text-muted-foreground">Work Days</Label>
-                                <WorkdaysChipSelector
-                                  value={getSelectedWorkdays(office.day_schedules)}
-                                  onChange={(days) => handleWorkdaysChange(index, days)}
-                                  disabled={isLoading}
-                                />
+                              {/* Work Days + Timezone Row */}
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label className="text-xs text-muted-foreground">Work Days</Label>
+                                  <WorkdaysChipSelector
+                                    value={getSelectedWorkdays(office.day_schedules)}
+                                    onChange={(days) => handleWorkdaysChange(index, days)}
+                                    disabled={isLoading}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label className="text-xs text-muted-foreground">Timezone</Label>
+                                  <TimezoneSelector
+                                    value={office.timezone || 'UTC'}
+                                    onChange={(v) => updateOffice(index, 'timezone', v)}
+                                    disabled={isLoading}
+                                    countryCode={office.address_components?.country_code}
+                                    placeholder="Select timezone"
+                                  />
+                                </div>
                               </div>
 
                               {/* Work Hours - Inline */}
