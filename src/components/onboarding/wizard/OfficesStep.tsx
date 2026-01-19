@@ -600,14 +600,6 @@ export function OfficesStep({
             Add Another Office
           </Button>
 
-          {/* Leave Types Customization (when Leave feature is enabled) */}
-          {hasLeave && (
-            <LeaveTypesCustomizer
-              value={leaveTypesConfig}
-              onChange={setLeaveTypesConfig}
-              disabled={isLoading}
-            />
-          )}
 
           {/* Navigation Buttons */}
           <div className="flex gap-3 pt-4">
