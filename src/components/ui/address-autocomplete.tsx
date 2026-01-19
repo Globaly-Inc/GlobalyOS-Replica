@@ -27,6 +27,7 @@ interface AddressAutocompleteProps {
   placeholder?: string;
   disabled?: boolean;
   required?: boolean;
+  countryCode?: string; // ISO 3166-1 alpha-2 country code (e.g., 'AU', 'US')
 }
 
 declare global {
@@ -42,6 +43,7 @@ export function AddressAutocomplete({
   placeholder = 'Start typing an address...',
   disabled = false,
   required = false,
+  countryCode,
 }: AddressAutocompleteProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
@@ -120,6 +122,7 @@ export function AddressAutocomplete({
     autocompleteRef.current = new google.maps.places.Autocomplete(inputRef.current, {
       types: ['address'],
       fields: ['address_components', 'formatted_address', 'geometry'],
+      componentRestrictions: countryCode ? { country: countryCode.toLowerCase() } : undefined,
     });
 
     listenerRef.current = autocompleteRef.current.addListener('place_changed', () => {
@@ -172,7 +175,7 @@ export function AddressAutocomplete({
         google.maps.event.removeListener(listenerRef.current);
       }
     };
-  }, [isScriptLoaded, onChange]);
+  }, [isScriptLoaded, onChange, countryCode]);
 
   return (
     <div className="relative">

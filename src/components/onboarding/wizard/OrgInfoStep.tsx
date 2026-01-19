@@ -376,6 +376,7 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
               onChange={handleAddressChange}
               placeholder="Start typing your business address..."
               required
+              countryCode={formData.country}
             />
             <p className="text-xs text-muted-foreground">
               Search for your office or business location
