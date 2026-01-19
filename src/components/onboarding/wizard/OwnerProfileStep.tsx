@@ -494,29 +494,29 @@ export function OwnerProfileStep({
                     <Card
                       key={office.id}
                       className={cn(
-                        "p-4 cursor-pointer transition-all hover:border-primary/50",
+                        "p-4 cursor-pointer transition-all hover:border-primary/50 relative",
                         isSelected && "border-primary bg-primary/5 ring-1 ring-primary"
                       )}
                       onClick={() => setSelectedOfficeId(office.id)}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-start gap-3">
-                          <div className={cn(
-                            "h-9 w-9 rounded-lg flex items-center justify-center shrink-0",
-                            isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                          )}>
-                            <Building2 className="h-4 w-4" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-medium text-sm truncate">{office.name}</p>
-                            {(office.city || office.country) && (
-                              <p className="text-xs text-muted-foreground truncate">
-                                {[office.city, office.country].filter(Boolean).join(', ')}
-                              </p>
-                            )}
-                          </div>
+                      {isSelected && (
+                        <CheckCircle2 className="h-4 w-4 text-primary absolute top-2 right-2" />
+                      )}
+                      <div className="flex items-start gap-3">
+                        <div className={cn(
+                          "h-9 w-9 rounded-lg flex items-center justify-center shrink-0",
+                          isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                        )}>
+                          <Building2 className="h-4 w-4" />
                         </div>
-                        {isSelected && <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />}
+                        <div className="min-w-0 pr-4">
+                          <p className="font-medium text-sm truncate">{office.name}</p>
+                          {(office.city || office.country) && (
+                            <p className="text-xs text-muted-foreground truncate">
+                              {[office.city, office.country].filter(Boolean).join(', ')}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </Card>
                   );
