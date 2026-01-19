@@ -833,30 +833,32 @@ export function OfficesStep({
                                   <CalendarDays className="h-4 w-4 text-primary" />
                                   <span className="text-sm font-medium">Leave Settings</span>
                                 </div>
-                                <Switch 
-                                  id={`leave-${index}`}
-                                  checked={office.leave_enabled ?? true}
-                                  onCheckedChange={(v) => updateOffice(index, 'leave_enabled', v)}
-                                  disabled={isLoading}
-                                />
+                                <div className="flex items-center gap-3">
+                                  {office.leave_enabled && (
+                                    <div className="flex items-center gap-2">
+                                      <Label className="text-xs text-muted-foreground whitespace-nowrap">Year Starts</Label>
+                                      <YearStartPicker
+                                        month={office.leave_year_start_month || 1}
+                                        day={office.leave_year_start_day || 1}
+                                        onChange={(month, day) => {
+                                          updateOffice(index, 'leave_year_start_month', month);
+                                          updateOffice(index, 'leave_year_start_day', day);
+                                        }}
+                                        disabled={isLoading}
+                                      />
+                                    </div>
+                                  )}
+                                  <Switch 
+                                    id={`leave-${index}`}
+                                    checked={office.leave_enabled ?? true}
+                                    onCheckedChange={(v) => updateOffice(index, 'leave_enabled', v)}
+                                    disabled={isLoading}
+                                  />
+                                </div>
                               </div>
 
                               {office.leave_enabled && (
                                 <>
-
-                              {/* Year Start Picker */}
-                              <div className="space-y-2">
-                                <Label className="text-xs text-muted-foreground">Leave Year Starts</Label>
-                                <YearStartPicker
-                                  month={office.leave_year_start_month || 1}
-                                  day={office.leave_year_start_day || 1}
-                                  onChange={(month, day) => {
-                                    updateOffice(index, 'leave_year_start_month', month);
-                                    updateOffice(index, 'leave_year_start_day', day);
-                                  }}
-                                  disabled={isLoading}
-                                />
-                              </div>
 
                               {/* Leave Types Customizer */}
                               <LeaveTypesCustomizer
