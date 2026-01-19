@@ -59,12 +59,12 @@ export function WorkdaysChipSelector({
   const chipSizeMap = {
     sm: 'w-6 h-6 text-xs',
     md: 'w-8 h-8 text-sm',
-    lg: 'w-9 h-8 text-sm',
+    lg: 'w-7 h-8 text-xs',
   };
   const gapMap = {
     sm: 'gap-0.5',
     md: 'gap-1',
-    lg: 'gap-1.5',
+    lg: 'gap-1',
   };
   const chipSize = chipSizeMap[size];
   const gap = gapMap[size];
