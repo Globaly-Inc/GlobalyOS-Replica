@@ -533,7 +533,7 @@ export default function Landing() {
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Ready to transform how your team works?</h2>
             <p className="text-lg text-white/80 mb-8 max-w-xl mx-auto">Join hundreds of teams who've simplified their operations with GlobalyOS.</p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-white/90 text-lg px-8" onClick={() => navigate("/auth")}>Start Free Trial <ArrowRight className="w-5 h-5 ml-2" /></Button>
+              <Button size="lg" variant="secondary" className="bg-white text-primary hover:bg-white/90 text-lg px-8" onClick={() => navigate("/signup")}>Start Free Trial <ArrowRight className="w-5 h-5 ml-2" /></Button>
               <Button size="lg" variant="ghost" className="text-white hover:bg-white/10 text-lg px-8" onClick={() => navigate("/pricing")}>View Pricing</Button>
             </div>
           </div>
