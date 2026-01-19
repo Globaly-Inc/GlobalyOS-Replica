@@ -1,6 +1,6 @@
 /**
  * Leave Types Customizer for Onboarding
- * Allows customizing default days for system leave types
+ * Compact checkbox list layout with enable/disable capability
  */
 
 import { useState } from 'react';
@@ -8,17 +8,18 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ChevronDown, ChevronRight, Settings2, Plus, Trash2, Info } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ChevronDown, ChevronUp, Settings2, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { DEFAULT_LEAVE_TYPES, type DefaultLeaveType } from '@/constants/defaultLeaveTypes';
+import { DEFAULT_LEAVE_TYPES } from '@/constants/defaultLeaveTypes';
 
 export interface LeaveTypeConfig {
   name: string;
   category: 'paid' | 'unpaid';
   default_days: number;
   is_custom?: boolean;
+  is_enabled: boolean;
 }
 
 interface LeaveTypesCustomizerProps {
@@ -27,48 +28,57 @@ interface LeaveTypesCustomizerProps {
   disabled?: boolean;
 }
 
+const MAX_CUSTOM_TYPES = 3;
+
 export function LeaveTypesCustomizer({ value, onChange, disabled = false }: LeaveTypesCustomizerProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   // Initialize with defaults if empty
-  const leaveTypes = value.length > 0 ? value : DEFAULT_LEAVE_TYPES.map(lt => ({
-    name: lt.name,
-    category: lt.category,
-    default_days: lt.default_days,
-    is_custom: false,
-  }));
+  const leaveTypes: LeaveTypeConfig[] = value.length > 0 ? value : getDefaultLeaveTypesConfig();
 
-  const updateDays = (index: number, days: number) => {
+  const systemTypes = leaveTypes.filter(lt => !lt.is_custom);
+  const customTypes = leaveTypes.filter(lt => lt.is_custom);
+  const canAddMore = customTypes.length < MAX_CUSTOM_TYPES;
+
+  const updateLeaveType = (globalIndex: number, updates: Partial<LeaveTypeConfig>) => {
     const updated = [...leaveTypes];
-    updated[index] = { ...updated[index], default_days: Math.max(0, days) };
+    updated[globalIndex] = { ...updated[globalIndex], ...updates };
     onChange(updated);
+  };
+
+  const toggleEnabled = (globalIndex: number, enabled: boolean) => {
+    updateLeaveType(globalIndex, { is_enabled: enabled });
+  };
+
+  const updateDays = (globalIndex: number, days: number) => {
+    updateLeaveType(globalIndex, { default_days: Math.max(0, days) });
   };
 
   const addCustomType = () => {
-    const customCount = leaveTypes.filter(lt => lt.is_custom).length;
-    onChange([
-      ...leaveTypes,
-      {
-        name: `Custom Leave ${customCount + 1}`,
-        category: 'paid',
-        default_days: 0,
-        is_custom: true,
-      },
-    ]);
+    if (!canAddMore) return;
+    const newType: LeaveTypeConfig = {
+      name: '',
+      category: 'paid',
+      default_days: 0,
+      is_custom: true,
+      is_enabled: true,
+    };
+    onChange([...leaveTypes, newType]);
   };
 
-  const removeCustomType = (index: number) => {
-    onChange(leaveTypes.filter((_, i) => i !== index));
+  const removeCustomType = (globalIndex: number) => {
+    onChange(leaveTypes.filter((_, i) => i !== globalIndex));
   };
 
-  const updateCustomName = (index: number, name: string) => {
-    const updated = [...leaveTypes];
-    updated[index] = { ...updated[index], name };
-    onChange(updated);
+  const updateCustomName = (globalIndex: number, name: string) => {
+    updateLeaveType(globalIndex, { name });
   };
 
-  const customTypesCount = leaveTypes.filter(lt => lt.is_custom).length;
-  const canAddMore = customTypesCount < 3;
+  const updateCustomCategory = (globalIndex: number, category: 'paid' | 'unpaid') => {
+    updateLeaveType(globalIndex, { category });
+  };
+
+  const enabledCount = leaveTypes.filter(lt => lt.is_enabled).length;
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -76,131 +86,174 @@ export function LeaveTypesCustomizer({ value, onChange, disabled = false }: Leav
         <Button
           type="button"
           variant="ghost"
-          className="w-full justify-between px-4 py-3 h-auto hover:bg-muted/50 border border-dashed rounded-lg"
+          size="sm"
+          className="w-full justify-between h-9 px-3 text-muted-foreground hover:text-foreground"
           disabled={disabled}
         >
-          <span className="flex items-center gap-2 text-sm">
-            <Settings2 className="h-4 w-4 text-muted-foreground" />
-            <span className="font-medium">Customize Leave Types</span>
-            <span className="text-muted-foreground font-normal">(Optional)</span>
-          </span>
+          <div className="flex items-center gap-2">
+            <Settings2 className="h-4 w-4" />
+            <span className="text-sm">Customize Leave Types</span>
+            <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5">
+              {enabledCount} enabled
+            </Badge>
+          </div>
           {isOpen ? (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            <ChevronUp className="h-4 w-4" />
           ) : (
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            <ChevronDown className="h-4 w-4" />
           )}
         </Button>
       </CollapsibleTrigger>
 
-      <CollapsibleContent className="pt-4">
-        <div className="space-y-4 p-4 bg-muted/30 rounded-lg border">
-          <p className="text-sm text-muted-foreground">
-            Adjust the default yearly allowance for each leave type. These balances will be allocated to all employees.
-          </p>
+      <CollapsibleContent className="pt-3 space-y-1">
+        <p className="text-xs text-muted-foreground mb-3 px-1">
+          Set default yearly allowances for each leave type.
+        </p>
 
-          <div className="overflow-x-auto rounded-lg border bg-background">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead className="min-w-[180px]">Leave Type</TableHead>
-                  <TableHead className="w-[100px]">Category</TableHead>
-                  <TableHead className="w-[120px]">
-                    <div className="flex items-center gap-1">
-                      Days/Year
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          Default yearly balance allocated to employees
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                  </TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {leaveTypes.map((lt, index) => (
-                  <TableRow 
-                    key={index}
-                    className={cn(lt.is_custom && "bg-blue-50/50 dark:bg-blue-950/20")}
-                  >
-                    <TableCell className="p-2">
-                      {lt.is_custom ? (
-                        <Input
-                          value={lt.name}
-                          onChange={(e) => updateCustomName(index, e.target.value)}
-                          placeholder="Leave type name"
-                          className="h-8 text-sm"
-                          disabled={disabled}
-                        />
-                      ) : (
-                        <span className="text-sm font-medium">{lt.name}</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="p-2">
-                      <Badge 
-                        variant={lt.category === 'paid' ? 'default' : 'secondary'}
-                        className={cn(
-                          'text-xs capitalize',
-                          lt.category === 'paid' 
-                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
-                            : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-                        )}
-                      >
-                        {lt.category}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="p-2">
-                      <Input
-                        type="number"
-                        min={0}
-                        max={365}
-                        value={lt.default_days}
-                        onChange={(e) => updateDays(index, parseInt(e.target.value) || 0)}
-                        className="h-8 w-20 text-sm text-center"
-                        disabled={disabled}
-                      />
-                    </TableCell>
-                    <TableCell className="p-2">
-                      {lt.is_custom && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeCustomType(index)}
-                          disabled={disabled}
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          {canAddMore && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={addCustomType}
-              disabled={disabled}
-              className="w-full"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Custom Leave Type
-            </Button>
-          )}
-
-          <p className="text-xs text-muted-foreground text-center">
-            You can add more leave types and configure detailed settings after setup.
-          </p>
+        {/* System Leave Types */}
+        <div className="space-y-1">
+          {systemTypes.map((lt) => {
+            const globalIndex = leaveTypes.indexOf(lt);
+            return (
+              <div
+                key={globalIndex}
+                className={cn(
+                  "flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors",
+                  lt.is_enabled ? "hover:bg-muted/50" : "opacity-60"
+                )}
+              >
+                <Checkbox
+                  checked={lt.is_enabled}
+                  onCheckedChange={(checked) => toggleEnabled(globalIndex, !!checked)}
+                  disabled={disabled}
+                  className="h-4 w-4"
+                />
+                <span className={cn(
+                  "flex-1 text-sm",
+                  !lt.is_enabled && "text-muted-foreground"
+                )}>
+                  {lt.name}
+                </span>
+                <Badge 
+                  variant={lt.category === 'paid' ? 'default' : 'secondary'} 
+                  className={cn(
+                    "text-[10px] px-1.5 py-0 h-5",
+                    lt.category === 'paid' 
+                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                      : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                  )}
+                >
+                  {lt.category}
+                </Badge>
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    min={0}
+                    value={lt.default_days}
+                    onChange={(e) => updateDays(globalIndex, parseInt(e.target.value) || 0)}
+                    disabled={disabled || !lt.is_enabled}
+                    className="w-14 h-7 text-center text-sm px-1"
+                  />
+                  <span className="text-[10px] text-muted-foreground w-8">days</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
+
+        {/* Custom Types Separator */}
+        <div className="flex items-center gap-2 pt-2 pb-1">
+          <div className="flex-1 border-t border-dashed" />
+          <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Custom</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={addCustomType}
+            disabled={disabled || !canAddMore}
+            className="h-6 px-2 text-xs gap-1"
+          >
+            <Plus className="h-3 w-3" />
+            Add
+          </Button>
+          <div className="flex-1 border-t border-dashed" />
+        </div>
+
+        {/* Custom Leave Types */}
+        <div className="space-y-1">
+          {customTypes.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-2 italic">
+              No custom leave types yet
+            </p>
+          ) : (
+            customTypes.map((lt) => {
+              const globalIndex = leaveTypes.indexOf(lt);
+              return (
+                <div
+                  key={globalIndex}
+                  className={cn(
+                    "flex items-center gap-2 py-1.5 px-2 rounded-md bg-accent/30",
+                    !lt.is_enabled && "opacity-60"
+                  )}
+                >
+                  <Checkbox
+                    checked={lt.is_enabled}
+                    onCheckedChange={(checked) => toggleEnabled(globalIndex, !!checked)}
+                    disabled={disabled}
+                    className="h-4 w-4"
+                  />
+                  <Input
+                    value={lt.name}
+                    onChange={(e) => updateCustomName(globalIndex, e.target.value)}
+                    placeholder="Leave type name"
+                    disabled={disabled || !lt.is_enabled}
+                    className="flex-1 h-7 text-sm px-2"
+                  />
+                  <Select
+                    value={lt.category}
+                    onValueChange={(val) => updateCustomCategory(globalIndex, val as 'paid' | 'unpaid')}
+                    disabled={disabled || !lt.is_enabled}
+                  >
+                    <SelectTrigger className="w-[70px] h-7 text-xs px-2">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="paid" className="text-xs">Paid</SelectItem>
+                      <SelectItem value="unpaid" className="text-xs">Unpaid</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      min={0}
+                      value={lt.default_days}
+                      onChange={(e) => updateDays(globalIndex, parseInt(e.target.value) || 0)}
+                      disabled={disabled || !lt.is_enabled}
+                      className="w-14 h-7 text-center text-sm px-1"
+                    />
+                    <span className="text-[10px] text-muted-foreground w-8">days</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeCustomType(globalIndex)}
+                    disabled={disabled}
+                    className="h-6 w-6 text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {!canAddMore && customTypes.length >= MAX_CUSTOM_TYPES && (
+          <p className="text-[10px] text-muted-foreground text-center pt-1">
+            Maximum {MAX_CUSTOM_TYPES} custom types allowed
+          </p>
+        )}
       </CollapsibleContent>
     </Collapsible>
   );
@@ -213,5 +266,6 @@ export function getDefaultLeaveTypesConfig(): LeaveTypeConfig[] {
     category: lt.category,
     default_days: lt.default_days,
     is_custom: false,
+    is_enabled: true,
   }));
 }
