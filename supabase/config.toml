@@ -230,3 +230,6 @@ verify_jwt = false
 
 [functions.save-org-structure-learning]
 verify_jwt = false
+
+[functions.send-pending-invitations]
+verify_jwt = false
