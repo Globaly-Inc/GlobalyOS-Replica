@@ -239,7 +239,10 @@ export function FeatureSelectionStep({ initialFeatures, onSave, onBack, isSaving
           onCheckedChange={() => toggleFeature(feature)}
           onClick={(e) => e.stopPropagation()}
           disabled={isDisabled}
-          className={cn(isDisabled && "opacity-50")}
+          className={cn(
+            feature.isCore && "opacity-50",
+            feature.comingSoon && "opacity-30 cursor-not-allowed"
+          )}
         />
       </div>
     );
