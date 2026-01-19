@@ -1,15 +1,17 @@
 /**
  * Organization Onboarding - Team Members Seeding Step
- * Enhanced with department/position dropdowns from previous steps
+ * Table format with owner profile at top (read-only) and editable team member rows
  */
 
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, ArrowRight, Users, Plus, Trash2, UserPlus, SkipForward, Check, AlertCircle, Loader2 } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, ArrowRight, Users, Plus, Trash2, SkipForward, Check, AlertCircle, Loader2, Crown } from 'lucide-react';
 import { useEmploymentTypes } from '@/hooks/useEmploymentTypes';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -34,9 +36,20 @@ interface DepartmentsRolesData {
   positions: Array<{ name: string; department: string }>;
 }
 
+interface OwnerProfileData {
+  position?: string;
+  department?: string;
+  join_date?: string;
+  avatar_url?: string;
+  office_id?: string;
+}
+
 interface TeamSeedingStepProps {
   initialMembers: TeamMember[];
   departmentsRoles?: DepartmentsRolesData;
+  ownerProfile?: OwnerProfileData;
+  ownerName: string;
+  ownerEmail: string;
   onSave: (members: TeamMember[]) => void;
   onBack: () => void;
   onSkip: () => void;
@@ -45,10 +58,10 @@ interface TeamSeedingStepProps {
 }
 
 const ROLES = [
-  { value: 'admin', label: 'Admin', description: 'Full access to all settings' },
-  { value: 'hr', label: 'HR', description: 'Manage employees and leave' },
-  { value: 'manager', label: 'Manager', description: 'Manage team members' },
-  { value: 'member', label: 'Member', description: 'Standard employee access' },
+  { value: 'admin', label: 'Admin' },
+  { value: 'hr', label: 'HR' },
+  { value: 'manager', label: 'Manager' },
+  { value: 'member', label: 'Member' },
 ];
 
 const emptyMember: TeamMember = {
@@ -64,6 +77,9 @@ const emptyMember: TeamMember = {
 export function TeamSeedingStep({ 
   initialMembers, 
   departmentsRoles,
+  ownerProfile,
+  ownerName,
+  ownerEmail,
   onSave, 
   onBack, 
   onSkip, 
@@ -84,6 +100,20 @@ export function TeamSeedingStep({
   // Get departments and positions from previous step
   const departments = departmentsRoles?.departments || [];
   const allPositions = departmentsRoles?.positions || [];
+
+  // Owner display helpers
+  const ownerInitials = useMemo(() => {
+    if (!ownerName) return '?';
+    const parts = ownerName.trim().split(' ');
+    return parts.length > 1 
+      ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+      : parts[0].substring(0, 2).toUpperCase();
+  }, [ownerName]);
+
+  const ownerOfficeName = useMemo(() => {
+    if (!ownerProfile?.office_id || !offices.length) return null;
+    return offices.find(o => o.id === ownerProfile.office_id)?.name;
+  }, [ownerProfile?.office_id, offices]);
 
   // Fetch offices created in previous step
   useEffect(() => {
@@ -113,7 +143,6 @@ export function TeamSeedingStep({
   const removeMember = (index: number) => {
     const member = members[index];
     setMembers(members.filter((_, i) => i !== index));
-    // Clear sending status for removed member
     if (member.email) {
       setSendingStatus(prev => {
         const newStatus = { ...prev };
@@ -126,17 +155,13 @@ export function TeamSeedingStep({
   const updateMember = (index: number, field: keyof TeamMember, value: string) => {
     setMembers(members.map((member, i) => {
       if (i !== index) return member;
-      
-      // If department changes, reset position
       if (field === 'department') {
         return { ...member, department: value, position: '' };
       }
-      
       return { ...member, [field]: value };
     }));
   };
 
-  // Get positions filtered by department for a specific member
   const getPositionsForMember = (memberDepartment: string) => {
     if (!memberDepartment) return allPositions;
     return allPositions.filter(p => p.department === memberDepartment);
@@ -149,7 +174,6 @@ export function TeamSeedingStep({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Filter out incomplete members
     const validMembers = members.filter(m => m.email && m.full_name && isValidEmail(m.email));
     
     if (validMembers.length === 0) {
@@ -160,14 +184,12 @@ export function TeamSeedingStep({
     setIsSending(true);
     const results = { success: [] as string[], failed: [] as string[] };
     
-    // Initialize all as pending
     const initialStatus: Record<string, 'pending' | 'success' | 'error'> = {};
     validMembers.forEach(m => {
       initialStatus[m.email] = 'pending';
     });
     setSendingStatus(initialStatus);
     
-    // Send invitations in parallel (batch of 3 to avoid rate limits)
     for (let i = 0; i < validMembers.length; i += 3) {
       const batch = validMembers.slice(i, i + 3);
       
@@ -190,7 +212,6 @@ export function TeamSeedingStep({
               organizationId,
               officeId: member.office_id || null,
               isNewHire: true,
-              // Required fields with defaults
               phone: '',
               street: '',
               city: '',
@@ -210,7 +231,6 @@ export function TeamSeedingStep({
       }));
     }
     
-    // Show results
     if (results.success.length > 0) {
       toast({
         title: `${results.success.length} invitation${results.success.length > 1 ? 's' : ''} sent!`,
@@ -232,6 +252,15 @@ export function TeamSeedingStep({
 
   const hasValidMembers = members.some(m => m.email && m.full_name && isValidEmail(m.email));
 
+  const renderStatusIcon = (email: string) => {
+    const status = sendingStatus[email];
+    if (!status) return null;
+    if (status === 'pending') return <Loader2 className="h-4 w-4 animate-spin text-primary" />;
+    if (status === 'success') return <Check className="h-4 w-4 text-green-500" />;
+    if (status === 'error') return <AlertCircle className="h-4 w-4 text-destructive" />;
+    return null;
+  };
+
   return (
     <Card className="border-0 shadow-lg">
       <CardHeader className="text-center pb-2">
@@ -244,92 +273,97 @@ export function TeamSeedingStep({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {members.length === 0 ? (
-            <div className="text-center py-8 border-2 border-dashed rounded-lg">
-              <UserPlus className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-              <p className="text-muted-foreground mb-4">
-                No team members added yet
-              </p>
-              <Button type="button" variant="outline" onClick={addMember}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Team Member
-              </Button>
-            </div>
-          ) : (
-            <>
-              {members.map((member, index) => {
-                const memberPositions = getPositionsForMember(member.department || '');
-                
-                return (
-                  <div
-                    key={index}
-                    className="p-4 rounded-lg border bg-muted/30 space-y-4 relative"
-                  >
-                    {/* Status indicator */}
-                    {sendingStatus[member.email] && (
-                      <div className="absolute top-4 right-12">
-                        {sendingStatus[member.email] === 'pending' && (
-                          <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                        )}
-                        {sendingStatus[member.email] === 'success' && (
-                          <Check className="h-4 w-4 text-green-500" />
-                        )}
-                        {sendingStatus[member.email] === 'error' && (
-                          <AlertCircle className="h-4 w-4 text-destructive" />
-                        )}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="overflow-x-auto rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  <TableHead className="w-[160px]">Name</TableHead>
+                  <TableHead className="w-[180px]">Email</TableHead>
+                  <TableHead className="w-[120px]">Office</TableHead>
+                  <TableHead className="w-[130px]">Department</TableHead>
+                  <TableHead className="w-[130px]">Position</TableHead>
+                  <TableHead className="w-[100px]">Type</TableHead>
+                  <TableHead className="w-[90px]">Role</TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {/* Owner Row - Read Only */}
+                <TableRow className="bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-7 w-7">
+                        <AvatarImage src={ownerProfile?.avatar_url} />
+                        <AvatarFallback className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">
+                          {ownerInitials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex items-center gap-1 min-w-0">
+                        <span className="font-medium text-sm truncate">{ownerName || 'You'}</span>
+                        <Crown className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
                       </div>
-                    )}
-                    
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-sm">Team Member {index + 1}</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeMember(index)}
-                        className="text-destructive hover:text-destructive"
-                        disabled={isSending}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
                     </div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-sm truncate max-w-[180px]">
+                    {ownerEmail}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-sm">
+                    {ownerOfficeName || '-'}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-sm">
+                    {ownerProfile?.department || '-'}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-sm">
+                    {ownerProfile?.position || '-'}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-sm">
+                    Employee
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300 text-xs">
+                      Owner
+                    </Badge>
+                  </TableCell>
+                  <TableCell></TableCell>
+                </TableRow>
 
-                    {/* Row 1: Name and Email */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Full Name *</Label>
+                {/* Editable Team Member Rows */}
+                {members.map((member, index) => {
+                  const memberPositions = getPositionsForMember(member.department || '');
+                  
+                  return (
+                    <TableRow key={index}>
+                      <TableCell className="p-2">
                         <Input
                           value={member.full_name}
                           onChange={(e) => updateMember(index, 'full_name', e.target.value)}
-                          placeholder="John Doe"
+                          placeholder="Full name"
+                          className="h-8 text-sm"
                           disabled={isSending}
                         />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Email *</Label>
-                        <Input
-                          type="email"
-                          value={member.email}
-                          onChange={(e) => updateMember(index, 'email', e.target.value)}
-                          placeholder="john@company.com"
-                          disabled={isSending}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Row 2: Office and Department */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Office</Label>
+                      </TableCell>
+                      <TableCell className="p-2">
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="email"
+                            value={member.email}
+                            onChange={(e) => updateMember(index, 'email', e.target.value)}
+                            placeholder="email@company.com"
+                            className="h-8 text-sm"
+                            disabled={isSending}
+                          />
+                          {renderStatusIcon(member.email)}
+                        </div>
+                      </TableCell>
+                      <TableCell className="p-2">
                         <Select
                           value={member.office_id || ''}
-                          onValueChange={(value) => updateMember(index, 'office_id', value)}
+                          onValueChange={(v) => updateMember(index, 'office_id', v)}
                           disabled={loadingOffices || isSending}
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder={loadingOffices ? "Loading..." : "Select office"} />
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue placeholder="Select" />
                           </SelectTrigger>
                           <SelectContent>
                             {offices.map((office) => (
@@ -339,17 +373,15 @@ export function TeamSeedingStep({
                             ))}
                           </SelectContent>
                         </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Department</Label>
+                      </TableCell>
+                      <TableCell className="p-2">
                         <Select
                           value={member.department || ''}
-                          onValueChange={(value) => updateMember(index, 'department', value)}
+                          onValueChange={(v) => updateMember(index, 'department', v)}
                           disabled={isSending}
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select department" />
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue placeholder="Select" />
                           </SelectTrigger>
                           <SelectContent>
                             {departments.length > 0 ? (
@@ -367,20 +399,15 @@ export function TeamSeedingStep({
                             )}
                           </SelectContent>
                         </Select>
-                      </div>
-                    </div>
-
-                    {/* Row 3: Position and Employment Type */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Position</Label>
+                      </TableCell>
+                      <TableCell className="p-2">
                         <Select
                           value={member.position || ''}
-                          onValueChange={(value) => updateMember(index, 'position', value)}
+                          onValueChange={(v) => updateMember(index, 'position', v)}
                           disabled={isSending}
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select position" />
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue placeholder="Select" />
                           </SelectTrigger>
                           <SelectContent>
                             {memberPositions.length > 0 ? (
@@ -398,17 +425,15 @@ export function TeamSeedingStep({
                             )}
                           </SelectContent>
                         </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Employment Type</Label>
+                      </TableCell>
+                      <TableCell className="p-2">
                         <Select
                           value={member.employment_type || ''}
-                          onValueChange={(value) => updateMember(index, 'employment_type', value)}
+                          onValueChange={(v) => updateMember(index, 'employment_type', v)}
                           disabled={loadingEmploymentTypes || isSending}
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder={loadingEmploymentTypes ? "Loading..." : "Select type"} />
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue placeholder="Select" />
                           </SelectTrigger>
                           <SelectContent>
                             {employmentTypes.map((type) => (
@@ -418,50 +443,55 @@ export function TeamSeedingStep({
                             ))}
                           </SelectContent>
                         </Select>
-                      </div>
-                    </div>
+                      </TableCell>
+                      <TableCell className="p-2">
+                        <Select
+                          value={member.role}
+                          onValueChange={(v: TeamMember['role']) => updateMember(index, 'role', v)}
+                          disabled={isSending}
+                        >
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ROLES.map((role) => (
+                              <SelectItem key={role.value} value={role.value}>
+                                {role.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell className="p-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeMember(index)}
+                          className="h-8 w-8 p-0"
+                          disabled={isSending}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
 
-                    {/* Row 4: Role */}
-                    <div className="space-y-2">
-                      <Label>Role</Label>
-                      <Select
-                        value={member.role}
-                        onValueChange={(value: TeamMember['role']) => updateMember(index, 'role', value)}
-                        disabled={isSending}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ROLES.map((role) => (
-                            <SelectItem key={role.value} value={role.value}>
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium">{role.label}</span>
-                                <span className="text-xs text-muted-foreground">
-                                  — {role.description}
-                                </span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                );
-              })}
-
-              <Button
-                type="button"
-                variant="outline"
-                onClick={addMember}
-                className="w-full"
-                disabled={isSending}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Another Team Member
-              </Button>
-            </>
-          )}
+          {/* Add Team Member Button */}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={addMember}
+            className="w-full"
+            disabled={isSending}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Team Member
+          </Button>
 
           <div className="flex gap-3 pt-4">
             <Button type="button" variant="outline" onClick={onBack} className="flex-1" disabled={isSending}>

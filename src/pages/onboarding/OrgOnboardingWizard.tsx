@@ -227,6 +227,9 @@ export default function OrgOnboardingWizard() {
           <TeamSeedingStep
             initialMembers={onboardingData?.team_members || []}
             departmentsRoles={onboardingData?.departments_roles}
+            ownerProfile={onboardingData?.owner_profile}
+            ownerName={session?.user?.user_metadata?.full_name || ''}
+            ownerEmail={session?.user?.email || ''}
             onSave={(team_members) => handleNext({ team_members })}
             onBack={handleBack}
             onSkip={() => handleNext({ team_members: [] })}
@@ -269,7 +272,10 @@ export default function OrgOnboardingWizard() {
 
       {/* Main content - adjust top padding for fixed header */}
       <main className="pt-48 pb-16 px-4">
-        <div className="max-w-2xl mx-auto">
+        <div className={cn(
+          "mx-auto",
+          getStepName(displayStep - 1) === 'team-members' ? 'max-w-5xl' : 'max-w-2xl'
+        )}>
           <div
             className={cn(
               "transition-all duration-300 ease-out",
