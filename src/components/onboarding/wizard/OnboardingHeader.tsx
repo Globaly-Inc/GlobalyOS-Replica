@@ -24,8 +24,8 @@ export function OnboardingHeader({
   return (
     <div className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b">
       <div className="max-w-6xl mx-auto px-4 py-3">
-        {/* Top row: Logo and Skip button */}
-        <div className="flex items-center justify-between mb-3">
+        {/* Top row: Logo */}
+        <div className="flex items-center mb-3">
           <div className="flex items-center gap-3">
             <img 
               src={globalyosIcon} 
@@ -34,16 +34,6 @@ export function OnboardingHeader({
             />
             <span className="font-semibold text-foreground">GlobalyOS Setup</span>
           </div>
-          
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onSkip}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-4 w-4 mr-1" />
-            Skip for now
-          </Button>
         </div>
         
         {/* Step indicator pills */}
