@@ -32,8 +32,10 @@ import {
   CalendarDays, 
   PartyPopper,
   MapPin,
-  Globe
+  Globe,
+  Info
 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -663,8 +665,8 @@ export function OfficesStep({
                                 </div>
                               </div>
 
-                              {/* Work Hours - Inline */}
-                              <div className="grid grid-cols-2 gap-3">
+                              {/* Work Hours - Inline with Late Threshold */}
+                              <div className="grid grid-cols-3 gap-3">
                                 <div className="space-y-1.5">
                                   <Label className="text-xs text-muted-foreground">Start Time</Label>
                                   <Input
@@ -706,10 +708,47 @@ export function OfficesStep({
                                     disabled={isLoading}
                                   />
                                 </div>
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                                    Late Threshold
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="max-w-[200px]">
+                                          <p>Minutes after start time before an employee is marked as late</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </Label>
+                                  <div className="flex items-center gap-2">
+                                    <Input
+                                      type="number"
+                                      min={0}
+                                      max={60}
+                                      value={firstDay?.schedule?.lateThreshold ?? 15}
+                                      onChange={(e) => {
+                                        if (firstDay) {
+                                          const newSchedules = { ...office.day_schedules };
+                                          Object.keys(newSchedules!).forEach(key => {
+                                            if (newSchedules![key].enabled) {
+                                              newSchedules![key] = { ...newSchedules![key], lateThreshold: parseInt(e.target.value, 10) || 0 };
+                                            }
+                                          });
+                                          updateOffice(index, 'day_schedules', newSchedules);
+                                        }
+                                      }}
+                                      className="h-9 w-20"
+                                      disabled={isLoading}
+                                    />
+                                    <span className="text-xs text-muted-foreground">mins</span>
+                                  </div>
+                                </div>
                               </div>
 
-                              {/* Break Time - Inline */}
-                              <div className="grid grid-cols-2 gap-3">
+                              {/* Break Time - Inline with Net Hours */}
+                              <div className="grid grid-cols-3 gap-3">
                                 <div className="space-y-1.5">
                                   <Label className="text-xs text-muted-foreground">Break Start</Label>
                                   <Input
@@ -750,30 +789,34 @@ export function OfficesStep({
                                     disabled={isLoading}
                                   />
                                 </div>
-                              </div>
-
-                              {/* Late Threshold */}
-                              <div className="space-y-1.5">
-                                <Label className="text-xs text-muted-foreground">Late Threshold (minutes)</Label>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  max={60}
-                                  value={firstDay?.schedule?.lateThreshold ?? 15}
-                                  onChange={(e) => {
-                                    if (firstDay) {
-                                      const newSchedules = { ...office.day_schedules };
-                                      Object.keys(newSchedules!).forEach(key => {
-                                        if (newSchedules![key].enabled) {
-                                          newSchedules![key] = { ...newSchedules![key], lateThreshold: parseInt(e.target.value, 10) || 0 };
-                                        }
-                                      });
-                                      updateOffice(index, 'day_schedules', newSchedules);
-                                    }
-                                  }}
-                                  className="h-9 w-24"
-                                  disabled={isLoading}
-                                />
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs text-muted-foreground">Net Working Hours</Label>
+                                  <div className="h-9 flex items-center">
+                                    <span className="text-sm font-medium text-foreground">
+                                      {(() => {
+                                        const start = firstDay?.schedule?.start || '09:00';
+                                        const end = firstDay?.schedule?.end || '17:00';
+                                        const breakStart = firstDay?.schedule?.breakStart || '12:00';
+                                        const breakEnd = firstDay?.schedule?.breakEnd || '13:00';
+                                        
+                                        const parseTime = (time: string) => {
+                                          const [hours, minutes] = time.split(':').map(Number);
+                                          return hours * 60 + minutes;
+                                        };
+                                        
+                                        const totalMinutes = parseTime(end) - parseTime(start);
+                                        const breakMinutes = parseTime(breakEnd) - parseTime(breakStart);
+                                        const netMinutes = Math.max(0, totalMinutes - breakMinutes);
+                                        
+                                        const hours = Math.floor(netMinutes / 60);
+                                        const mins = netMinutes % 60;
+                                        
+                                        if (mins === 0) return `${hours}h`;
+                                        return `${hours}h ${mins}m`;
+                                      })()}
+                                    </span>
+                                  </div>
+                                </div>
                               </div>
 
                               </>
