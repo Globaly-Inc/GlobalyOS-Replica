@@ -224,3 +224,9 @@ verify_jwt = false
 
 [functions.suggest-org-structure]
 verify_jwt = false
+
+[functions.suggest-positions]
+verify_jwt = false
+
+[functions.save-org-structure-learning]
+verify_jwt = false
