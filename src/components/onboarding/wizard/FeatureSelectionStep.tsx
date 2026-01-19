@@ -136,12 +136,14 @@ export const getDefaultEnabledFeatures = (): string[] => {
 
 export function FeatureSelectionStep({ initialFeatures, onSave, onBack, isSaving }: FeatureSelectionStepProps) {
   // Initialize with core features always included
-  const [enabledFeatures, setEnabledFeatures] = useState<Set<string>>(() => {
-    const initial = new Set(initialFeatures);
-    // Always ensure core features are enabled
-    FEATURES.filter(f => f.isCore).forEach(f => initial.add(f.id));
-    return initial;
-  });
+const [enabledFeatures, setEnabledFeatures] = useState<Set<string>>(() => {
+  const initial = new Set(initialFeatures);
+  // Always ensure core features are enabled
+  FEATURES.filter(f => f.isCore).forEach(f => initial.add(f.id));
+  // Always ensure coming soon features are disabled
+  FEATURES.filter(f => f.comingSoon).forEach(f => initial.delete(f.id));
+  return initial;
+});
 
   const toggleFeature = (feature: FeatureDefinition) => {
     // Cannot toggle core or coming soon features
