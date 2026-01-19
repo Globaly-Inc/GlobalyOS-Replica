@@ -72,7 +72,7 @@ export function AddressAutocomplete({
     try {
       const { data, error } = await supabase.functions.invoke('get-google-maps-key');
       
-      if (error || !data?.key) {
+      if (error || !data?.apiKey) {
         console.error('Failed to fetch Google Maps API key:', error);
         setIsLoading(false);
         return;
@@ -80,7 +80,7 @@ export function AddressAutocomplete({
 
       const script = document.createElement('script');
       script.id = 'google-maps-script';
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${data.key}&libraries=places&loading=async`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${data.apiKey}&libraries=places&loading=async`;
       script.async = true;
       script.defer = true;
       
