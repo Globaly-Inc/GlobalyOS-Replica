@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, ArrowRight, Sparkles, Plus, Trash2, Loader2, Building2, Users } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Sparkles, Plus, Trash2, Loader2, Building2, Users, CheckSquare, Square } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -332,32 +332,70 @@ export function DepartmentsRolesStep({
 
           {/* Positions Section */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-base font-semibold flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                Positions
-              </Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={suggestMorePositions}
-                disabled={isSuggestingPositions || selectedDepartments.size === 0}
-                className="gap-1.5"
-              >
-                {isSuggestingPositions ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Suggesting...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-3.5 w-3.5" />
-                    AI Suggest
-                  </>
-                )}
-              </Button>
-            </div>
+            {(() => {
+              const visiblePositions = positions.filter(p => selectedDepartments.has(p.department));
+              const allSelected = visiblePositions.length > 0 && visiblePositions.every(p => p.selected);
+              
+              const toggleSelectAll = () => {
+                const shouldSelectAll = !allSelected;
+                setPositions(positions.map(p => 
+                  selectedDepartments.has(p.department) 
+                    ? { ...p, selected: shouldSelectAll } 
+                    : p
+                ));
+              };
+
+              return (
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-semibold flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Positions
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={toggleSelectAll}
+                      disabled={visiblePositions.length === 0}
+                      className="gap-1.5"
+                    >
+                      {allSelected ? (
+                        <>
+                          <Square className="h-3.5 w-3.5" />
+                          Deselect All
+                        </>
+                      ) : (
+                        <>
+                          <CheckSquare className="h-3.5 w-3.5" />
+                          Select All
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={suggestMorePositions}
+                      disabled={isSuggestingPositions || selectedDepartments.size === 0}
+                      className="gap-1.5"
+                    >
+                      {isSuggestingPositions ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Suggesting...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-3.5 w-3.5" />
+                          AI Suggest
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })()}
             <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
               {positions.filter(p => selectedDepartments.has(p.department)).map((position, index) => (
                 <div 
