@@ -5440,12 +5440,14 @@ export type Database = {
           billing_cycle: string | null
           business_address: string | null
           business_address_components: Json | null
+          business_registration_number: string | null
           company_size: string | null
           country: string | null
           created_at: string
           early_checkout_reason_required: boolean | null
           id: string
           industry: string | null
+          legal_business_name: string | null
           logo_url: string | null
           max_day_in_lieu_days: number | null
           max_sessions_per_day: number | null
@@ -5473,12 +5475,14 @@ export type Database = {
           billing_cycle?: string | null
           business_address?: string | null
           business_address_components?: Json | null
+          business_registration_number?: string | null
           company_size?: string | null
           country?: string | null
           created_at?: string
           early_checkout_reason_required?: boolean | null
           id?: string
           industry?: string | null
+          legal_business_name?: string | null
           logo_url?: string | null
           max_day_in_lieu_days?: number | null
           max_sessions_per_day?: number | null
@@ -5506,12 +5510,14 @@ export type Database = {
           billing_cycle?: string | null
           business_address?: string | null
           business_address_components?: Json | null
+          business_registration_number?: string | null
           company_size?: string | null
           country?: string | null
           created_at?: string
           early_checkout_reason_required?: boolean | null
           id?: string
           industry?: string | null
+          legal_business_name?: string | null
           logo_url?: string | null
           max_day_in_lieu_days?: number | null
           max_sessions_per_day?: number | null
