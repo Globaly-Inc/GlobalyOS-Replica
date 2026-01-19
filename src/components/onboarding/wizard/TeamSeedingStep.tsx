@@ -95,7 +95,7 @@ export function TeamSeedingStep({
   const [offices, setOffices] = useState<Office[]>([]);
   const [loadingOffices, setLoadingOffices] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  const [sendingStatus, setSendingStatus] = useState<Record<string, 'pending' | 'success' | 'error'>>({});
+  const [sendingStatus, setSendingStatus] = useState<Record<string, 'pending' | 'success' | 'error' | 'skipped'>>({});
 
   // Get departments and positions from previous step
   const departments = departmentsRoles?.departments || [];
@@ -182,9 +182,9 @@ export function TeamSeedingStep({
     }
     
     setIsSending(true);
-    const results = { success: [] as string[], failed: [] as string[] };
+    const results = { success: [] as string[], failed: [] as string[], skipped: [] as string[] };
     
-    const initialStatus: Record<string, 'pending' | 'success' | 'error'> = {};
+    const initialStatus: Record<string, 'pending' | 'success' | 'error' | 'skipped'> = {};
     validMembers.forEach(m => {
       initialStatus[m.email] = 'pending';
     });
@@ -199,7 +199,7 @@ export function TeamSeedingStep({
           const firstName = nameParts[0] || '';
           const lastName = nameParts.slice(1).join(' ') || '';
           
-          const { error } = await supabase.functions.invoke('invite-team-member', {
+          const { data, error } = await supabase.functions.invoke('invite-team-member', {
             body: {
               email: member.email.trim().toLowerCase(),
               fullName: member.full_name.trim(),
@@ -220,7 +220,16 @@ export function TeamSeedingStep({
             }
           });
           
+          // Check for user already exists (409 or code USER_EXISTS)
+          if (data?.code === 'USER_EXISTS' || data?.skipped) {
+            results.skipped.push(member.email);
+            setSendingStatus(prev => ({ ...prev, [member.email]: 'skipped' }));
+            return;
+          }
+          
           if (error) throw error;
+          if (data?.error) throw new Error(data.error);
+          
           results.success.push(member.email);
           setSendingStatus(prev => ({ ...prev, [member.email]: 'success' }));
         } catch (err) {
@@ -235,6 +244,13 @@ export function TeamSeedingStep({
       toast({
         title: `${results.success.length} invitation${results.success.length > 1 ? 's' : ''} sent!`,
         description: 'Team members will receive an email with login instructions.',
+      });
+    }
+    
+    if (results.skipped.length > 0) {
+      toast({
+        title: `${results.skipped.length} user${results.skipped.length > 1 ? 's' : ''} already exist`,
+        description: 'These emails are already registered and were skipped.',
       });
     }
     
@@ -257,6 +273,7 @@ export function TeamSeedingStep({
     if (!status) return null;
     if (status === 'pending') return <Loader2 className="h-4 w-4 animate-spin text-primary" />;
     if (status === 'success') return <Check className="h-4 w-4 text-green-500" />;
+    if (status === 'skipped') return <SkipForward className="h-4 w-4 text-amber-500" />;
     if (status === 'error') return <AlertCircle className="h-4 w-4 text-destructive" />;
     return null;
   };

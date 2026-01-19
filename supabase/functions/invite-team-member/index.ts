@@ -170,7 +170,7 @@ serve(async (req: Request) => {
       success: true,
     });
 
-    // Check if user already exists
+    // Check if user already exists in profiles table
     const { data: existingProfile } = await supabase
       .from('profiles')
       .select('id')
@@ -178,9 +178,32 @@ serve(async (req: Request) => {
       .single();
 
     if (existingProfile) {
+      console.log('User already exists in profiles:', normalizedEmail);
       return new Response(
-        JSON.stringify({ error: 'A user with this email already exists' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          error: 'A user with this email already exists',
+          code: 'USER_EXISTS',
+          skipped: true
+        }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Also check auth.users table for existing users
+    const { data: existingAuthUsers } = await supabase.auth.admin.listUsers();
+    const existingAuthUser = existingAuthUsers?.users?.find(
+      u => u.email?.toLowerCase() === normalizedEmail
+    );
+
+    if (existingAuthUser) {
+      console.log('User already exists in auth:', normalizedEmail);
+      return new Response(
+        JSON.stringify({ 
+          error: 'A user with this email already exists',
+          code: 'USER_EXISTS',
+          skipped: true
+        }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
