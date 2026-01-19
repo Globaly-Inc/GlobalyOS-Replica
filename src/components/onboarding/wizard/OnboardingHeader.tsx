@@ -36,40 +36,40 @@ export function OnboardingHeader({
           </div>
         </div>
         
-        {/* Step indicator pills - centered with horizontal scroll */}
-        <div className="flex justify-center">
-          <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none max-w-full">
+        {/* Step indicator pills - all visible without scroll */}
+        <div className="flex justify-center w-full px-2">
+          <div className="flex items-center gap-0.5 justify-center flex-wrap">
             {stepNames.map((name, index) => {
               const stepNumber = index + 1;
               const isCompleted = stepNumber < currentStep;
               const isCurrent = stepNumber === currentStep;
               
               return (
-                <div key={index} className="flex items-center flex-shrink-0">
+                <div key={index} className="flex items-center">
                   <div
                     className={cn(
-                      'flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all',
+                      'flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all',
                       isCompleted && 'bg-primary/10 text-primary',
                       isCurrent && 'bg-primary text-primary-foreground',
                       !isCompleted && !isCurrent && 'bg-muted text-muted-foreground'
                     )}
                   >
                     {isCompleted ? (
-                      <Check className="h-3.5 w-3.5" />
+                      <Check className="h-3 w-3" />
                     ) : (
                       <span className={cn(
-                        'w-5 h-5 rounded-full flex items-center justify-center text-xs',
+                        'w-4 h-4 rounded-full flex items-center justify-center text-[10px]',
                         isCurrent ? 'bg-primary-foreground/20' : 'bg-muted-foreground/20'
                       )}>
                         {stepNumber}
                       </span>
                     )}
-                    <span className="hidden sm:inline">{name}</span>
+                    <span>{name}</span>
                   </div>
                   
                   {index < stepNames.length - 1 && (
                     <div className={cn(
-                      'w-4 h-0.5 mx-1 flex-shrink-0',
+                      'w-2 h-0.5 mx-0.5',
                       isCompleted ? 'bg-primary/50' : 'bg-muted'
                     )} />
                   )}
@@ -77,11 +77,6 @@ export function OnboardingHeader({
               );
             })}
           </div>
-        </div>
-        
-        {/* Progress text for mobile */}
-        <div className="sm:hidden text-center text-xs text-muted-foreground mt-2">
-          Step {currentStep} of {totalSteps}: {stepNames[currentStep - 1]}
         </div>
       </div>
     </div>
