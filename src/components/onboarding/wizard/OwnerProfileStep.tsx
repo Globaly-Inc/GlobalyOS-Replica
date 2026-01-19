@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { ImageCropper } from '@/components/ui/image-cropper';
 import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -71,6 +72,9 @@ export function OwnerProfileStep({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [selectedImageSrc, setSelectedImageSrc] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [formData, setFormData] = useState({
     position: initialData?.position || '',
     department: initialData?.department || '',
@@ -135,51 +139,92 @@ export function OwnerProfileStep({
     fetchExistingData();
   }, [session?.user?.id, organizationId]);
 
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+  const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+  const validateFile = (file: File): boolean => {
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      toast({
+        title: 'Invalid file type',
+        description: 'Please upload JPEG, PNG, or WebP image',
+        variant: 'destructive',
+      });
+      return false;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      toast({
+        title: 'File too large',
+        description: 'Please select an image under 5MB',
+        variant: 'destructive',
+      });
+      return false;
+    }
+    return true;
+  };
+
+  const handleFileSelect = (file: File) => {
+    if (!validateFile(file)) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setSelectedImageSrc(e.target?.result as string);
+      setCropperOpen(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
   };
 
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (file) handleFileSelect(file);
+    // Reset input for re-selection
+    if (e.target) e.target.value = '';
+  };
 
-    // Validate file
-    if (!file.type.startsWith('image/')) {
-      toast({
-        title: 'Invalid file type',
-        description: 'Please select an image file.',
-        variant: 'destructive',
-      });
-      return;
-    }
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: 'File too large',
-        description: 'Please select an image under 5MB.',
-        variant: 'destructive',
-      });
-      return;
-    }
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
 
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileSelect(file);
+  };
+
+  const handleCropComplete = async (blob: Blob) => {
+    if (!session?.user?.id) return;
+    
     setIsUploadingAvatar(true);
-
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${session?.user?.id}-${Date.now()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
-
+      const userId = session.user.id;
+      // Use userId as first folder to match RLS policy
+      const filePath = `${userId}/avatar-${Date.now()}.png`;
+      
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, file, { upsert: true });
-
+        .upload(filePath, blob, {
+          contentType: 'image/png',
+          upsert: true,
+        });
+      
       if (uploadError) throw uploadError;
-
+      
       const { data: urlData } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath);
-
-      setFormData(prev => ({ ...prev, avatar_url: urlData.publicUrl }));
+      
+      const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+      setFormData(prev => ({ ...prev, avatar_url: publicUrl }));
       
       toast({
         title: 'Photo uploaded',
@@ -332,18 +377,24 @@ export function OwnerProfileStep({
 
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Avatar Upload */}
+          {/* Avatar Upload with Drag-Drop */}
           <div className="flex flex-col items-center gap-3">
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               onChange={handleAvatarChange}
               className="hidden"
             />
             <div 
-              className="relative cursor-pointer group"
+              className={cn(
+                "relative cursor-pointer group rounded-full",
+                isDragging && "ring-2 ring-primary ring-offset-2"
+              )}
               onClick={handleAvatarClick}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
             >
               <Avatar className="h-24 w-24 border-4 border-background shadow-lg">
                 <AvatarImage src={formData.avatar_url} alt="Profile" />
@@ -369,7 +420,19 @@ export function OwnerProfileStep({
               <Upload className="h-4 w-4 mr-2" />
               {formData.avatar_url ? 'Change Photo' : 'Upload Photo'}
             </Button>
+            <p className="text-xs text-muted-foreground">
+              Click or drag to upload. Max 5MB
+            </p>
           </div>
+
+          {/* Image Cropper Dialog */}
+          <ImageCropper
+            open={cropperOpen}
+            onOpenChange={setCropperOpen}
+            imageSrc={selectedImageSrc || ''}
+            onCropComplete={handleCropComplete}
+            cropShape="circle"
+          />
 
           <div className="grid gap-4 sm:grid-cols-2">
             {/* Department Select */}
