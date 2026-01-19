@@ -776,22 +776,6 @@ export function OfficesStep({
                                 />
                               </div>
 
-                              {/* Public Holidays Toggle */}
-                              <div className="flex items-center gap-2 pt-2">
-                                <Switch
-                                  id={`holidays-${index}`}
-                                  checked={office.public_holidays_enabled ?? true}
-                                  onCheckedChange={(v) => updateOffice(index, 'public_holidays_enabled', v)}
-                                  disabled={isLoading}
-                                />
-                                <Label 
-                                  htmlFor={`holidays-${index}`}
-                                  className="text-sm cursor-pointer flex items-center gap-1.5"
-                                >
-                                  <PartyPopper className="h-3.5 w-3.5 text-muted-foreground" />
-                                  Observe Public Holidays
-                                </Label>
-                              </div>
                               </>
                               )}
                             </div>
