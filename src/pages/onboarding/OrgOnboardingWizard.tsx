@@ -31,8 +31,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 const TOTAL_STEPS = 8;
 const STEP_NAMES = [
   'Welcome',
-  'Your Profile',
   'Organization',
+  'Your Profile',
   'Offices',
   'Team',
   'Features',
@@ -164,21 +164,22 @@ export default function OrgOnboardingWizard() {
             onContinue={() => handleNext()}
           />
         );
-      case 'owner-profile':
-        return (
-          <OwnerProfileStep
-            organizationId={currentOrg?.id || ''}
-            initialData={onboardingData?.owner_profile}
-            onSave={(data) => handleNext({ owner_profile: data })}
-            onBack={handleBack}
-            isSaving={saveStep.isPending}
-          />
-        );
       case 'organization-info':
         return (
           <OrgInfoStep
             initialData={onboardingData?.organization_info}
             onSave={(data) => handleNext({ organization_info: data })}
+            onBack={handleBack}
+            isSaving={saveStep.isPending}
+          />
+        );
+      case 'owner-profile':
+        return (
+          <OwnerProfileStep
+            organizationId={currentOrg?.id || ''}
+            industry={onboardingData?.organization_info?.industry}
+            initialData={onboardingData?.owner_profile}
+            onSave={(data) => handleNext({ owner_profile: data })}
             onBack={handleBack}
             isSaving={saveStep.isPending}
           />
