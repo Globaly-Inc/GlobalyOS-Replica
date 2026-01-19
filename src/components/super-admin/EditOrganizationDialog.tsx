@@ -37,19 +37,83 @@ const COMPANY_SIZE_OPTIONS = [
   { value: '1000+', label: '1000+ employees' },
 ];
 
-const INDUSTRY_OPTIONS = [
+const BUSINESS_CATEGORY_OPTIONS = [
+  // Technology & IT
   { value: 'technology', label: 'Technology' },
-  { value: 'healthcare', label: 'Healthcare' },
-  { value: 'finance', label: 'Finance & Banking' },
+  { value: 'it_services', label: 'IT Services & Consulting' },
+  { value: 'software_development', label: 'Software Development' },
+  { value: 'cybersecurity', label: 'Cybersecurity' },
+  { value: 'data_analytics', label: 'Data & Analytics' },
+  
+  // Professional Services
+  { value: 'professional_services', label: 'Professional Services' },
+  { value: 'legal_firm', label: 'Legal Firm' },
+  { value: 'tax_accounting', label: 'Tax & Accounting Firm' },
+  { value: 'management_consulting', label: 'Management Consulting' },
+  { value: 'hr_consulting', label: 'HR Consulting' },
+  { value: 'business_consulting', label: 'Business Consulting' },
+  
+  // Education
   { value: 'education', label: 'Education' },
-  { value: 'retail', label: 'Retail & E-commerce' },
-  { value: 'manufacturing', label: 'Manufacturing' },
-  { value: 'consulting', label: 'Consulting' },
-  { value: 'media', label: 'Media & Entertainment' },
+  { value: 'education_consultancy', label: 'Education Consultancy' },
+  { value: 'training_coaching', label: 'Training & Coaching' },
+  { value: 'elearning', label: 'E-Learning' },
+  
+  // Immigration & Legal
+  { value: 'migration_agency', label: 'Migration Agency' },
+  { value: 'immigration_services', label: 'Immigration Services' },
+  
+  // Healthcare
+  { value: 'healthcare', label: 'Healthcare' },
+  { value: 'medical_practice', label: 'Medical Practice' },
+  { value: 'dental_practice', label: 'Dental Practice' },
+  { value: 'allied_health', label: 'Allied Health Services' },
+  { value: 'pharmacy', label: 'Pharmacy' },
+  { value: 'mental_health', label: 'Mental Health Services' },
+  
+  // Finance
+  { value: 'finance', label: 'Finance & Banking' },
+  { value: 'insurance', label: 'Insurance' },
+  { value: 'financial_advisory', label: 'Financial Advisory' },
+  { value: 'wealth_management', label: 'Wealth Management' },
+  { value: 'fintech', label: 'Fintech' },
+  
+  // Real Estate & Property
   { value: 'real_estate', label: 'Real Estate' },
+  { value: 'property_management', label: 'Property Management' },
+  { value: 'construction', label: 'Construction' },
+  { value: 'architecture_design', label: 'Architecture & Design' },
+  
+  // Retail & Commerce
+  { value: 'retail', label: 'Retail & E-commerce' },
+  { value: 'wholesale', label: 'Wholesale & Distribution' },
+  
+  // Manufacturing & Industry
+  { value: 'manufacturing', label: 'Manufacturing' },
+  { value: 'logistics', label: 'Logistics & Supply Chain' },
+  { value: 'automotive', label: 'Automotive' },
+  
+  // Creative & Media
+  { value: 'media', label: 'Media & Entertainment' },
+  { value: 'advertising', label: 'Advertising & Marketing' },
+  { value: 'design_agency', label: 'Design Agency' },
+  { value: 'digital_marketing', label: 'Digital Marketing' },
+  
+  // Hospitality & Travel
   { value: 'hospitality', label: 'Hospitality' },
+  { value: 'travel_tourism', label: 'Travel & Tourism' },
+  { value: 'food_beverage', label: 'Food & Beverage' },
+  { value: 'event_management', label: 'Event Management' },
+  
+  // Other Sectors
   { value: 'nonprofit', label: 'Non-profit' },
   { value: 'government', label: 'Government' },
+  { value: 'agriculture', label: 'Agriculture' },
+  { value: 'energy_utilities', label: 'Energy & Utilities' },
+  { value: 'telecommunications', label: 'Telecommunications' },
+  { value: 'transportation', label: 'Transportation' },
+  { value: 'sports_recreation', label: 'Sports & Recreation' },
+  { value: 'religious', label: 'Religious Organization' },
   { value: 'other', label: 'Other' },
 ];
 
@@ -209,16 +273,16 @@ export const EditOrganizationDialog = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="industry">Industry</Label>
+              <Label htmlFor="industry">Business Category</Label>
               <Select
                 value={formData.industry}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, industry: value }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select industry" />
+                  <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {INDUSTRY_OPTIONS.map(option => (
+                  {BUSINESS_CATEGORY_OPTIONS.map(option => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>
