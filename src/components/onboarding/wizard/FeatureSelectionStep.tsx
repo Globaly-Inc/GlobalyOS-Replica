@@ -15,6 +15,7 @@ import {
   Users, 
   Calendar, 
   FileText, 
+  MessageSquare,
   PieChart, 
   Clock,
   GitBranch,
@@ -82,6 +83,13 @@ const FEATURES: FeatureDefinition[] = [
     icon: FileText,
     defaultEnabled: true,
   },
+  {
+    id: 'kpi',
+    name: 'KPI & Performance Reviews',
+    description: 'Track goals, key results, and performance metrics',
+    icon: PieChart,
+    defaultEnabled: true,
+  },
   // Coming Soon Features - Gated by Super Admin
   {
     id: 'tasks',
@@ -93,11 +101,13 @@ const FEATURES: FeatureDefinition[] = [
     defaultEnabled: false,
   },
   {
-    id: 'kpi',
-    name: 'KPI & Performance Reviews',
-    description: 'Track goals, key results, and performance metrics',
-    icon: PieChart,
-    defaultEnabled: true,
+    id: 'chat',
+    name: 'Team Chat',
+    description: 'Real-time messaging with spaces and direct messages',
+    icon: MessageSquare,
+    comingSoon: true,
+    featureFlag: 'chat',
+    defaultEnabled: false,
   },
   {
     id: 'workflows',
