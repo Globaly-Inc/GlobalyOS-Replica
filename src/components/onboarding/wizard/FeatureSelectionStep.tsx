@@ -137,7 +137,10 @@ export const getDefaultEnabledFeatures = (): string[] => {
 export function FeatureSelectionStep({ initialFeatures, onSave, onBack, isSaving }: FeatureSelectionStepProps) {
   // Initialize with core features always included
 const [enabledFeatures, setEnabledFeatures] = useState<Set<string>>(() => {
-  const initial = new Set(initialFeatures);
+  // If no initial features provided, use defaults
+  const initial = initialFeatures.length > 0 
+    ? new Set(initialFeatures)
+    : new Set(getDefaultEnabledFeatures());
   // Always ensure core features are enabled
   FEATURES.filter(f => f.isCore).forEach(f => initial.add(f.id));
   // Always ensure coming soon features are disabled
