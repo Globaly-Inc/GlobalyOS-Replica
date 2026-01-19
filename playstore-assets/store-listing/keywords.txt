@@ -1,0 +1,68 @@
+# ASO Keywords for GlobalyOS
+# Use these in your title, short description, and full description for better discoverability
+
+## Primary Keywords (High Priority)
+- HRMS
+- HR software
+- employee management
+- attendance tracking
+- leave management
+- team chat
+- business communication
+- knowledge base
+- wiki software
+- performance management
+- KPI tracking
+- OKR software
+
+## Secondary Keywords (Medium Priority)
+- employee directory
+- QR attendance
+- time tracking
+- team collaboration
+- internal communication
+- document management
+- performance review
+- goal tracking
+- business productivity
+- workforce management
+- HR app
+- team management
+
+## Long-tail Keywords
+- employee attendance app
+- team communication platform
+- business knowledge management
+- performance review software
+- leave request app
+- employee self service
+- company wiki
+- team directory app
+- HR management system
+- business operating system
+
+## Competitor Keywords
+- Slack alternative
+- Teams alternative
+- Notion alternative
+- BambooHR alternative
+- Monday.com alternative
+- Confluence alternative
+
+## Feature-specific Keywords
+- QR code check in
+- one tap attendance
+- AI assistant
+- real-time chat
+- push notifications
+- mobile HR
+- offline access
+
+## Industry Keywords
+- enterprise software
+- SaaS
+- B2B app
+- startup tools
+- SMB software
+- remote work tools
+- hybrid workplace

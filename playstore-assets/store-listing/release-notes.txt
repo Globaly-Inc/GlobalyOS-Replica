@@ -1,0 +1,29 @@
+Version 1.0.0 - Initial Release
+
+🎉 Welcome to GlobalyOS!
+
+Your complete Business Operating System is here. This release includes:
+
+PEOPLE MANAGEMENT
+• Employee directory with detailed profiles
+• QR code attendance check-in/out
+• Leave request and approval workflows
+• Performance reviews and KPIs/OKRs
+• Organization chart visualization
+
+TEAM COMMUNICATION
+• Real-time team chat with channels
+• Social feed with posts, wins, and kudos
+• @mentions and push notifications
+
+KNOWLEDGE BASE
+• Collaborative wiki documentation
+• Folder organization with file attachments
+• AI-powered Q&A across your knowledge base
+
+CALENDAR
+• Company event management
+• Holiday scheduling by location
+• Team calendar integration
+
+We'd love your feedback! Contact us at support@globalyos.com
