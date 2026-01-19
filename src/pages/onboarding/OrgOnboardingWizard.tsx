@@ -246,7 +246,7 @@ export default function OrgOnboardingWizard() {
       />
 
       {/* Main content - adjust top padding for fixed header */}
-      <main className="pt-40 pb-16 px-4">
+      <main className="pt-48 pb-16 px-4">
         <div className="max-w-2xl mx-auto">
           <div
             className={cn(
