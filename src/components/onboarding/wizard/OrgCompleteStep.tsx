@@ -17,10 +17,21 @@ interface TeamMember {
   role?: string;
 }
 
+interface Office {
+  id?: string;
+  name: string;
+  public_holidays_enabled?: boolean;
+  address_components?: {
+    country_code?: string;
+  };
+}
+
 interface OrgCompleteStepProps {
   orgName: string;
   teamMembersCount: number;
   teamMembers: TeamMember[];
+  offices?: Office[];
+  employeeId?: string;
   organizationId: string;
   onFinish: () => void;
   onBack: () => void;
@@ -31,6 +42,8 @@ export function OrgCompleteStep({
   orgName, 
   teamMembersCount, 
   teamMembers,
+  offices,
+  employeeId,
   organizationId,
   onFinish, 
   onBack, 
@@ -50,6 +63,8 @@ export function OrgCompleteStep({
         teamMembersCount={teamMembersCount}
         organizationId={organizationId}
         teamMembers={teamMembers}
+        offices={offices}
+        employeeId={employeeId}
         onComplete={onFinish}
       />
     );

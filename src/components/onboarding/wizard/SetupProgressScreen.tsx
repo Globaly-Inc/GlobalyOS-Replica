@@ -16,6 +16,15 @@ interface SetupTask {
   action?: () => Promise<void>;
 }
 
+interface Office {
+  id?: string;
+  name: string;
+  public_holidays_enabled?: boolean;
+  address_components?: {
+    country_code?: string;
+  };
+}
+
 interface SetupProgressScreenProps {
   orgName: string;
   teamMembersCount: number;
@@ -27,6 +36,8 @@ interface SetupProgressScreenProps {
     department?: string;
     role?: string;
   }>;
+  offices?: Office[];
+  employeeId?: string;
   onComplete: () => void;
 }
 
@@ -35,11 +46,45 @@ export function SetupProgressScreen({
   teamMembersCount,
   organizationId,
   teamMembers,
+  offices = [],
+  employeeId,
   onComplete,
 }: SetupProgressScreenProps) {
   const [completedTasks, setCompletedTasks] = useState<string[]>([]);
   const [currentTask, setCurrentTask] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+
+  // Check if any offices have public holidays enabled
+  const officesWithHolidays = offices.filter(o => o.public_holidays_enabled && o.address_components?.country_code);
+  const hasOfficesWithPublicHolidays = officesWithHolidays.length > 0;
+
+  // Setup public holidays for offices
+  const setupPublicHolidays = useCallback(async () => {
+    if (!hasOfficesWithPublicHolidays || !employeeId) return;
+
+    try {
+      console.log(`Setting up public holidays for ${officesWithHolidays.length} offices...`);
+      const { data, error } = await supabase.functions.invoke('setup-public-holidays', {
+        body: {
+          organizationId,
+          offices: officesWithHolidays.map(o => ({
+            id: o.id,
+            countryCode: o.address_components?.country_code,
+          })),
+          createdBy: employeeId,
+        },
+      });
+
+      if (error) {
+        console.error('Failed to setup public holidays:', error);
+      } else {
+        console.log('Public holidays setup result:', data);
+      }
+    } catch (err) {
+      console.error('Failed to setup public holidays:', err);
+      // Non-blocking - continue with setup
+    }
+  }, [organizationId, officesWithHolidays, employeeId, hasOfficesWithPublicHolidays]);
 
   // Send invitation emails
   const sendInvitations = useCallback(async () => {
@@ -71,11 +116,18 @@ export function SetupProgressScreen({
     }
   }, [organizationId, teamMembers]);
 
-  // Define tasks dynamically based on teamMembersCount
+  // Define tasks dynamically based on configuration
   const tasks: SetupTask[] = [
     { id: 'org', label: 'Finalizing organization settings' },
     { id: 'depts', label: 'Configuring departments and roles' },
     { id: 'offices', label: 'Setting up offices' },
+    ...(hasOfficesWithPublicHolidays
+      ? [{
+          id: 'holidays',
+          label: 'Setting up public holidays',
+          action: setupPublicHolidays,
+        }]
+      : []),
     ...(teamMembersCount > 0
       ? [{
           id: 'invites',
