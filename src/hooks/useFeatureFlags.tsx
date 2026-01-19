@@ -2,13 +2,15 @@ import { useState, useEffect, createContext, useContext, ReactNode } from "react
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "./useOrganization";
 
-// Known feature flags
-export type FeatureName = "chat" | "tasks" | "crm";
+// Known feature flags - these are Super Admin gated features
+export type FeatureName = "chat" | "tasks" | "crm" | "workflows" | "payroll";
 
 interface FeatureFlags {
   chat: boolean;
   tasks: boolean;
   crm: boolean;
+  workflows: boolean;
+  payroll: boolean;
 }
 
 interface FeatureFlagsContextType {
@@ -22,6 +24,8 @@ const defaultFlags: FeatureFlags = {
   chat: false,
   tasks: false,
   crm: false,
+  workflows: false,
+  payroll: false,
 };
 
 const FeatureFlagsContext = createContext<FeatureFlagsContextType | undefined>(undefined);

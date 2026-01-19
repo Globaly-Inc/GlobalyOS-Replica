@@ -240,7 +240,7 @@ export default function OrgOnboardingWizard() {
       case 'features':
         return (
           <FeatureSelectionStep
-            initialFeatures={onboardingData?.enabled_features || ['hr', 'leave', 'feed', 'wiki', 'chat']}
+            initialFeatures={onboardingData?.enabled_features || ['hr', 'feed', 'attendance', 'leave', 'wiki']}
             onSave={(enabled_features) => handleNext({ enabled_features })}
             onBack={handleBack}
             isSaving={saveStep.isPending || isAdvancing}
