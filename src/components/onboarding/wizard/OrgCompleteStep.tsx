@@ -1,20 +1,60 @@
 /**
  * Organization Onboarding - Complete Step
+ * Shows summary before setup, then animated progress screen on completion
  */
 
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle2, ArrowRight, ArrowLeft, Users, Sparkles } from 'lucide-react';
+import { SetupProgressScreen } from './SetupProgressScreen';
+
+interface TeamMember {
+  email: string;
+  full_name: string;
+  position?: string;
+  department?: string;
+  role?: string;
+}
 
 interface OrgCompleteStepProps {
   orgName: string;
   teamMembersCount: number;
+  teamMembers: TeamMember[];
+  organizationId: string;
   onFinish: () => void;
   onBack: () => void;
   isCompleting: boolean;
 }
 
-export function OrgCompleteStep({ orgName, teamMembersCount, onFinish, onBack, isCompleting }: OrgCompleteStepProps) {
+export function OrgCompleteStep({ 
+  orgName, 
+  teamMembersCount, 
+  teamMembers,
+  organizationId,
+  onFinish, 
+  onBack, 
+  isCompleting 
+}: OrgCompleteStepProps) {
+  const [isSettingUp, setIsSettingUp] = useState(false);
+
+  const handleCompleteSetup = () => {
+    setIsSettingUp(true);
+  };
+
+  // Show animated progress screen when setup is triggered
+  if (isSettingUp) {
+    return (
+      <SetupProgressScreen
+        orgName={orgName}
+        teamMembersCount={teamMembersCount}
+        organizationId={organizationId}
+        teamMembers={teamMembers}
+        onComplete={onFinish}
+      />
+    );
+  }
+
   return (
     <Card className="border-0 shadow-lg">
       <CardHeader className="text-center pb-2">
@@ -55,7 +95,7 @@ export function OrgCompleteStep({ orgName, teamMembersCount, onFinish, onBack, i
             Back
           </Button>
           <Button 
-            onClick={onFinish} 
+            onClick={handleCompleteSetup} 
             disabled={isCompleting} 
             className="flex-1 h-12 text-base" 
             size="lg"
