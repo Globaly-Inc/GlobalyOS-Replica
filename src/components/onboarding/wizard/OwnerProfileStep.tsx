@@ -48,6 +48,7 @@ interface OwnerProfileStepProps {
     join_date?: string;
     date_of_birth?: string;
     avatar_url?: string;
+    office_id?: string;
   };
   onSave: (data: {
     position: string;
@@ -55,6 +56,7 @@ interface OwnerProfileStepProps {
     join_date: string;
     date_of_birth: string | null;
     avatar_url: string | null;
+    office_id: string | null;
   }) => void;
   onBack: () => void;
   isSaving: boolean;
@@ -109,7 +111,7 @@ export function OwnerProfileStep({
     );
   }, [filteredPositions, positionSearch]);
 
-  // Fetch existing employee data if available
+  // Fetch existing employee data and avatar fallback
   useEffect(() => {
     async function fetchExistingData() {
       if (!session?.user?.id || !organizationId) {
@@ -125,14 +127,30 @@ export function OwnerProfileStep({
           .eq('organization_id', organizationId)
           .maybeSingle();
 
+        // Also fetch avatar from profiles table as fallback
+        let avatarUrl = initialData?.avatar_url || '';
+        if (!avatarUrl) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('avatar_url')
+            .eq('id', session.user.id)
+            .maybeSingle();
+          
+          if (profile?.avatar_url) {
+            avatarUrl = profile.avatar_url;
+          }
+        }
+
         if (employee) {
           setFormData({
             position: employee.position || '',
             department: employee.department || '',
             join_date: employee.join_date || new Date().toISOString().split('T')[0],
             date_of_birth: employee.date_of_birth || '',
-            avatar_url: initialData?.avatar_url || '',
+            avatar_url: avatarUrl,
           });
+        } else if (avatarUrl) {
+          setFormData(prev => ({ ...prev, avatar_url: avatarUrl }));
         }
       } catch (error) {
         console.error('Failed to fetch employee data:', error);
@@ -142,7 +160,7 @@ export function OwnerProfileStep({
     }
 
     fetchExistingData();
-  }, [session?.user?.id, organizationId]);
+  }, [session?.user?.id, organizationId, initialData?.avatar_url]);
 
   // Fetch offices for selection
   useEffect(() => {
@@ -159,8 +177,10 @@ export function OwnerProfileStep({
         if (error) throw error;
         setOffices(data || []);
         
-        // Auto-select first office or Head Office if available
-        if (data && data.length > 0) {
+        // Restore saved office or auto-select first/head office
+        if (initialData?.office_id && data?.some(o => o.id === initialData.office_id)) {
+          setSelectedOfficeId(initialData.office_id);
+        } else if (data && data.length > 0) {
           const headOffice = data.find(o => 
             o.name.toLowerCase().includes('head office') || 
             o.name.toLowerCase().includes('headquarters')
@@ -377,6 +397,7 @@ export function OwnerProfileStep({
         join_date: formData.join_date,
         date_of_birth: formData.date_of_birth || null,
         avatar_url: formData.avatar_url || null,
+        office_id: selectedOfficeId,
       });
     } catch (error) {
       console.error('Failed to save owner profile:', error);
