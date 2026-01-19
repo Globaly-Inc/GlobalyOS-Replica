@@ -519,6 +519,22 @@ const Signup = () => {
                     )}
                   </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="businessAddress">Business Address *</Label>
+                    <AddressAutocomplete
+                      value={businessAddress}
+                      onChange={handleAddressChange}
+                      placeholder="Start typing your business address..."
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Search for your office or business location
+                    </p>
+                    {errors.businessAddress && (
+                      <p className="text-sm text-destructive">{errors.businessAddress}</p>
+                    )}
+                  </div>
+
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="industry">Business Category *</Label>
@@ -600,22 +616,6 @@ const Signup = () => {
                       )}
                     </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="businessAddress">Business Address *</Label>
-                    <AddressAutocomplete
-                      value={businessAddress}
-                      onChange={handleAddressChange}
-                      placeholder="Start typing your business address..."
-                      required
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Search for your office or business location
-                    </p>
-                    {errors.businessAddress && (
-                      <p className="text-sm text-destructive">{errors.businessAddress}</p>
-                    )}
-                  </div>
                 </div>
               </div>
 
@@ -625,7 +625,7 @@ const Signup = () => {
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-4">Your Details</h3>
                 <div className="space-y-4">
-                  <div className="grid md:grid-cols-2 gap-4">
+                  <div className="grid md:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="fullName">Full Name *</Label>
                       <Input
@@ -652,21 +652,20 @@ const Signup = () => {
                         <p className="text-sm text-destructive">{errors.email}</p>
                       )}
                     </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number *</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="+1 234 567 8900"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">Include country code (e.g., +1 for US, +44 for UK)</p>
-                    {errors.phone && (
-                      <p className="text-sm text-destructive">{errors.phone}</p>
-                    )}
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone Number *</Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        placeholder="+1 234 567 8900"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                      />
+                      {errors.phone && (
+                        <p className="text-sm text-destructive">{errors.phone}</p>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex items-start gap-3 pt-2">
