@@ -68,11 +68,18 @@ function getSeverityFromStatus(statusCode: number): ErrorSeverity {
  */
 function extractStatusCode(error: { message?: string; status?: number }): number {
   if (error.status) return error.status;
-  
-  // Try to extract from message
-  const match = error.message?.match(/status[: ]+(\d{3})/i);
+
+  const message = error.message || '';
+
+  // Try to extract from common message patterns
+  // e.g. "Edge Function returned a non-2xx status code: 409"
+  let match = message.match(/status\s*code[: ]+(\d{3})/i) || message.match(/status[: ]+(\d{3})/i);
   if (match) return parseInt(match[1], 10);
-  
+
+  // e.g. "Edge function returned 409: Error, {...}"
+  match = message.match(/returned\s+(\d{3})/i);
+  if (match) return parseInt(match[1], 10);
+
   return 500; // Default to server error
 }
 
@@ -100,15 +107,19 @@ export async function invokeEdgeFunction<T = unknown>(
       let errorMessage = response.error.message;
       let errorCode: string | undefined;
       
-      // Check if the error contains JSON with a more specific message
-      if (response.error.message.includes("Edge Function returned a non-2xx status code")) {
-        // The actual error might be in the response data
-        if (response.data?.error) {
-          errorMessage = response.data.error;
-          errorCode = response.data.code;
-        } else if (response.data?.message) {
-          errorMessage = response.data.message;
-        }
+      // Prefer structured error details from the response body when available
+      const responseBody = response.data as unknown as {
+        error?: string;
+        message?: string;
+        code?: string;
+        statusCode?: number;
+      } | null;
+
+      if (responseBody?.error) {
+        errorMessage = responseBody.error;
+        errorCode = responseBody.code;
+      } else if (responseBody?.message) {
+        errorMessage = responseBody.message;
       }
 
       const userFriendlyMessage = getUserFriendlyMessage(statusCode, errorMessage);
@@ -116,32 +127,34 @@ export async function invokeEdgeFunction<T = unknown>(
       error.code = errorCode;
       error.statusCode = statusCode;
       
-      if (logErrors) {
-        const severity = getSeverityFromStatus(statusCode);
-        await logErrorToDatabase({
-          errorType: "edge_function" as ErrorType,
-          severity,
-          errorMessage: errorMessage, // Log original message for debugging
-          componentName,
-          actionAttempted: actionAttempted || `Invoke ${functionName}`,
-          metadata: {
-            functionName,
-            statusCode,
-            errorCode,
-            originalError: response.error.message,
-            responseData: response.data,
-            userFriendlyMessage,
-          },
-          consoleLogs: getRecentConsoleLogs(),
-          networkRequests: getRecentNetworkRequests(),
-          breadcrumbs: getBreadcrumbs(),
-          sessionDurationMs: getSessionDuration(),
-          routeHistory: getRouteHistory(),
-          performanceMetrics: getPerformanceMetrics(),
-        });
-        // Mark as already logged to prevent double-logging
-        error.__alreadyLoggedToDb = true;
-      }
+       const shouldSuppressLogging = statusCode === 409 && errorCode === 'USER_EXISTS';
+
+       if (logErrors && !shouldSuppressLogging) {
+         const severity = getSeverityFromStatus(statusCode);
+         await logErrorToDatabase({
+           errorType: "edge_function" as ErrorType,
+           severity,
+           errorMessage: errorMessage, // Log original message for debugging
+           componentName,
+           actionAttempted: actionAttempted || `Invoke ${functionName}`,
+           metadata: {
+             functionName,
+             statusCode,
+             errorCode,
+             originalError: response.error.message,
+             responseData: response.data,
+             userFriendlyMessage,
+           },
+           consoleLogs: getRecentConsoleLogs(),
+           networkRequests: getRecentNetworkRequests(),
+           breadcrumbs: getBreadcrumbs(),
+           sessionDurationMs: getSessionDuration(),
+           routeHistory: getRouteHistory(),
+           performanceMetrics: getPerformanceMetrics(),
+         });
+         // Mark as already logged to prevent double-logging
+         error.__alreadyLoggedToDb = true;
+       }
       
       return { data: null, error };
     }
