@@ -4,16 +4,17 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle2, ArrowRight, Users, Sparkles } from 'lucide-react';
+import { CheckCircle2, ArrowRight, ArrowLeft, Users, Sparkles } from 'lucide-react';
 
 interface OrgCompleteStepProps {
   orgName: string;
   teamMembersCount: number;
   onFinish: () => void;
+  onBack: () => void;
   isCompleting: boolean;
 }
 
-export function OrgCompleteStep({ orgName, teamMembersCount, onFinish, isCompleting }: OrgCompleteStepProps) {
+export function OrgCompleteStep({ orgName, teamMembersCount, onFinish, onBack, isCompleting }: OrgCompleteStepProps) {
   return (
     <Card className="border-0 shadow-lg">
       <CardHeader className="text-center pb-2">
@@ -42,10 +43,27 @@ export function OrgCompleteStep({ orgName, teamMembersCount, onFinish, isComplet
           </ul>
         </div>
 
-        <Button onClick={onFinish} disabled={isCompleting} className="w-full h-12 text-base" size="lg">
-          {isCompleting ? 'Finishing...' : 'Go to Home'}
-          <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
+        <div className="flex gap-3 pt-2">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={onBack} 
+            className="flex-1" 
+            disabled={isCompleting}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
+          </Button>
+          <Button 
+            onClick={onFinish} 
+            disabled={isCompleting} 
+            className="flex-1 h-12 text-base" 
+            size="lg"
+          >
+            {isCompleting ? 'Completing...' : 'Complete Setup'}
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
