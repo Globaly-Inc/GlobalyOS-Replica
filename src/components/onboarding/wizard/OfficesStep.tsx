@@ -641,6 +641,20 @@ export function OfficesStep({
                                 />
                               </div>
 
+                              {!office.attendance_enabled && (
+                                <div className="pt-2 space-y-2">
+                                  <p className="text-xs text-muted-foreground">
+                                    Enable to configure:
+                                  </p>
+                                  <ul className="text-xs text-muted-foreground space-y-1 pl-4 list-disc">
+                                    <li>Work days and office timezone</li>
+                                    <li>Daily start and end times</li>
+                                    <li>Break schedules</li>
+                                    <li>Late arrival thresholds</li>
+                                  </ul>
+                                </div>
+                              )}
+
                               {office.attendance_enabled && (
                                 <>
                               {/* Work Days + Timezone Row */}
@@ -856,6 +870,19 @@ export function OfficesStep({
                                   />
                                 </div>
                               </div>
+
+                              {!office.leave_enabled && (
+                                <div className="pt-2 space-y-2">
+                                  <p className="text-xs text-muted-foreground">
+                                    Enable to configure:
+                                  </p>
+                                  <ul className="text-xs text-muted-foreground space-y-1 pl-4 list-disc">
+                                    <li>Leave year start date</li>
+                                    <li>Leave types and default balances</li>
+                                    <li>Custom leave policies per office</li>
+                                  </ul>
+                                </div>
+                              )}
 
                               {office.leave_enabled && (
                                 <>
