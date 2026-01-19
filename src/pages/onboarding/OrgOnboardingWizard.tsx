@@ -192,6 +192,7 @@ export default function OrgOnboardingWizard() {
           <OfficesStep
             organizationId={currentOrg?.id || ''}
             organizationInfo={onboardingData?.organization_info}
+            enabledFeatures={onboardingData?.enabled_features || []}
             initialOffices={onboardingData?.offices || []}
             onSave={(offices) => handleNext({ offices })}
             onBack={handleBack}
@@ -265,7 +266,7 @@ export default function OrgOnboardingWizard() {
       <main className="pt-48 pb-16 px-4">
         <div className={cn(
           "mx-auto",
-          ['welcome', 'team-members'].includes(getStepName(displayStep - 1) || '') ? 'max-w-5xl' : 'max-w-2xl'
+          ['welcome', 'offices', 'team-members'].includes(getStepName(displayStep - 1) || '') ? 'max-w-6xl' : 'max-w-2xl'
         )}>
           <div
             className={cn(
