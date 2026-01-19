@@ -158,21 +158,27 @@ export function DepartmentsRolesStep({
       return;
     }
 
-    // Persist positions to database
+    // Persist positions to database (ignore duplicates from seeded data)
     try {
       for (const position of finalPositions) {
-        await supabase.from('positions').upsert({
-          organization_id: organizationId,
-          name: position.name,
-          department: position.department,
-          is_active: true,
-        }, {
-          onConflict: 'organization_id,name',
-        });
+        const { error } = await supabase
+          .from('positions')
+          .insert({
+            organization_id: organizationId,
+            name: position.name,
+            department: position.department,
+          })
+          .select()
+          .maybeSingle();
+
+        // Ignore unique constraint violations (position already exists)
+        if (error && error.code !== '23505') {
+          console.error('Failed to insert position:', position.name, error);
+        }
       }
     } catch (err) {
       console.error('Failed to save positions:', err);
-      // Continue anyway - positions will be saved in onboarding data
+      // Continue anyway - positions are also saved in onboarding data
     }
 
     onSave({
