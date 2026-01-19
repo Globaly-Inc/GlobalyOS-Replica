@@ -261,7 +261,7 @@ export default function OrgOnboardingWizard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 flex flex-col">
       {/* Header with progress indicator */}
       <OnboardingHeader
         currentStep={currentStep}
@@ -271,7 +271,7 @@ export default function OrgOnboardingWizard() {
       />
 
       {/* Main content - adjust top padding for fixed header */}
-      <main className="pt-48 pb-16 px-4">
+      <main className="flex-1 pt-48 pb-8 px-4">
         <div className={cn(
           "mx-auto",
           ['welcome', 'offices', 'team-members'].includes(getStepName(displayStep - 1) || '') ? 'max-w-6xl' : 'max-w-2xl'
@@ -286,24 +286,24 @@ export default function OrgOnboardingWizard() {
           >
             {renderStep(displayStep)}
           </div>
-
-          {/* Logout button - shown on all steps */}
-          <div className="mt-8 text-center">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={async () => {
-                await signOut();
-                navigate('/');
-              }}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Log out
-            </Button>
-          </div>
         </div>
       </main>
+
+      {/* Logout button - fixed at bottom */}
+      <div className="py-6 text-center border-t border-border/40 bg-background/80 backdrop-blur-sm">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={async () => {
+            await signOut();
+            navigate('/');
+          }}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          Log out
+        </Button>
+      </div>
 
       {/* Skip confirmation dialog */}
       <AlertDialog open={showSkipDialog} onOpenChange={setShowSkipDialog}>
