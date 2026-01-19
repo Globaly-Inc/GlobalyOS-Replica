@@ -199,41 +199,38 @@ export function TeamSeedingStep({
           const firstName = nameParts[0] || '';
           const lastName = nameParts.slice(1).join(' ') || '';
           
-          const { data, error } = await supabase.functions.invoke('invite-team-member', {
-            body: {
-              email: member.email.trim().toLowerCase(),
-              fullName: member.full_name.trim(),
-              firstName,
-              lastName,
-              position: member.position || 'Team Member',
-              department: member.department || 'General',
-              role: member.role,
-              employmentType: member.employment_type || 'employee',
-              organizationId,
-              officeId: member.office_id || null,
-              isNewHire: true,
-              phone: '',
-              street: '',
-              city: '',
-              state: '',
-              country: '',
-              skipEmail: true, // Skip email during onboarding - emails sent on completion
-            }
+          const { invokeEdgeFunction } = await import('@/lib/edgeFunctionUtils');
+          const { data, error: inviteError } = await invokeEdgeFunction('invite-team-member', {
+            email: member.email.trim().toLowerCase(),
+            fullName: member.full_name.trim(),
+            firstName,
+            lastName,
+            position: member.position || 'Team Member',
+            department: member.department || 'General',
+            role: member.role,
+            employmentType: member.employment_type || 'employee',
+            organizationId,
+            officeId: member.office_id || null,
+            isNewHire: true,
+            phone: '',
+            street: '',
+            city: '',
+            state: '',
+            country: '',
+            skipEmail: true, // Skip email during onboarding - emails sent on completion
           });
           
-          // Check for user already exists (409 or code USER_EXISTS) - can come from error or data
-          const responseData = data || (error?.context ? JSON.parse(error.context) : null);
-          const errorMessage = error?.message || '';
-          
+          // Check for user already exists (409 / USER_EXISTS) - handled gracefully
+          const responseData = data as { code?: string; skipped?: boolean; error?: string } | null;
           if (responseData?.code === 'USER_EXISTS' || responseData?.skipped || 
-              errorMessage.includes('USER_EXISTS') || errorMessage.includes('already exists')) {
+              inviteError?.message?.includes('USER_EXISTS') || inviteError?.message?.includes('already exists')) {
             results.skipped.push(member.email);
             setSendingStatus(prev => ({ ...prev, [member.email]: 'skipped' }));
             return;
           }
           
-          if (error) throw error;
-          if (data?.error && !data?.skipped) throw new Error(data.error);
+          if (inviteError) throw new Error(inviteError.message);
+          if (responseData?.error && !responseData?.skipped) throw new Error(responseData.error);
           
           results.success.push(member.email);
           setSendingStatus(prev => ({ ...prev, [member.email]: 'success' }));
