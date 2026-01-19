@@ -10,9 +10,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, ArrowRight, Building2 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { ArrowLeft, ArrowRight, Building2, Check, ChevronsUpDown } from 'lucide-react';
 import { AddressAutocomplete, AddressComponents } from '@/components/ui/address-autocomplete';
 import { LogoUpload } from './LogoUpload';
+import { cn } from '@/lib/utils';
+
+// Convert country code to flag emoji (e.g., 'US' -> '🇺🇸')
+const getFlagEmoji = (countryCode: string) => {
+  const codePoints = countryCode
+    .toUpperCase()
+    .split('')
+    .map(char => 127397 + char.charCodeAt(0));
+  return String.fromCodePoint(...codePoints);
+};
 
 interface OrgInfoStepProps {
   initialData?: {
@@ -201,6 +213,7 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
   // Track if user has manually modified timezone/currency
   const [userModifiedTimezone, setUserModifiedTimezone] = useState(false);
   const [userModifiedCurrency, setUserModifiedCurrency] = useState(false);
+  const [countryOpen, setCountryOpen] = useState(false);
 
   // Update form when signup data becomes available and apply auto-detection
   useEffect(() => {
@@ -312,21 +325,55 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-2">
               <Label htmlFor="country">Primary Country *</Label>
-              <Select
-                value={formData.country}
-                onValueChange={handleCountryChange}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  {COUNTRIES.map((country) => (
-                    <SelectItem key={country.code} value={country.code}>
-                      {country.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={countryOpen} onOpenChange={setCountryOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={countryOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    {formData.country ? (
+                      <span className="flex items-center gap-2">
+                        <span>{getFlagEmoji(formData.country)}</span>
+                        {COUNTRIES.find(c => c.code === formData.country)?.name}
+                      </span>
+                    ) : (
+                      'Select country...'
+                    )}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search country..." />
+                    <CommandList className="max-h-[200px]">
+                      <CommandEmpty>No country found.</CommandEmpty>
+                      <CommandGroup>
+                        {COUNTRIES.map((country) => (
+                          <CommandItem
+                            key={country.code}
+                            value={country.name}
+                            onSelect={() => {
+                              handleCountryChange(country.code);
+                              setCountryOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                'mr-2 h-4 w-4',
+                                formData.country === country.code ? 'opacity-100' : 'opacity-0'
+                              )}
+                            />
+                            <span className="mr-2">{getFlagEmoji(country.code)}</span>
+                            {country.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="space-y-2">
