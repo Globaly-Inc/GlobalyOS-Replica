@@ -3,14 +3,12 @@
  * Compact checkbox list layout with enable/disable capability
  */
 
-import { useState } from 'react';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronDown, ChevronUp, Settings2, Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEFAULT_LEAVE_TYPES } from '@/constants/defaultLeaveTypes';
 
@@ -31,7 +29,6 @@ interface LeaveTypesCustomizerProps {
 const MAX_CUSTOM_TYPES = 3;
 
 export function LeaveTypesCustomizer({ value, onChange, disabled = false }: LeaveTypesCustomizerProps) {
-  const [isOpen, setIsOpen] = useState(false);
 
   // Initialize with defaults if empty
   const leaveTypes: LeaveTypeConfig[] = value.length > 0 ? value : getDefaultLeaveTypesConfig();
@@ -81,34 +78,15 @@ export function LeaveTypesCustomizer({ value, onChange, disabled = false }: Leav
   const enabledCount = leaveTypes.filter(lt => lt.is_enabled).length;
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <CollapsibleTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="w-full justify-between h-9 px-3 text-muted-foreground hover:text-foreground"
-          disabled={disabled}
-        >
-          <div className="flex items-center gap-2">
-            <Settings2 className="h-4 w-4" />
-            <span className="text-sm">Customize Leave Types</span>
-            <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5">
-              {enabledCount} enabled
-            </Badge>
-          </div>
-          {isOpen ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : (
-            <ChevronDown className="h-4 w-4" />
-          )}
-        </Button>
-      </CollapsibleTrigger>
-
-      <CollapsibleContent className="pt-3 space-y-1">
-        <p className="text-xs text-muted-foreground mb-3 px-1">
+    <div className="space-y-2">
+      <div className="flex items-center justify-between px-1">
+        <span className="text-xs text-muted-foreground">
           Set default yearly allowances for each leave type.
-        </p>
+        </span>
+        <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5">
+          {enabledCount} enabled
+        </Badge>
+      </div>
 
         {/* System Leave Types */}
         <div className="space-y-1">
@@ -254,8 +232,7 @@ export function LeaveTypesCustomizer({ value, onChange, disabled = false }: Leav
             Maximum {MAX_CUSTOM_TYPES} custom types allowed
           </p>
         )}
-      </CollapsibleContent>
-    </Collapsible>
+    </div>
   );
 }
 
