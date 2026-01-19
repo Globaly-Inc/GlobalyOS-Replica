@@ -40,6 +40,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { getTimezoneForCountry } from '@/utils/countryTimezones';
+import { getFlagEmoji } from '@/lib/countries';
 import type { Json } from '@/integrations/supabase/types';
 
 interface Office {
@@ -591,8 +592,10 @@ export function OfficesStep({
                         {!isExpanded && (
                           <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 mt-0.5">
                             {office.address && (
-                              <span className="flex items-center gap-1">
-                                <MapPin className="h-3 w-3" />
+<span className="flex items-center gap-1">
+                                {office.address_components?.country_code && (
+                                  <span className="text-sm">{getFlagEmoji(office.address_components.country_code)}</span>
+                                )}
                                 {office.address}
                               </span>
                             )}
