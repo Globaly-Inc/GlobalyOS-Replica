@@ -6,6 +6,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { MapPin, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 
 export interface AddressComponents {
   street_number?: string;
@@ -28,6 +29,7 @@ interface AddressAutocompleteProps {
   disabled?: boolean;
   required?: boolean;
   countryCode?: string; // ISO 3166-1 alpha-2 country code (e.g., 'AU', 'US')
+  className?: string;
 }
 
 declare global {
@@ -44,6 +46,7 @@ export function AddressAutocomplete({
   disabled = false,
   required = false,
   countryCode,
+  className,
 }: AddressAutocompleteProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
@@ -188,7 +191,7 @@ export function AddressAutocomplete({
         placeholder={placeholder}
         disabled={disabled || isLoading}
         required={required}
-        className="pl-9"
+        className={cn("pl-9", className)}
       />
       {isLoading && (
         <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />

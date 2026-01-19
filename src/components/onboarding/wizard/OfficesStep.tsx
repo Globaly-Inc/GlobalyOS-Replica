@@ -568,9 +568,9 @@ export function OfficesStep({
                   <AccordionContent className="pb-4">
                     <div className="space-y-4 pt-2">
                       {/* Basic Info Row */}
-                      <div className="grid grid-cols-12 gap-3 items-start">
-                        {/* Office Name */}
-                        <div className="col-span-12 sm:col-span-3">
+                      <div className="flex gap-3 items-start">
+                        {/* Office Name - Equal width */}
+                        <div className="flex-1 min-w-0">
                           <Label className="text-xs text-muted-foreground mb-1.5 block">
                             {isHQ ? 'Headquarters Name' : 'Office Name'}
                           </Label>
@@ -583,19 +583,20 @@ export function OfficesStep({
                           />
                         </div>
 
-                        {/* Location */}
-                        <div className="col-span-10 sm:col-span-6">
+                        {/* Location - Equal width */}
+                        <div className="flex-1 min-w-0">
                           <Label className="text-xs text-muted-foreground mb-1.5 block">Location</Label>
                           <AddressAutocomplete
                             value={office.address}
                             onChange={(address, components) => handleAddressChange(index, address, components)}
                             placeholder="Search address..."
                             disabled={isLoading}
+                            className="h-9"
                           />
                         </div>
 
-                        {/* Delete Button */}
-                        <div className="col-span-2 sm:col-span-1 flex justify-end pt-6">
+                        {/* Delete Button - Fixed width */}
+                        <div className="flex-shrink-0 pt-6">
                           {!isHQ && (
                             <Button
                               type="button"
