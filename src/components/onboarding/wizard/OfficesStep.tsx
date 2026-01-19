@@ -593,7 +593,7 @@ export function OfficesStep({
                             {office.address && (
                               <span className="flex items-center gap-1">
                                 <MapPin className="h-3 w-3" />
-                                {office.address_components?.city || office.address.split(',')[0]}
+                                {office.address}
                               </span>
                             )}
                             {office.timezone && (
