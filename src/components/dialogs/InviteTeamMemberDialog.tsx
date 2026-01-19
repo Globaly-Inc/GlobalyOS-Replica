@@ -15,23 +15,13 @@ import { FormInputField } from "@/components/FormInputField";
 import { useOrganization } from "@/hooks/useOrganization";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useEmploymentTypes } from "@/hooks/useEmploymentTypes";
+import { CountrySelector } from "@/components/ui/country-selector";
 
 interface InviteTeamMemberDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
 }
-
-const countries = [
-  "Afghanistan", "Albania", "Algeria", "Argentina", "Australia", "Austria", "Bangladesh",
-  "Belgium", "Brazil", "Canada", "Chile", "China", "Colombia", "Czech Republic", "Denmark",
-  "Egypt", "Finland", "France", "Germany", "Ghana", "Greece", "Hong Kong", "Hungary", "India",
-  "Indonesia", "Ireland", "Israel", "Italy", "Japan", "Kenya", "Malaysia", "Mexico", "Nepal",
-  "Netherlands", "New Zealand", "Nigeria", "Norway", "Pakistan", "Peru", "Philippines",
-  "Poland", "Portugal", "Romania", "Russia", "Saudi Arabia", "Singapore", "South Africa",
-  "South Korea", "Spain", "Sweden", "Switzerland", "Taiwan", "Thailand", "Turkey",
-  "Ukraine", "United Arab Emirates", "United Kingdom", "United States", "Vietnam"
-];
 
 const currencies = [
   { code: 'USD', symbol: '$', name: 'US Dollar' },
@@ -481,10 +471,13 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
                   <FormInputField id="postcode" label="Postcode" value={formData.postcode} onChange={(v) => handleChange('postcode', v)} onBlur={() => handleBlur('postcode')} placeholder="10001" />
                   <div className="space-y-2">
                     <Label>Country <span className="text-destructive">*</span></Label>
-                    <Select value={formData.country} onValueChange={(v) => { handleChange('country', v); setTouched(p => ({ ...p, country: true })); }}>
-                      <SelectTrigger className={cn(touched.country && errors.country && "border-destructive")}><SelectValue placeholder="Select country" /></SelectTrigger>
-                      <SelectContent className="bg-popover">{countries.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                    </Select>
+                    <CountrySelector
+                      value={formData.country}
+                      onChange={(v) => { handleChange('country', v); setTouched(p => ({ ...p, country: true })); }}
+                      placeholder="Select country"
+                      valueType="name"
+                      error={touched.country && !!errors.country}
+                    />
                     {touched.country && errors.country && <p className="text-sm text-destructive">{errors.country}</p>}
                   </div>
                 </div>

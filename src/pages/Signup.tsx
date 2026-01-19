@@ -15,6 +15,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
+import { CountrySelector } from "@/components/ui/country-selector";
 import { 
   Building2, 
   Users, 
@@ -84,18 +85,7 @@ const COMPANY_SIZES = [
   { value: "500+", label: "500+ employees" },
 ];
 
-const COUNTRIES = [
-  "United States",
-  "United Kingdom",
-  "Canada",
-  "Australia",
-  "Germany",
-  "France",
-  "India",
-  "Singapore",
-  "Japan",
-  "Other",
-];
+// Countries imported from shared module
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -483,16 +473,13 @@ const Signup = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="country">Country *</Label>
-                <Select value={country} onValueChange={setCountry}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your country" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {COUNTRIES.map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <CountrySelector
+                  value={country}
+                  onChange={setCountry}
+                  placeholder="Select your country"
+                  valueType="name"
+                  error={!!errors.country}
+                />
                 {errors.country && (
                   <p className="text-sm text-destructive">{errors.country}</p>
                 )}

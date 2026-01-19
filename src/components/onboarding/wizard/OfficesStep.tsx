@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CountrySelector } from '@/components/ui/country-selector';
 import { ArrowLeft, ArrowRight, Building, Plus, Trash2, MapPin } from 'lucide-react';
 
 interface Office {
@@ -27,23 +28,7 @@ interface OfficesStepProps {
   isSaving: boolean;
 }
 
-const COUNTRIES = [
-  { code: 'US', name: 'United States' },
-  { code: 'GB', name: 'United Kingdom' },
-  { code: 'CA', name: 'Canada' },
-  { code: 'AU', name: 'Australia' },
-  { code: 'DE', name: 'Germany' },
-  { code: 'FR', name: 'France' },
-  { code: 'ES', name: 'Spain' },
-  { code: 'IT', name: 'Italy' },
-  { code: 'NL', name: 'Netherlands' },
-  { code: 'SE', name: 'Sweden' },
-  { code: 'JP', name: 'Japan' },
-  { code: 'SG', name: 'Singapore' },
-  { code: 'IN', name: 'India' },
-  { code: 'AE', name: 'United Arab Emirates' },
-  { code: 'BR', name: 'Brazil' },
-];
+// Countries imported from CountrySelector component
 
 const emptyOffice: Office = {
   name: '',
@@ -155,21 +140,12 @@ export function OfficesStep({ initialOffices, onSave, onBack, isSaving }: Office
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Country *</Label>
-                  <Select
+                  <CountrySelector
                     value={office.country}
-                    onValueChange={(value) => updateOffice(index, 'country', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select country" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {COUNTRIES.map((country) => (
-                        <SelectItem key={country.code} value={country.code}>
-                          {country.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onChange={(value) => updateOffice(index, 'country', value)}
+                    placeholder="Select country"
+                    valueType="code"
+                  />
                 </div>
 
                 <div className="space-y-2">
