@@ -54,6 +54,7 @@ export default function OrgOnboardingWizard() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [displayStep, setDisplayStep] = useState(1);
+  const [isAdvancing, setIsAdvancing] = useState(false);
   const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Redirect GlobalyHub demo org away from onboarding
@@ -122,22 +123,31 @@ export default function OrgOnboardingWizard() {
   }
 
   const handleNext = async (stepData?: Record<string, unknown>) => {
-    if (currentStep >= TOTAL_STEPS) {
-      // Complete onboarding - pass navigation as callback
-      await completeOnboarding.mutateAsync({
-        skipped: false,
-        onComplete: () => navigate(`/org/${currentOrg?.slug}`),
-      });
-      return;
-    }
+    // Prevent duplicate advancement from double-clicks
+    if (isAdvancing || saveStep.isPending || completeOnboarding.isPending) return;
 
-    // Save step data and advance
-    await saveStep.mutateAsync({
-      stepData: stepData || {},
-      advanceStep: true,
-    });
-    
-    setCurrentStep((prev) => Math.min(prev + 1, TOTAL_STEPS));
+    setIsAdvancing(true);
+
+    try {
+      if (currentStep >= TOTAL_STEPS) {
+        // Complete onboarding - pass navigation as callback
+        await completeOnboarding.mutateAsync({
+          skipped: false,
+          onComplete: () => navigate(`/org/${currentOrg?.slug}`),
+        });
+        return;
+      }
+
+      // Save step data and advance
+      await saveStep.mutateAsync({
+        stepData: stepData || {},
+        advanceStep: true,
+      });
+      
+      setCurrentStep((prev) => Math.min(prev + 1, TOTAL_STEPS));
+    } finally {
+      setIsAdvancing(false);
+    }
   };
 
   const handleBack = async () => {
@@ -175,7 +185,7 @@ export default function OrgOnboardingWizard() {
             }}
             onSave={(data) => handleNext({ organization_info: data })}
             onBack={handleBack}
-            isSaving={saveStep.isPending}
+            isSaving={saveStep.isPending || isAdvancing}
           />
         );
       case 'offices':
@@ -186,7 +196,7 @@ export default function OrgOnboardingWizard() {
             initialOffices={onboardingData?.offices || []}
             onSave={(offices) => handleNext({ offices })}
             onBack={handleBack}
-            isSaving={saveStep.isPending}
+            isSaving={saveStep.isPending || isAdvancing}
           />
         );
       case 'departments-roles':
@@ -198,7 +208,7 @@ export default function OrgOnboardingWizard() {
             initialData={onboardingData?.departments_roles}
             onSave={(data) => handleNext({ departments_roles: data })}
             onBack={handleBack}
-            isSaving={saveStep.isPending}
+            isSaving={saveStep.isPending || isAdvancing}
           />
         );
       case 'owner-profile':
@@ -209,7 +219,7 @@ export default function OrgOnboardingWizard() {
             initialData={onboardingData?.owner_profile}
             onSave={(data) => handleNext({ owner_profile: data })}
             onBack={handleBack}
-            isSaving={saveStep.isPending}
+            isSaving={saveStep.isPending || isAdvancing}
           />
         );
       case 'team-members':
@@ -220,7 +230,7 @@ export default function OrgOnboardingWizard() {
             onSave={(team_members) => handleNext({ team_members })}
             onBack={handleBack}
             onSkip={() => handleNext({ team_members: [] })}
-            isSaving={saveStep.isPending}
+            isSaving={saveStep.isPending || isAdvancing}
             organizationId={currentOrg?.id || ''}
           />
         );
@@ -230,7 +240,7 @@ export default function OrgOnboardingWizard() {
             initialFeatures={onboardingData?.enabled_features || ['hr', 'leave', 'feed', 'wiki', 'chat']}
             onSave={(enabled_features) => handleNext({ enabled_features })}
             onBack={handleBack}
-            isSaving={saveStep.isPending}
+            isSaving={saveStep.isPending || isAdvancing}
           />
         );
       case 'complete':
