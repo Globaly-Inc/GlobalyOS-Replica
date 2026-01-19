@@ -1,0 +1,44 @@
+GlobalyOS is the complete Business Operating System that brings together HR management, team communication, knowledge base, and performance tracking in one powerful platform.
+
+PEOPLE MANAGEMENT (HRMS)
+• Employee Directory: Complete team profiles with contact info, roles, and reporting structure
+• QR Code Attendance: One-tap check-in/out with real-time tracking
+• Leave Management: Request, approve, and track time off with automated workflows
+• Performance Reviews: Structured review cycles with customizable templates
+• KPIs & OKRs: Set, track, and achieve organizational goals
+
+TEAM COMMUNICATION
+• Team Chat: Real-time messaging with channels and direct messages
+• Social Feed: Share wins, give kudos, and post announcements
+• @Mentions: Tag teammates and get notified instantly
+• Push Notifications: Stay connected even when offline
+
+KNOWLEDGE BASE (WIKI)
+• Collaborative Documentation: Create and edit team documents together
+• Organized Folders: Structure your knowledge with drag-and-drop
+• File Attachments: Store and share important files
+• Internal Linking: Connect related documents seamlessly
+
+AI-POWERED FEATURES
+• Ask AI: Get instant answers from your organization's knowledge
+• Smart Insights: AI-generated performance recommendations
+• Content Suggestions: Intelligent writing assistance
+
+CALENDAR & EVENTS
+• Company Events: Manage team gatherings and meetings
+• Holiday Calendar: Location-based holiday scheduling
+• Team Calendar: See who's available at a glance
+
+DESIGNED FOR TEAMS
+GlobalyOS is built for organizations of all sizes, from startups to enterprises. Our multi-tenant architecture ensures your data is completely isolated and secure.
+
+SECURITY & COMPLIANCE
+• End-to-end encryption for data in transit
+• AES-256 encryption for data at rest
+• GDPR compliant with data portability
+• Role-based access controls
+
+Start your 7-day free trial today - no credit card required.
+
+Website: www.globalyos.com
+Support: support@globalyos.com
