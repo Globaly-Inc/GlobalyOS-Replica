@@ -20,7 +20,8 @@ import {
   Clock,
   GitBranch,
   Wallet,
-  Lock
+  Lock,
+  ListTodo
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -60,7 +61,6 @@ const FEATURES: FeatureDefinition[] = [
     isCore: true,
     defaultEnabled: true,
   },
-  
   // Default Features - Enabled by default, can be toggled
   {
     id: 'attendance',
@@ -83,16 +83,20 @@ const FEATURES: FeatureDefinition[] = [
     icon: FileText,
     defaultEnabled: true,
   },
-  
-  // Optional Features - Off by default
+  {
+    id: 'tasks',
+    name: 'Task Management',
+    description: 'Create, assign, and track tasks and projects',
+    icon: ListTodo,
+    defaultEnabled: true,
+  },
   {
     id: 'kpi',
     name: 'KPI & Performance Reviews',
     description: 'Track goals, key results, and performance metrics',
     icon: PieChart,
-    defaultEnabled: false,
+    defaultEnabled: true,
   },
-  
   // Coming Soon Features - Gated by Super Admin
   {
     id: 'workflows',
@@ -160,10 +164,6 @@ export function FeatureSelectionStep({ initialFeatures, onSave, onBack, isSaving
     onSave(features);
   };
 
-  // Separate features by category for visual grouping
-  const coreFeatures = FEATURES.filter(f => f.isCore);
-  const toggleableFeatures = FEATURES.filter(f => !f.isCore && !f.comingSoon);
-  const comingSoonFeatures = FEATURES.filter(f => f.comingSoon);
 
   const renderFeatureItem = (feature: FeatureDefinition) => {
     const Icon = feature.icon;
@@ -255,24 +255,8 @@ export function FeatureSelectionStep({ initialFeatures, onSave, onBack, isSaving
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Core Features Section */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-medium text-muted-foreground px-1">Core Features</h3>
-            {coreFeatures.map(renderFeatureItem)}
-          </div>
-
-          {/* Toggleable Features Section */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-medium text-muted-foreground px-1">Additional Features</h3>
-            {toggleableFeatures.map(renderFeatureItem)}
-          </div>
-
-          {/* Coming Soon Features Section */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-medium text-muted-foreground px-1">Coming Soon</h3>
-            {comingSoonFeatures.map(renderFeatureItem)}
-          </div>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {FEATURES.map(renderFeatureItem)}
 
           <div className="flex gap-3 pt-4">
             <Button type="button" variant="outline" onClick={onBack} className="flex-1">
