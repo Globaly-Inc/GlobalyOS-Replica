@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { Building2, Plus, Trash2, Loader2, MapPin, Users } from "lucide-react";
+import { AddressAutocomplete, AddressComponents } from "@/components/ui/address-autocomplete";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,8 +46,7 @@ export const ManageOfficesDialog = ({ open, onOpenChange, onOfficesChange }: Man
   const [newOffice, setNewOffice] = useState({
     name: "",
     address: "",
-    city: "",
-    country: "",
+    addressComponents: null as AddressComponents | null,
   });
 
   useEffect(() => {
@@ -99,16 +99,27 @@ export const ManageOfficesDialog = ({ open, onOpenChange, onOfficesChange }: Man
     setLoading(false);
   };
 
+  const handleAddressChange = (address: string, components?: AddressComponents) => {
+    setNewOffice(prev => ({
+      ...prev,
+      address,
+      addressComponents: components || null,
+    }));
+  };
+
   const handleAddOffice = async () => {
     if (!newOffice.name.trim() || !currentOrg) return;
+
+    const city = newOffice.addressComponents?.locality || '';
+    const country = newOffice.addressComponents?.country_code || '';
 
     setSaving(true);
     const { error } = await supabase.from("offices").insert({
       organization_id: currentOrg.id,
       name: newOffice.name.trim(),
       address: newOffice.address.trim() || null,
-      city: newOffice.city.trim() || null,
-      country: newOffice.country.trim() || null,
+      city: city || null,
+      country: country || null,
     });
 
     if (error) {
@@ -122,7 +133,7 @@ export const ManageOfficesDialog = ({ open, onOpenChange, onOfficesChange }: Man
         title: "Office added",
         description: `${newOffice.name} has been added successfully`,
       });
-      setNewOffice({ name: "", address: "", city: "", country: "" });
+      setNewOffice({ name: "", address: "", addressComponents: null });
       loadOffices();
       onOfficesChange?.();
     }
@@ -181,32 +192,11 @@ export const ManageOfficesDialog = ({ open, onOpenChange, onOfficesChange }: Man
                 </div>
                 <div>
                   <Label htmlFor="officeAddress">Address</Label>
-                  <Input
-                    id="officeAddress"
+                  <AddressAutocomplete
                     value={newOffice.address}
-                    onChange={(e) => setNewOffice({ ...newOffice, address: e.target.value })}
-                    placeholder="Street address"
+                    onChange={handleAddressChange}
+                    placeholder="Start typing the office address..."
                   />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label htmlFor="officeCity">City</Label>
-                    <Input
-                      id="officeCity"
-                      value={newOffice.city}
-                      onChange={(e) => setNewOffice({ ...newOffice, city: e.target.value })}
-                      placeholder="City"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="officeCountry">Country</Label>
-                    <Input
-                      id="officeCountry"
-                      value={newOffice.country}
-                      onChange={(e) => setNewOffice({ ...newOffice, country: e.target.value })}
-                      placeholder="Country"
-                    />
-                  </div>
                 </div>
                 <Button 
                   onClick={handleAddOffice} 
