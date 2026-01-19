@@ -55,7 +55,9 @@ export function DepartmentsRolesStep({
   const [selectedDepartments, setSelectedDepartments] = useState<Set<string>>(
     new Set(initialData?.departments || [])
   );
-  const [positions, setPositions] = useState<Position[]>(initialData?.positions || []);
+  const [positions, setPositions] = useState<Position[]>(
+    (initialData?.positions || []).map(p => ({ ...p, selected: true }))
+  );
   const [newDepartment, setNewDepartment] = useState('');
   const [newPosition, setNewPosition] = useState({ name: '', department: '' });
   const [hasFetched, setHasFetched] = useState(!!initialData?.departments?.length);
