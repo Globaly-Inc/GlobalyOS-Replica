@@ -2,7 +2,7 @@
  * Logo Upload Component with drag-drop, validation, and cropping
  */
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Upload, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ImageCropper } from '@/components/ui/image-cropper';
@@ -33,6 +33,13 @@ export function LogoUpload({
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Sync previewUrl when currentLogoUrl prop changes (e.g., navigating back to step)
+  useEffect(() => {
+    if (currentLogoUrl && currentLogoUrl !== previewUrl) {
+      setPreviewUrl(currentLogoUrl);
+    }
+  }, [currentLogoUrl]);
+
   const validateFile = (file: File): boolean => {
     if (!ACCEPTED_TYPES.includes(file.type)) {
       toast.error('Please upload an image file (JPEG, PNG, WebP, or SVG)');
@@ -58,21 +65,18 @@ export function LogoUpload({
   };
 
   const handleCropComplete = async (blob: Blob) => {
-    if (!organizationId) {
-      // For onboarding, just show preview without uploading
-      const url = URL.createObjectURL(blob);
-      setPreviewUrl(url);
-      onLogoChange(url);
-      return;
-    }
-
     setIsUploading(true);
     try {
+      // Always upload to storage - use temp folder if no orgId yet
       const ext = 'png';
-      const filePath = `org-logos/${organizationId}.${ext}`;
+      const filePath = organizationId 
+        ? `org-logos/${organizationId}.${ext}`
+        : `org-logos/temp-${Date.now()}.${ext}`;
 
-      // Delete existing logo if any
-      await supabase.storage.from('avatars').remove([filePath]);
+      // Delete existing logo if any (only if we have a stable path)
+      if (organizationId) {
+        await supabase.storage.from('avatars').remove([filePath]);
+      }
 
       // Upload new logo
       const { error: uploadError } = await supabase.storage
