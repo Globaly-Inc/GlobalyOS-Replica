@@ -5210,6 +5210,97 @@ export type Database = {
           },
         ]
       }
+      org_structure_learning: {
+        Row: {
+          action: string
+          business_category: string
+          created_at: string | null
+          department_name: string | null
+          id: string
+          organization_id: string
+          position_department: string | null
+          position_name: string | null
+        }
+        Insert: {
+          action: string
+          business_category: string
+          created_at?: string | null
+          department_name?: string | null
+          id?: string
+          organization_id: string
+          position_department?: string | null
+          position_name?: string | null
+        }
+        Update: {
+          action?: string
+          business_category?: string
+          created_at?: string | null
+          department_name?: string | null
+          id?: string
+          organization_id?: string
+          position_department?: string | null
+          position_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_structure_learning_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_structure_templates: {
+        Row: {
+          approval_count: number | null
+          business_category: string
+          company_size: string
+          created_at: string | null
+          departments: Json
+          id: string
+          organization_id: string | null
+          positions: Json
+          source: string
+          updated_at: string | null
+          usage_count: number | null
+        }
+        Insert: {
+          approval_count?: number | null
+          business_category: string
+          company_size?: string
+          created_at?: string | null
+          departments?: Json
+          id?: string
+          organization_id?: string | null
+          positions?: Json
+          source?: string
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Update: {
+          approval_count?: number | null
+          business_category?: string
+          company_size?: string
+          created_at?: string | null
+          departments?: Json
+          id?: string
+          organization_id?: string | null
+          positions?: Json
+          source?: string
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_structure_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_coupons: {
         Row: {
           applied_at: string
@@ -11257,6 +11348,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_template_approval: {
+        Args: { p_category: string; p_size?: string }
+        Returns: undefined
       }
       is_conversation_participant: {
         Args: { _conversation_id: string; _employee_id: string }

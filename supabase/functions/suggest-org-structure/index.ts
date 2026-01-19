@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,11 +13,78 @@ serve(async (req) => {
   }
 
   try {
-    const { industry, companySize } = await req.json();
+    const { industry, companySize, forceRegenerate } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
+    }
+
+    // Create Supabase client for caching
+    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+    const normalizedCategory = industry || 'General Business';
+    const normalizedSize = companySize || 'small';
+
+    // 1. Check for cached template (unless force regenerate)
+    if (!forceRegenerate) {
+      console.log(`Checking cache for: ${normalizedCategory} (${normalizedSize})`);
+      
+      const { data: template, error: cacheError } = await supabase
+        .from('org_structure_templates')
+        .select('*')
+        .eq('business_category', normalizedCategory)
+        .eq('company_size', normalizedSize)
+        .is('organization_id', null) // Global templates only
+        .order('approval_count', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (cacheError) {
+        console.error('Cache lookup error:', cacheError);
+      } else if (template && template.approval_count >= 2) {
+        console.log(`Using cached template with ${template.approval_count} approvals`);
+        
+        // Increment usage count
+        await supabase
+          .from('org_structure_templates')
+          .update({ usage_count: (template.usage_count || 0) + 1, updated_at: new Date().toISOString() })
+          .eq('id', template.id);
+
+        return new Response(JSON.stringify({
+          departments: template.departments,
+          positions: template.positions,
+          source: 'cached',
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // 2. Get learning data for context (popular additions/approvals)
+    let learningContext = '';
+    const { data: learningData } = await supabase
+      .from('org_structure_learning')
+      .select('department_name, position_name, position_department, action')
+      .eq('business_category', normalizedCategory)
+      .in('action', ['approved', 'added'])
+      .limit(50);
+
+    if (learningData && learningData.length > 0) {
+      const popularDepts = [...new Set(learningData.filter(l => l.department_name).map(l => l.department_name))];
+      const popularPositions = [...new Set(learningData.filter(l => l.position_name).map(l => `${l.position_name} (${l.position_department})`))];
+      
+      if (popularDepts.length > 0 || popularPositions.length > 0) {
+        learningContext = `\n\nPrevious users in this industry commonly use:`;
+        if (popularDepts.length > 0) {
+          learningContext += `\nDepartments: ${popularDepts.slice(0, 10).join(', ')}`;
+        }
+        if (popularPositions.length > 0) {
+          learningContext += `\nPositions: ${popularPositions.slice(0, 15).join(', ')}`;
+        }
+        console.log('Including learning context from', learningData.length, 'records');
+      }
     }
 
     const sizeContext = companySize === 'large' 
@@ -29,11 +97,11 @@ serve(async (req) => {
 
 IMPORTANT: Return ONLY valid JSON, no markdown, no code blocks, no explanation.`;
 
-    const userPrompt = `For a ${sizeContext} in the ${industry || 'General Business'} industry, suggest:
+    const userPrompt = `For a ${sizeContext} in the ${normalizedCategory} industry, suggest:
 1. 6-8 relevant departments (MUST always include "Executive" as the first department)
 2. 10-15 common positions with their departments (include CEO, CTO, CFO, COO in Executive department)
 
-Focus on practical, commonly used structures. Consider the industry-specific roles.
+Focus on practical, commonly used structures. Consider the industry-specific roles.${learningContext}
 
 Return this exact JSON structure:
 {
@@ -120,7 +188,30 @@ Return this exact JSON structure:
 
     console.log(`Generated ${parsed.departments.length} departments and ${parsed.positions.length} positions`);
 
-    return new Response(JSON.stringify(parsed), {
+    // 3. Cache the result for future use
+    try {
+      await supabase
+        .from('org_structure_templates')
+        .upsert({
+          business_category: normalizedCategory,
+          company_size: normalizedSize,
+          departments: parsed.departments,
+          positions: parsed.positions,
+          source: 'ai',
+          usage_count: 1,
+          approval_count: 0,
+          organization_id: null,
+          updated_at: new Date().toISOString(),
+        }, { 
+          onConflict: 'business_category,company_size,organization_id',
+          ignoreDuplicates: false
+        });
+      console.log('Cached template for future use');
+    } catch (cacheErr) {
+      console.error('Failed to cache template:', cacheErr);
+    }
+
+    return new Response(JSON.stringify({ ...parsed, source: 'ai' }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
@@ -181,6 +272,20 @@ function getDefaultStructure(industry?: string) {
         { name: 'Finance Manager', department: 'Finance' },
         { name: 'HR Manager', department: 'Human Resources' },
         { name: 'Inventory Specialist', department: 'Store Operations' },
+      ],
+    },
+    'Migration Agency': {
+      departments: ['Executive', 'Immigration Consulting', 'Case Management', 'Compliance', 'Client Services', 'Marketing', 'Administration'],
+      positions: [
+        { name: 'CEO', department: 'Executive' },
+        { name: 'Principal Migration Agent', department: 'Immigration Consulting' },
+        { name: 'Migration Agent', department: 'Immigration Consulting' },
+        { name: 'Case Manager', department: 'Case Management' },
+        { name: 'Compliance Officer', department: 'Compliance' },
+        { name: 'Client Services Manager', department: 'Client Services' },
+        { name: 'Client Coordinator', department: 'Client Services' },
+        { name: 'Marketing Manager', department: 'Marketing' },
+        { name: 'Office Administrator', department: 'Administration' },
       ],
     },
   };

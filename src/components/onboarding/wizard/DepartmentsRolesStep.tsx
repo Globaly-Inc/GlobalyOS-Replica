@@ -1,9 +1,10 @@
 /**
  * Organization Onboarding - Departments & Roles Step
  * AI-powered suggestions for departments and positions based on industry
+ * With caching and learning capabilities
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -24,6 +25,7 @@ interface Position {
 interface DepartmentsRolesData {
   departments: string[];
   positions: Position[];
+  industry?: string; // Track what industry was used
 }
 
 interface DepartmentsRolesStepProps {
@@ -59,10 +61,18 @@ export function DepartmentsRolesStep({
   const [hasFetched, setHasFetched] = useState(!!initialData?.departments?.length);
   
   // Track which industry was used to generate current suggestions
+  // Use the industry from initial data if available, meaning saved data was for that industry
   const [suggestedForIndustry, setSuggestedForIndustry] = useState<string | undefined>(
-    initialData?.departments?.length ? industry : undefined
+    initialData?.industry || (initialData?.departments?.length ? industry : undefined)
   );
   const [showRefreshBanner, setShowRefreshBanner] = useState(false);
+  
+  // Track custom additions for learning
+  const [customDepartments, setCustomDepartments] = useState<Set<string>>(new Set());
+  const [customPositions, setCustomPositions] = useState<Set<string>>(new Set());
+  
+  // Track suggestion source
+  const [suggestionSource, setSuggestionSource] = useState<string | null>(null);
 
   // Fetch AI suggestions on mount or detect industry change
   useEffect(() => {
@@ -74,11 +84,15 @@ export function DepartmentsRolesStep({
     }
   }, [industry, hasFetched, suggestedForIndustry]);
 
-  const fetchSuggestions = async () => {
+  const fetchSuggestions = async (forceRegenerate = false) => {
     setIsLoadingSuggestions(true);
     try {
       const { data, error } = await supabase.functions.invoke('suggest-org-structure', {
-        body: { industry: industry || 'General Business', companySize: companySize || 'small' },
+        body: { 
+          industry: industry || 'General Business', 
+          companySize: companySize || 'small',
+          forceRegenerate
+        },
       });
 
       if (error) throw error;
@@ -88,7 +102,18 @@ export function DepartmentsRolesStep({
         setSelectedDepartments(new Set(data.departments));
         setPositions(data.positions.map((p: Position) => ({ ...p, selected: true })));
         setSuggestedForIndustry(industry); // Track which industry was used
+        setSuggestionSource(data.source || 'ai');
         setHasFetched(true);
+        // Reset custom tracking for fresh suggestions
+        setCustomDepartments(new Set());
+        setCustomPositions(new Set());
+        
+        if (data.source === 'cached') {
+          toast({
+            title: 'Loaded optimized structure',
+            description: 'Using proven department structure for your industry.',
+          });
+        }
       }
     } catch (err) {
       console.error('Failed to fetch suggestions:', err);
@@ -118,6 +143,11 @@ export function DepartmentsRolesStep({
     fetchSuggestions();
   };
 
+  const handleRegenerateSuggestions = () => {
+    setShowRefreshBanner(false);
+    fetchSuggestions(true); // Force regenerate with AI
+  };
+
   const toggleDepartment = (dept: string) => {
     const newSelected = new Set(selectedDepartments);
     if (newSelected.has(dept)) {
@@ -143,17 +173,20 @@ export function DepartmentsRolesStep({
       const dept = newDepartment.trim();
       setDepartments([...departments, dept]);
       setSelectedDepartments(new Set([...selectedDepartments, dept]));
+      setCustomDepartments(new Set([...customDepartments, dept])); // Track as custom
       setNewDepartment('');
     }
   };
 
   const addCustomPosition = () => {
     if (newPosition.name.trim() && newPosition.department) {
+      const posName = newPosition.name.trim();
       setPositions([...positions, { 
-        name: newPosition.name.trim(), 
+        name: posName, 
         department: newPosition.department, 
         selected: true 
       }]);
+      setCustomPositions(new Set([...customPositions, posName])); // Track as custom
       setNewPosition({ name: '', department: '' });
     }
   };
@@ -270,9 +303,26 @@ export function DepartmentsRolesStep({
         }
       }
 
+      // Save learning data for future improvements (fire and forget)
+      if (industry && organizationId) {
+        supabase.functions.invoke('save-org-structure-learning', {
+          body: {
+            businessCategory: industry,
+            selectedDepartments: finalDepartments,
+            selectedPositions: finalPositions.map(({ name, department }) => ({ name, department })),
+            customDepartments: Array.from(customDepartments),
+            customPositions: Array.from(customPositions),
+            organizationId
+          }
+        }).catch(err => {
+          console.error('Failed to save learning data:', err);
+        });
+      }
+
       onSave({
         departments: finalDepartments,
         positions: finalPositions.map(({ name, department }) => ({ name, department })),
+        industry, // Include industry so we know what these were generated for
       });
     } catch (err) {
       console.error('Failed to save positions:', err);
@@ -305,16 +355,32 @@ export function DepartmentsRolesStep({
         <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
           <Building2 className="h-6 w-6 text-primary" />
         </div>
-        <CardTitle className="text-xl flex items-center justify-center gap-2">
-          Departments & Roles
-          <Badge variant="secondary" className="text-xs">
-            <Sparkles className="h-3 w-3 mr-1" />
-            AI Suggested
-          </Badge>
-        </CardTitle>
+        <div className="flex items-center justify-center gap-2 flex-wrap">
+          <CardTitle className="text-xl flex items-center gap-2">
+            Departments & Roles
+            <Badge variant="secondary" className="text-xs">
+              <Sparkles className="h-3 w-3 mr-1" />
+              {suggestionSource === 'cached' ? 'Optimized' : 'AI Suggested'}
+            </Badge>
+          </CardTitle>
+        </div>
         <CardDescription>
           Review the suggested structure for your {industry || 'organization'} or customize it
         </CardDescription>
+        {/* Always visible regenerate button */}
+        <div className="mt-3">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleRegenerateSuggestions}
+            disabled={isLoadingSuggestions}
+            className="gap-1.5"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            Regenerate for {industry || 'industry'}
+          </Button>
+        </div>
       </CardHeader>
 
       <CardContent>
@@ -355,6 +421,9 @@ export function DepartmentsRolesStep({
                   onClick={() => toggleDepartment(dept)}
                 >
                   {dept}
+                  {customDepartments.has(dept) && (
+                    <span className="ml-1 text-xs opacity-70">(custom)</span>
+                  )}
                 </Badge>
               ))}
             </div>
@@ -452,6 +521,9 @@ export function DepartmentsRolesStep({
                   />
                   <div className="flex-1 min-w-0">
                     <span className="font-medium text-sm">{position.name}</span>
+                    {customPositions.has(position.name) && (
+                      <span className="ml-1 text-xs text-muted-foreground">(custom)</span>
+                    )}
                     <Badge variant="outline" className="ml-2 text-xs">
                       {position.department}
                     </Badge>
