@@ -210,9 +210,10 @@ function interceptFetch(): void {
         const clonedResponse = response.clone();
         let errorMessage = `Edge function ${functionName || 'unknown'} failed with status ${response.status}`;
         let errorDetails: Record<string, unknown> = {};
-        
+        let responseBody: any = null;
+
         try {
-          const responseBody = await clonedResponse.json();
+          responseBody = await clonedResponse.json();
           if (responseBody?.error) {
             errorMessage = responseBody.error;
             errorDetails = responseBody;
@@ -220,9 +221,19 @@ function interceptFetch(): void {
         } catch {
           // Response is not JSON, use default message
         }
-        
+
+        // Suppress logging for known, expected flows (e.g. onboarding invite duplicates)
+        const isExpectedInviteDuplicate =
+          functionName === 'invite-team-member' &&
+          response.status === 409 &&
+          (responseBody?.code === 'USER_EXISTS' || responseBody?.skipped === true);
+
+        if (isExpectedInviteDuplicate) {
+          return response;
+        }
+
         const fingerprint = generateErrorFingerprint('edge_function', errorMessage, functionName || undefined);
-        
+
         if (!isDuplicateError(fingerprint)) {
           logErrorToDatabase({
             errorType: 'edge_function',
