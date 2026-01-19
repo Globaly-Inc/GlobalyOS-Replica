@@ -142,18 +142,83 @@ const CURRENCIES = [
   { code: 'KRW', name: 'South Korean Won (₩)' },
 ];
 
-const INDUSTRIES = [
+const BUSINESS_CATEGORIES = [
+  // Technology & IT
   'Technology',
-  'Healthcare',
-  'Finance & Banking',
-  'Manufacturing',
-  'Retail & E-commerce',
-  'Education',
+  'IT Services & Consulting',
+  'Software Development',
+  'Cybersecurity',
+  'Data & Analytics',
+  
+  // Professional Services
   'Professional Services',
-  'Media & Entertainment',
+  'Legal Firm',
+  'Tax & Accounting Firm',
+  'Management Consulting',
+  'HR Consulting',
+  'Business Consulting',
+  
+  // Education
+  'Education',
+  'Education Consultancy',
+  'Training & Coaching',
+  'E-Learning',
+  
+  // Immigration & Legal
+  'Migration Agency',
+  'Immigration Services',
+  
+  // Healthcare
+  'Healthcare',
+  'Medical Practice',
+  'Dental Practice',
+  'Allied Health Services',
+  'Pharmacy',
+  'Mental Health Services',
+  
+  // Finance
+  'Finance & Banking',
+  'Insurance',
+  'Financial Advisory',
+  'Wealth Management',
+  'Fintech',
+  
+  // Real Estate & Property
   'Real Estate',
+  'Property Management',
+  'Construction',
+  'Architecture & Design',
+  
+  // Retail & Commerce
+  'Retail & E-commerce',
+  'Wholesale & Distribution',
+  
+  // Manufacturing & Industry
+  'Manufacturing',
+  'Logistics & Supply Chain',
+  'Automotive',
+  
+  // Creative & Media
+  'Media & Entertainment',
+  'Advertising & Marketing',
+  'Design Agency',
+  'Digital Marketing',
+  
+  // Hospitality & Travel
+  'Hospitality',
+  'Travel & Tourism',
+  'Food & Beverage',
+  'Event Management',
+  
+  // Other Sectors
   'Non-profit',
   'Government',
+  'Agriculture',
+  'Energy & Utilities',
+  'Telecommunications',
+  'Transportation',
+  'Sports & Recreation',
+  'Religious Organization',
   'Other',
 ];
 
@@ -467,21 +532,21 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
             </p>
           </div>
 
-          {/* Industry and Website in same row - bottom */}
+          {/* Business Category and Website in same row - bottom */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="industry">Industry</Label>
+              <Label htmlFor="industry">Business Category</Label>
               <Select
                 value={formData.industry}
                 onValueChange={(value) => updateField('industry', value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select industry" />
+                  <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {INDUSTRIES.map((industry) => (
-                    <SelectItem key={industry} value={industry}>
-                      {industry}
+                  {BUSINESS_CATEGORIES.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
                     </SelectItem>
                   ))}
                 </SelectContent>
