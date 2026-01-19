@@ -37,15 +37,14 @@ import {
   CustomerCount 
 } from "@/components/onboarding";
 
-// Validation schemas
-const businessInfoSchema = z.object({
+// Combined validation schema for step 2
+const businessAndUserSchema = z.object({
+  // Business info
   organizationName: z.string().min(2, "Organization name must be at least 2 characters"),
   industry: z.string().min(1, "Please select an industry"),
   companySize: z.string().min(1, "Please select company size"),
   country: z.string().min(1, "Please select a country"),
-});
-
-const userDetailsSchema = z.object({
+  // User details
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
   phone: z.string()
@@ -131,26 +130,16 @@ const Signup = () => {
 
   const validateStep2 = () => {
     try {
-      businessInfoSchema.parse({ organizationName, industry, companySize, country });
-      setErrors({});
-      return true;
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const newErrors: Record<string, string> = {};
-        error.errors.forEach((err) => {
-          if (err.path[0]) {
-            newErrors[err.path[0] as string] = err.message;
-          }
-        });
-        setErrors(newErrors);
-      }
-      return false;
-    }
-  };
-
-  const validateStep3 = () => {
-    try {
-      userDetailsSchema.parse({ fullName, email, phone, acceptTerms });
+      businessAndUserSchema.parse({ 
+        organizationName, 
+        industry, 
+        companySize, 
+        country,
+        fullName, 
+        email, 
+        phone, 
+        acceptTerms 
+      });
       setErrors({});
       return true;
     } catch (error) {
@@ -175,10 +164,6 @@ const Signup = () => {
         return;
       }
       setStep(2);
-    } else if (step === 2) {
-      if (validateStep2()) {
-        setStep(3);
-      }
     }
   };
 
@@ -188,7 +173,7 @@ const Signup = () => {
   };
 
   const handleSubmit = async () => {
-    if (!validateStep3()) return;
+    if (!validateStep2()) return;
 
     setLoading(true);
     try {
@@ -248,7 +233,7 @@ const Signup = () => {
 
         {/* Progress Steps */}
         <div className="flex items-center justify-center mb-8">
-          {[1, 2, 3].map((s) => (
+          {[1, 2].map((s) => (
             <div key={s} className="flex items-center">
               <div
                 className={cn(
@@ -260,7 +245,7 @@ const Signup = () => {
               >
                 {step > s ? <Check className="h-5 w-5" /> : s}
               </div>
-              {s < 3 && (
+              {s < 2 && (
                 <div
                   className={cn(
                     "w-16 md:w-24 h-1 mx-2",
@@ -410,7 +395,7 @@ const Signup = () => {
           </div>
         )}
 
-        {/* Step 2: Business Information */}
+        {/* Step 2: Complete Registration (Business + User Details) */}
         {step === 2 && (
           <Card className="p-6 md:p-8">
             <div className="flex items-center gap-3 mb-6">
@@ -418,159 +403,149 @@ const Signup = () => {
                 <Building2 className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <h2 className="text-xl font-semibold">Business Information</h2>
-                <p className="text-sm text-muted-foreground">Tell us about your organization</p>
+                <h2 className="text-xl font-semibold">Complete Your Registration</h2>
+                <p className="text-sm text-muted-foreground">Tell us about your organization and yourself</p>
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="orgName">Organization Name *</Label>
-                <Input
-                  id="orgName"
-                  placeholder="Acme Inc."
-                  value={organizationName}
-                  onChange={(e) => setOrganizationName(e.target.value)}
-                />
-                {errors.organizationName && (
-                  <p className="text-sm text-destructive">{errors.organizationName}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="industry">Industry *</Label>
-                <Select value={industry} onValueChange={setIndustry}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your industry" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {INDUSTRIES.map((ind) => (
-                      <SelectItem key={ind} value={ind}>{ind}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.industry && (
-                  <p className="text-sm text-destructive">{errors.industry}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="companySize">Company Size *</Label>
-                <Select value={companySize} onValueChange={setCompanySize}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select company size" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {COMPANY_SIZES.map((size) => (
-                      <SelectItem key={size.value} value={size.value}>{size.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.companySize && (
-                  <p className="text-sm text-destructive">{errors.companySize}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="country">Country *</Label>
-                <CountrySelector
-                  value={country}
-                  onChange={setCountry}
-                  placeholder="Select your country"
-                  valueType="name"
-                  error={!!errors.country}
-                />
-                {errors.country && (
-                  <p className="text-sm text-destructive">{errors.country}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <Button variant="outline" onClick={handleBack} className="flex-1">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
-              </Button>
-              <Button onClick={handleNext} className="flex-1">
-                Continue
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
-          </Card>
-        )}
-
-        {/* Step 3: User Details */}
-        {step === 3 && (
-          <Card className="p-6 md:p-8">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Users className="h-6 w-6 text-primary" />
-              </div>
+            <div className="space-y-6">
+              {/* Business Information Section */}
               <div>
-                <h2 className="text-xl font-semibold">Your Details</h2>
-                <p className="text-sm text-muted-foreground">Create your account</p>
-              </div>
-            </div>
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-4">Business Information</h3>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="orgName">Organization Name *</Label>
+                    <Input
+                      id="orgName"
+                      placeholder="Acme Inc."
+                      value={organizationName}
+                      onChange={(e) => setOrganizationName(e.target.value)}
+                    />
+                    {errors.organizationName && (
+                      <p className="text-sm text-destructive">{errors.organizationName}</p>
+                    )}
+                  </div>
 
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name *</Label>
-                <Input
-                  id="fullName"
-                  placeholder="John Doe"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                />
-                {errors.fullName && (
-                  <p className="text-sm text-destructive">{errors.fullName}</p>
-                )}
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="industry">Industry *</Label>
+                      <Select value={industry} onValueChange={setIndustry}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select your industry" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {INDUSTRIES.map((ind) => (
+                            <SelectItem key={ind} value={ind}>{ind}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {errors.industry && (
+                        <p className="text-sm text-destructive">{errors.industry}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="companySize">Company Size *</Label>
+                      <Select value={companySize} onValueChange={setCompanySize}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select company size" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {COMPANY_SIZES.map((size) => (
+                            <SelectItem key={size.value} value={size.value}>{size.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {errors.companySize && (
+                        <p className="text-sm text-destructive">{errors.companySize}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="country">Country *</Label>
+                    <CountrySelector
+                      value={country}
+                      onChange={setCountry}
+                      placeholder="Select your country"
+                      valueType="name"
+                      error={!!errors.country}
+                    />
+                    {errors.country && (
+                      <p className="text-sm text-destructive">{errors.country}</p>
+                    )}
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Work Email *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="john@acme.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-                {errors.email && (
-                  <p className="text-sm text-destructive">{errors.email}</p>
-                )}
-              </div>
+              <Separator />
 
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number *</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="+1 234 567 8900"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">Include country code (e.g., +1 for US, +44 for UK)</p>
-                {errors.phone && (
-                  <p className="text-sm text-destructive">{errors.phone}</p>
-                )}
-              </div>
+              {/* Your Details Section */}
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-4">Your Details</h3>
+                <div className="space-y-4">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="fullName">Full Name *</Label>
+                      <Input
+                        id="fullName"
+                        placeholder="John Doe"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                      />
+                      {errors.fullName && (
+                        <p className="text-sm text-destructive">{errors.fullName}</p>
+                      )}
+                    </div>
 
-              <div className="flex items-start gap-3 pt-2">
-                <Checkbox
-                  id="terms"
-                  checked={acceptTerms}
-                  onCheckedChange={(checked) => setAcceptTerms(checked === true)}
-                />
-                <Label htmlFor="terms" className="text-sm leading-relaxed cursor-pointer">
-                  I agree to the{" "}
-                  <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Terms of Service</a>
-                  {" "}and{" "}
-                  <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Privacy Policy</a>
-                </Label>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Work Email *</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="john@acme.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                      />
+                      {errors.email && (
+                        <p className="text-sm text-destructive">{errors.email}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number *</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="+1 234 567 8900"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">Include country code (e.g., +1 for US, +44 for UK)</p>
+                    {errors.phone && (
+                      <p className="text-sm text-destructive">{errors.phone}</p>
+                    )}
+                  </div>
+
+                  <div className="flex items-start gap-3 pt-2">
+                    <Checkbox
+                      id="terms"
+                      checked={acceptTerms}
+                      onCheckedChange={(checked) => setAcceptTerms(checked === true)}
+                    />
+                    <Label htmlFor="terms" className="text-sm leading-relaxed cursor-pointer">
+                      I agree to the{" "}
+                      <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Terms of Service</a>
+                      {" "}and{" "}
+                      <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Privacy Policy</a>
+                    </Label>
+                  </div>
+                  {errors.acceptTerms && (
+                    <p className="text-sm text-destructive">{errors.acceptTerms}</p>
+                  )}
+                </div>
               </div>
-              {errors.acceptTerms && (
-                <p className="text-sm text-destructive">{errors.acceptTerms}</p>
-              )}
             </div>
 
             {/* Summary */}
