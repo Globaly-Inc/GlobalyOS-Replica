@@ -15,7 +15,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { CountrySelector } from "@/components/ui/country-selector";
+import { AddressAutocomplete, AddressComponents } from '@/components/ui/address-autocomplete';
 import { 
   Building2, 
   Users, 
@@ -52,7 +52,8 @@ const businessAndUserSchema = z.object({
   organizationName: z.string().min(2, "Organization name must be at least 2 characters"),
   industry: z.string().min(1, "Please select a business category"),
   companySize: z.string().min(1, "Please select company size"),
-  country: z.string().min(1, "Please select a country"),
+  businessAddress: z.string().min(1, "Please enter your business address"),
+  country: z.string().min(1, "Business address must include a valid country"),
   // User details
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
@@ -178,8 +179,21 @@ const Signup = () => {
   const [organizationName, setOrganizationName] = useState("");
   const [industry, setIndustry] = useState("");
   const [companySize, setCompanySize] = useState("");
+  const [businessAddress, setBusinessAddress] = useState("");
+  const [businessAddressComponents, setBusinessAddressComponents] = useState<AddressComponents | null>(null);
   const [country, setCountry] = useState("");
   const [businessCategoryOpen, setBusinessCategoryOpen] = useState(false);
+
+  // Handle address change from autocomplete
+  const handleAddressChange = (address: string, components?: AddressComponents) => {
+    setBusinessAddress(address);
+    setBusinessAddressComponents(components || null);
+    
+    // Auto-extract country from address components
+    if (components?.country) {
+      setCountry(components.country);
+    }
+  };
   
   // Step 3: User details
   const [fullName, setFullName] = useState("");
@@ -210,6 +224,7 @@ const Signup = () => {
         organizationName, 
         industry, 
         companySize, 
+        businessAddress,
         country,
         fullName, 
         email, 
@@ -258,6 +273,8 @@ const Signup = () => {
           organizationName,
           industry,
           companySize,
+          businessAddress,
+          businessAddressComponents,
           country,
           ownerName: fullName,
           ownerEmail: email,
@@ -585,16 +602,18 @@ const Signup = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="country">Country *</Label>
-                    <CountrySelector
-                      value={country}
-                      onChange={setCountry}
-                      placeholder="Select your country"
-                      valueType="name"
-                      error={!!errors.country}
+                    <Label htmlFor="businessAddress">Business Address *</Label>
+                    <AddressAutocomplete
+                      value={businessAddress}
+                      onChange={handleAddressChange}
+                      placeholder="Start typing your business address..."
+                      required
                     />
-                    {errors.country && (
-                      <p className="text-sm text-destructive">{errors.country}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Search for your office or business location
+                    </p>
+                    {errors.businessAddress && (
+                      <p className="text-sm text-destructive">{errors.businessAddress}</p>
                     )}
                   </div>
                 </div>
