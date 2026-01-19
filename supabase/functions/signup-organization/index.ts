@@ -118,6 +118,7 @@ Deno.serve(async (req) => {
         owner_phone: ownerPhone,
         company_size: companySize,
         industry,
+        country,
       })
       .select()
       .single();

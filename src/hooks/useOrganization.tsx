@@ -9,6 +9,11 @@ interface Organization {
   plan: string;
   logo_url: string | null;
   timezone: string;
+  country: string | null;
+  industry: string | null;
+  company_size: string | null;
+  business_address: string | null;
+  business_address_components: { [key: string]: string | number | boolean | null } | null;
 }
 
 interface OrganizationMember {
@@ -58,7 +63,12 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
             slug,
             plan,
             logo_url,
-            timezone
+            timezone,
+            country,
+            industry,
+            company_size,
+            business_address,
+            business_address_components
           )
         `)
         .eq("user_id", user.id);

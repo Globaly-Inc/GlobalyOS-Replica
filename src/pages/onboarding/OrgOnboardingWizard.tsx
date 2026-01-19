@@ -168,6 +168,11 @@ export default function OrgOnboardingWizard() {
         return (
           <OrgInfoStep
             initialData={onboardingData?.organization_info}
+            signupData={{
+              country: currentOrg?.country || undefined,
+              industry: currentOrg?.industry || undefined,
+              company_size: currentOrg?.company_size || undefined,
+            }}
             onSave={(data) => handleNext({ organization_info: data })}
             onBack={handleBack}
             isSaving={saveStep.isPending}

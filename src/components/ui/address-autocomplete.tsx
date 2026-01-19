@@ -1,0 +1,195 @@
+/**
+ * Address Autocomplete Component using Google Places API
+ */
+
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Input } from '@/components/ui/input';
+import { MapPin, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+
+export interface AddressComponents {
+  street_number?: string;
+  route?: string;
+  locality?: string;
+  administrative_area_level_1?: string;
+  administrative_area_level_2?: string;
+  country?: string;
+  country_code?: string;
+  postal_code?: string;
+  formatted_address?: string;
+  lat?: number;
+  lng?: number;
+}
+
+interface AddressAutocompleteProps {
+  value: string;
+  onChange: (address: string, components?: AddressComponents) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  required?: boolean;
+}
+
+declare global {
+  interface Window {
+    google: typeof google;
+    initGoogleMaps?: () => void;
+  }
+}
+
+export function AddressAutocomplete({
+  value,
+  onChange,
+  placeholder = 'Start typing an address...',
+  disabled = false,
+  required = false,
+}: AddressAutocompleteProps) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [isScriptLoaded, setIsScriptLoaded] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const listenerRef = useRef<google.maps.MapsEventListener | null>(null);
+
+  // Load Google Maps script
+  const loadGoogleMapsScript = useCallback(async () => {
+    if (window.google?.maps?.places) {
+      setIsScriptLoaded(true);
+      return;
+    }
+
+    if (document.getElementById('google-maps-script')) {
+      // Script is loading, wait for it
+      const checkLoaded = setInterval(() => {
+        if (window.google?.maps?.places) {
+          setIsScriptLoaded(true);
+          clearInterval(checkLoaded);
+        }
+      }, 100);
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('get-google-maps-key');
+      
+      if (error || !data?.key) {
+        console.error('Failed to fetch Google Maps API key:', error);
+        setIsLoading(false);
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.id = 'google-maps-script';
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${data.key}&libraries=places&loading=async`;
+      script.async = true;
+      script.defer = true;
+      
+      script.onload = () => {
+        setIsScriptLoaded(true);
+        setIsLoading(false);
+      };
+      
+      script.onerror = () => {
+        console.error('Failed to load Google Maps script');
+        setIsLoading(false);
+      };
+
+      document.head.appendChild(script);
+    } catch (err) {
+      console.error('Error loading Google Maps:', err);
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Initialize autocomplete
+  useEffect(() => {
+    loadGoogleMapsScript();
+  }, [loadGoogleMapsScript]);
+
+  // Setup autocomplete when script is loaded
+  useEffect(() => {
+    if (!isScriptLoaded || !inputRef.current || !window.google?.maps?.places) {
+      return;
+    }
+
+    // Clean up previous autocomplete
+    if (listenerRef.current) {
+      google.maps.event.removeListener(listenerRef.current);
+    }
+
+    autocompleteRef.current = new google.maps.places.Autocomplete(inputRef.current, {
+      types: ['address'],
+      fields: ['address_components', 'formatted_address', 'geometry'],
+    });
+
+    listenerRef.current = autocompleteRef.current.addListener('place_changed', () => {
+      const place = autocompleteRef.current?.getPlace();
+      
+      if (!place?.address_components) {
+        return;
+      }
+
+      const components: AddressComponents = {
+        formatted_address: place.formatted_address,
+        lat: place.geometry?.location?.lat(),
+        lng: place.geometry?.location?.lng(),
+      };
+
+      // Parse address components
+      place.address_components.forEach((component) => {
+        const type = component.types[0];
+        switch (type) {
+          case 'street_number':
+            components.street_number = component.long_name;
+            break;
+          case 'route':
+            components.route = component.long_name;
+            break;
+          case 'locality':
+            components.locality = component.long_name;
+            break;
+          case 'administrative_area_level_1':
+            components.administrative_area_level_1 = component.long_name;
+            break;
+          case 'administrative_area_level_2':
+            components.administrative_area_level_2 = component.long_name;
+            break;
+          case 'country':
+            components.country = component.long_name;
+            components.country_code = component.short_name;
+            break;
+          case 'postal_code':
+            components.postal_code = component.long_name;
+            break;
+        }
+      });
+
+      onChange(place.formatted_address || '', components);
+    });
+
+    return () => {
+      if (listenerRef.current) {
+        google.maps.event.removeListener(listenerRef.current);
+      }
+    };
+  }, [isScriptLoaded, onChange]);
+
+  return (
+    <div className="relative">
+      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <Input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        disabled={disabled || isLoading}
+        required={required}
+        className="pl-9"
+      />
+      {isLoading && (
+        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+      )}
+    </div>
+  );
+}

@@ -1,14 +1,16 @@
 /**
  * Organization Onboarding - Organization Info Step
+ * Pre-fills data from signup (country, industry, company_size) and adds Google Places address
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, ArrowRight, Building2 } from 'lucide-react';
+import { AddressAutocomplete, AddressComponents } from '@/components/ui/address-autocomplete';
 
 interface OrgInfoStepProps {
   initialData?: {
@@ -20,8 +22,16 @@ interface OrgInfoStepProps {
     website?: string;
     industry?: string;
     company_size?: string;
+    business_address?: string;
+    business_address_components?: { [key: string]: string | number | boolean | null } | null;
   };
-  onSave: (data: Record<string, string>) => void;
+  // Data from organization record (for pre-filling signup data)
+  signupData?: {
+    country?: string;
+    industry?: string;
+    company_size?: string;
+  };
+  onSave: (data: Record<string, unknown>) => void;
   onBack: () => void;
   isSaving: boolean;
 }
@@ -112,24 +122,54 @@ const COMPANY_SIZES = [
   { value: '1000+', label: '1000+ employees' },
 ];
 
-export function OrgInfoStep({ initialData, onSave, onBack, isSaving }: OrgInfoStepProps) {
+export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving }: OrgInfoStepProps) {
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
-    country: initialData?.country || '',
+    country: initialData?.country || signupData?.country || '',
     timezone: initialData?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
     currency: initialData?.currency || 'USD',
     website: initialData?.website || '',
-    industry: initialData?.industry || '',
-    company_size: initialData?.company_size || '',
+    industry: initialData?.industry || signupData?.industry || '',
+    company_size: initialData?.company_size || signupData?.company_size || '',
+    business_address: initialData?.business_address || '',
+    business_address_components: initialData?.business_address_components || null,
   });
+
+  // Update form when signup data becomes available
+  useEffect(() => {
+    if (signupData) {
+      setFormData((prev) => ({
+        ...prev,
+        country: prev.country || signupData.country || '',
+        industry: prev.industry || signupData.industry || '',
+        company_size: prev.company_size || signupData.company_size || '',
+      }));
+    }
+  }, [signupData]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData);
   };
 
-  const updateField = (field: string, value: string) => {
+  const updateField = (field: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleAddressChange = (address: string, components?: AddressComponents) => {
+    // Convert AddressComponents to simple key-value object for storage
+    const simpleComponents = components ? Object.entries(components).reduce((acc, [key, value]) => {
+      if (value !== undefined) {
+        acc[key] = typeof value === 'object' ? JSON.stringify(value) : value;
+      }
+      return acc;
+    }, {} as { [key: string]: string | number | boolean | null }) : null;
+    
+    setFormData((prev) => ({
+      ...prev,
+      business_address: address,
+      business_address_components: simpleComponents,
+    }));
   };
 
   return (
@@ -198,25 +238,6 @@ export function OrgInfoStep({ initialData, onSave, onBack, isSaving }: OrgInfoSt
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="currency">Default Currency</Label>
-              <Select
-                value={formData.currency}
-                onValueChange={(value) => updateField('currency', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select currency" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CURRENCIES.map((currency) => (
-                    <SelectItem key={currency.code} value={currency.code}>
-                      {currency.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="industry">Industry</Label>
               <Select
                 value={formData.industry}
@@ -234,9 +255,7 @@ export function OrgInfoStep({ initialData, onSave, onBack, isSaving }: OrgInfoSt
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="company_size">Company Size</Label>
               <Select
@@ -250,6 +269,40 @@ export function OrgInfoStep({ initialData, onSave, onBack, isSaving }: OrgInfoSt
                   {COMPANY_SIZES.map((size) => (
                     <SelectItem key={size.value} value={size.value}>
                       {size.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="business_address">Business Address *</Label>
+            <AddressAutocomplete
+              value={formData.business_address}
+              onChange={handleAddressChange}
+              placeholder="Start typing your business address..."
+              required
+            />
+            <p className="text-xs text-muted-foreground">
+              Search for your office or business location
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="currency">Default Currency</Label>
+              <Select
+                value={formData.currency}
+                onValueChange={(value) => updateField('currency', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select currency" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CURRENCIES.map((currency) => (
+                    <SelectItem key={currency.code} value={currency.code}>
+                      {currency.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -273,7 +326,11 @@ export function OrgInfoStep({ initialData, onSave, onBack, isSaving }: OrgInfoSt
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
             </Button>
-            <Button type="submit" disabled={isSaving || !formData.name || !formData.country} className="flex-1">
+            <Button 
+              type="submit" 
+              disabled={isSaving || !formData.name || !formData.country || !formData.business_address} 
+              className="flex-1"
+            >
               {isSaving ? 'Saving...' : 'Continue'}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
