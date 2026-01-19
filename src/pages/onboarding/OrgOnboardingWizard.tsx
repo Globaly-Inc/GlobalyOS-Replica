@@ -9,6 +9,8 @@ import { useNavigate } from 'react-router-dom';
 import { useOrganization } from '@/hooks/useOrganization';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import { LogOut } from 'lucide-react';
 import { useCurrentEmployee } from '@/services/useCurrentEmployee';
 import {
   useOrgOnboardingData,
@@ -42,7 +44,7 @@ const STEP_NAMES = [
 export default function OrgOnboardingWizard() {
   const navigate = useNavigate();
   const { currentOrg } = useOrganization();
-  const { session, loading: authLoading } = useAuth();
+  const { session, loading: authLoading, signOut } = useAuth();
   const { data: currentEmployee } = useCurrentEmployee();
   const { data: onboardingData, isLoading: dataLoading } = useOrgOnboardingData();
   const initOnboarding = useInitOrgOnboarding();
@@ -283,6 +285,22 @@ export default function OrgOnboardingWizard() {
             )}
           >
             {renderStep(displayStep)}
+          </div>
+
+          {/* Logout button - shown on all steps */}
+          <div className="mt-8 text-center">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={async () => {
+                await signOut();
+                navigate('/');
+              }}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Log out
+            </Button>
           </div>
         </div>
       </main>

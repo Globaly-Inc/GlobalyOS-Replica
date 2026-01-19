@@ -6,9 +6,8 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle2, ArrowRight, ArrowLeft, Mail, Calendar, Clock, Sparkles, LogOut } from 'lucide-react';
+import { CheckCircle2, ArrowRight, ArrowLeft, Mail, Calendar, Clock, Sparkles } from 'lucide-react';
 import { SetupProgressScreen } from './SetupProgressScreen';
-import { useAuth } from '@/hooks/useAuth';
 
 interface TeamMember {
   email: string;
@@ -52,7 +51,6 @@ export function OrgCompleteStep({
   isCompleting 
 }: OrgCompleteStepProps) {
   const [isSettingUp, setIsSettingUp] = useState(false);
-  const { signOut } = useAuth();
 
   // Calculate what will happen during setup
   const hasOfficesWithHolidays = offices?.some(o => o.public_holidays_enabled) ?? false;
@@ -78,7 +76,6 @@ export function OrgCompleteStep({
   }
 
   return (
-  <>
     <Card className="border-0 shadow-lg">
       <CardHeader className="text-center pb-2">
         <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
@@ -142,18 +139,5 @@ export function OrgCompleteStep({
         </div>
       </CardContent>
     </Card>
-
-    <div className="mt-6 text-center">
-      <Button 
-        variant="ghost" 
-        size="sm" 
-        onClick={() => signOut()}
-        className="text-muted-foreground hover:text-foreground"
-      >
-        <LogOut className="mr-2 h-4 w-4" />
-        Log out
-      </Button>
-    </div>
-  </>
   );
 }
