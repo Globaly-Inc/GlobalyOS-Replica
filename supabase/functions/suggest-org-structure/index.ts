@@ -30,15 +30,16 @@ serve(async (req) => {
 IMPORTANT: Return ONLY valid JSON, no markdown, no code blocks, no explanation.`;
 
     const userPrompt = `For a ${sizeContext} in the ${industry || 'General Business'} industry, suggest:
-1. 6-8 relevant departments
-2. 10-15 common positions with their departments
+1. 6-8 relevant departments (MUST always include "Executive" as the first department)
+2. 10-15 common positions with their departments (include CEO, CTO, CFO, COO in Executive department)
 
 Focus on practical, commonly used structures. Consider the industry-specific roles.
 
 Return this exact JSON structure:
 {
-  "departments": ["Department1", "Department2", ...],
+  "departments": ["Executive", "Department2", ...],
   "positions": [
+    {"name": "CEO", "department": "Executive"},
     {"name": "Position Name", "department": "Department Name"},
     ...
   ]
@@ -184,11 +185,13 @@ function getDefaultStructure(industry?: string) {
     },
   };
 
-  return industryDefaults[industry || ''] || {
+  // Ensure Executive is always first in the result
+  const result = industryDefaults[industry || ''] || {
     departments: ['Executive', 'Operations', 'Sales', 'Marketing', 'Finance', 'Human Resources', 'Customer Service'],
     positions: [
       { name: 'CEO', department: 'Executive' },
       { name: 'COO', department: 'Executive' },
+      { name: 'CFO', department: 'Executive' },
       { name: 'Operations Manager', department: 'Operations' },
       { name: 'Sales Manager', department: 'Sales' },
       { name: 'Sales Representative', department: 'Sales' },
@@ -199,4 +202,14 @@ function getDefaultStructure(industry?: string) {
       { name: 'Customer Service Rep', department: 'Customer Service' },
     ],
   };
+  
+  // Ensure Executive is always first
+  if (!result.departments.includes('Executive')) {
+    result.departments.unshift('Executive');
+    result.positions.unshift({ name: 'CEO', department: 'Executive' });
+  } else if (result.departments[0] !== 'Executive') {
+    result.departments = ['Executive', ...result.departments.filter(d => d !== 'Executive')];
+  }
+  
+  return result;
 }
