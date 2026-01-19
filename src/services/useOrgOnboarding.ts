@@ -17,7 +17,7 @@ export interface OrgOnboardingData {
   owner_profile?: {
     position?: string;
     department?: string;
-    phone?: string;
+    join_date?: string;
     date_of_birth?: string | null;
   };
   organization_info: {
@@ -61,8 +61,8 @@ export interface OrgOnboardingData {
 
 const ORG_ONBOARDING_STEPS = [
   'welcome',
-  'owner-profile',
   'organization-info',
+  'owner-profile',
   'offices',
   'team-members',
   'features',
