@@ -15,7 +15,6 @@ import {
   Users, 
   Calendar, 
   FileText, 
-  MessageSquare, 
   PieChart, 
   Clock,
   GitBranch,
@@ -83,12 +82,15 @@ const FEATURES: FeatureDefinition[] = [
     icon: FileText,
     defaultEnabled: true,
   },
+  // Coming Soon Features - Gated by Super Admin
   {
     id: 'tasks',
     name: 'Task Management',
     description: 'Create, assign, and track tasks and projects',
     icon: ListTodo,
-    defaultEnabled: true,
+    comingSoon: true,
+    featureFlag: 'tasks',
+    defaultEnabled: false,
   },
   {
     id: 'kpi',
@@ -97,7 +99,6 @@ const FEATURES: FeatureDefinition[] = [
     icon: PieChart,
     defaultEnabled: true,
   },
-  // Coming Soon Features - Gated by Super Admin
   {
     id: 'workflows',
     name: 'Onboarding & Offboarding Workflows',
@@ -105,15 +106,6 @@ const FEATURES: FeatureDefinition[] = [
     icon: GitBranch,
     comingSoon: true,
     featureFlag: 'workflows',
-    defaultEnabled: false,
-  },
-  {
-    id: 'chat',
-    name: 'Team Chat',
-    description: 'Real-time messaging with spaces and direct messages',
-    icon: MessageSquare,
-    comingSoon: true,
-    featureFlag: 'chat',
     defaultEnabled: false,
   },
   {
