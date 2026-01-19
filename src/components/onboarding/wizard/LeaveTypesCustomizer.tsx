@@ -77,6 +77,14 @@ export function LeaveTypesCustomizer({ value, onChange, disabled = false }: Leav
 
   const enabledCount = leaveTypes.filter(lt => lt.is_enabled).length;
 
+  // Prevent Enter key from submitting parent form
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+
   return (
     <div className="space-y-2">
       <span className="text-xs text-muted-foreground px-1">
@@ -124,6 +132,7 @@ export function LeaveTypesCustomizer({ value, onChange, disabled = false }: Leav
                     min={0}
                     value={lt.default_days}
                     onChange={(e) => updateDays(globalIndex, parseInt(e.target.value) || 0)}
+                    onKeyDown={handleKeyDown}
                     disabled={disabled || !lt.is_enabled}
                     className="w-14 h-7 text-center text-sm px-1"
                   />
@@ -178,9 +187,13 @@ export function LeaveTypesCustomizer({ value, onChange, disabled = false }: Leav
                   <Input
                     value={lt.name}
                     onChange={(e) => updateCustomName(globalIndex, e.target.value)}
+                    onKeyDown={handleKeyDown}
                     placeholder="Leave type name"
                     disabled={disabled || !lt.is_enabled}
-                    className="flex-1 h-7 text-sm px-2"
+                    className={cn(
+                      "flex-1 h-7 text-sm px-2",
+                      lt.name.trim() === '' && "border-amber-400 focus:border-amber-500"
+                    )}
                   />
                   <Select
                     value={lt.category}
@@ -201,6 +214,7 @@ export function LeaveTypesCustomizer({ value, onChange, disabled = false }: Leav
                       min={0}
                       value={lt.default_days}
                       onChange={(e) => updateDays(globalIndex, parseInt(e.target.value) || 0)}
+                      onKeyDown={handleKeyDown}
                       disabled={disabled || !lt.is_enabled}
                       className="w-14 h-7 text-center text-sm px-1"
                     />
