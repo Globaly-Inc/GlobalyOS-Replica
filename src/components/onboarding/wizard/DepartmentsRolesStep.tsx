@@ -171,8 +171,8 @@ export function DepartmentsRolesStep({
           .select()
           .maybeSingle();
 
-        // Ignore unique constraint violations (position already exists)
-        if (error && error.code !== '23505') {
+        // Ignore unique constraint violations (position already exists from seeded/template data)
+        if (error && error.code !== '23505' && !error.message?.includes('duplicate')) {
           console.error('Failed to insert position:', position.name, error);
         }
       }

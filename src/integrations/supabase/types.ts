@@ -5156,6 +5156,7 @@ export type Database = {
           completed_at: string | null
           created_at: string | null
           current_step: number | null
+          departments_roles: Json | null
           enabled_features: Json | null
           hr_settings: Json | null
           id: string
@@ -5171,6 +5172,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string | null
           current_step?: number | null
+          departments_roles?: Json | null
           enabled_features?: Json | null
           hr_settings?: Json | null
           id?: string
@@ -5186,6 +5188,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string | null
           current_step?: number | null
+          departments_roles?: Json | null
           enabled_features?: Json | null
           hr_settings?: Json | null
           id?: string
@@ -6303,7 +6306,7 @@ export type Database = {
           description: string | null
           id: string
           name: string
-          organization_id: string | null
+          organization_id: string
           responsibilities: string[] | null
         }
         Insert: {
@@ -6313,7 +6316,7 @@ export type Database = {
           description?: string | null
           id?: string
           name: string
-          organization_id?: string | null
+          organization_id: string
           responsibilities?: string[] | null
         }
         Update: {
@@ -6323,7 +6326,7 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
-          organization_id?: string | null
+          organization_id?: string
           responsibilities?: string[] | null
         }
         Relationships: [
