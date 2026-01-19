@@ -27,7 +27,7 @@ export function ImageCropper({
   onCropComplete,
   aspectRatio = 1,
   cropShape = 'circle',
-  minZoom = 1,
+  minZoom = 0.5,
   maxZoom = 3,
 }: ImageCropperProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -39,7 +39,7 @@ export function ImageCropper({
   const [imageLoaded, setImageLoaded] = useState(false);
 
   const canvasSize = 280;
-  const cropSize = 240;
+  const cropSize = 260;
 
   // Load image
   useEffect(() => {
@@ -50,7 +50,7 @@ export function ImageCropper({
     img.onload = () => {
       imageRef.current = img;
       setImageLoaded(true);
-      setZoom(1);
+      setZoom(minZoom);
       setPosition({ x: 0, y: 0 });
     };
     img.src = imageSrc;
@@ -156,7 +156,7 @@ export function ImageCropper({
   };
 
   const handleReset = () => {
-    setZoom(1);
+    setZoom(minZoom);
     setPosition({ x: 0, y: 0 });
   };
 
