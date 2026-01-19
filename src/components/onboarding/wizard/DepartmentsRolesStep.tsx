@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, ArrowRight, Sparkles, Plus, Trash2, Loader2, Building2, Users, CheckSquare, Square } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Sparkles, Plus, Trash2, Loader2, Building2, Users, CheckSquare, Square, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -57,13 +57,22 @@ export function DepartmentsRolesStep({
   const [newDepartment, setNewDepartment] = useState('');
   const [newPosition, setNewPosition] = useState({ name: '', department: '' });
   const [hasFetched, setHasFetched] = useState(!!initialData?.departments?.length);
+  
+  // Track which industry was used to generate current suggestions
+  const [suggestedForIndustry, setSuggestedForIndustry] = useState<string | undefined>(
+    initialData?.departments?.length ? industry : undefined
+  );
+  const [showRefreshBanner, setShowRefreshBanner] = useState(false);
 
-  // Fetch AI suggestions on mount
+  // Fetch AI suggestions on mount or detect industry change
   useEffect(() => {
     if (!hasFetched && industry) {
       fetchSuggestions();
+    } else if (hasFetched && industry && suggestedForIndustry && industry !== suggestedForIndustry) {
+      // Industry changed after initial fetch - show refresh banner
+      setShowRefreshBanner(true);
     }
-  }, [industry, hasFetched]);
+  }, [industry, hasFetched, suggestedForIndustry]);
 
   const fetchSuggestions = async () => {
     setIsLoadingSuggestions(true);
@@ -78,6 +87,7 @@ export function DepartmentsRolesStep({
         setDepartments(data.departments);
         setSelectedDepartments(new Set(data.departments));
         setPositions(data.positions.map((p: Position) => ({ ...p, selected: true })));
+        setSuggestedForIndustry(industry); // Track which industry was used
         setHasFetched(true);
       }
     } catch (err) {
@@ -95,10 +105,17 @@ export function DepartmentsRolesStep({
       setDepartments(defaultDepts);
       setSelectedDepartments(new Set(defaultDepts));
       setPositions(defaultPositions);
+      setSuggestedForIndustry(industry); // Track even for defaults
       setHasFetched(true);
     } finally {
       setIsLoadingSuggestions(false);
     }
+  };
+
+  const handleRefreshSuggestions = () => {
+    setShowRefreshBanner(false);
+    setHasFetched(false);
+    fetchSuggestions();
   };
 
   const toggleDepartment = (dept: string) => {
@@ -302,6 +319,27 @@ export function DepartmentsRolesStep({
 
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Refresh Banner when industry changed */}
+          {showRefreshBanner && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-amber-800 text-sm">
+                <Sparkles className="h-4 w-4" />
+                <span>
+                  Business category changed to <strong>{industry}</strong>. Refresh suggestions?
+                </span>
+              </div>
+              <Button 
+                type="button"
+                size="sm" 
+                variant="outline" 
+                onClick={handleRefreshSuggestions}
+                className="gap-1.5"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Refresh
+              </Button>
+            </div>
+          )}
           {/* Departments Section */}
           <div className="space-y-3">
             <Label className="text-base font-semibold flex items-center gap-2">
