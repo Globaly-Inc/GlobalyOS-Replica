@@ -269,7 +269,7 @@ export function OwnerProfileStep({
         .from('offices')
         .select('id')
         .eq('organization_id', organizationId)
-        .or('name.ilike.Head Office,name.ilike.Headquarters,is_headquarters.eq.true')
+        .or('name.ilike.%Head Office%,name.ilike.%Headquarters%')
         .limit(1)
         .maybeSingle();
 
