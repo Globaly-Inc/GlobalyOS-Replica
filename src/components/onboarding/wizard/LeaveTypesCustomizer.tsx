@@ -79,14 +79,9 @@ export function LeaveTypesCustomizer({ value, onChange, disabled = false }: Leav
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between px-1">
-        <span className="text-xs text-muted-foreground">
-          Default Leave Type and Days
-        </span>
-        <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5">
-          {enabledCount} enabled
-        </Badge>
-      </div>
+      <span className="text-xs text-muted-foreground px-1">
+        Default Leave Type and Days
+      </span>
 
         {/* System Leave Types */}
         <div className="space-y-1">
