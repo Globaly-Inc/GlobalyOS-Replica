@@ -12,12 +12,19 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { AddressAutocomplete, AddressComponents } from '@/components/ui/address-autocomplete';
-import { WorkdaysChipSelector, WEEKDAYS_MON_FRI } from '@/components/ui/workdays-chip-selector';
+import { 
+  WorkdaysScheduleSelector, 
+  DaySchedulesMap, 
+  DEFAULT_WEEKDAY_SCHEDULES,
+  scheduleMapToWorkDaysArray 
+} from '@/components/ui/workdays-schedule-selector';
+import { YearStartPicker } from '@/components/ui/year-start-picker';
 import { ArrowLeft, ArrowRight, Building, Plus, Trash2, Loader2, Crown, Globe, CalendarDays, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { getTimezoneForCountry, getTimezonesForCountry, hasMultipleTimezones } from '@/utils/countryTimezones';
+import { getTimezoneForCountry } from '@/utils/countryTimezones';
+import type { Json } from '@/integrations/supabase/types';
 
 interface Office {
   id?: string;
@@ -33,9 +40,7 @@ interface Office {
   };
   // Attendance settings
   timezone?: string;
-  work_days?: number[];
-  work_start_time?: string;
-  work_end_time?: string;
+  day_schedules?: DaySchedulesMap;
   public_holidays_enabled?: boolean;
   // Leave settings
   leave_year_start_month?: number;
@@ -87,20 +92,25 @@ const TIMEZONE_OPTIONS = [
   { value: 'UTC', label: 'UTC' },
 ];
 
-const MONTHS = [
-  { value: 1, label: 'Jan' },
-  { value: 2, label: 'Feb' },
-  { value: 3, label: 'Mar' },
-  { value: 4, label: 'Apr' },
-  { value: 5, label: 'May' },
-  { value: 6, label: 'Jun' },
-  { value: 7, label: 'Jul' },
-  { value: 8, label: 'Aug' },
-  { value: 9, label: 'Sep' },
-  { value: 10, label: 'Oct' },
-  { value: 11, label: 'Nov' },
-  { value: 12, label: 'Dec' },
-];
+// Helper to convert old format to new DaySchedulesMap
+const convertToDaySchedules = (
+  workDays?: number[], 
+  startTime?: string, 
+  endTime?: string
+): DaySchedulesMap => {
+  if (!workDays || workDays.length === 0) {
+    return { ...DEFAULT_WEEKDAY_SCHEDULES };
+  }
+  const schedules: DaySchedulesMap = {};
+  workDays.forEach(day => {
+    schedules[day.toString()] = {
+      enabled: true,
+      start: startTime || '09:00',
+      end: endTime || '17:00',
+    };
+  });
+  return schedules;
+};
 
 export function OfficesStep({ 
   organizationId, 
@@ -124,9 +134,11 @@ export function OfficesStep({
       return initialOffices.map(o => ({
         ...o,
         timezone: o.timezone || getTimezoneForCountry(o.address_components?.country_code),
-        work_days: o.work_days || [1, 2, 3, 4, 5],
-        work_start_time: o.work_start_time || '09:00',
-        work_end_time: o.work_end_time || '17:00',
+        day_schedules: o.day_schedules || convertToDaySchedules(
+          (o as any).work_days, 
+          (o as any).work_start_time, 
+          (o as any).work_end_time
+        ),
         public_holidays_enabled: o.public_holidays_enabled ?? true,
         leave_year_start_month: o.leave_year_start_month || 1,
         leave_year_start_day: o.leave_year_start_day || 1,
@@ -149,9 +161,7 @@ export function OfficesStep({
         lng: components.lng,
       } : undefined,
       timezone: getTimezoneForCountry(countryCode),
-      work_days: [1, 2, 3, 4, 5],
-      work_start_time: '09:00',
-      work_end_time: '17:00',
+      day_schedules: { ...DEFAULT_WEEKDAY_SCHEDULES },
       public_holidays_enabled: true,
       leave_year_start_month: 1,
       leave_year_start_day: 1,
@@ -172,9 +182,7 @@ export function OfficesStep({
       name: '', 
       address: '',
       timezone: 'UTC',
-      work_days: [1, 2, 3, 4, 5],
-      work_start_time: '09:00',
-      work_end_time: '17:00',
+      day_schedules: { ...DEFAULT_WEEKDAY_SCHEDULES },
       public_holidays_enabled: true,
       leave_year_start_month: 1,
       leave_year_start_day: 1,
@@ -281,8 +289,16 @@ export function OfficesStep({
           officeId = newOffice.id;
         }
 
-        // Upsert office schedule with work_days
-        if (hasAttendance) {
+        // Upsert office schedule with day_schedules
+        if (hasAttendance && office.day_schedules) {
+          const workDays = scheduleMapToWorkDaysArray(office.day_schedules);
+          // Get first enabled day's times as default work hours
+          const firstEnabledDay = Object.values(office.day_schedules).find(s => s.enabled);
+          const workStartTime = firstEnabledDay?.start || '09:00';
+          const workEndTime = firstEnabledDay?.end || '17:00';
+          // Use JSON parse/stringify to ensure proper Json type
+          const daySchedulesJson = JSON.parse(JSON.stringify(office.day_schedules)) as Json;
+
           const { data: existingSchedule } = await supabase
             .from('office_schedules')
             .select('id')
@@ -293,23 +309,25 @@ export function OfficesStep({
             await supabase
               .from('office_schedules')
               .update({
-                work_start_time: office.work_start_time,
-                work_end_time: office.work_end_time,
-                work_days: office.work_days,
+                work_start_time: workStartTime,
+                work_end_time: workEndTime,
+                work_days: workDays,
+                day_schedules: daySchedulesJson,
                 timezone: office.timezone,
               })
               .eq('id', existingSchedule.id);
           } else {
             await supabase
               .from('office_schedules')
-              .insert({
+              .insert([{
                 office_id: officeId,
                 organization_id: organizationId,
-                work_start_time: office.work_start_time,
-                work_end_time: office.work_end_time,
-                work_days: office.work_days,
+                work_start_time: workStartTime,
+                work_end_time: workEndTime,
+                work_days: workDays,
+                day_schedules: daySchedulesJson,
                 timezone: office.timezone,
-              });
+              }]);
           }
         }
 
@@ -465,14 +483,13 @@ export function OfficesStep({
                         </TableCell>
                       )}
 
-                      {/* Workdays (Attendance) */}
+                      {/* Workdays with Schedule (Attendance) */}
                       {hasAttendance && (
                         <TableCell className="p-2">
-                          <WorkdaysChipSelector
-                            value={office.work_days || WEEKDAYS_MON_FRI}
-                            onChange={(days) => updateOffice(index, 'work_days', days)}
+                          <WorkdaysScheduleSelector
+                            value={office.day_schedules || DEFAULT_WEEKDAY_SCHEDULES}
+                            onChange={(schedules) => updateOffice(index, 'day_schedules', schedules)}
                             disabled={isLoading}
-                            size="sm"
                           />
                         </TableCell>
                       )}
@@ -493,40 +510,15 @@ export function OfficesStep({
                       {/* Year Start (Leave) */}
                       {hasLeave && (
                         <TableCell className="p-2">
-                          <div className="flex items-center gap-1">
-                            <Select
-                              value={String(office.leave_year_start_month || 1)}
-                              onValueChange={(v) => updateOffice(index, 'leave_year_start_month', parseInt(v))}
-                              disabled={isLoading}
-                            >
-                              <SelectTrigger className="h-8 text-sm w-[60px]">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {MONTHS.map((m) => (
-                                  <SelectItem key={m.value} value={String(m.value)}>
-                                    {m.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <Select
-                              value={String(office.leave_year_start_day || 1)}
-                              onValueChange={(v) => updateOffice(index, 'leave_year_start_day', parseInt(v))}
-                              disabled={isLoading}
-                            >
-                              <SelectTrigger className="h-8 text-sm w-[50px]">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
-                                  <SelectItem key={d} value={String(d)}>
-                                    {d}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
+                          <YearStartPicker
+                            month={office.leave_year_start_month || 1}
+                            day={office.leave_year_start_day || 1}
+                            onChange={(month, day) => {
+                              updateOffice(index, 'leave_year_start_month', month);
+                              updateOffice(index, 'leave_year_start_day', day);
+                            }}
+                            disabled={isLoading}
+                          />
                         </TableCell>
                       )}
 
