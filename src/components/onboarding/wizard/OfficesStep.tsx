@@ -18,7 +18,7 @@ import {
 import { WorkdaysChipSelector } from '@/components/ui/workdays-chip-selector';
 import { YearStartPicker } from '@/components/ui/year-start-picker';
 import { TimezoneSelector } from '@/components/ui/timezone-selector';
-import { LeaveTypeConfig, getDefaultLeaveTypesConfig } from './LeaveTypesCustomizer';
+import { LeaveTypeConfig, getDefaultLeaveTypesConfig, LeaveTypesCustomizer } from './LeaveTypesCustomizer';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { 
   ArrowLeft, 
@@ -858,25 +858,12 @@ export function OfficesStep({
                                 />
                               </div>
 
-                              {/* Leave Types Preview */}
-                              <div className="space-y-2">
-                                <Label className="text-xs text-muted-foreground">Leave Types</Label>
-                                <div className="text-sm text-muted-foreground bg-background/50 rounded-md p-3 space-y-1">
-                                  {leaveTypesConfig.slice(0, 4).map((lt, i) => (
-                                    <div key={i} className="flex justify-between">
-                                      <span>{lt.name}</span>
-                                      <span className="font-medium">
-                                        {lt.default_days === 0 && lt.category === 'unpaid' ? 'Unlimited' : `${lt.default_days} days`}
-                                      </span>
-                                    </div>
-                                  ))}
-                                  {leaveTypesConfig.length > 4 && (
-                                    <div className="text-xs text-muted-foreground pt-1">
-                                      +{leaveTypesConfig.length - 4} more...
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
+                              {/* Leave Types Customizer */}
+                              <LeaveTypesCustomizer
+                                value={leaveTypesConfig}
+                                onChange={setLeaveTypesConfig}
+                                disabled={isLoading}
+                              />
                               </>
                               )}
                             </div>
