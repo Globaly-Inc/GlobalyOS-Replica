@@ -252,6 +252,7 @@ export default function OrgOnboardingWizard() {
             orgName={currentOrg?.name || 'Your organization'}
             teamMembersCount={onboardingData?.team_members?.length || 0}
             onFinish={() => handleNext()}
+            onBack={handleBack}
             isCompleting={completeOnboarding.isPending}
           />
         );
