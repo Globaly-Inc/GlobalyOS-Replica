@@ -13,7 +13,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Clock } from "lucide-react";
+import { Clock, Coffee, Timer } from "lucide-react";
 
 const WEEKDAYS = [
   { value: 0, label: "S", fullName: "Sunday" },
@@ -29,6 +29,9 @@ export interface DaySchedule {
   enabled: boolean;
   start: string; // "09:00"
   end: string; // "17:00"
+  breakStart?: string; // "12:00"
+  breakEnd?: string; // "13:00"
+  lateThreshold?: number; // minutes
 }
 
 export interface DaySchedulesMap {
@@ -41,11 +44,31 @@ export interface WorkdaysScheduleSelectorProps {
   disabled?: boolean;
   defaultStart?: string;
   defaultEnd?: string;
+  defaultBreakStart?: string;
+  defaultBreakEnd?: string;
+  defaultLateThreshold?: number;
   className?: string;
 }
 
 const DEFAULT_START = "09:00";
 const DEFAULT_END = "17:00";
+const DEFAULT_BREAK_START = "12:00";
+const DEFAULT_BREAK_END = "13:00";
+const DEFAULT_LATE_THRESHOLD = 15;
+
+// Calculate break duration for display
+const getBreakDuration = (startTime: string, endTime: string): string => {
+  if (!startTime || !endTime) return "—";
+  const [startH, startM] = startTime.split(":").map(Number);
+  const [endH, endM] = endTime.split(":").map(Number);
+  const mins = endH * 60 + endM - (startH * 60 + startM);
+  if (mins <= 0) return "—";
+  const hours = Math.floor(mins / 60);
+  const remainingMins = mins % 60;
+  if (hours > 0 && remainingMins > 0) return `${hours}h ${remainingMins}m`;
+  if (hours > 0) return `${hours}h`;
+  return `${mins}m`;
+};
 
 export function WorkdaysScheduleSelector({
   value,
@@ -53,6 +76,9 @@ export function WorkdaysScheduleSelector({
   disabled = false,
   defaultStart = DEFAULT_START,
   defaultEnd = DEFAULT_END,
+  defaultBreakStart = DEFAULT_BREAK_START,
+  defaultBreakEnd = DEFAULT_BREAK_END,
+  defaultLateThreshold = DEFAULT_LATE_THRESHOLD,
   className,
 }: WorkdaysScheduleSelectorProps) {
   const [openDay, setOpenDay] = React.useState<number | null>(null);
@@ -63,6 +89,9 @@ export function WorkdaysScheduleSelector({
         enabled: false,
         start: defaultStart,
         end: defaultEnd,
+        breakStart: defaultBreakStart,
+        breakEnd: defaultBreakEnd,
+        lateThreshold: defaultLateThreshold,
       }
     );
   };
@@ -94,6 +123,9 @@ export function WorkdaysScheduleSelector({
         enabled: sourceSchedule.enabled,
         start: sourceSchedule.start,
         end: sourceSchedule.end,
+        breakStart: sourceSchedule.breakStart,
+        breakEnd: sourceSchedule.breakEnd,
+        lateThreshold: sourceSchedule.lateThreshold,
       };
     });
 
@@ -101,11 +133,15 @@ export function WorkdaysScheduleSelector({
     setOpenDay(null);
   };
 
-  const hasCustomTimes = (day: number): boolean => {
+  const hasCustomSettings = (day: number): boolean => {
     const schedule = getDaySchedule(day);
     return (
       schedule.enabled &&
-      (schedule.start !== defaultStart || schedule.end !== defaultEnd)
+      (schedule.start !== defaultStart ||
+        schedule.end !== defaultEnd ||
+        (schedule.breakStart !== undefined && schedule.breakStart !== defaultBreakStart) ||
+        (schedule.breakEnd !== undefined && schedule.breakEnd !== defaultBreakEnd) ||
+        (schedule.lateThreshold !== undefined && schedule.lateThreshold !== defaultLateThreshold))
     );
   };
 
@@ -121,7 +157,7 @@ export function WorkdaysScheduleSelector({
         {WEEKDAYS.map((day) => {
           const schedule = getDaySchedule(day.value);
           const isEnabled = schedule.enabled;
-          const hasCustom = hasCustomTimes(day.value);
+          const hasCustom = hasCustomSettings(day.value);
 
           return (
             <Popover
@@ -162,7 +198,7 @@ export function WorkdaysScheduleSelector({
                 </TooltipContent>
               </Tooltip>
 
-              <PopoverContent className="w-64 p-0" align="center">
+              <PopoverContent className="w-80 p-0" align="center">
                 <div className="p-4 space-y-4">
                   {/* Day Toggle */}
                   <div className="flex items-center justify-between">
@@ -181,60 +217,163 @@ export function WorkdaysScheduleSelector({
 
                   {/* Time Inputs - only show if enabled */}
                   {isEnabled && (
-                    <div className="space-y-3 pt-2 border-t">
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">
-                          Work hours
-                        </span>
+                    <>
+                      {/* Work Hours Section */}
+                      <div className="space-y-3 pt-3 border-t">
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium text-muted-foreground">
+                            Work Hours
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <Label
+                              htmlFor={`start-${day.value}`}
+                              className="text-xs text-muted-foreground"
+                            >
+                              Start
+                            </Label>
+                            <input
+                              id={`start-${day.value}`}
+                              type="time"
+                              value={schedule.start}
+                              onChange={(e) =>
+                                updateDaySchedule(day.value, {
+                                  start: e.target.value,
+                                })
+                              }
+                              className={cn(
+                                "flex h-9 w-full rounded-md border border-input bg-background px-3 py-1",
+                                "text-sm shadow-sm transition-colors",
+                                "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                              )}
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label
+                              htmlFor={`end-${day.value}`}
+                              className="text-xs text-muted-foreground"
+                            >
+                              End
+                            </Label>
+                            <input
+                              id={`end-${day.value}`}
+                              type="time"
+                              value={schedule.end}
+                              onChange={(e) =>
+                                updateDaySchedule(day.value, {
+                                  end: e.target.value,
+                                })
+                              }
+                              className={cn(
+                                "flex h-9 w-full rounded-md border border-input bg-background px-3 py-1",
+                                "text-sm shadow-sm transition-colors",
+                                "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                              )}
+                            />
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                          <Label
-                            htmlFor={`start-${day.value}`}
-                            className="text-xs text-muted-foreground"
-                          >
-                            Start
-                          </Label>
-                          <input
-                            id={`start-${day.value}`}
-                            type="time"
-                            value={schedule.start}
-                            onChange={(e) =>
-                              updateDaySchedule(day.value, {
-                                start: e.target.value,
-                              })
-                            }
-                            className={cn(
-                              "flex h-9 w-full rounded-md border border-input bg-background px-3 py-1",
-                              "text-sm shadow-sm transition-colors",
-                              "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      {/* Break Time Section */}
+                      <div className="space-y-3 pt-3 border-t">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Coffee className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm font-medium text-muted-foreground">
+                              Break Time
+                            </span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {getBreakDuration(
+                              schedule.breakStart || defaultBreakStart,
+                              schedule.breakEnd || defaultBreakEnd
                             )}
-                          />
+                          </span>
                         </div>
-                        <div className="space-y-1.5">
-                          <Label
-                            htmlFor={`end-${day.value}`}
-                            className="text-xs text-muted-foreground"
-                          >
-                            End
-                          </Label>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <Label
+                              htmlFor={`break-start-${day.value}`}
+                              className="text-xs text-muted-foreground"
+                            >
+                              Start
+                            </Label>
+                            <input
+                              id={`break-start-${day.value}`}
+                              type="time"
+                              value={schedule.breakStart || defaultBreakStart}
+                              onChange={(e) =>
+                                updateDaySchedule(day.value, {
+                                  breakStart: e.target.value,
+                                })
+                              }
+                              className={cn(
+                                "flex h-9 w-full rounded-md border border-input bg-background px-3 py-1",
+                                "text-sm shadow-sm transition-colors",
+                                "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                              )}
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label
+                              htmlFor={`break-end-${day.value}`}
+                              className="text-xs text-muted-foreground"
+                            >
+                              End
+                            </Label>
+                            <input
+                              id={`break-end-${day.value}`}
+                              type="time"
+                              value={schedule.breakEnd || defaultBreakEnd}
+                              onChange={(e) =>
+                                updateDaySchedule(day.value, {
+                                  breakEnd: e.target.value,
+                                })
+                              }
+                              className={cn(
+                                "flex h-9 w-full rounded-md border border-input bg-background px-3 py-1",
+                                "text-sm shadow-sm transition-colors",
+                                "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                              )}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Late Threshold Section */}
+                      <div className="space-y-3 pt-3 border-t">
+                        <div className="flex items-center gap-2">
+                          <Timer className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium text-muted-foreground">
+                            Late Threshold
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
                           <input
-                            id={`end-${day.value}`}
-                            type="time"
-                            value={schedule.end}
+                            id={`late-threshold-${day.value}`}
+                            type="number"
+                            min={0}
+                            max={60}
+                            value={schedule.lateThreshold ?? defaultLateThreshold}
                             onChange={(e) =>
                               updateDaySchedule(day.value, {
-                                end: e.target.value,
+                                lateThreshold: parseInt(e.target.value) || 0,
                               })
                             }
                             className={cn(
-                              "flex h-9 w-full rounded-md border border-input bg-background px-3 py-1",
+                              "flex h-9 w-20 rounded-md border border-input bg-background px-3 py-1",
                               "text-sm shadow-sm transition-colors",
                               "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                             )}
                           />
+                          <span className="text-sm text-muted-foreground">
+                            minutes grace period
+                          </span>
                         </div>
                       </div>
 
@@ -244,13 +383,13 @@ export function WorkdaysScheduleSelector({
                           type="button"
                           variant="outline"
                           size="sm"
-                          className="w-full text-xs"
+                          className="w-full text-xs mt-2"
                           onClick={() => applyToAllWeekdays(day.value)}
                         >
                           Apply to all weekdays
                         </Button>
                       )}
-                    </div>
+                    </>
                   )}
                 </div>
               </PopoverContent>
@@ -267,7 +406,7 @@ export function WorkdaysScheduleSelector({
           <>
             {getEnabledDays().length} day
             {getEnabledDays().length !== 1 ? "s" : ""} selected
-            {WEEKDAYS.some((d) => hasCustomTimes(d.value)) && (
+            {WEEKDAYS.some((d) => hasCustomSettings(d.value)) && (
               <span className="text-foreground"> • Custom hours set</span>
             )}
           </>
@@ -281,7 +420,10 @@ export function WorkdaysScheduleSelector({
 export function workDaysArrayToScheduleMap(
   workDays: number[],
   defaultStart = DEFAULT_START,
-  defaultEnd = DEFAULT_END
+  defaultEnd = DEFAULT_END,
+  defaultBreakStart = DEFAULT_BREAK_START,
+  defaultBreakEnd = DEFAULT_BREAK_END,
+  defaultLateThreshold = DEFAULT_LATE_THRESHOLD
 ): DaySchedulesMap {
   const map: DaySchedulesMap = {};
   workDays.forEach((day) => {
@@ -289,6 +431,9 @@ export function workDaysArrayToScheduleMap(
       enabled: true,
       start: defaultStart,
       end: defaultEnd,
+      breakStart: defaultBreakStart,
+      breakEnd: defaultBreakEnd,
+      lateThreshold: defaultLateThreshold,
     };
   });
   return map;
@@ -304,9 +449,11 @@ export function scheduleMapToWorkDaysArray(schedules: DaySchedulesMap): number[]
 
 // Default Mon-Fri schedule
 export const DEFAULT_WEEKDAY_SCHEDULES: DaySchedulesMap = {
-  "1": { enabled: true, start: DEFAULT_START, end: DEFAULT_END },
-  "2": { enabled: true, start: DEFAULT_START, end: DEFAULT_END },
-  "3": { enabled: true, start: DEFAULT_START, end: DEFAULT_END },
-  "4": { enabled: true, start: DEFAULT_START, end: DEFAULT_END },
-  "5": { enabled: true, start: DEFAULT_START, end: DEFAULT_END },
+  "0": { enabled: false, start: DEFAULT_START, end: DEFAULT_END, breakStart: DEFAULT_BREAK_START, breakEnd: DEFAULT_BREAK_END, lateThreshold: DEFAULT_LATE_THRESHOLD },
+  "1": { enabled: true, start: DEFAULT_START, end: DEFAULT_END, breakStart: DEFAULT_BREAK_START, breakEnd: DEFAULT_BREAK_END, lateThreshold: DEFAULT_LATE_THRESHOLD },
+  "2": { enabled: true, start: DEFAULT_START, end: DEFAULT_END, breakStart: DEFAULT_BREAK_START, breakEnd: DEFAULT_BREAK_END, lateThreshold: DEFAULT_LATE_THRESHOLD },
+  "3": { enabled: true, start: DEFAULT_START, end: DEFAULT_END, breakStart: DEFAULT_BREAK_START, breakEnd: DEFAULT_BREAK_END, lateThreshold: DEFAULT_LATE_THRESHOLD },
+  "4": { enabled: true, start: DEFAULT_START, end: DEFAULT_END, breakStart: DEFAULT_BREAK_START, breakEnd: DEFAULT_BREAK_END, lateThreshold: DEFAULT_LATE_THRESHOLD },
+  "5": { enabled: true, start: DEFAULT_START, end: DEFAULT_END, breakStart: DEFAULT_BREAK_START, breakEnd: DEFAULT_BREAK_END, lateThreshold: DEFAULT_LATE_THRESHOLD },
+  "6": { enabled: false, start: DEFAULT_START, end: DEFAULT_END, breakStart: DEFAULT_BREAK_START, breakEnd: DEFAULT_BREAK_END, lateThreshold: DEFAULT_LATE_THRESHOLD },
 };
