@@ -29,6 +29,8 @@ export interface OrgOnboardingData {
     website?: string;
     industry?: string;
     company_size?: string;
+    business_address?: string;
+    business_address_components?: { [key: string]: string | number | boolean | null } | null;
   };
   offices: Array<{
     id?: string;
@@ -160,14 +162,19 @@ export function useInitOrgOnboarding() {
 
       if (existing) return existing;
 
-      // Create new onboarding data
+      // Create new onboarding data with pre-filled signup data
       const { data, error } = await supabase
         .from('org_onboarding_data')
         .insert({
           organization_id: currentOrg.id,
           owner_user_id: session.user.id,
           current_step: 1,
-          organization_info: { name: currentOrg.name },
+          organization_info: { 
+            name: currentOrg.name,
+            country: (currentOrg as any).country || undefined,
+            industry: (currentOrg as any).industry || undefined,
+            company_size: (currentOrg as any).company_size || undefined,
+          },
           offices: [],
           team_members: [],
           enabled_features: ['hr', 'leave', 'feed', 'wiki', 'chat'],

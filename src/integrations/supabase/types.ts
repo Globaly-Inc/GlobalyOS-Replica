@@ -5323,7 +5323,10 @@ export type Database = {
           approved_by: string | null
           auto_attendance_adjustments_enabled: boolean
           billing_cycle: string | null
+          business_address: string | null
+          business_address_components: Json | null
           company_size: string | null
+          country: string | null
           created_at: string
           early_checkout_reason_required: boolean | null
           id: string
@@ -5353,7 +5356,10 @@ export type Database = {
           approved_by?: string | null
           auto_attendance_adjustments_enabled?: boolean
           billing_cycle?: string | null
+          business_address?: string | null
+          business_address_components?: Json | null
           company_size?: string | null
+          country?: string | null
           created_at?: string
           early_checkout_reason_required?: boolean | null
           id?: string
@@ -5383,7 +5389,10 @@ export type Database = {
           approved_by?: string | null
           auto_attendance_adjustments_enabled?: boolean
           billing_cycle?: string | null
+          business_address?: string | null
+          business_address_components?: Json | null
           company_size?: string | null
+          country?: string | null
           created_at?: string
           early_checkout_reason_required?: boolean | null
           id?: string
