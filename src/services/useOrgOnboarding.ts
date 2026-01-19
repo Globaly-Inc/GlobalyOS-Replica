@@ -20,6 +20,7 @@ export interface OrgOnboardingData {
     join_date?: string;
     date_of_birth?: string | null;
     avatar_url?: string;
+    office_id?: string;
   };
   organization_info: {
     name?: string;

@@ -5163,6 +5163,7 @@ export type Database = {
           offices: Json | null
           organization_id: string
           organization_info: Json | null
+          owner_profile: Json | null
           owner_user_id: string | null
           skipped: boolean | null
           team_members: Json | null
@@ -5179,6 +5180,7 @@ export type Database = {
           offices?: Json | null
           organization_id: string
           organization_info?: Json | null
+          owner_profile?: Json | null
           owner_user_id?: string | null
           skipped?: boolean | null
           team_members?: Json | null
@@ -5195,6 +5197,7 @@ export type Database = {
           offices?: Json | null
           organization_id?: string
           organization_info?: Json | null
+          owner_profile?: Json | null
           owner_user_id?: string | null
           skipped?: boolean | null
           team_members?: Json | null
