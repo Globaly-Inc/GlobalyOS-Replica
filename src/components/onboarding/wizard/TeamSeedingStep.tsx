@@ -220,15 +220,19 @@ export function TeamSeedingStep({
             }
           });
           
-          // Check for user already exists (409 or code USER_EXISTS)
-          if (data?.code === 'USER_EXISTS' || data?.skipped) {
+          // Check for user already exists (409 or code USER_EXISTS) - can come from error or data
+          const responseData = data || (error?.context ? JSON.parse(error.context) : null);
+          const errorMessage = error?.message || '';
+          
+          if (responseData?.code === 'USER_EXISTS' || responseData?.skipped || 
+              errorMessage.includes('USER_EXISTS') || errorMessage.includes('already exists')) {
             results.skipped.push(member.email);
             setSendingStatus(prev => ({ ...prev, [member.email]: 'skipped' }));
             return;
           }
           
           if (error) throw error;
-          if (data?.error) throw new Error(data.error);
+          if (data?.error && !data?.skipped) throw new Error(data.error);
           
           results.success.push(member.email);
           setSendingStatus(prev => ({ ...prev, [member.email]: 'success' }));
