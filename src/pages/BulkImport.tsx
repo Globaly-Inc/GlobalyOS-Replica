@@ -18,21 +18,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { getCountryFlag } from "@/lib/countryFlags";
+import { getCountryNames, getFlagEmoji, getCountryByName } from "@/lib/countries";
 import { format, parse, isValid } from "date-fns";
 
-// Country list for dropdown
-const COUNTRIES = [
-  "Afghanistan", "Albania", "Algeria", "Argentina", "Australia", "Austria",
-  "Bangladesh", "Belgium", "Brazil", "Canada", "Chile", "China", "Colombia",
-  "Czech Republic", "Denmark", "Egypt", "Finland", "France", "Germany", "Ghana",
-  "Greece", "Hong Kong", "Hungary", "India", "Indonesia", "Ireland", "Israel",
-  "Italy", "Japan", "Kenya", "Malaysia", "Mexico", "Nepal", "Netherlands",
-  "New Zealand", "Nigeria", "Norway", "Pakistan", "Peru", "Philippines", "Poland",
-  "Portugal", "Romania", "Russia", "Saudi Arabia", "Singapore", "South Africa",
-  "South Korea", "Spain", "Sweden", "Switzerland", "Taiwan", "Thailand", "Turkey",
-  "Ukraine", "United Arab Emirates", "United Kingdom", "United States", "Vietnam"
-];
+// Country list from shared module
+const COUNTRIES = getCountryNames();
 
 interface ParsedEmployee {
   first_name: string;
@@ -1289,7 +1279,11 @@ const BulkImport = () => {
                             <td className={`p-0 border ${getFieldError('country') ? 'border-destructive' : 'border-border/50'}`}>
                               <SearchableSelectCell
                                 value={emp.country || ''}
-                                options={COUNTRIES.map(c => ({ value: c, label: `${getCountryFlag(c)} ${c}` }))}
+                                options={COUNTRIES.map(c => {
+                                  const country = getCountryByName(c);
+                                  const flag = country ? getFlagEmoji(country.code) : '';
+                                  return { value: c, label: `${flag} ${c}` };
+                                })}
                                 onSave={(v) => updateCellValue(i, 'country', v)}
                                 placeholder="Select country"
                                 error={getFieldError('country')}
