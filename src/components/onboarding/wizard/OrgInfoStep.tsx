@@ -218,18 +218,32 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="name">Organization Name *</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => updateField('name', e.target.value)}
-              placeholder="Acme Corporation"
-              required
-            />
+          {/* Row 2: Trading Business Name + Legal Business Name */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Trading Business Name *</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => updateField('name', e.target.value)}
+                placeholder="Acme Corporation"
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="legal_business_name">Legal Business Name *</Label>
+              <Input
+                id="legal_business_name"
+                value={formData.legal_business_name}
+                onChange={(e) => updateField('legal_business_name', e.target.value)}
+                placeholder="Legal entity name"
+                required
+              />
+            </div>
           </div>
 
-          {/* Business Address */}
+          {/* Row 3: Business Address */}
           <div className="space-y-2">
             <Label htmlFor="business_address">Business Address *</Label>
             <AddressAutocomplete
@@ -243,16 +257,16 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
             </p>
           </div>
 
-          {/* Legal Business Details - After Address */}
+          {/* Row 4: Website + Business Registration Number */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="legal_business_name">Legal Business Name *</Label>
+              <Label htmlFor="website">Website <span className="text-muted-foreground font-normal">(optional)</span></Label>
               <Input
-                id="legal_business_name"
-                value={formData.legal_business_name}
-                onChange={(e) => updateField('legal_business_name', e.target.value)}
-                placeholder="Legal entity name"
-                required
+                id="website"
+                type="text"
+                value={formData.website}
+                onChange={(e) => updateField('website', e.target.value)}
+                placeholder="example.com"
               />
             </div>
             
@@ -270,78 +284,65 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
             </div>
           </div>
 
-          {/* Business Category and Website in same row - bottom */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="industry">Business Category</Label>
-              <Popover open={businessCategoryOpen} onOpenChange={setBusinessCategoryOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={businessCategoryOpen}
-                    className="w-full justify-between font-normal"
-                  >
-                    {formData.industry ? (
-                      <span className="flex items-center gap-2">
-                        {(() => {
-                          const category = BUSINESS_CATEGORIES.find(c => c.value === formData.industry);
-                          const IconComponent = category?.icon;
-                          return IconComponent && <IconComponent className="h-4 w-4 text-muted-foreground" />;
-                        })()}
-                        {BUSINESS_CATEGORIES.find(c => c.value === formData.industry)?.label || formData.industry}
-                      </span>
-                    ) : (
-                      'Select category...'
-                    )}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Search category..." />
-                    <CommandList className="max-h-[250px]">
-                      <CommandEmpty>No category found.</CommandEmpty>
-                      <CommandGroup>
-                        {BUSINESS_CATEGORIES.map((category) => {
-                          const IconComponent = category.icon;
-                          return (
-                            <CommandItem
-                              key={category.value}
-                              value={category.label}
-                              onSelect={() => {
-                                updateField('industry', category.value);
-                                setBusinessCategoryOpen(false);
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  'mr-2 h-4 w-4',
-                                  formData.industry === category.value ? 'opacity-100' : 'opacity-0'
-                                )}
-                              />
-                              <IconComponent className="mr-2 h-4 w-4 text-muted-foreground" />
-                              {category.label}
-                            </CommandItem>
-                          );
-                        })}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="website">Website (optional)</Label>
-              <Input
-                id="website"
-                type="text"
-                value={formData.website}
-                onChange={(e) => updateField('website', e.target.value)}
-                placeholder="example.com"
-              />
-            </div>
+          {/* Row 5: Business Category (full width) */}
+          <div className="space-y-2">
+            <Label htmlFor="industry">Business Category</Label>
+            <Popover open={businessCategoryOpen} onOpenChange={setBusinessCategoryOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={businessCategoryOpen}
+                  className="w-full justify-between font-normal"
+                >
+                  {formData.industry ? (
+                    <span className="flex items-center gap-2">
+                      {(() => {
+                        const category = BUSINESS_CATEGORIES.find(c => c.value === formData.industry);
+                        const IconComponent = category?.icon;
+                        return IconComponent && <IconComponent className="h-4 w-4 text-muted-foreground" />;
+                      })()}
+                      {BUSINESS_CATEGORIES.find(c => c.value === formData.industry)?.label || formData.industry}
+                    </span>
+                  ) : (
+                    'Select category...'
+                  )}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search category..." />
+                  <CommandList className="max-h-[250px]">
+                    <CommandEmpty>No category found.</CommandEmpty>
+                    <CommandGroup>
+                      {BUSINESS_CATEGORIES.map((category) => {
+                        const IconComponent = category.icon;
+                        return (
+                          <CommandItem
+                            key={category.value}
+                            value={category.label}
+                            onSelect={() => {
+                              updateField('industry', category.value);
+                              setBusinessCategoryOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                'mr-2 h-4 w-4',
+                                formData.industry === category.value ? 'opacity-100' : 'opacity-0'
+                              )}
+                            />
+                            <IconComponent className="mr-2 h-4 w-4 text-muted-foreground" />
+                            {category.label}
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="flex gap-3 pt-4">
