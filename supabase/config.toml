@@ -221,3 +221,6 @@ verify_jwt = false
 
 [functions.check-approval-status]
 verify_jwt = false
+
+[functions.suggest-org-structure]
+verify_jwt = false

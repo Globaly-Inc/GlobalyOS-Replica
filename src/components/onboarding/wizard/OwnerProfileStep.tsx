@@ -1,14 +1,15 @@
 /**
  * Owner Profile Step
  * Collects essential profile information for the organization owner
- * Provides industry-based suggestions for position and department
+ * Includes profile photo upload and uses departments/positions from previous step
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, ArrowRight, Loader2, CalendarIcon, Check, ChevronsUpDown } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { User, ArrowRight, ArrowLeft, Loader2, CalendarIcon, Check, ChevronsUpDown, Camera, Upload } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -24,83 +25,35 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
-// Industry-based suggestions for positions and departments
-const INDUSTRY_SUGGESTIONS: Record<string, { positions: string[]; departments: string[] }> = {
-  'Technology': {
-    positions: ['CEO', 'CTO', 'Founder', 'Co-Founder', 'Director of Engineering', 'VP of Product', 'Chief Product Officer', 'Technical Director'],
-    departments: ['Executive', 'Engineering', 'Product', 'Operations', 'Technology', 'Research & Development'],
-  },
-  'Healthcare': {
-    positions: ['CEO', 'Medical Director', 'Practice Manager', 'Chief Medical Officer', 'Administrator', 'Clinical Director', 'Hospital Administrator'],
-    departments: ['Executive', 'Medical', 'Administration', 'Operations', 'Clinical', 'Nursing'],
-  },
-  'Finance & Banking': {
-    positions: ['CEO', 'CFO', 'Managing Director', 'Partner', 'Director', 'VP of Finance', 'Chief Investment Officer', 'Portfolio Manager'],
-    departments: ['Executive', 'Finance', 'Compliance', 'Operations', 'Investment', 'Risk Management'],
-  },
-  'Education': {
-    positions: ['Principal', 'Dean', 'Director', 'Superintendent', 'Department Head', 'Academic Director', 'Chancellor', 'Provost'],
-    departments: ['Executive', 'Administration', 'Academic', 'Student Services', 'Curriculum', 'Research'],
-  },
-  'Retail': {
-    positions: ['CEO', 'Store Manager', 'Regional Director', 'Operations Manager', 'Merchandising Director', 'VP of Retail', 'District Manager'],
-    departments: ['Executive', 'Operations', 'Sales', 'Merchandising', 'Inventory', 'Customer Service'],
-  },
-  'Manufacturing': {
-    positions: ['CEO', 'Plant Manager', 'Operations Director', 'Production Manager', 'VP of Manufacturing', 'Quality Director', 'Supply Chain Director'],
-    departments: ['Executive', 'Production', 'Operations', 'Quality Control', 'Supply Chain', 'Engineering'],
-  },
-  'Professional Services': {
-    positions: ['Managing Partner', 'Senior Partner', 'Director', 'Principal', 'CEO', 'Practice Lead', 'Department Head'],
-    departments: ['Executive', 'Consulting', 'Advisory', 'Operations', 'Client Services', 'Business Development'],
-  },
-  'Real Estate': {
-    positions: ['CEO', 'Broker', 'Managing Director', 'VP of Operations', 'Property Manager', 'Development Director', 'Investment Director'],
-    departments: ['Executive', 'Sales', 'Property Management', 'Development', 'Investment', 'Leasing'],
-  },
-  'Hospitality': {
-    positions: ['General Manager', 'CEO', 'Hotel Director', 'Operations Director', 'F&B Director', 'Resort Manager', 'Regional Director'],
-    departments: ['Executive', 'Operations', 'Food & Beverage', 'Guest Services', 'Housekeeping', 'Sales'],
-  },
-  'Non-Profit': {
-    positions: ['Executive Director', 'CEO', 'President', 'Program Director', 'Development Director', 'Managing Director', 'Board Chair'],
-    departments: ['Executive', 'Programs', 'Development', 'Operations', 'Fundraising', 'Communications'],
-  },
-  'Media & Entertainment': {
-    positions: ['CEO', 'Creative Director', 'Executive Producer', 'Managing Director', 'Content Director', 'VP of Production', 'Studio Head'],
-    departments: ['Executive', 'Creative', 'Production', 'Content', 'Marketing', 'Distribution'],
-  },
-  'Government': {
-    positions: ['Director', 'Administrator', 'Commissioner', 'Secretary', 'Department Head', 'Chief of Staff', 'Executive Director'],
-    departments: ['Executive', 'Administration', 'Policy', 'Operations', 'Public Affairs', 'Legal'],
-  },
-  'Other': {
-    positions: ['CEO', 'Founder', 'Owner', 'Managing Director', 'President', 'Director', 'General Manager'],
-    departments: ['Executive', 'Management', 'Operations', 'Administration', 'Business Development'],
-  },
-};
-
-// Default suggestions when industry is not set
-const DEFAULT_SUGGESTIONS = {
-  positions: ['CEO', 'Founder', 'Owner', 'Director', 'Managing Director', 'President', 'Partner', 'General Manager'],
-  departments: ['Executive', 'Management', 'Operations', 'Administration', 'Leadership'],
-};
+interface DepartmentsRolesData {
+  departments: string[];
+  positions: Array<{ name: string; department: string }>;
+}
 
 interface OwnerProfileStepProps {
   organizationId: string;
-  industry?: string;
+  departmentsRoles?: DepartmentsRolesData;
   initialData?: {
     position?: string;
     department?: string;
     join_date?: string;
     date_of_birth?: string;
+    avatar_url?: string;
   };
   onSave: (data: {
     position: string;
     department: string;
     join_date: string;
     date_of_birth: string | null;
+    avatar_url: string | null;
   }) => void;
   onBack: () => void;
   isSaving: boolean;
@@ -108,46 +61,44 @@ interface OwnerProfileStepProps {
 
 export function OwnerProfileStep({
   organizationId,
-  industry,
+  departmentsRoles,
   initialData,
   onSave,
   onBack,
   isSaving,
 }: OwnerProfileStepProps) {
   const { session } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [formData, setFormData] = useState({
     position: initialData?.position || '',
     department: initialData?.department || '',
     join_date: initialData?.join_date || new Date().toISOString().split('T')[0],
     date_of_birth: initialData?.date_of_birth || '',
+    avatar_url: initialData?.avatar_url || '',
   });
   
   const [positionOpen, setPositionOpen] = useState(false);
-  const [departmentOpen, setDepartmentOpen] = useState(false);
   const [positionSearch, setPositionSearch] = useState('');
-  const [departmentSearch, setDepartmentSearch] = useState('');
 
-  // Get suggestions based on industry
-  const suggestions = useMemo(() => {
-    if (!industry) return DEFAULT_SUGGESTIONS;
-    return INDUSTRY_SUGGESTIONS[industry] || DEFAULT_SUGGESTIONS;
-  }, [industry]);
+  // Get departments and positions from previous step
+  const departments = departmentsRoles?.departments || [];
+  const positions = departmentsRoles?.positions || [];
 
-  // Filter suggestions based on search
+  // Filter positions by selected department
   const filteredPositions = useMemo(() => {
-    if (!positionSearch) return suggestions.positions;
-    return suggestions.positions.filter((p) =>
-      p.toLowerCase().includes(positionSearch.toLowerCase())
-    );
-  }, [suggestions.positions, positionSearch]);
+    if (!formData.department) return positions;
+    return positions.filter(p => p.department === formData.department);
+  }, [positions, formData.department]);
 
-  const filteredDepartments = useMemo(() => {
-    if (!departmentSearch) return suggestions.departments;
-    return suggestions.departments.filter((d) =>
-      d.toLowerCase().includes(departmentSearch.toLowerCase())
+  // Search filter for positions
+  const searchedPositions = useMemo(() => {
+    if (!positionSearch) return filteredPositions;
+    return filteredPositions.filter(p => 
+      p.name.toLowerCase().includes(positionSearch.toLowerCase())
     );
-  }, [suggestions.departments, departmentSearch]);
+  }, [filteredPositions, positionSearch]);
 
   // Fetch existing employee data if available
   useEffect(() => {
@@ -171,6 +122,7 @@ export function OwnerProfileStep({
             department: employee.department || '',
             join_date: employee.join_date || new Date().toISOString().split('T')[0],
             date_of_birth: employee.date_of_birth || '',
+            avatar_url: initialData?.avatar_url || '',
           });
         }
       } catch (error) {
@@ -183,13 +135,75 @@ export function OwnerProfileStep({
     fetchExistingData();
   }, [session?.user?.id, organizationId]);
 
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Invalid file type',
+        description: 'Please select an image file.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: 'File too large',
+        description: 'Please select an image under 5MB.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${session?.user?.id}-${Date.now()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('profile-images')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('profile-images')
+        .getPublicUrl(filePath);
+
+      setFormData(prev => ({ ...prev, avatar_url: urlData.publicUrl }));
+      
+      toast({
+        title: 'Photo uploaded',
+        description: 'Your profile photo has been updated.',
+      });
+    } catch (error) {
+      console.error('Failed to upload avatar:', error);
+      toast({
+        title: 'Upload failed',
+        description: 'Could not upload photo. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.position || !formData.department) {
       toast({
         title: 'Required fields missing',
-        description: 'Please select or enter your position and department.',
+        description: 'Please select your position and department.',
         variant: 'destructive',
       });
       return;
@@ -205,47 +219,16 @@ export function OwnerProfileStep({
     }
 
     try {
-      // Step 1: Get or create Head Office for the organization
-      let headOfficeId: string | null = null;
-      
-      // Try to find existing head office
-      const { data: existingOffice } = await supabase
+      // Get head office for assignment
+      const { data: headOffice } = await supabase
         .from('offices')
         .select('id')
         .eq('organization_id', organizationId)
         .or('name.ilike.Head Office,name.ilike.Headquarters,is_headquarters.eq.true')
         .limit(1)
         .maybeSingle();
-      
-      if (existingOffice) {
-        headOfficeId = existingOffice.id;
-      } else {
-        // Create head office - get country from organization
-        const { data: org } = await supabase
-          .from('organizations')
-          .select('country')
-          .eq('id', organizationId)
-          .single();
-        
-        const { data: newOffice, error: officeError } = await supabase
-          .from('offices')
-          .insert({
-            organization_id: organizationId,
-            name: 'Head Office',
-            country: org?.country || null,
-            is_headquarters: true,
-          })
-          .select('id')
-          .single();
-        
-        if (officeError) {
-          console.warn('Could not create head office:', officeError);
-        } else {
-          headOfficeId = newOffice.id;
-        }
-      }
 
-      // Step 2: Check if employee record exists
+      // Check if employee record exists
       const { data: existingEmployee } = await supabase
         .from('employees')
         .select('id')
@@ -253,37 +236,34 @@ export function OwnerProfileStep({
         .eq('organization_id', organizationId)
         .maybeSingle();
 
+      const employeeData = {
+        position: formData.position,
+        department: formData.department,
+        join_date: formData.join_date,
+        date_of_birth: formData.date_of_birth || null,
+        avatar_url: formData.avatar_url || null,
+        status: 'active',
+        employment_type: 'employee',
+        office_id: headOffice?.id || null,
+      };
+
       if (existingEmployee) {
         // Update existing employee
         const { error: updateError } = await supabase
           .from('employees')
-          .update({
-            position: formData.position,
-            department: formData.department,
-            join_date: formData.join_date,
-            date_of_birth: formData.date_of_birth || null,
-            status: 'active',
-            employment_type: 'employee',
-            office_id: headOfficeId,
-          })
+          .update(employeeData)
           .eq('id', existingEmployee.id);
 
         if (updateError) throw updateError;
       } else {
-        // Create new employee record with is_new_hire = false for owner (skip onboarding workflow)
+        // Create new employee record with is_new_hire = false for owner
         const { data: newEmployee, error: insertError } = await supabase
           .from('employees')
           .insert({
             organization_id: organizationId,
             user_id: session.user.id,
-            position: formData.position,
-            department: formData.department,
-            join_date: formData.join_date,
-            date_of_birth: formData.date_of_birth || null,
-            status: 'active',
-            employment_type: 'employee',
-            office_id: headOfficeId,
-            is_new_hire: false, // Owner doesn't need onboarding workflow
+            ...employeeData,
+            is_new_hire: false,
           })
           .select('id')
           .single();
@@ -310,6 +290,7 @@ export function OwnerProfileStep({
         department: formData.department,
         join_date: formData.join_date,
         date_of_birth: formData.date_of_birth || null,
+        avatar_url: formData.avatar_url || null,
       });
     } catch (error) {
       console.error('Failed to save owner profile:', error);
@@ -321,6 +302,13 @@ export function OwnerProfileStep({
       });
     }
   };
+
+  const userInitials = session?.user?.user_metadata?.full_name
+    ?.split(' ')
+    .map((n: string) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) || 'U';
 
   if (isLoading) {
     return (
@@ -344,7 +332,77 @@ export function OwnerProfileStep({
 
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Avatar Upload */}
+          <div className="flex flex-col items-center gap-3">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarChange}
+              className="hidden"
+            />
+            <div 
+              className="relative cursor-pointer group"
+              onClick={handleAvatarClick}
+            >
+              <Avatar className="h-24 w-24 border-4 border-background shadow-lg">
+                <AvatarImage src={formData.avatar_url} alt="Profile" />
+                <AvatarFallback className="text-xl bg-primary/10 text-primary">
+                  {userInitials}
+                </AvatarFallback>
+              </Avatar>
+              <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                {isUploadingAvatar ? (
+                  <Loader2 className="h-6 w-6 animate-spin text-white" />
+                ) : (
+                  <Camera className="h-6 w-6 text-white" />
+                )}
+              </div>
+            </div>
+            <Button 
+              type="button" 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleAvatarClick}
+              disabled={isUploadingAvatar}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              {formData.avatar_url ? 'Change Photo' : 'Upload Photo'}
+            </Button>
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-2">
+            {/* Department Select */}
+            <div className="space-y-2">
+              <Label>Department *</Label>
+              <Select
+                value={formData.department}
+                onValueChange={(value) => {
+                  setFormData({ ...formData, department: value, position: '' });
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select department..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {departments.length > 0 ? (
+                    departments.map((dept) => (
+                      <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                    ))
+                  ) : (
+                    <>
+                      <SelectItem value="Executive">Executive</SelectItem>
+                      <SelectItem value="Operations">Operations</SelectItem>
+                      <SelectItem value="Sales">Sales</SelectItem>
+                      <SelectItem value="Marketing">Marketing</SelectItem>
+                      <SelectItem value="Finance">Finance</SelectItem>
+                      <SelectItem value="Human Resources">Human Resources</SelectItem>
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Position Field with Combobox */}
             <div className="space-y-2">
               <Label>Position / Job Title *</Label>
@@ -355,6 +413,7 @@ export function OwnerProfileStep({
                     role="combobox"
                     aria-expanded={positionOpen}
                     className="w-full justify-between font-normal"
+                    disabled={!formData.department && departments.length > 0}
                   >
                     {formData.position || 'Select position...'}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -381,13 +440,13 @@ export function OwnerProfileStep({
                           Use "{positionSearch}"
                         </button>
                       </CommandEmpty>
-                      <CommandGroup heading={industry ? `${industry} roles` : 'Common roles'}>
-                        {filteredPositions.map((position) => (
+                      <CommandGroup heading={formData.department ? `${formData.department} roles` : 'Positions'}>
+                        {searchedPositions.map((pos) => (
                           <CommandItem
-                            key={position}
-                            value={position}
+                            key={`${pos.name}-${pos.department}`}
+                            value={pos.name}
                             onSelect={() => {
-                              setFormData({ ...formData, position });
+                              setFormData({ ...formData, position: pos.name });
                               setPositionOpen(false);
                               setPositionSearch('');
                             }}
@@ -395,10 +454,10 @@ export function OwnerProfileStep({
                             <Check
                               className={cn(
                                 'mr-2 h-4 w-4',
-                                formData.position === position ? 'opacity-100' : 'opacity-0'
+                                formData.position === pos.name ? 'opacity-100' : 'opacity-0'
                               )}
                             />
-                            {position}
+                            {pos.name}
                           </CommandItem>
                         ))}
                       </CommandGroup>
@@ -407,73 +466,12 @@ export function OwnerProfileStep({
                 </PopoverContent>
               </Popover>
             </div>
+          </div>
 
-            {/* Department Field with Combobox */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            {/* Join Date */}
             <div className="space-y-2">
-              <Label>Department *</Label>
-              <Popover open={departmentOpen} onOpenChange={setDepartmentOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={departmentOpen}
-                    className="w-full justify-between font-normal"
-                  >
-                    {formData.department || 'Select department...'}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                  <Command>
-                    <CommandInput
-                      placeholder="Search or type custom..."
-                      value={departmentSearch}
-                      onValueChange={setDepartmentSearch}
-                    />
-                    <CommandList>
-                      <CommandEmpty>
-                        <button
-                          type="button"
-                          className="w-full px-2 py-1.5 text-left text-sm hover:bg-accent rounded cursor-pointer"
-                          onClick={() => {
-                            setFormData({ ...formData, department: departmentSearch });
-                            setDepartmentOpen(false);
-                            setDepartmentSearch('');
-                          }}
-                        >
-                          Use "{departmentSearch}"
-                        </button>
-                      </CommandEmpty>
-                      <CommandGroup heading={industry ? `${industry} departments` : 'Common departments'}>
-                        {filteredDepartments.map((department) => (
-                          <CommandItem
-                            key={department}
-                            value={department}
-                            onSelect={() => {
-                              setFormData({ ...formData, department });
-                              setDepartmentOpen(false);
-                              setDepartmentSearch('');
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                'mr-2 h-4 w-4',
-                                formData.department === department ? 'opacity-100' : 'opacity-0'
-                              )}
-                            />
-                            {department}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {/* Date Joined Company */}
-            <div className="space-y-2">
-              <Label>Date Joined Company *</Label>
+              <Label>Join Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -484,24 +482,19 @@ export function OwnerProfileStep({
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.join_date
-                      ? format(new Date(formData.join_date), 'PPP')
-                      : 'Select date'}
+                    {formData.join_date ? format(new Date(formData.join_date), 'PPP') : 'Select date'}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={formData.join_date ? new Date(formData.join_date) : undefined}
-                    onSelect={(date) =>
-                      setFormData({
-                        ...formData,
-                        join_date: date ? date.toISOString().split('T')[0] : '',
-                      })
-                    }
-                    disabled={(date) => date > new Date()}
+                    onSelect={(date) => {
+                      if (date) {
+                        setFormData({ ...formData, join_date: date.toISOString().split('T')[0] });
+                      }
+                    }}
                     initialFocus
-                    className="p-3 pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
@@ -509,7 +502,7 @@ export function OwnerProfileStep({
 
             {/* Date of Birth */}
             <div className="space-y-2">
-              <Label>Date of Birth</Label>
+              <Label>Date of Birth (optional)</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -520,49 +513,41 @@ export function OwnerProfileStep({
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.date_of_birth
-                      ? format(new Date(formData.date_of_birth), 'PPP')
-                      : 'Select date (optional)'}
+                    {formData.date_of_birth ? format(new Date(formData.date_of_birth), 'PPP') : 'Select date'}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={formData.date_of_birth ? new Date(formData.date_of_birth) : undefined}
-                    onSelect={(date) =>
-                      setFormData({
-                        ...formData,
-                        date_of_birth: date ? date.toISOString().split('T')[0] : '',
-                      })
-                    }
-                    disabled={(date) => date > new Date() || date < new Date('1900-01-01')}
-                    initialFocus
-                    className="p-3 pointer-events-auto"
+                    onSelect={(date) => {
+                      setFormData({ 
+                        ...formData, 
+                        date_of_birth: date ? date.toISOString().split('T')[0] : '' 
+                      });
+                    }}
                     captionLayout="dropdown-buttons"
                     fromYear={1940}
-                    toYear={new Date().getFullYear()}
+                    toYear={new Date().getFullYear() - 16}
+                    initialFocus
                   />
                 </PopoverContent>
               </Popover>
             </div>
           </div>
 
-          <div className="flex justify-between pt-4">
-            <Button type="button" variant="outline" onClick={onBack}>
+          <div className="flex gap-3 pt-4">
+            <Button type="button" variant="outline" onClick={onBack} className="flex-1">
+              <ArrowLeft className="mr-2 h-4 w-4" />
               Back
             </Button>
-            <Button type="submit" disabled={isSaving}>
-              {isSaving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  Continue
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </>
-              )}
+            <Button 
+              type="submit" 
+              disabled={isSaving || !formData.position || !formData.department} 
+              className="flex-1"
+            >
+              {isSaving ? 'Saving...' : 'Continue'}
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
         </form>

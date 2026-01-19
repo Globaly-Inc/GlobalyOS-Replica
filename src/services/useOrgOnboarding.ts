@@ -19,6 +19,7 @@ export interface OrgOnboardingData {
     department?: string;
     join_date?: string;
     date_of_birth?: string | null;
+    avatar_url?: string;
   };
   organization_info: {
     name?: string;
@@ -41,10 +42,15 @@ export interface OrgOnboardingData {
     address?: string;
     timezone?: string;
   }>;
+  departments_roles?: {
+    departments: string[];
+    positions: Array<{ name: string; department: string }>;
+  };
   team_members: Array<{
     email: string;
     full_name: string;
     office_id?: string;
+    department?: string;
     position?: string;
     role: 'admin' | 'hr' | 'manager' | 'member';
   }>;
@@ -61,14 +67,15 @@ export interface OrgOnboardingData {
   updated_at: string;
 }
 
+// New step order: Welcome, Org, Offices, Depts/Roles, Profile, Team, Features, Complete
 const ORG_ONBOARDING_STEPS = [
   'welcome',
   'organization-info',
-  'owner-profile',
   'offices',
+  'departments-roles',
+  'owner-profile',
   'team-members',
   'features',
-  'hr-settings',
   'complete',
 ] as const;
 

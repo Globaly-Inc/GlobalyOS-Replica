@@ -1,7 +1,7 @@
 /**
  * Organization Onboarding Wizard
  * Guides new organization owners through initial setup
- * Supports resume from where user left off
+ * New step order: Welcome, Org, Offices, Depts/Roles, Profile, Team, Features, Complete
  */
 
 import { useEffect, useState, useRef } from 'react';
@@ -22,9 +22,9 @@ import { OrgWelcomeStep } from '@/components/onboarding/wizard/OrgWelcomeStep';
 import { OwnerProfileStep } from '@/components/onboarding/wizard/OwnerProfileStep';
 import { OrgInfoStep } from '@/components/onboarding/wizard/OrgInfoStep';
 import { OfficesStep } from '@/components/onboarding/wizard/OfficesStep';
+import { DepartmentsRolesStep } from '@/components/onboarding/wizard/DepartmentsRolesStep';
 import { TeamSeedingStep } from '@/components/onboarding/wizard/TeamSeedingStep';
 import { FeatureSelectionStep } from '@/components/onboarding/wizard/FeatureSelectionStep';
-import { HrSettingsStep } from '@/components/onboarding/wizard/HrSettingsStep';
 import { OrgCompleteStep } from '@/components/onboarding/wizard/OrgCompleteStep';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
@@ -32,11 +32,11 @@ const TOTAL_STEPS = 8;
 const STEP_NAMES = [
   'Welcome',
   'Organization',
-  'Your Profile',
   'Offices',
+  'Departments & Roles',
+  'Your Profile',
   'Team',
   'Features',
-  'HR Settings',
   'Complete'
 ];
 
@@ -178,22 +178,35 @@ export default function OrgOnboardingWizard() {
             isSaving={saveStep.isPending}
           />
         );
-      case 'owner-profile':
+      case 'offices':
         return (
-          <OwnerProfileStep
+          <OfficesStep
             organizationId={currentOrg?.id || ''}
-            industry={onboardingData?.organization_info?.industry}
-            initialData={onboardingData?.owner_profile}
-            onSave={(data) => handleNext({ owner_profile: data })}
+            initialOffices={onboardingData?.offices || []}
+            onSave={(offices) => handleNext({ offices })}
             onBack={handleBack}
             isSaving={saveStep.isPending}
           />
         );
-      case 'offices':
+      case 'departments-roles':
         return (
-          <OfficesStep
-            initialOffices={onboardingData?.offices || []}
-            onSave={(offices) => handleNext({ offices })}
+          <DepartmentsRolesStep
+            organizationId={currentOrg?.id || ''}
+            industry={onboardingData?.organization_info?.industry}
+            companySize={onboardingData?.organization_info?.company_size}
+            initialData={onboardingData?.departments_roles}
+            onSave={(data) => handleNext({ departments_roles: data })}
+            onBack={handleBack}
+            isSaving={saveStep.isPending}
+          />
+        );
+      case 'owner-profile':
+        return (
+          <OwnerProfileStep
+            organizationId={currentOrg?.id || ''}
+            departmentsRoles={onboardingData?.departments_roles}
+            initialData={onboardingData?.owner_profile}
+            onSave={(data) => handleNext({ owner_profile: data })}
             onBack={handleBack}
             isSaving={saveStep.isPending}
           />
@@ -202,6 +215,7 @@ export default function OrgOnboardingWizard() {
         return (
           <TeamSeedingStep
             initialMembers={onboardingData?.team_members || []}
+            departmentsRoles={onboardingData?.departments_roles}
             onSave={(team_members) => handleNext({ team_members })}
             onBack={handleBack}
             onSkip={() => handleNext({ team_members: [] })}
@@ -214,15 +228,6 @@ export default function OrgOnboardingWizard() {
           <FeatureSelectionStep
             initialFeatures={onboardingData?.enabled_features || ['hr', 'leave', 'feed', 'wiki', 'chat']}
             onSave={(enabled_features) => handleNext({ enabled_features })}
-            onBack={handleBack}
-            isSaving={saveStep.isPending}
-          />
-        );
-      case 'hr-settings':
-        return (
-          <HrSettingsStep
-            initialSettings={onboardingData?.hr_settings}
-            onSave={(hr_settings) => handleNext({ hr_settings })}
             onBack={handleBack}
             isSaving={saveStep.isPending}
           />
