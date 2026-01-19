@@ -310,6 +310,21 @@ export function useCompleteOrgOnboarding() {
     }) => {
       if (!currentOrg?.id) throw new Error('No organization selected');
 
+      // Get pending team members from onboarding data
+      const { data: onboardingData } = await supabase
+        .from('org_onboarding_data')
+        .select('team_members')
+        .eq('organization_id', currentOrg.id)
+        .single();
+
+      const teamMembers = (onboardingData?.team_members as Array<{
+        email: string;
+        full_name: string;
+        position?: string;
+        department?: string;
+        role?: string;
+      }>) || [];
+
       // Mark onboarding data as complete
       const { error: dataError } = await supabase
         .from('org_onboarding_data')
@@ -333,7 +348,35 @@ export function useCompleteOrgOnboarding() {
 
       if (orgError) throw orgError;
 
-      return { success: true, skipped, onComplete };
+      // Send invitation emails to all added team members (if not skipped and has members)
+      if (!skipped && teamMembers.length > 0) {
+        try {
+          console.log(`Sending invitation emails to ${teamMembers.length} team members...`);
+          const { data, error: emailError } = await supabase.functions.invoke('send-pending-invitations', {
+            body: {
+              organizationId: currentOrg.id,
+              teamMembers: teamMembers.map(m => ({
+                email: m.email,
+                fullName: m.full_name,
+                position: m.position,
+                department: m.department,
+                role: m.role,
+              })),
+            },
+          });
+
+          if (emailError) {
+            console.error('Failed to send invitation emails:', emailError);
+          } else {
+            console.log('Invitation emails result:', data);
+          }
+        } catch (emailErr) {
+          console.error('Failed to send invitation emails:', emailErr);
+          // Don't fail onboarding if emails fail - they can be resent later
+        }
+      }
+
+      return { success: true, skipped, onComplete, teamMembersCount: teamMembers.length };
     },
     onSuccess: async (result) => {
       // Invalidate all queries first and wait for them

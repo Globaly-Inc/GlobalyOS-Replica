@@ -32,7 +32,7 @@ export function OrgCompleteStep({ orgName, teamMembersCount, onFinish, isComplet
             {teamMembersCount > 0 && (
               <li className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-primary" />
-                {teamMembersCount} team member{teamMembersCount > 1 ? 's' : ''} will receive invites
+                {teamMembersCount} team member{teamMembersCount > 1 ? 's' : ''} will receive invitation emails
               </li>
             )}
             <li className="flex items-center gap-2">

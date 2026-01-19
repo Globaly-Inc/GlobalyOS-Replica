@@ -42,6 +42,7 @@ interface InviteRequest {
   isNewHire?: boolean;
   employmentType?: string;
   gender?: string;
+  skipEmail?: boolean; // Skip sending invitation email (used during onboarding)
 }
 
 // Generate a 6-digit OTP code
@@ -428,30 +429,38 @@ serve(async (req: Request) => {
       </html>
     `;
 
-    try {
-      const emailResponse = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${RESEND_API_KEY}`,
-        },
-        body: JSON.stringify({
-          from: 'GlobalyOS <hello@globalyos.com>',
-          to: [normalizedEmail],
-          subject: 'Welcome to GlobalyOS - Your Account is Ready!',
-          html: emailHtml,
-        }),
-      });
+    // Send invitation email via Resend API (unless skipEmail is true)
+    const body = await req.clone().json() as InviteRequest;
+    const skipEmail = body.skipEmail ?? false;
 
-      if (!emailResponse.ok) {
-        const emailError = await emailResponse.text();
-        console.error('Error sending invitation email:', emailError);
-      } else {
-        console.log('Invitation email sent successfully');
+    if (!skipEmail) {
+      try {
+        const emailResponse = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${RESEND_API_KEY}`,
+          },
+          body: JSON.stringify({
+            from: 'GlobalyOS <hello@globalyos.com>',
+            to: [normalizedEmail],
+            subject: 'Welcome to GlobalyOS - Your Account is Ready!',
+            html: emailHtml,
+          }),
+        });
+
+        if (!emailResponse.ok) {
+          const emailError = await emailResponse.text();
+          console.error('Error sending invitation email:', emailError);
+        } else {
+          console.log('Invitation email sent successfully');
+        }
+      } catch (emailErr) {
+        console.error('Error sending invitation email:', emailErr);
+        // Don't fail the whole operation if email fails
       }
-    } catch (emailErr) {
-      console.error('Error sending invitation email:', emailErr);
-      // Don't fail the whole operation if email fails
+    } else {
+      console.log('Email skipped for:', normalizedEmail, '(skipEmail flag set during onboarding)');
     }
 
     console.log('Team member added successfully:', normalizedEmail);
@@ -459,8 +468,9 @@ serve(async (req: Request) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Team member added successfully',
-        userId 
+        message: skipEmail ? 'Team member added (email pending)' : 'Team member added successfully',
+        userId,
+        emailSkipped: skipEmail
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

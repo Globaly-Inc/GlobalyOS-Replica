@@ -217,6 +217,7 @@ export function TeamSeedingStep({
               city: '',
               state: '',
               country: '',
+              skipEmail: true, // Skip email during onboarding - emails sent on completion
             }
           });
           
@@ -246,8 +247,8 @@ export function TeamSeedingStep({
     
     if (results.success.length > 0) {
       toast({
-        title: `${results.success.length} invitation${results.success.length > 1 ? 's' : ''} sent!`,
-        description: 'Team members will receive an email with login instructions.',
+        title: `${results.success.length} team member${results.success.length > 1 ? 's' : ''} added!`,
+        description: 'Invitation emails will be sent when you complete setup.',
       });
     }
     
