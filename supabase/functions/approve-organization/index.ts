@@ -219,21 +219,24 @@ async function setupOrganization(
     console.error("Error adding org member:", memberError);
   }
 
-  // Create employee record for owner
-  const { error: employeeError } = await supabaseAdmin
-    .from('employees')
-    .upsert({
-      organization_id: org.id,
-      user_id: userId,
-      first_name: firstName,
-      last_name: lastName,
-      position: 'Owner',
-      department: 'Management',
-      join_date: new Date().toISOString().split('T')[0],
-      status: 'active',
-    }, {
-      onConflict: 'user_id'
-    });
+    // Create employee record for owner - owners skip individual onboarding
+    const { error: employeeError } = await supabaseAdmin
+      .from('employees')
+      .upsert({
+        organization_id: org.id,
+        user_id: userId,
+        first_name: firstName,
+        last_name: lastName,
+        position: 'Owner',
+        department: 'Management',
+        join_date: new Date().toISOString().split('T')[0],
+        status: 'active',
+        is_new_hire: false,
+        employee_onboarding_completed: true,
+        employee_onboarding_step: 9,
+      }, {
+        onConflict: 'user_id'
+      });
 
   if (employeeError) {
     console.error("Error creating employee:", employeeError);
