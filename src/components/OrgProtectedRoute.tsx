@@ -44,6 +44,23 @@ export const OrgProtectedRoute = ({
     staleTime: 0, // Always refetch to get latest onboarding status
   });
 
+  // Check employee onboarding status for new hires
+  const { data: employeeOnboardingStatus, isLoading: employeeOnboardingLoading } = useQuery({
+    queryKey: ['employee-onboarding-check', session?.user?.id, currentOrg?.id],
+    queryFn: async () => {
+      if (!session?.user?.id || !currentOrg?.id) return null;
+      const { data } = await supabase
+        .from('employees')
+        .select('id, is_new_hire, employee_onboarding_completed')
+        .eq('user_id', session.user.id)
+        .eq('organization_id', currentOrg.id)
+        .single();
+      return data;
+    },
+    enabled: !!session?.user?.id && !!currentOrg?.id,
+    staleTime: 0,
+  });
+
   // Handle organization switching when URL orgCode differs from current org's slug
   useEffect(() => {
     if (orgLoading || !orgCode) return;
@@ -79,8 +96,7 @@ export const OrgProtectedRoute = ({
     }
   }, [authLoading, orgLoading, session, currentOrg?.id, organizations, switchOrganization]);
 
-  // Show loading while auth or org data is being fetched
-  if (authLoading || orgLoading || onboardingLoading) {
+  if (authLoading || orgLoading || onboardingLoading || employeeOnboardingLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
@@ -142,12 +158,24 @@ export const OrgProtectedRoute = ({
     return <Navigate to={targetPath} replace />;
   }
 
-  // Check onboarding status - redirect to onboarding if not complete
+  // Check org onboarding status - redirect to org onboarding if not complete
   // Skip onboarding enforcement for GlobalyHub demo organization
-  const isOnboardingRoute = location.pathname.includes('/onboarding');
+  const isOrgOnboardingRoute = location.pathname.includes('/onboarding') && !location.pathname.includes('/onboarding/team');
   const isDemoOrg = currentOrg.slug === 'globalyhub';
-  if (onboardingStatus && !onboardingStatus.org_onboarding_completed && !isOnboardingRoute && !isDemoOrg) {
+  if (onboardingStatus && !onboardingStatus.org_onboarding_completed && !isOrgOnboardingRoute && !isDemoOrg) {
     return <Navigate to={`/org/${currentOrg.slug}/onboarding`} replace />;
+  }
+
+  // Check employee onboarding status for new hires
+  // Skip for GlobalyHub demo organization
+  const isEmployeeOnboardingRoute = location.pathname.includes('/onboarding/team');
+  if (
+    !isDemoOrg &&
+    !isEmployeeOnboardingRoute &&
+    employeeOnboardingStatus?.is_new_hire === true &&
+    !employeeOnboardingStatus?.employee_onboarding_completed
+  ) {
+    return <Navigate to={`/org/${currentOrg.slug}/onboarding/team`} replace />;
   }
 
   // Everything is valid - render children
