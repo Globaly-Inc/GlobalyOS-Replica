@@ -295,7 +295,7 @@ export default function EmployeeOnboardingWizard() {
         </div>
       </div>
 
-      <main className="pt-32 pb-16 px-4">
+      <main className="pt-48 pb-16 px-4">
         <div className="max-w-2xl mx-auto">{renderStep()}</div>
       </main>
     </div>
