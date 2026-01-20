@@ -249,6 +249,7 @@ export default function OrgOnboardingWizard() {
             teamMembers={onboardingData?.team_members || []}
             offices={onboardingData?.offices || []}
             employeeId={currentEmployee?.id}
+            ownerProfile={onboardingData?.owner_profile}
             organizationId={currentOrg?.id || ''}
             onFinish={() => handleNext()}
             onBack={handleBack}
