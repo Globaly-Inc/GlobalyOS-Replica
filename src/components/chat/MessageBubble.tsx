@@ -76,18 +76,18 @@ const MessageBubble = ({
     <div
       id={`message-${message.id}`}
       className={cn(
-        "group relative flex gap-2 md:gap-3 px-2 md:px-4 py-1 transition-colors duration-150",
+        "group relative flex gap-1.5 md:gap-3 px-1.5 md:px-4 py-0.5 md:py-1 transition-colors duration-150",
         "hover:bg-muted/40",
         message.is_pinned && "bg-amber-500/5 hover:bg-amber-500/10",
         isGrouped && "py-0.5"
       )}
     >
-      {/* Avatar - always show placeholder space, only render avatar for first in group */}
-      <div className="w-9 flex-shrink-0">
+      {/* Avatar - smaller on mobile */}
+      <div className="w-7 md:w-9 flex-shrink-0">
         {!isGrouped && (
-          <Avatar className="h-9 w-9">
+          <Avatar className="h-7 w-7 md:h-9 md:w-9">
             <AvatarImage src={message.sender?.profiles?.avatar_url || undefined} />
-            <AvatarFallback className="text-xs bg-primary/10 text-primary font-medium">
+            <AvatarFallback className="text-[10px] md:text-xs bg-primary/10 text-primary font-medium">
               {getInitials(senderName)}
             </AvatarFallback>
           </Avatar>

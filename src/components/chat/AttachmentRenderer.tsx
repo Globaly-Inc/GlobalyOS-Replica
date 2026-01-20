@@ -66,18 +66,19 @@ const AttachmentRenderer = ({ attachments, isOwn }: AttachmentRendererProps) => 
                 <img
                   src={publicUrl}
                   alt={attachment.file_name}
-                  className="max-w-[280px] max-h-[200px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                  loading="lazy"
+                  className="max-w-full sm:max-w-[280px] max-h-[160px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity bg-muted"
                   onClick={() => handleImageClick(attachment)}
                 />
-                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDownload(attachment);
                     }}
-                    className="p-1.5 bg-background/80 rounded-full hover:bg-background"
+                    className="p-1 bg-background/80 rounded-full hover:bg-background"
                   >
-                    <ExternalLink className="h-4 w-4" />
+                    <ExternalLink className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>

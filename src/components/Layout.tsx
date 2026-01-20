@@ -440,7 +440,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       
       {/* Desktop Navigation */}
       <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 safe-area-top">
-        <div className="container flex h-16 items-center px-4 md:px-8">
+        <div className="container flex h-14 md:h-16 items-center px-3 md:px-8">
           <div className="mr-4 hidden md:flex items-center">
             <button 
               onClick={() => navigate("/")}
@@ -615,12 +615,12 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
           {/* Mobile Header - Left Quick Actions + Right User Actions */}
           <div className="flex flex-1 items-center justify-between md:hidden">
-            {/* Left Side - Quick Access Icons (no org logo) */}
-            <div className="flex items-center gap-1.5">
+            {/* Left Side - Quick Access Icons (compact) */}
+            <div className="flex items-center gap-1">
               {/* Calendar */}
               <button
                 onClick={() => navigateOrg("/calendar")}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card hover:bg-muted transition-colors"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/50 bg-card/80 hover:bg-muted transition-colors active:scale-95"
               >
                 <Calendar className="h-4 w-4 text-muted-foreground" />
               </button>
@@ -628,7 +628,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
               {/* Wiki */}
               <button
                 onClick={() => navigateOrg("/wiki")}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card hover:bg-muted transition-colors"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/50 bg-card/80 hover:bg-muted transition-colors active:scale-95"
               >
                 <BookOpen className="h-4 w-4 text-muted-foreground" />
               </button>
@@ -636,7 +636,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
               {/* KPI */}
               <button
                 onClick={() => navigateOrg("/kpi-dashboard")}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card hover:bg-muted transition-colors"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/50 bg-card/80 hover:bg-muted transition-colors active:scale-95"
               >
                 <BarChart3 className="h-4 w-4 text-muted-foreground" />
               </button>
@@ -644,26 +644,26 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
               {/* Attendance */}
               <button
                 onClick={() => navigateOrg("/attendance-history")}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card hover:bg-muted transition-colors"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/50 bg-card/80 hover:bg-muted transition-colors active:scale-95"
               >
                 <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
               </button>
 
-              {/* Elapsed Time indicator */}
+              {/* Elapsed Time indicator - more compact */}
               {elapsedTime && (
-                <div className="flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-xs font-medium ml-1">
+                <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-md text-[11px] font-medium ml-0.5">
                   <Clock className="h-3 w-3" />
                   <span>{elapsedTime}</span>
                 </div>
               )}
             </div>
 
-            {/* Right Side - Search, Notifications (no profile - moved to bottom nav) */}
-            <div className="flex items-center gap-1.5">
+            {/* Right Side - Search, Notifications (compact) */}
+            <div className="flex items-center gap-1">
               {/* Search */}
               <button
                 onClick={() => setMobileSearchOpen(true)}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card hover:bg-muted transition-colors"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/50 bg-card/80 hover:bg-muted transition-colors active:scale-95"
               >
                 <Search className="h-4 w-4 text-muted-foreground" />
               </button>
@@ -671,7 +671,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
               {/* Get Help */}
               <button
                 onClick={() => setGetHelpDialogOpen(true)}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card hover:bg-muted transition-colors"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/50 bg-card/80 hover:bg-muted transition-colors active:scale-95"
               >
                 <LifeBuoy className="h-4 w-4 text-muted-foreground" />
               </button>
@@ -679,11 +679,11 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
               {/* Notifications */}
               <button 
                 onClick={() => navigateOrg('/notifications')}
-                className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card hover:bg-muted transition-colors"
+                className="relative flex h-8 w-8 items-center justify-center rounded-lg border border-border/50 bg-card/80 hover:bg-muted transition-colors active:scale-95"
               >
                 <Bell className="h-4 w-4 text-muted-foreground" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center font-medium">
+                  <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-destructive text-destructive-foreground text-[9px] flex items-center justify-center font-medium">
                     {unreadCount > 9 ? "9+" : unreadCount}
                   </span>
                 )}

@@ -386,12 +386,12 @@ export const InlinePostComposer = ({
   const canSubmit = getTextLength(content) >= 3 && (selectedType !== 'kudos' || kudosRecipients.length > 0);
 
   return (
-    <Card className="p-4 bg-card border-border shadow-sm">
+    <Card className="p-3 sm:p-4 bg-card border-border shadow-sm">
       {/* Main composer area */}
-      <div className="flex gap-3">
-        <Avatar className="h-10 w-10 border border-border/50 shrink-0">
+      <div className="flex gap-2 sm:gap-3">
+        <Avatar className="h-8 w-8 sm:h-10 sm:w-10 border border-border/50 shrink-0">
           <AvatarImage src={currentEmployee.profiles.avatar_url || undefined} />
-          <AvatarFallback className="bg-primary/10 text-primary font-medium text-sm">
+          <AvatarFallback className="bg-primary/10 text-primary font-medium text-xs sm:text-sm">
             {initials}
           </AvatarFallback>
         </Avatar>
@@ -407,16 +407,16 @@ export const InlinePostComposer = ({
             </button>
           ) : (
             <>
-              {/* Post Type Pills */}
-              <div className="flex flex-wrap gap-2">
+              {/* Post Type Pills - Horizontal scroll on mobile */}
+              <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
                 {postTypes.map(({ type, icon: Icon, label, color }) => (
                   <button
                     key={type}
                     onClick={() => setSelectedType(type)}
                     className={cn(
-                      'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all border',
+                      'flex items-center gap-1 px-2.5 py-1 rounded-full text-xs sm:text-sm font-medium transition-all border whitespace-nowrap flex-shrink-0',
                       selectedType === type ? [
-                        'ring-2 ring-offset-2 ring-offset-background',
+                        'ring-2 ring-offset-1 ring-offset-background',
                         color === 'amber' && 'bg-amber-100 text-amber-700 border-amber-300 ring-amber-400 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-700',
                         color === 'pink' && 'bg-pink-100 text-pink-700 border-pink-300 ring-pink-400 dark:bg-pink-900/40 dark:text-pink-300 dark:border-pink-700',
                         color === 'green' && 'bg-emerald-100 text-emerald-700 border-emerald-300 ring-emerald-400 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-700',
@@ -428,8 +428,9 @@ export const InlinePostComposer = ({
                       ]
                     )}
                   >
-                    <Icon className="h-4 w-4" />
-                    {label}
+                    <Icon className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">{label}</span>
+                    <span className="sm:hidden">{label}</span>
                   </button>
                 ))}
               </div>
