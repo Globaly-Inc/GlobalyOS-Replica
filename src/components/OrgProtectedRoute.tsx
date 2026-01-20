@@ -167,8 +167,28 @@ export const OrgProtectedRoute = ({
   }
 
   // Check employee onboarding status for new hires
-  // Skip for GlobalyHub demo organization
+  // Skip for GlobalyHub demo organization and org onboarding routes
   const isEmployeeOnboardingRoute = location.pathname.includes('/onboarding/team');
+  const isAnyOnboardingRoute = location.pathname.includes('/onboarding');
+  
+  // CRITICAL: Wait for employee status to load before allowing access
+  // This prevents race condition where null status bypasses the check
+  if (
+    !isDemoOrg &&
+    !isAnyOnboardingRoute &&
+    employeeOnboardingStatus === null
+  ) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Checking your account...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Redirect new hires who haven't completed onboarding
   if (
     !isDemoOrg &&
     !isEmployeeOnboardingRoute &&
