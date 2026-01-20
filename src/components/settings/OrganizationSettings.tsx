@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Building2, Users, Save, Check, ChevronsUpDown, Globe, FileText, MapPin } from "lucide-react";
+import { Building2, Users, Save, Check, ChevronsUpDown, Globe, FileText, MapPin, Mail, Phone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganization } from "@/hooks/useOrganization";
 import { AddressAutocomplete, AddressComponents } from "@/components/ui/address-autocomplete";
@@ -32,6 +32,8 @@ export function OrganizationSettings({ isOwner }: OrganizationSettingsProps) {
   const [businessAddressComponents, setBusinessAddressComponents] = useState<AddressComponents | null>(null);
   const [website, setWebsite] = useState("");
   const [businessRegistrationNumber, setBusinessRegistrationNumber] = useState("");
+  const [businessEmail, setBusinessEmail] = useState("");
+  const [businessPhone, setBusinessPhone] = useState("");
   const [industry, setIndustry] = useState("");
   const [memberCount, setMemberCount] = useState(0);
   
@@ -45,6 +47,8 @@ export function OrganizationSettings({ isOwner }: OrganizationSettingsProps) {
       setBusinessAddressComponents(currentOrg.business_address_components as AddressComponents | null);
       setWebsite(currentOrg.website || "");
       setBusinessRegistrationNumber(currentOrg.business_registration_number || "");
+      setBusinessEmail(currentOrg.business_email || "");
+      setBusinessPhone(currentOrg.business_phone || "");
       setIndustry(currentOrg.industry || "");
       loadMemberCount();
     }
@@ -109,6 +113,8 @@ export function OrganizationSettings({ isOwner }: OrganizationSettingsProps) {
         business_address_components: businessAddressComponents || null,
         website: normalizeWebsite(website) || null,
         business_registration_number: businessRegistrationNumber.trim() || null,
+        business_email: businessEmail.trim() || null,
+        business_phone: businessPhone.trim() || null,
         industry: industry || null,
         country: businessAddressComponents?.country || currentOrg.country || null,
       };
@@ -152,14 +158,21 @@ export function OrganizationSettings({ isOwner }: OrganizationSettingsProps) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Building2 className="h-5 w-5" />
-          Organization Details
-        </CardTitle>
-        <CardDescription>
-          Manage your organization's basic information
-        </CardDescription>
+      <CardHeader className="flex flex-row items-start justify-between">
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            <Building2 className="h-5 w-5" />
+            Organization Details
+          </CardTitle>
+          <CardDescription>
+            Manage your organization's basic information
+          </CardDescription>
+        </div>
+        {/* Org System ID as info text on top-right */}
+        <div className="text-right">
+          <span className="text-xs text-muted-foreground uppercase tracking-wide">Org System ID</span>
+          <p className="font-mono text-sm text-muted-foreground">{currentOrg?.slug || ""}</p>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Logo Upload Section */}
@@ -195,8 +208,17 @@ export function OrganizationSettings({ isOwner }: OrganizationSettingsProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label>Organization ID</Label>
-              <Input value={currentOrg?.slug || ""} disabled className="font-mono text-sm" />
+              <Label htmlFor="businessRegistrationNumber" className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                Business Registration Number
+              </Label>
+              <Input
+                id="businessRegistrationNumber"
+                value={businessRegistrationNumber}
+                onChange={(e) => setBusinessRegistrationNumber(e.target.value)}
+                disabled={!isOwner}
+                placeholder="ABN / ACN / Company Number"
+              />
             </div>
           </div>
         </div>
@@ -218,7 +240,7 @@ export function OrganizationSettings({ isOwner }: OrganizationSettingsProps) {
             />
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="website" className="flex items-center gap-2">
                 <Globe className="h-4 w-4 text-muted-foreground" />
@@ -233,16 +255,31 @@ export function OrganizationSettings({ isOwner }: OrganizationSettingsProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="businessRegistrationNumber" className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-                Business Registration Number
+              <Label htmlFor="businessEmail" className="flex items-center gap-2">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                Business Email
               </Label>
               <Input
-                id="businessRegistrationNumber"
-                value={businessRegistrationNumber}
-                onChange={(e) => setBusinessRegistrationNumber(e.target.value)}
+                id="businessEmail"
+                type="email"
+                value={businessEmail}
+                onChange={(e) => setBusinessEmail(e.target.value)}
                 disabled={!isOwner}
-                placeholder="ABN / ACN / Company Number"
+                placeholder="contact@example.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="businessPhone" className="flex items-center gap-2">
+                <Phone className="h-4 w-4 text-muted-foreground" />
+                Business Phone
+              </Label>
+              <Input
+                id="businessPhone"
+                type="tel"
+                value={businessPhone}
+                onChange={(e) => setBusinessPhone(e.target.value)}
+                disabled={!isOwner}
+                placeholder="+1 (555) 123-4567"
               />
             </div>
           </div>
