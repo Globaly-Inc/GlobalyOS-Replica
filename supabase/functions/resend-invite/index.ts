@@ -129,10 +129,13 @@ serve(async (req: Request) => {
       );
     }
 
-    // Check if employee is in invited status
-    if (employee.status !== 'invited') {
+    // Check if employee is eligible for resend (invited status OR new hire who hasn't completed onboarding)
+    const isEligible = employee.status === 'invited' || 
+      (employee.is_new_hire === true && employee.employee_onboarding_completed !== true);
+    
+    if (!isEligible) {
       return new Response(
-        JSON.stringify({ error: 'Can only resend invites to employees with invited status' }),
+        JSON.stringify({ error: 'Can only resend invites to employees with invited status or new hires who haven\'t completed onboarding' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
