@@ -1,10 +1,10 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { generateInviteEmailHtml } from "../_shared/email-templates.ts";
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-
-// Rate limiting constants
 const MAX_INVITES_PER_IP_PER_HOUR = 20;
+const APP_URL = 'https://www.globalyos.com';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -42,25 +42,19 @@ interface InviteRequest {
   isNewHire?: boolean;
   employmentType?: string;
   gender?: string;
-  skipEmail?: boolean; // Skip sending invitation email (used during onboarding)
+  skipEmail?: boolean;
 }
 
-// Generate a 6-digit OTP code
 function generateOtpCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Get client IP from request headers
 function getClientIP(req: Request): string {
   return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
          req.headers.get('x-real-ip') ||
          req.headers.get('cf-connecting-ip') ||
          'unknown';
 }
-
-// Stable logo URL from Supabase Storage
-const GLOBALYOS_LOGO_URL = 'https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/system-assets//GlobalyOS%20Blue%20BG%20Icon.png';
-const APP_URL = 'https://www.globalyos.com';
 
 
 serve(async (req: Request) => {
@@ -70,7 +64,6 @@ serve(async (req: Request) => {
 
   const clientIP = getClientIP(req);
   console.log('Invite request from IP:', clientIP);
-  const logoUrl = GLOBALYOS_LOGO_URL;
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -399,71 +392,18 @@ serve(async (req: Request) => {
     const appUrl = APP_URL;
     const joinUrl = `${appUrl}/join?email=${encodeURIComponent(normalizedEmail)}`;
 
-    // Send invitation email via Resend API - Minimal design
-    const emailHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      </head>
-      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.5; color: #1e293b; margin: 0; padding: 0; background-color: #f8fafc;">
-        <div style="background-color: #f8fafc; padding: 24px 16px;">
-          <div style="max-width: 480px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            
-            <!-- Header -->
-            <div style="padding: 20px 24px; text-align: center; border-bottom: 1px solid #e2e8f0;">
-              <img src="${logoUrl}" alt="GlobalyOS" style="width: 48px; height: 48px; border-radius: 10px;" />
-              <h1 style="color: #1e293b; margin: 12px 0 4px 0; font-size: 20px; font-weight: 600;">You're Invited</h1>
-              <p style="color: #64748b; margin: 0; font-size: 14px;">Join ${businessName} on GlobalyOS</p>
-            </div>
-            
-            <!-- Content -->
-            <div style="padding: 24px;">
-              <p style="margin: 0 0 16px 0; font-size: 15px;">Hi <strong>${fullName}</strong>,</p>
-              <p style="margin: 0 0 20px 0; font-size: 14px; color: #475569;">${inviterName} has invited you to join <strong>${businessName}</strong>.</p>
-              
-              <!-- Details -->
-              <div style="background: #f8fafc; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px;">
-                <table cellpadding="0" cellspacing="0" border="0" width="100%" style="font-size: 13px;">
-                  <tr>
-                    <td style="color: #64748b; padding: 4px 0;">Position</td>
-                    <td style="color: #1e293b; font-weight: 500; text-align: right; padding: 4px 0;">${position}</td>
-                  </tr>
-                  <tr>
-                    <td style="color: #64748b; padding: 4px 0;">Department</td>
-                    <td style="color: #1e293b; font-weight: 500; text-align: right; padding: 4px 0;">${department}</td>
-                  </tr>
-                  <tr>
-                    <td style="color: #64748b; padding: 4px 0;">Start Date</td>
-                    <td style="color: #1e293b; font-weight: 500; text-align: right; padding: 4px 0;">${joinDate ? new Date(joinDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBC'}</td>
-                  </tr>
-                </table>
-              </div>
-              
-              <!-- Code -->
-              <div style="text-align: center; margin: 24px 0;">
-                <p style="font-size: 12px; color: #64748b; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px;">Your Login Code</p>
-                <div style="background: #f0f4ff; color: #4f46e5; font-size: 28px; font-weight: 700; letter-spacing: 8px; padding: 16px 24px; border-radius: 8px; display: inline-block;">${inviteCode}</div>
-              </div>
-              
-              <!-- CTA -->
-              <div style="text-align: center; margin: 20px 0;">
-                <a href="${joinUrl}" style="display: inline-block; background: #4f46e5; color: white; padding: 12px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">Join Team</a>
-              </div>
-              
-              <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 16px 0 0 0;">Code valid for 7 days</p>
-            </div>
-            
-            <!-- Footer -->
-            <div style="background: #f8fafc; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
-              <p style="margin: 0; color: #64748b; font-size: 12px;">Questions? Contact <a href="mailto:${inviterEmail || 'support@globalyos.com'}" style="color: #4f46e5; text-decoration: none;">${inviterEmail || 'support'}</a></p>
-            </div>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
+    const emailHtml = generateInviteEmailHtml({
+      fullName,
+      inviterName,
+      inviterEmail,
+      businessName,
+      position,
+      department,
+      joinDate: joinDate || null,
+      inviteCode,
+      joinUrl,
+      isReminder: false
+    });
 
     // Send invitation email via Resend API (unless skipEmail is true)
     const skipEmail = data.skipEmail ?? false;
