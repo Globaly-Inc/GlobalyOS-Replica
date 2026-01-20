@@ -6,9 +6,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { LogOut } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import globalyosIcon from '@/assets/globalyos-icon.png';
 import {
   useEmployeeOnboardingData,
   useInitEmployeeOnboarding,
@@ -37,7 +41,7 @@ import {
 export default function EmployeeOnboardingWizard() {
   const navigate = useNavigate();
   const { currentOrg } = useOrganization();
-  const { session, loading: authLoading } = useAuth();
+  const { session, loading: authLoading, signOut } = useAuth();
   const { data: employeeId } = useCurrentEmployeeId();
   const { data: onboardingData, isLoading: dataLoading } = useEmployeeOnboardingData();
   const initOnboarding = useInitEmployeeOnboarding();
@@ -169,6 +173,11 @@ export default function EmployeeOnboardingWizard() {
     navigate('/auth');
     return null;
   }
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/auth');
+  };
 
   const handleNext = async (stepData?: Record<string, unknown>) => {
     if (currentStep >= TOTAL_EMPLOYEE_STEPS) {
@@ -310,6 +319,7 @@ export default function EmployeeOnboardingWizard() {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
       <div className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-sm border-b">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+          {/* Left side: Org branding */}
           <div className="flex items-center gap-3">
             {currentOrg?.logo_url ? (
               <img src={currentOrg.logo_url} alt={currentOrg.name} className="h-8 w-8 rounded-lg object-cover" />
@@ -319,6 +329,33 @@ export default function EmployeeOnboardingWizard() {
               </div>
             )}
             <span className="font-semibold text-foreground">Welcome to {currentOrg?.name || 'GlobalyOS'}</span>
+          </div>
+
+          {/* Right side: Onboarding label + GlobalyOS icon + Logout */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground font-medium hidden sm:inline">Onboarding</span>
+            <img 
+              src={globalyosIcon} 
+              alt="GlobalyOS" 
+              className="h-7 w-7 rounded-md"
+            />
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={handleLogout}
+                    className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Logout</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
       </div>
