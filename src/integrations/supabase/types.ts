@@ -5465,6 +5465,7 @@ export type Database = {
           timezone: string | null
           trial_ends_at: string | null
           updated_at: string
+          website: string | null
           workday_hours: number
         }
         Insert: {
@@ -5500,6 +5501,7 @@ export type Database = {
           timezone?: string | null
           trial_ends_at?: string | null
           updated_at?: string
+          website?: string | null
           workday_hours?: number
         }
         Update: {
@@ -5535,6 +5537,7 @@ export type Database = {
           timezone?: string | null
           trial_ends_at?: string | null
           updated_at?: string
+          website?: string | null
           workday_hours?: number
         }
         Relationships: [

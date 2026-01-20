@@ -14,6 +14,9 @@ interface Organization {
   company_size: string | null;
   business_address: string | null;
   business_address_components: { [key: string]: string | number | boolean | null } | null;
+  legal_business_name: string | null;
+  business_registration_number: string | null;
+  website: string | null;
 }
 
 interface OrganizationMember {
@@ -68,7 +71,10 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
             industry,
             company_size,
             business_address,
-            business_address_components
+            business_address_components,
+            legal_business_name,
+            business_registration_number,
+            website
           )
         `)
         .eq("user_id", user.id);
