@@ -315,6 +315,11 @@ const Signup = () => {
     return (PLANS[plan].monthly - PLANS[plan].annual) * 12;
   };
 
+  const getAnnualTotal = (plan: Plan) => {
+    if (plan === 'enterprise') return 'Custom';
+    return `$${PLANS[plan].annual * 12}`;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 py-8 px-4">
       <div className="max-w-4xl mx-auto">
@@ -354,32 +359,30 @@ const Signup = () => {
         {step === 1 && (
           <div className="space-y-6">
             {/* Billing Toggle */}
-            <div className="flex flex-col items-center gap-2">
-              <div className="flex items-center justify-center gap-4">
-                <span className={cn("font-medium", billingCycle === 'monthly' ? "text-foreground" : "text-muted-foreground")}>
-                  Monthly
-                </span>
-                <button
-                  onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')}
+            <div className="flex items-center justify-center gap-4">
+              <span className={cn("font-medium", billingCycle === 'monthly' ? "text-foreground" : "text-muted-foreground")}>
+                Monthly
+              </span>
+              <button
+                onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')}
+                className={cn(
+                  "relative w-14 h-7 rounded-full transition-colors",
+                  billingCycle === 'annual' ? "bg-primary" : "bg-muted"
+                )}
+              >
+                <div
                   className={cn(
-                    "relative w-14 h-7 rounded-full transition-colors",
-                    billingCycle === 'annual' ? "bg-primary" : "bg-muted"
+                    "absolute w-5 h-5 bg-white rounded-full top-1 transition-transform",
+                    billingCycle === 'annual' ? "translate-x-8" : "translate-x-1"
                   )}
-                >
-                  <div
-                    className={cn(
-                      "absolute w-5 h-5 bg-white rounded-full top-1 transition-transform",
-                      billingCycle === 'annual' ? "translate-x-8" : "translate-x-1"
-                    )}
-                  />
-                </button>
-                <span className={cn("font-medium", billingCycle === 'annual' ? "text-foreground" : "text-muted-foreground")}>
-                  Annual Billing
-                </span>
-              </div>
+                />
+              </button>
+              <span className={cn("font-medium", billingCycle === 'annual' ? "text-foreground" : "text-muted-foreground")}>
+                Annual Billing
+              </span>
               {billingCycle === 'annual' && (
                 <Badge variant="secondary" className="bg-success/10 text-success border-success/20">
-                  Save 20% on all plans
+                  Save 20%
                 </Badge>
               )}
             </div>
@@ -399,10 +402,18 @@ const Signup = () => {
                   <h3 className="font-semibold text-lg">Starter</h3>
                 </div>
                 <div className="mb-4">
-                  <span className="text-3xl font-bold">{getPrice('starter')}</span>
-                  <span className="text-muted-foreground">/mo</span>
-                  {billingCycle === 'annual' && (
-                    <p className="text-sm text-success">Save ${getAnnualSavings('starter')}/year</p>
+                  {billingCycle === 'annual' ? (
+                    <>
+                      <span className="text-3xl font-bold">{getAnnualTotal('starter')}</span>
+                      <span className="text-muted-foreground">/year</span>
+                      <p className="text-sm text-muted-foreground">({getPrice('starter')}/mo)</p>
+                      <p className="text-sm text-success">Save ${getAnnualSavings('starter')}/year</p>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-3xl font-bold">{getPrice('starter')}</span>
+                      <span className="text-muted-foreground">/mo</span>
+                    </>
                   )}
                 </div>
                 <ul className="space-y-2 text-sm text-muted-foreground">
@@ -429,10 +440,18 @@ const Signup = () => {
                   <h3 className="font-semibold text-lg">Growth</h3>
                 </div>
                 <div className="mb-4">
-                  <span className="text-3xl font-bold">{getPrice('growth')}</span>
-                  <span className="text-muted-foreground">/mo</span>
-                  {billingCycle === 'annual' && (
-                    <p className="text-sm text-success">Save ${getAnnualSavings('growth')}/year</p>
+                  {billingCycle === 'annual' ? (
+                    <>
+                      <span className="text-3xl font-bold">{getAnnualTotal('growth')}</span>
+                      <span className="text-muted-foreground">/year</span>
+                      <p className="text-sm text-muted-foreground">({getPrice('growth')}/mo)</p>
+                      <p className="text-sm text-success">Save ${getAnnualSavings('growth')}/year</p>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-3xl font-bold">{getPrice('growth')}</span>
+                      <span className="text-muted-foreground">/mo</span>
+                    </>
                   )}
                 </div>
                 <ul className="space-y-2 text-sm text-muted-foreground">
