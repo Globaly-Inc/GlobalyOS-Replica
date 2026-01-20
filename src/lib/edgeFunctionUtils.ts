@@ -122,39 +122,49 @@ export async function invokeEdgeFunction<T = unknown>(
         errorMessage = responseBody.message;
       }
 
+      // Handle USER_EXISTS as a graceful skip, not an error
+      // This is expected behavior when inviting someone who already has an account
+      const isUserExistsSkip = statusCode === 409 && errorCode === 'USER_EXISTS';
+      
+      if (isUserExistsSkip) {
+        // Return the response data (which includes skipped: true) without treating as error
+        return { 
+          data: responseBody as T, 
+          error: null 
+        };
+      }
+
       const userFriendlyMessage = getUserFriendlyMessage(statusCode, errorMessage);
       const error = new Error(userFriendlyMessage) as LoggedError;
       error.code = errorCode;
       error.statusCode = statusCode;
-      
-       const shouldSuppressLogging = statusCode === 409 && errorCode === 'USER_EXISTS';
 
-       if (logErrors && !shouldSuppressLogging) {
-         const severity = getSeverityFromStatus(statusCode);
-         await logErrorToDatabase({
-           errorType: "edge_function" as ErrorType,
-           severity,
-           errorMessage: errorMessage, // Log original message for debugging
-           componentName,
-           actionAttempted: actionAttempted || `Invoke ${functionName}`,
-           metadata: {
-             functionName,
-             statusCode,
-             errorCode,
-             originalError: response.error.message,
-             responseData: response.data,
-             userFriendlyMessage,
-           },
-           consoleLogs: getRecentConsoleLogs(),
-           networkRequests: getRecentNetworkRequests(),
-           breadcrumbs: getBreadcrumbs(),
-           sessionDurationMs: getSessionDuration(),
-           routeHistory: getRouteHistory(),
-           performanceMetrics: getPerformanceMetrics(),
-         });
-         // Mark as already logged to prevent double-logging
-         error.__alreadyLoggedToDb = true;
-       }
+      if (logErrors) {
+        const severity = getSeverityFromStatus(statusCode);
+        await logErrorToDatabase({
+          errorType: "edge_function" as ErrorType,
+          severity,
+          errorMessage: errorMessage, // Log original message for debugging
+          componentName,
+          actionAttempted: actionAttempted || `Invoke ${functionName}`,
+          metadata: {
+            functionName,
+            statusCode,
+            errorCode,
+            originalError: response.error.message,
+            responseData: response.data,
+            userFriendlyMessage,
+          },
+          consoleLogs: getRecentConsoleLogs(),
+          networkRequests: getRecentNetworkRequests(),
+          breadcrumbs: getBreadcrumbs(),
+          sessionDurationMs: getSessionDuration(),
+          routeHistory: getRouteHistory(),
+          performanceMetrics: getPerformanceMetrics(),
+        });
+        // Mark as already logged to prevent double-logging
+        error.__alreadyLoggedToDb = true;
+      }
       
       return { data: null, error };
     }
