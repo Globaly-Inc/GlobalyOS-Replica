@@ -83,26 +83,20 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Generate a slug from organization name
-    const baseSlug = organizationName
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
+    // Generate slug: initials-8-char-uuid (e.g., ae-7f3ccd30)
+    // Extract initials from organization name (up to 4 letters)
+    const words = organizationName.trim().split(/\s+/);
+    const initials = words
+      .slice(0, 4) // Max 4 words
+      .map(word => word.charAt(0).toLowerCase())
+      .filter(char => /[a-z]/.test(char)) // Only letters
+      .join('');
     
-    // Check for slug uniqueness and add suffix if needed
-    let slug = baseSlug;
-    let slugSuffix = 1;
-    while (true) {
-      const { data: existingSlug } = await supabase
-        .from('organizations')
-        .select('id')
-        .eq('slug', slug)
-        .single();
-      
-      if (!existingSlug) break;
-      slug = `${baseSlug}-${slugSuffix}`;
-      slugSuffix++;
-    }
+    // Generate 8-character UUID portion for uniqueness
+    const uuidPart = crypto.randomUUID().replace(/-/g, '').substring(0, 8);
+    
+    // Create slug: initials-uuid (e.g., ae-7f3ccd30)
+    const slug = `${initials || 'org'}-${uuidPart}`;
 
     // Create the organization with pending status
     const { data: organization, error: orgError } = await supabase
