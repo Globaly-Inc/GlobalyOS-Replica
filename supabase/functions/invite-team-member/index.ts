@@ -142,7 +142,7 @@ serve(async (req: Request) => {
       remuneration, remunerationCurrency, 
       emergencyContactName, emergencyContactPhone, emergencyContactRelationship,
       avatarUrl, role, managerId, officeId, organizationId,
-      isNewHire = true, employmentType = 'employee', gender
+      isNewHire = false, employmentType = 'employee', gender
     } = data;
 
     // Validate required fields (phone, address fields are optional for quick invites)

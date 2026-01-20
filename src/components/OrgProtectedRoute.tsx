@@ -188,12 +188,11 @@ export const OrgProtectedRoute = ({
     );
   }
   
-  // Redirect new hires who haven't completed onboarding
+  // Redirect employees who haven't completed onboarding
   if (
     !isDemoOrg &&
     !isEmployeeOnboardingRoute &&
-    employeeOnboardingStatus?.is_new_hire === true &&
-    !employeeOnboardingStatus?.employee_onboarding_completed
+    employeeOnboardingStatus?.employee_onboarding_completed === false
   ) {
     return <Navigate to={`/org/${currentOrg.slug}/onboarding/team`} replace />;
   }
