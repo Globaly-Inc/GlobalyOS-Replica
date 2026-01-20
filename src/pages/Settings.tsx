@@ -1,6 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Building2, Users, CreditCard, Briefcase, Sparkles, Target, ClipboardCheck } from "lucide-react";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import { PageHeader } from "@/components/PageHeader";
 import { FieldsSettings } from "@/components/FieldsSettings";
 import { AIKnowledgeSettings } from "@/components/AIKnowledgeSettings";
@@ -12,6 +13,7 @@ import { OrganizationSettings } from "@/components/settings/OrganizationSettings
 
 const Settings = () => {
   const { currentOrg, orgRole } = useOrganization();
+  const { isEnabled } = useFeatureFlags();
 
   const isOwner = orgRole === "owner";
 
@@ -40,14 +42,18 @@ const Settings = () => {
             <Target className="h-4 w-4" />
             KPIs
           </TabsTrigger>
-          <TabsTrigger value="workflows" className="gap-2">
-            <ClipboardCheck className="h-4 w-4" />
-            Workflows
-          </TabsTrigger>
-          <TabsTrigger value="ai" className="gap-2">
-            <Sparkles className="h-4 w-4" />
-            AI
-          </TabsTrigger>
+          {isEnabled('workflows') && (
+            <TabsTrigger value="workflows" className="gap-2">
+              <ClipboardCheck className="h-4 w-4" />
+              Workflows
+            </TabsTrigger>
+          )}
+          {isEnabled('ask-ai') && (
+            <TabsTrigger value="ai" className="gap-2">
+              <Sparkles className="h-4 w-4" />
+              AI
+            </TabsTrigger>
+          )}
           <TabsTrigger value="billing" className="gap-2">
             <CreditCard className="h-4 w-4" />
             Billing
@@ -70,13 +76,17 @@ const Settings = () => {
           <KpiGenerationSettings organizationId={currentOrg?.id} />
         </TabsContent>
 
-        <TabsContent value="workflows" className="space-y-6">
-          <WorkflowsSettings organizationId={currentOrg?.id} />
-        </TabsContent>
+        {isEnabled('workflows') && (
+          <TabsContent value="workflows" className="space-y-6">
+            <WorkflowsSettings organizationId={currentOrg?.id} />
+          </TabsContent>
+        )}
 
-        <TabsContent value="ai" className="space-y-6">
-          <AIKnowledgeSettings organizationId={currentOrg?.id} />
-        </TabsContent>
+        {isEnabled('ask-ai') && (
+          <TabsContent value="ai" className="space-y-6">
+            <AIKnowledgeSettings organizationId={currentOrg?.id} />
+          </TabsContent>
+        )}
 
         <TabsContent value="billing" className="space-y-6">
           <BillingSettings />
