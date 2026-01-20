@@ -1,18 +1,18 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Building2, Users, Save, Upload, Loader2, Check, ChevronsUpDown, Globe, FileText, MapPin } from "lucide-react";
+import { Building2, Users, Save, Check, ChevronsUpDown, Globe, FileText, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganization } from "@/hooks/useOrganization";
 import { AddressAutocomplete, AddressComponents } from "@/components/ui/address-autocomplete";
-import { BUSINESS_CATEGORIES, getBusinessCategoryIcon } from "@/constants/businessCategories";
+import { LogoUpload } from "@/components/onboarding/wizard/LogoUpload";
+import { BUSINESS_CATEGORIES } from "@/constants/businessCategories";
 import { cn } from "@/lib/utils";
 
 interface OrganizationSettingsProps {
@@ -24,8 +24,6 @@ export function OrganizationSettings({ isOwner }: OrganizationSettingsProps) {
   const { currentOrg, refreshOrganizations } = useOrganization();
   
   const [loading, setLoading] = useState(false);
-  const [uploadingLogo, setUploadingLogo] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Form state
   const [orgName, setOrgName] = useState("");
@@ -61,68 +59,27 @@ export function OrganizationSettings({ isOwner }: OrganizationSettingsProps) {
     setMemberCount(count || 0);
   };
 
-  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !currentOrg) return;
-
-    if (!file.type.startsWith("image/")) {
-      toast({
-        title: "Invalid file type",
-        description: "Please upload an image file.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (file.size > 2 * 1024 * 1024) {
-      toast({
-        title: "File too large",
-        description: "Please upload an image smaller than 2MB.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setUploadingLogo(true);
+  const handleLogoChange = async (url: string | null) => {
+    if (!currentOrg) return;
+    
     try {
-      const fileExt = file.name.split(".").pop();
-      const filePath = `org-logos/${currentOrg.id}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(filePath, file, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      const { data: urlData } = supabase.storage
-        .from("avatars")
-        .getPublicUrl(filePath);
-
-      const { error: updateError } = await supabase
+      const { error } = await supabase
         .from("organizations")
-        .update({ logo_url: urlData.publicUrl })
+        .update({ logo_url: url })
         .eq("id", currentOrg.id);
 
-      if (updateError) throw updateError;
-
+      if (error) throw error;
       await refreshOrganizations();
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to update logo";
       toast({
-        title: "Logo uploaded",
-        description: "Organization logo has been updated.",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error uploading logo",
-        description: error.message,
+        title: "Error updating logo",
+        description: errorMessage,
         variant: "destructive",
       });
-    } finally {
-      setUploadingLogo(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
     }
   };
+
 
   const handleAddressChange = (address: string, components?: AddressComponents) => {
     setBusinessAddress(address);
@@ -206,46 +163,12 @@ export function OrganizationSettings({ isOwner }: OrganizationSettingsProps) {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Logo Upload Section */}
-        <div className="space-y-3">
-          <Label>Organization Logo</Label>
-          <div className="flex items-center gap-4">
-            <Avatar className="h-16 w-16 rounded-lg">
-              <AvatarImage src={currentOrg?.logo_url || ""} alt={currentOrg?.name} className="object-cover" />
-              <AvatarFallback className="rounded-lg bg-primary/10 text-primary text-lg font-semibold">
-                {currentOrg?.name?.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            {isOwner && (
-              <div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleLogoUpload}
-                  className="hidden"
-                  id="logo-upload"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingLogo}
-                  className="gap-2"
-                >
-                  {uploadingLogo ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Upload className="h-4 w-4" />
-                  )}
-                  {uploadingLogo ? "Uploading..." : "Upload Logo"}
-                </Button>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Square image recommended. Max 2MB.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
+        <LogoUpload
+          currentLogoUrl={currentOrg?.logo_url || undefined}
+          organizationId={currentOrg?.id}
+          onLogoChange={handleLogoChange}
+          disabled={!isOwner}
+        />
 
         {/* Business Identity Section */}
         <div className="space-y-4">
