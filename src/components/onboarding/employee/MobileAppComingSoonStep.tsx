@@ -5,12 +5,13 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ArrowRight, Smartphone, CheckCircle2, Wifi, Bell, MapPin, PartyPopper } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Smartphone, CheckCircle2, Wifi, Bell, MapPin, PartyPopper } from 'lucide-react';
 
 interface MobileAppComingSoonStepProps {
   employeeName: string;
   orgName: string;
   onFinish: () => void;
+  onBack?: () => void;
   isCompleting: boolean;
 }
 
@@ -18,6 +19,7 @@ export function MobileAppComingSoonStep({
   employeeName, 
   orgName, 
   onFinish, 
+  onBack,
   isCompleting 
 }: MobileAppComingSoonStepProps) {
   return (
@@ -107,24 +109,37 @@ export function MobileAppComingSoonStep({
           </p>
         </div>
 
-        <Button 
-          onClick={onFinish} 
-          disabled={isCompleting}
-          className="w-full h-14 text-lg font-semibold shadow-lg hover:shadow-xl transition-all" 
-          size="lg"
-        >
-          {isCompleting ? (
-            <>
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
-              Finishing up...
-            </>
-          ) : (
-            <>
-              Go to Home
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </>
+        <div className="flex gap-3">
+          {onBack && (
+            <Button 
+              variant="outline" 
+              onClick={onBack}
+              disabled={isCompleting}
+              className="h-14 px-6"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Button>
           )}
-        </Button>
+          <Button 
+            onClick={onFinish} 
+            disabled={isCompleting}
+            className="flex-1 h-14 text-lg font-semibold shadow-lg hover:shadow-xl transition-all" 
+            size="lg"
+          >
+            {isCompleting ? (
+              <>
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
+                Finishing up...
+              </>
+            ) : (
+              <>
+                Go to Home
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </>
+            )}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

@@ -5,13 +5,14 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, Calendar, FileText, UserCheck, Clock, CalendarDays } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Calendar, FileText, UserCheck, Clock, CalendarDays } from 'lucide-react';
 
 interface LeaveGuideStepProps {
   onContinue: () => void;
+  onBack?: () => void;
 }
 
-export function LeaveGuideStep({ onContinue }: LeaveGuideStepProps) {
+export function LeaveGuideStep({ onContinue, onBack }: LeaveGuideStepProps) {
   return (
     <Card className="border-0 shadow-lg">
       <CardHeader className="text-center pb-4">
@@ -98,10 +99,18 @@ export function LeaveGuideStep({ onContinue }: LeaveGuideStepProps) {
           ))}
         </div>
 
-        <Button onClick={onContinue} className="w-full h-12 text-base font-semibold" size="lg">
-          Got It
-          <ArrowRight className="ml-2 h-5 w-5" />
-        </Button>
+        <div className="flex gap-3">
+          {onBack && (
+            <Button variant="outline" onClick={onBack} className="h-12 px-6">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Button>
+          )}
+          <Button onClick={onContinue} className="flex-1 h-12 text-base font-semibold" size="lg">
+            Got It
+            <ArrowRight className="ml-2 h-5 w-5" />
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

@@ -248,23 +248,56 @@ export default function EmployeeOnboardingWizard() {
           />
         );
       case 'timezone-setup':
-        return <TimezoneSetupStep onSave={handleTimezoneSave} isSaving={saveStep.isPending || saveTimezone.isPending} />;
+        return (
+          <TimezoneSetupStep 
+            onSave={handleTimezoneSave} 
+            onBack={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
+            isSaving={saveStep.isPending || saveTimezone.isPending} 
+          />
+        );
       case 'checkin-guide':
-        return <CheckInGuideStep onContinue={() => handleNext()} />;
+        return (
+          <CheckInGuideStep 
+            onContinue={() => handleNext()} 
+            onBack={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
+          />
+        );
       case 'leave-guide':
-        return <LeaveGuideStep onContinue={() => handleNext()} />;
+        return (
+          <LeaveGuideStep 
+            onContinue={() => handleNext()} 
+            onBack={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
+          />
+        );
       case 'profile-guide':
-        return <ProfileGuideStep employeeName={firstName} onContinue={() => handleNext()} />;
+        return (
+          <ProfileGuideStep 
+            employeeName={firstName} 
+            onContinue={() => handleNext()} 
+            onBack={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
+          />
+        );
       case 'social-feed-guide':
-        return <SocialFeedGuideStep onContinue={() => handleNext()} />;
+        return (
+          <SocialFeedGuideStep 
+            onContinue={() => handleNext()} 
+            onBack={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
+          />
+        );
       case 'directory-wiki-guide':
-        return <DirectoryWikiGuideStep onContinue={() => handleNext()} />;
+        return (
+          <DirectoryWikiGuideStep 
+            onContinue={() => handleNext()} 
+            onBack={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
+          />
+        );
       case 'complete':
         return (
           <MobileAppComingSoonStep
             employeeName={firstName}
             orgName={currentOrg?.name || 'the team'}
             onFinish={() => handleNext()}
+            onBack={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
             isCompleting={completeOnboarding.isPending}
           />
         );

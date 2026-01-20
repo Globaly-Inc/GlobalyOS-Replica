@@ -5,15 +5,16 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, User, Camera, Shield, Settings, ChevronDown } from 'lucide-react';
+import { ArrowRight, ArrowLeft, User, Camera, Shield, Settings, ChevronDown } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface ProfileGuideStepProps {
   employeeName: string;
   onContinue: () => void;
+  onBack?: () => void;
 }
 
-export function ProfileGuideStep({ employeeName, onContinue }: ProfileGuideStepProps) {
+export function ProfileGuideStep({ employeeName, onContinue, onBack }: ProfileGuideStepProps) {
   return (
     <Card className="border-0 shadow-lg">
       <CardHeader className="text-center pb-4">
@@ -84,10 +85,18 @@ export function ProfileGuideStep({ employeeName, onContinue }: ProfileGuideStepP
           ))}
         </div>
 
-        <Button onClick={onContinue} className="w-full h-12 text-base font-semibold" size="lg">
-          Continue
-          <ArrowRight className="ml-2 h-5 w-5" />
-        </Button>
+        <div className="flex gap-3">
+          {onBack && (
+            <Button variant="outline" onClick={onBack} className="h-12 px-6">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Button>
+          )}
+          <Button onClick={onContinue} className="flex-1 h-12 text-base font-semibold" size="lg">
+            Continue
+            <ArrowRight className="ml-2 h-5 w-5" />
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

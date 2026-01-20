@@ -6,17 +6,18 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, MapPin, Globe, Clock, Check, Loader2, AlertTriangle } from 'lucide-react';
+import { ArrowRight, ArrowLeft, MapPin, Globe, Clock, Check, Loader2, AlertTriangle } from 'lucide-react';
 import { TimezoneSelector } from '@/components/ui/timezone-selector';
 
 interface TimezoneSetupStepProps {
   onSave: (timezone: string) => void;
+  onBack?: () => void;
   isSaving: boolean;
 }
 
 type LocationState = 'idle' | 'requesting' | 'success' | 'denied' | 'error';
 
-export function TimezoneSetupStep({ onSave, isSaving }: TimezoneSetupStepProps) {
+export function TimezoneSetupStep({ onSave, onBack, isSaving }: TimezoneSetupStepProps) {
   const [locationState, setLocationState] = useState<LocationState>('idle');
   const [detectedTimezone, setDetectedTimezone] = useState<string | null>(null);
   const [selectedTimezone, setSelectedTimezone] = useState<string>('');
@@ -113,6 +114,17 @@ export function TimezoneSetupStep({ onSave, isSaving }: TimezoneSetupStepProps) 
             >
               Or select timezone manually
             </button>
+            {onBack && (
+              <Button 
+                type="button"
+                variant="outline"
+                onClick={onBack}
+                className="w-full h-12"
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back
+              </Button>
+            )}
           </div>
         )}
 
@@ -151,15 +163,28 @@ export function TimezoneSetupStep({ onSave, isSaving }: TimezoneSetupStepProps) 
               />
             </div>
 
-            <Button 
-              onClick={handleContinue} 
-              disabled={!selectedTimezone || isSaving}
-              className="w-full h-12" 
-              size="lg"
-            >
-              {isSaving ? 'Saving...' : 'Continue'}
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
+            <div className="flex gap-3">
+              {onBack && (
+                <Button 
+                  type="button"
+                  variant="outline"
+                  onClick={onBack}
+                  className="h-12 px-6"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back
+                </Button>
+              )}
+              <Button 
+                onClick={handleContinue} 
+                disabled={!selectedTimezone || isSaving}
+                className="flex-1 h-12" 
+                size="lg"
+              >
+                {isSaving ? 'Saving...' : 'Continue'}
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </div>
           </div>
         )}
 
@@ -197,15 +222,28 @@ export function TimezoneSetupStep({ onSave, isSaving }: TimezoneSetupStepProps) 
               />
             </div>
 
-            <Button 
-              onClick={handleContinue} 
-              disabled={!selectedTimezone || isSaving}
-              className="w-full h-12" 
-              size="lg"
-            >
-              {isSaving ? 'Saving...' : 'Continue'}
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
+            <div className="flex gap-3">
+              {onBack && (
+                <Button 
+                  type="button"
+                  variant="outline"
+                  onClick={onBack}
+                  className="h-12 px-6"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back
+                </Button>
+              )}
+              <Button 
+                onClick={handleContinue} 
+                disabled={!selectedTimezone || isSaving}
+                className="flex-1 h-12" 
+                size="lg"
+              >
+                {isSaving ? 'Saving...' : 'Continue'}
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </div>
           </div>
         )}
       </CardContent>
