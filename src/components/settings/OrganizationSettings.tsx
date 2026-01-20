@@ -317,17 +317,6 @@ export function OrganizationSettings({ isOwner }: OrganizationSettingsProps) {
             </div>
           </div>
 
-          {businessAddressComponents?.country && (
-            <div className="space-y-2">
-              <Label>Country</Label>
-              <Input 
-                value={businessAddressComponents.country} 
-                disabled 
-                className="text-muted-foreground" 
-              />
-              <p className="text-xs text-muted-foreground">Derived from business address</p>
-            </div>
-          )}
         </div>
 
         {/* Stats Section */}
