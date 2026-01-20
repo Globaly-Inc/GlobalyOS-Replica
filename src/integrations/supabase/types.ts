@@ -5440,6 +5440,8 @@ export type Database = {
           billing_cycle: string | null
           business_address: string | null
           business_address_components: Json | null
+          business_email: string | null
+          business_phone: string | null
           business_registration_number: string | null
           company_size: string | null
           country: string | null
@@ -5476,6 +5478,8 @@ export type Database = {
           billing_cycle?: string | null
           business_address?: string | null
           business_address_components?: Json | null
+          business_email?: string | null
+          business_phone?: string | null
           business_registration_number?: string | null
           company_size?: string | null
           country?: string | null
@@ -5512,6 +5516,8 @@ export type Database = {
           billing_cycle?: string | null
           business_address?: string | null
           business_address_components?: Json | null
+          business_email?: string | null
+          business_phone?: string | null
           business_registration_number?: string | null
           company_size?: string | null
           country?: string | null
