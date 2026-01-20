@@ -340,16 +340,18 @@ serve(async (req: Request) => {
       }),
     });
 
+    const emailResponseData = await emailResponse.json();
+    console.log('Resend API response:', JSON.stringify(emailResponseData));
+    
     if (!emailResponse.ok) {
-      const emailError = await emailResponse.text();
-      console.error('Error sending invitation email:', emailError);
+      console.error('Error sending invitation email:', JSON.stringify(emailResponseData));
       return new Response(
-        JSON.stringify({ error: 'Failed to send email. Please check your Resend configuration.' }),
+        JSON.stringify({ error: 'Failed to send email. Please check your Resend configuration.', details: emailResponseData }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Invitation email resent successfully to:', email);
+    console.log('Invitation email resent successfully to:', email, 'Resend ID:', emailResponseData.id);
 
     return new Response(
       JSON.stringify({ 
