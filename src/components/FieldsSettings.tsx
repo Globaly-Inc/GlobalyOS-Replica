@@ -137,7 +137,15 @@ export const FieldsSettings = () => {
       if (positionsError) throw positionsError;
       setPositions(positionsData || []);
 
-      // Load departments from employees table (unique values with count)
+      // Get unique departments from positions (including those from onboarding)
+      const positionDepts = new Set<string>();
+      positionsData?.forEach((pos) => {
+        if (pos.department) {
+          positionDepts.add(pos.department);
+        }
+      });
+
+      // Load departments from employees table for employee counts
       const { data: employeesData, error: employeesError } = await supabase
         .from("employees")
         .select("department")
@@ -145,7 +153,7 @@ export const FieldsSettings = () => {
 
       if (employeesError) throw employeesError;
 
-      // Count departments
+      // Count employees per department
       const deptCounts: Record<string, number> = {};
       employeesData?.forEach((emp) => {
         if (emp.department) {
@@ -153,8 +161,11 @@ export const FieldsSettings = () => {
         }
       });
 
-      const deptList: Department[] = Object.entries(deptCounts)
-        .map(([name, count]) => ({ name, count }))
+      // Merge: all departments from positions + any additional from employees
+      const allDepts = new Set([...positionDepts, ...Object.keys(deptCounts)]);
+      
+      const deptList: Department[] = Array.from(allDepts)
+        .map((name) => ({ name, count: deptCounts[name] || 0 }))
         .sort((a, b) => a.name.localeCompare(b.name));
 
       setDepartments(deptList);
