@@ -18,6 +18,7 @@ export interface EmployeeOnboardingData {
     preferred_name?: string;
     phone?: string;
     date_of_birth?: string;
+    gender?: string;
     address?: {
       street?: string;
       city?: string;
@@ -33,6 +34,14 @@ export interface EmployeeOnboardingData {
     skills?: string[];
     linkedin_url?: string;
   };
+  timezone_setup_completed: boolean;
+  guides_viewed: {
+    checkin?: boolean;
+    leave?: boolean;
+    profile?: boolean;
+    social_feed?: boolean;
+    directory_wiki?: boolean;
+  };
   completed_slides: boolean;
   tour_completed: boolean;
   skipped: boolean;
@@ -43,10 +52,17 @@ export interface EmployeeOnboardingData {
 
 const EMPLOYEE_ONBOARDING_STEPS = [
   'welcome',
-  'personal-info',
-  'feature-slides',
+  'complete-profile',
+  'timezone-setup',
+  'checkin-guide',
+  'leave-guide',
+  'profile-guide',
+  'social-feed-guide',
+  'directory-wiki-guide',
   'complete',
 ] as const;
+
+export const TOTAL_EMPLOYEE_STEPS = EMPLOYEE_ONBOARDING_STEPS.length;
 
 export type EmployeeOnboardingStep = typeof EMPLOYEE_ONBOARDING_STEPS[number];
 
@@ -242,6 +258,115 @@ export function useSaveEmployeeOnboardingStep() {
 }
 
 /**
+ * Save employee profile data to employees table
+ */
+export function useSaveEmployeeProfile() {
+  const queryClient = useQueryClient();
+  const { data: employeeId } = useCurrentEmployeeId();
+
+  return useMutation({
+    mutationFn: async (profileData: {
+      phone?: string;
+      date_of_birth?: string;
+      gender?: string;
+      street?: string;
+      city?: string;
+      state?: string;
+      postcode?: string;
+      country?: string;
+      emergency_contact_name?: string;
+      emergency_contact_relationship?: string;
+      emergency_contact_phone?: string;
+      linkedin_url?: string;
+      superpowers?: string[];
+    }) => {
+      if (!employeeId) throw new Error('No employee found');
+
+      const { error } = await supabase
+        .from('employees')
+        .update({
+          phone: profileData.phone,
+          date_of_birth: profileData.date_of_birth,
+          gender: profileData.gender,
+          street: profileData.street,
+          city: profileData.city,
+          state: profileData.state,
+          postcode: profileData.postcode,
+          country: profileData.country,
+          emergency_contact_name: profileData.emergency_contact_name,
+          emergency_contact_relationship: profileData.emergency_contact_relationship,
+          emergency_contact_phone: profileData.emergency_contact_phone,
+          linkedin_url: profileData.linkedin_url,
+          superpowers: profileData.superpowers,
+        })
+        .eq('id', employeeId);
+
+      if (error) throw error;
+      return { success: true };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+    },
+  });
+}
+
+/**
+ * Save timezone to both profiles and employee_schedules
+ */
+export function useSaveEmployeeTimezone() {
+  const queryClient = useQueryClient();
+  const { data: employeeId } = useCurrentEmployeeId();
+  const { session } = useAuth();
+  const { currentOrg } = useOrganization();
+
+  return useMutation({
+    mutationFn: async (timezone: string) => {
+      if (!employeeId || !session?.user?.id || !currentOrg?.id) {
+        throw new Error('Missing required data');
+      }
+
+      // Save to profiles
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ timezone })
+        .eq('id', session.user.id);
+
+      if (profileError) throw profileError;
+
+      // Check if employee_schedule exists
+      const { data: existingSchedule } = await supabase
+        .from('employee_schedules')
+        .select('id')
+        .eq('employee_id', employeeId)
+        .maybeSingle();
+
+      if (existingSchedule) {
+        // Update existing schedule
+        await supabase
+          .from('employee_schedules')
+          .update({ timezone })
+          .eq('employee_id', employeeId);
+      } else {
+        // Create new schedule with timezone
+        await supabase
+          .from('employee_schedules')
+          .insert({
+            employee_id: employeeId,
+            organization_id: currentOrg.id,
+            timezone,
+          });
+      }
+
+      return { success: true };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      queryClient.invalidateQueries({ queryKey: ['employee-schedules'] });
+    },
+  });
+}
+
+/**
  * Complete employee onboarding
  */
 export function useCompleteEmployeeOnboarding() {
@@ -258,7 +383,7 @@ export function useCompleteEmployeeOnboarding() {
         .update({
           completed_at: new Date().toISOString(),
           skipped,
-          current_step: 4,
+          current_step: TOTAL_EMPLOYEE_STEPS,
         })
         .eq('employee_id', employeeId);
 
@@ -269,7 +394,7 @@ export function useCompleteEmployeeOnboarding() {
         .from('employees')
         .update({
           employee_onboarding_completed: true,
-          employee_onboarding_step: 4,
+          employee_onboarding_step: TOTAL_EMPLOYEE_STEPS,
         })
         .eq('id', employeeId);
 
