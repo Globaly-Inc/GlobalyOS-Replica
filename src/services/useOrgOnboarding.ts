@@ -188,6 +188,8 @@ export function useInitOrgOnboarding() {
             country: (currentOrg as any).country || undefined,
             industry: (currentOrg as any).industry || undefined,
             company_size: (currentOrg as any).company_size || undefined,
+            business_address: (currentOrg as any).business_address || undefined,
+            business_address_components: (currentOrg as any).business_address_components || undefined,
           },
           offices: [],
           team_members: [],

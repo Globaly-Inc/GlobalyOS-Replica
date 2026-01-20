@@ -1,10 +1,11 @@
 /**
  * Address Autocomplete Component using Google Places API
+ * Fixed controlled input sync with Google Places Autocomplete
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
-import { MapPin, Loader2 } from 'lucide-react';
+import { MapPin, Loader2, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
@@ -50,9 +51,12 @@ export function AddressAutocomplete({
 }: AddressAutocompleteProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
+  const [hasValidAddress, setHasValidAddress] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const listenerRef = useRef<google.maps.MapsEventListener | null>(null);
+  const isSelectingRef = useRef(false); // Track when user is selecting from dropdown
+  const lastSelectedValueRef = useRef<string>(''); // Track last selected value to prevent overwrite
 
   // Load Google Maps script
   const loadGoogleMapsScript = useCallback(async () => {
@@ -135,6 +139,8 @@ export function AddressAutocomplete({
         return;
       }
 
+      isSelectingRef.current = true;
+
       const components: AddressComponents = {
         formatted_address: place.formatted_address,
         lat: place.geometry?.location?.lat(),
@@ -170,7 +176,15 @@ export function AddressAutocomplete({
         }
       });
 
-      onChange(place.formatted_address || '', components);
+      const formattedAddress = place.formatted_address || '';
+      lastSelectedValueRef.current = formattedAddress;
+      setHasValidAddress(true);
+      onChange(formattedAddress, components);
+      
+      // Reset selecting flag after a short delay
+      setTimeout(() => {
+        isSelectingRef.current = false;
+      }, 100);
     });
 
     return () => {
@@ -180,6 +194,27 @@ export function AddressAutocomplete({
     };
   }, [isScriptLoaded, onChange, countryCode]);
 
+  // Handle manual input changes
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    
+    // If user is manually typing (not selecting from dropdown)
+    if (!isSelectingRef.current) {
+      setHasValidAddress(false);
+      lastSelectedValueRef.current = '';
+      onChange(newValue); // No components when typing manually
+    }
+  };
+
+  // Determine if the current value matches a previously selected address
+  useEffect(() => {
+    if (value && lastSelectedValueRef.current === value) {
+      setHasValidAddress(true);
+    } else if (!value) {
+      setHasValidAddress(false);
+    }
+  }, [value]);
+
   return (
     <div className="relative">
       <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -187,14 +222,21 @@ export function AddressAutocomplete({
         ref={inputRef}
         type="text"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={handleInputChange}
         placeholder={placeholder}
         disabled={disabled || isLoading}
         required={required}
-        className={cn("pl-9", className)}
+        className={cn(
+          "pl-9 pr-9",
+          hasValidAddress && "border-success focus-visible:ring-success",
+          className
+        )}
       />
       {isLoading && (
         <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+      )}
+      {!isLoading && hasValidAddress && (
+        <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-success" />
       )}
     </div>
   );

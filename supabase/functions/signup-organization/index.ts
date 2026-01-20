@@ -18,6 +18,20 @@ interface SignupRequest {
   industry: string;
   companySize: string;
   country: string;
+  businessAddress?: string;
+  businessAddressComponents?: {
+    street_number?: string;
+    route?: string;
+    locality?: string;
+    administrative_area_level_1?: string;
+    administrative_area_level_2?: string;
+    country?: string;
+    country_code?: string;
+    postal_code?: string;
+    formatted_address?: string;
+    lat?: number;
+    lng?: number;
+  };
   ownerName: string;
   ownerEmail: string;
   ownerPhone: string;
@@ -44,7 +58,9 @@ Deno.serve(async (req) => {
       organizationName, 
       industry, 
       companySize, 
-      country, 
+      country,
+      businessAddress,
+      businessAddressComponents,
       ownerName, 
       ownerEmail,
       ownerPhone,
@@ -113,6 +129,8 @@ Deno.serve(async (req) => {
         company_size: companySize,
         industry,
         country,
+        business_address: businessAddress || null,
+        business_address_components: businessAddressComponents || null,
       })
       .select()
       .single();

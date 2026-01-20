@@ -185,6 +185,8 @@ export default function OrgOnboardingWizard() {
               country: currentOrg?.country || undefined,
               industry: currentOrg?.industry || undefined,
               company_size: currentOrg?.company_size || undefined,
+              business_address: (currentOrg as any)?.business_address || undefined,
+              business_address_components: (currentOrg as any)?.business_address_components || undefined,
             }}
             onSave={(data) => handleNext({ organization_info: data })}
             onBack={handleBack}
