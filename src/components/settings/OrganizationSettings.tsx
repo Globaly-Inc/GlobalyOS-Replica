@@ -225,7 +225,7 @@ export function OrganizationSettings({ isOwner }: OrganizationSettingsProps) {
 
         {/* Business Details Section */}
         <div className="space-y-4">
-          <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Business Details</h3>
+          <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Contact Details</h3>
           
           <div className="space-y-2">
             <Label htmlFor="businessAddress" className="flex items-center gap-2">
