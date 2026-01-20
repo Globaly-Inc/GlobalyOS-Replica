@@ -145,6 +145,35 @@ serve(async (req: Request) => {
     const position = employee.position;
     const department = employee.department;
     const joinDate = employee.join_date;
+    const organizationId = employee.organization_id;
+
+    // Fetch inviter details for the email
+    const { data: inviterProfile } = await supabase
+      .from('profiles')
+      .select('full_name, email')
+      .eq('id', user.id)
+      .single();
+
+    const { data: inviterEmployee } = await supabase
+      .from('employees')
+      .select('position')
+      .eq('user_id', user.id)
+      .single();
+
+    // Fetch organization name
+    const { data: organization } = await supabase
+      .from('organizations')
+      .select('name')
+      .eq('id', organizationId)
+      .single();
+
+    const inviterName = inviterProfile?.full_name || 'Your administrator';
+    const inviterEmail = inviterProfile?.email || '';
+    const inviterPosition = inviterEmployee?.position || '';
+    const businessName = organization?.name || 'your organization';
+
+    // Stable logo URL from Supabase Storage
+    const logoUrl = 'https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/system-assets//GlobalyOS%20Blue%20BG%20Icon.png';
 
     // Log the resend attempt
     await supabase.from('login_attempts').insert({
@@ -188,51 +217,109 @@ serve(async (req: Request) => {
       <!DOCTYPE html>
       <html>
       <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 40px 20px; }
-          .header { text-align: center; margin-bottom: 30px; }
-          .header h1 { color: #6366f1; margin: 0; font-size: 28px; }
-          .content { background: #f8fafc; border-radius: 12px; padding: 30px; margin-bottom: 30px; }
-          .details { background: white; border-radius: 8px; padding: 20px; margin: 20px 0; }
-          .details p { margin: 8px 0; }
-          .details strong { color: #64748b; }
-          .code-box { background: #6366f1; color: white; font-size: 32px; font-weight: bold; letter-spacing: 8px; text-align: center; padding: 20px; border-radius: 8px; margin: 20px 0; }
-          .cta { text-align: center; margin: 30px 0; }
-          .button { display: inline-block; background: #6366f1; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; }
-          .footer { text-align: center; color: #64748b; font-size: 14px; }
-          .reminder { background: #fef3c7; border-radius: 8px; padding: 15px; margin: 20px 0; text-align: center; }
-          .note { background: #fef3c7; border-radius: 8px; padding: 15px; margin: 20px 0; font-size: 14px; color: #92400e; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; line-height: 1.6; color: #1e293b; margin: 0; padding: 0; background-color: #f1f5f9; }
+          .wrapper { background-color: #f1f5f9; padding: 40px 20px; }
+          .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1); }
+          .header { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 32px; text-align: center; }
+          .header img { width: 64px; height: 64px; border-radius: 16px; margin-bottom: 16px; }
+          .header h1 { color: white; margin: 0; font-size: 24px; font-weight: 600; }
+          .header p { color: rgba(255, 255, 255, 0.9); margin: 8px 0 0 0; font-size: 16px; }
+          .content { padding: 32px; }
+          .greeting { font-size: 18px; margin-bottom: 20px; }
+          .reminder-badge { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; text-align: center; border: 1px solid #fbbf24; }
+          .reminder-badge p { margin: 0; color: #92400e; font-size: 15px; font-weight: 600; }
+          .invite-message { background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-radius: 12px; padding: 20px; margin-bottom: 24px; border-left: 4px solid #6366f1; }
+          .invite-message p { margin: 0; color: #1e40af; font-size: 16px; }
+          .section-title { font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+          .inviter-card { background: #f8fafc; border-radius: 12px; padding: 20px; margin-bottom: 24px; border: 1px solid #e2e8f0; }
+          .details-card { background: #f8fafc; border-radius: 12px; padding: 20px; margin-bottom: 24px; border: 1px solid #e2e8f0; }
+          .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0; }
+          .detail-row:last-child { border-bottom: none; }
+          .detail-label { color: #64748b; font-size: 14px; }
+          .detail-value { color: #1e293b; font-size: 14px; font-weight: 500; }
+          .code-section { text-align: center; margin: 32px 0; }
+          .code-label { font-size: 14px; color: #64748b; margin-bottom: 12px; }
+          .code-box { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; font-size: 36px; font-weight: 700; letter-spacing: 12px; text-align: center; padding: 24px 32px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.4); }
+          .cta { text-align: center; margin: 32px 0; }
+          .button { display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 12px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.4); }
+          .note { background: #fef3c7; border-radius: 12px; padding: 16px; margin-top: 24px; border: 1px solid #fde68a; }
+          .note p { margin: 0; color: #92400e; font-size: 14px; }
+          .note strong { color: #78350f; }
+          .footer { background: #f8fafc; padding: 24px 32px; text-align: center; border-top: 1px solid #e2e8f0; }
+          .footer p { margin: 0; color: #64748b; font-size: 14px; }
+          .footer a { color: #6366f1; text-decoration: none; }
         </style>
       </head>
       <body>
-        <div class="container">
-          <div class="header">
-            <h1>🔔 Reminder: Join GlobalyOS!</h1>
-          </div>
-          <div class="content">
-            <p>Hi <strong>${fullName}</strong>,</p>
-            <div class="reminder">
-              <p><strong>This is a reminder to complete your GlobalyOS registration.</strong></p>
+        <div class="wrapper">
+          <div class="container">
+            <div class="header">
+              <img src="${logoUrl}" alt="GlobalyOS" />
+              <h1>🔔 Reminder</h1>
+              <p>Complete your registration</p>
             </div>
-            <p>You were invited to join GlobalyOS as a team member. Here are your details:</p>
-            <div class="details">
-              <p><strong>Position:</strong> ${position}</p>
-              <p><strong>Department:</strong> ${department}</p>
-              <p><strong>Start Date:</strong> ${joinDate ? new Date(joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'To be confirmed'}</p>
+            <div class="content">
+              <p class="greeting">Hi <strong>${fullName}</strong>,</p>
+              
+              <div class="reminder-badge">
+                <p>This is a friendly reminder to complete your GlobalyOS registration</p>
+              </div>
+
+              <div class="invite-message">
+                <p><strong>${inviterName}</strong> is waiting for you to join <strong>${businessName}</strong> on GlobalyOS.</p>
+              </div>
+
+              <p class="section-title">Sent By</p>
+              <div class="inviter-card">
+                <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                  <tr>
+                    <td width="64" valign="top">
+                      <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 50%; text-align: center; line-height: 48px; color: white; font-weight: 600; font-size: 18px;">${inviterName.charAt(0).toUpperCase()}</div>
+                    </td>
+                    <td valign="top">
+                      <p style="font-weight: 600; color: #1e293b; font-size: 16px; margin: 0;">${inviterName}</p>
+                      ${inviterPosition ? `<p style="color: #64748b; font-size: 14px; margin: 4px 0 0 0;">${inviterPosition}</p>` : ''}
+                      ${inviterEmail ? `<p style="margin: 4px 0 0 0;"><a href="mailto:${inviterEmail}" style="color: #6366f1; font-size: 14px; text-decoration: none;">${inviterEmail}</a></p>` : ''}
+                    </td>
+                  </tr>
+                </table>
+              </div>
+
+              <p class="section-title">Your Details</p>
+              <div class="details-card">
+                <div class="detail-row">
+                  <span class="detail-label">Position</span>
+                  <span class="detail-value">${position}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Department</span>
+                  <span class="detail-value">${department}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Start Date</span>
+                  <span class="detail-value">${joinDate ? new Date(joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'To be confirmed'}</span>
+                </div>
+              </div>
+
+              <div class="code-section">
+                <p class="code-label">Your New Login Code</p>
+                <div class="code-box">${inviteCode}</div>
+              </div>
+
+              <div class="cta">
+                <a href="${joinUrl}" class="button">Join ${businessName}</a>
+              </div>
+
+              <div class="note">
+                <p><strong>Note:</strong> This new code is valid for 7 days. Your previous code has been deactivated.</p>
+              </div>
             </div>
-            <p style="text-align: center; font-weight: 600;">Your New Invitation Code:</p>
-            <div class="code-box">${inviteCode}</div>
-            <p>Click the button below and enter this code to join the team:</p>
-            <div class="cta">
-              <a href="${joinUrl}" class="button">Join GlobalyOS</a>
+            <div class="footer">
+              <p>Questions? Contact <a href="mailto:${inviterEmail || 'support@globalyos.com'}">${inviterEmail || 'your administrator'}</a></p>
             </div>
-            <div class="note">
-              <strong>Note:</strong> This code is valid for 7 days. Your previous code (if any) has been deactivated.
-            </div>
-          </div>
-          <div class="footer">
-            <p>If you have any questions, please contact your administrator.</p>
           </div>
         </div>
       </body>
@@ -246,9 +333,9 @@ serve(async (req: Request) => {
         'Authorization': `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: 'GlobalyOS <hello@globalyhub.com>',
+        from: 'GlobalyOS <hello@globalyos.com>',
         to: [email],
-        subject: 'Reminder: Your New GlobalyOS Invitation Code',
+        subject: `Reminder: You've been invited to join ${businessName} in GlobalyOS`,
         html: emailHtml,
       }),
     });
