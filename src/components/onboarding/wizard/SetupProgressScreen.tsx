@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { CheckCircle2, Loader2, Circle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 interface SetupTask {
   id: string;
@@ -53,9 +54,12 @@ export function SetupProgressScreen({
   employeeId,
   onComplete,
 }: SetupProgressScreenProps) {
+  const { user } = useAuth();
   const [completedTasks, setCompletedTasks] = useState<string[]>([]);
   const [currentTask, setCurrentTask] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [resolvedEmployeeId, setResolvedEmployeeId] = useState<string | null>(employeeId || null);
+  const [isReady, setIsReady] = useState(false);
 
   // Check if any offices have public holidays enabled
   const officesWithHolidays = offices.filter(o => o.public_holidays_enabled && o.address_components?.country_code);
@@ -65,33 +69,93 @@ export function SetupProgressScreen({
   const teamMembersWithOffice = teamMembers.filter(m => m.office_id);
   const hasTeamMembersWithOffice = teamMembersWithOffice.length > 0;
 
-  // Setup public holidays for offices
-  const setupPublicHolidays = useCallback(async () => {
-    if (!hasOfficesWithPublicHolidays || !employeeId) return;
-
-    try {
-      console.log(`Setting up public holidays for ${officesWithHolidays.length} offices...`);
-      const { data, error } = await supabase.functions.invoke('setup-public-holidays', {
-        body: {
-          organizationId,
-          offices: officesWithHolidays.map(o => ({
-            id: o.id,
-            countryCode: o.address_components?.country_code,
-          })),
-          createdBy: employeeId,
-        },
-      });
-
-      if (error) {
-        console.error('Failed to setup public holidays:', error);
-      } else {
-        console.log('Public holidays setup result:', data);
-      }
-    } catch (err) {
-      console.error('Failed to setup public holidays:', err);
-      // Non-blocking - continue with setup
+  // Fetch employee ID if not provided as prop
+  useEffect(() => {
+    if (resolvedEmployeeId) {
+      setIsReady(true);
+      return;
     }
-  }, [organizationId, officesWithHolidays, employeeId, hasOfficesWithPublicHolidays]);
+    if (!user?.id || !organizationId) return;
+
+    const fetchEmployeeId = async () => {
+      console.log('Fetching employee ID for user:', user.id);
+      const { data, error } = await supabase
+        .from('employees')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('organization_id', organizationId)
+        .single();
+      
+      if (error) {
+        console.error('Failed to fetch employee ID:', error);
+      }
+      
+      if (data?.id) {
+        console.log('Resolved employee ID:', data.id);
+        setResolvedEmployeeId(data.id);
+      }
+      setIsReady(true);
+    };
+    
+    fetchEmployeeId();
+  }, [user?.id, organizationId, resolvedEmployeeId, employeeId]);
+
+  // Setup public holidays for offices with retry logic
+  const setupPublicHolidays = useCallback(async () => {
+    console.log('setupPublicHolidays called with:', {
+      hasOfficesWithPublicHolidays,
+      resolvedEmployeeId,
+      officesCount: officesWithHolidays.length,
+      offices: officesWithHolidays.map(o => ({
+        id: o.id,
+        name: o.name,
+        countryCode: o.address_components?.country_code,
+      })),
+    });
+
+    if (!hasOfficesWithPublicHolidays) {
+      console.log('No offices with public holidays enabled, skipping');
+      return;
+    }
+    
+    if (!resolvedEmployeeId) {
+      console.warn('Cannot setup public holidays: missing employeeId');
+      return;
+    }
+
+    const maxRetries = 2;
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`Setting up public holidays (attempt ${attempt + 1}/${maxRetries + 1})...`);
+        const { data, error } = await supabase.functions.invoke('setup-public-holidays', {
+          body: {
+            organizationId,
+            offices: officesWithHolidays.map(o => ({
+              id: o.id,
+              countryCode: o.address_components?.country_code,
+            })),
+            createdBy: resolvedEmployeeId,
+          },
+        });
+
+        if (error) throw error;
+        
+        console.log('Public holidays setup successful:', data);
+        return; // Success, exit retry loop
+      } catch (err) {
+        lastError = err as Error;
+        console.error(`Public holidays setup attempt ${attempt + 1} failed:`, err);
+        if (attempt < maxRetries) {
+          await new Promise(r => setTimeout(r, 1000)); // Wait 1s before retry
+        }
+      }
+    }
+
+    console.error('All public holiday setup attempts failed:', lastError);
+    // Non-blocking - continue with setup
+  }, [organizationId, officesWithHolidays, resolvedEmployeeId, hasOfficesWithPublicHolidays]);
 
   // Setup employee schedules based on office schedules
   const setupEmployeeSchedules = useCallback(async () => {
@@ -281,12 +345,23 @@ export function SetupProgressScreen({
     { id: 'dashboard', label: 'Preparing your dashboard' },
   ];
 
-  // Animate through tasks sequentially
+  // Animate through tasks sequentially - wait until ready
   useEffect(() => {
+    // Wait for employee ID resolution if we have offices with holidays
+    if (!isReady) {
+      console.log('Waiting for setup to be ready...');
+      return;
+    }
+
     let cancelled = false;
-    let taskIndex = 0;
 
     const runTasks = async () => {
+      console.log('Starting setup tasks...', { 
+        taskCount: tasks.length, 
+        resolvedEmployeeId,
+        hasOfficesWithPublicHolidays 
+      });
+
       for (let i = 0; i < tasks.length; i++) {
         if (cancelled) return;
         
@@ -313,8 +388,6 @@ export function SetupProgressScreen({
         // Mark task complete
         setCompletedTasks(prev => [...prev, task.id]);
         setProgress(startProgress + progressPerTask);
-        
-        taskIndex = i + 1;
       }
       
       // All tasks complete
@@ -334,7 +407,7 @@ export function SetupProgressScreen({
     return () => {
       cancelled = true;
     };
-  }, []); // Run once on mount
+  }, [isReady, resolvedEmployeeId]); // Re-run when ready or employeeId resolves
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 p-4">
