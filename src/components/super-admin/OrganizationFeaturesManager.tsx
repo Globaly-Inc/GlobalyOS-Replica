@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, MessageSquare, CheckSquare, Briefcase, Flag, GitBranch, Wallet } from "lucide-react";
+import { Loader2, MessageSquare, CheckSquare, Briefcase, Flag, GitBranch, Wallet, Bot } from "lucide-react";
 import { toast } from "sonner";
 import { useAdminActivityLog } from "@/hooks/useAdminActivityLog";
 
@@ -37,6 +37,12 @@ const AVAILABLE_FEATURES = [
     label: "Payroll", 
     description: "Salary processing, payslips, and tax calculations",
     icon: Wallet 
+  },
+  { 
+    name: "ask-ai", 
+    label: "Ask AI", 
+    description: "AI-powered assistant for questions and insights",
+    icon: Bot 
   },
   { 
     name: "tasks", 

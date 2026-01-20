@@ -34,6 +34,7 @@ import { InstallAppBanner } from "./InstallAppBanner";
 import { GetHelpButton } from "./GetHelpButton";
 import { usePageVisitTracking } from "@/hooks/usePageVisitTracking";
 import { KpiGenerationProgress } from "./kpi/KpiGenerationProgress";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 
 interface UserProfile {
   fullName: string;
@@ -76,6 +77,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const { currentOrg } = useOrganization();
   const { role } = useUserRole();
+  const { isEnabled } = useFeatureFlags();
   const { playNotificationSound } = useNotificationSound();
   const { preferences, shouldPlaySound } = useNotificationPreferences();
   const previousCountRef = useRef<number>(0);
@@ -481,7 +483,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                 <p>Search <kbd className="ml-1 px-1 py-0.5 rounded bg-muted text-[10px] font-mono">⌘K</kbd></p>
               </TooltipContent>
             </Tooltip>
-            <GlobalAskAI organizationId={currentOrg?.id} />
+            {isEnabled('ask-ai') && <GlobalAskAI organizationId={currentOrg?.id} />}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button 
