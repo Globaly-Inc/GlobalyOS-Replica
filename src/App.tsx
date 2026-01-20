@@ -203,12 +203,12 @@ const App = () => <QueryClientProvider client={queryClient}>
                   <Route path="notifications/preferences" element={<OrgProtectedRoute><NotificationPreferences /></OrgProtectedRoute>} />
                   
                   {/* Feature modules */}
-                  <Route path="chat" element={<OrgProtectedRoute><Chat /></OrgProtectedRoute>} />
+                  <Route path="chat" element={<OrgProtectedRoute><FeatureProtectedRoute feature="chat"><Chat /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="wiki" element={<OrgProtectedRoute><Wiki /></OrgProtectedRoute>} />
                   <Route path="wiki/edit/:pageId" element={<OrgProtectedRoute><WikiEditPage /></OrgProtectedRoute>} />
                   <Route path="ask-ai" element={<OrgProtectedRoute><FeatureProtectedRoute feature="ask-ai"><AskAI /></FeatureProtectedRoute></OrgProtectedRoute>} />
-                  <Route path="tasks" element={<OrgProtectedRoute><Tasks /></OrgProtectedRoute>} />
-                  <Route path="crm" element={<OrgProtectedRoute><CRM /></OrgProtectedRoute>} />
+                  <Route path="tasks" element={<OrgProtectedRoute><FeatureProtectedRoute feature="tasks"><Tasks /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                  <Route path="crm" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CRM /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="payroll" element={<OrgProtectedRoute><FeatureProtectedRoute feature="payroll"><Payroll /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="workflows" element={<OrgProtectedRoute><FeatureProtectedRoute feature="workflows"><Workflows /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="workflows/:workflowId" element={<OrgProtectedRoute><FeatureProtectedRoute feature="workflows"><ApplicationDetail /></FeatureProtectedRoute></OrgProtectedRoute>} />
