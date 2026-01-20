@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { ArrowRight, User, Home, Phone, Linkedin, AlertCircle } from 'lucide-react';
+import { ArrowRight, ArrowLeft, User, Home, Phone, Linkedin, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface CompleteProfileStepProps {
@@ -40,6 +40,7 @@ interface CompleteProfileStepProps {
     email?: string;
   };
   onSave: (data: ProfileFormData) => void;
+  onBack?: () => void;
   isSaving: boolean;
 }
 
@@ -79,6 +80,7 @@ export function CompleteProfileStep({
   initialData, 
   prefillData, 
   onSave, 
+  onBack,
   isSaving 
 }: CompleteProfileStepProps) {
   const [formData, setFormData] = useState<ProfileFormData>({
@@ -366,14 +368,27 @@ export function CompleteProfileStep({
             </div>
           </div>
 
-          <Button 
-            type="submit" 
-            disabled={isSaving} 
-            className="w-full h-12 text-base font-semibold mt-6"
-          >
-            {isSaving ? 'Saving...' : 'Continue'}
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
+          <div className="flex gap-3 mt-6">
+            {onBack && (
+              <Button 
+                type="button"
+                variant="outline"
+                onClick={onBack}
+                className="h-12 px-6"
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back
+              </Button>
+            )}
+            <Button 
+              type="submit" 
+              disabled={isSaving} 
+              className="flex-1 h-12 text-base font-semibold"
+            >
+              {isSaving ? 'Saving...' : 'Continue'}
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
         </form>
       </CardContent>
     </Card>
