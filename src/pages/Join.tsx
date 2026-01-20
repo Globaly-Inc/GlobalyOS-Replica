@@ -1,14 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Users, Mail, KeyRound } from "lucide-react";
+import { Mail, KeyRound } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import globalyosIcon from "@/assets/globalyos-icon.png";
 
 const emailSchema = z.object({
   email: z.string().trim().email("Invalid email address").max(255, "Email must be less than 255 characters"),
@@ -23,12 +24,37 @@ const Join = () => {
   const [email, setEmail] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [orgName, setOrgName] = useState<string | null>(null);
+
+  // Fetch organization name based on email
+  const fetchOrgInfo = useCallback(async (emailToCheck: string) => {
+    if (!emailToCheck) {
+      setOrgName(null);
+      return;
+    }
+    
+    try {
+      const { data } = await supabase.functions.invoke('get-invite-org-info', {
+        body: { email: emailToCheck.toLowerCase().trim() }
+      });
+      if (data?.organizationName) {
+        setOrgName(data.organizationName);
+      } else {
+        setOrgName(null);
+      }
+    } catch (err) {
+      console.error('Failed to fetch org info:', err);
+      setOrgName(null);
+    }
+  }, []);
 
   useEffect(() => {
     // Pre-fill email from URL params
     const emailParam = searchParams.get("email");
     if (emailParam) {
       setEmail(emailParam);
+      // Fetch org info immediately for pre-filled email
+      fetchOrgInfo(emailParam);
     }
 
     // Check if user is already logged in
@@ -45,7 +71,22 @@ const Join = () => {
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate, searchParams]);
+  }, [navigate, searchParams, fetchOrgInfo]);
+
+  // Fetch org info when email changes (with debounce)
+  useEffect(() => {
+    // Only fetch if email looks valid
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return;
+    }
+    
+    const timeoutId = setTimeout(() => {
+      fetchOrgInfo(email);
+    }, 500);
+    
+    return () => clearTimeout(timeoutId);
+  }, [email, fetchOrgInfo]);
 
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,11 +158,18 @@ const Join = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary via-primary-dark to-primary p-4">
       <Card className="w-full max-w-md p-8">
         <div className="mb-8 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary-dark mb-4">
-            <Users className="h-8 w-8 text-primary-foreground" />
+          <div className="flex justify-center mb-4">
+            <img 
+              src={globalyosIcon} 
+              alt="GlobalyOS" 
+              className="w-24 h-24" 
+              style={{ minWidth: '96px', minHeight: '96px' }} 
+            />
           </div>
-          <h1 className="text-3xl font-bold text-foreground">Join GlobalyOS</h1>
-          <p className="text-muted-foreground mt-2">Enter the code from your invitation email</p>
+          <h1 className="text-3xl font-bold text-foreground">
+            {orgName ? `Join ${orgName} Team` : 'Join Your Team'}
+          </h1>
+          <p className="text-muted-foreground mt-2">in GlobalyOS</p>
         </div>
 
         <form onSubmit={handleVerifyCode} className="space-y-6">
