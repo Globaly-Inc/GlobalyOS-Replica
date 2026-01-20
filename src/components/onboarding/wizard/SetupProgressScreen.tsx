@@ -35,6 +35,10 @@ interface TeamMember {
   office_id?: string;
 }
 
+interface OwnerProfile {
+  office_id?: string;
+}
+
 interface SetupProgressScreenProps {
   orgName: string;
   teamMembersCount: number;
@@ -42,6 +46,7 @@ interface SetupProgressScreenProps {
   teamMembers: TeamMember[];
   offices?: Office[];
   employeeId?: string;
+  ownerProfile?: OwnerProfile;
   onComplete: () => void;
 }
 
@@ -52,6 +57,7 @@ export function SetupProgressScreen({
   teamMembers,
   offices = [],
   employeeId,
+  ownerProfile,
   onComplete,
 }: SetupProgressScreenProps) {
   const { user } = useAuth();
@@ -65,9 +71,18 @@ export function SetupProgressScreen({
   const officesWithHolidays = offices.filter(o => o.public_holidays_enabled && o.address_components?.country_code);
   const hasOfficesWithPublicHolidays = officesWithHolidays.length > 0;
   
-  // Check if any team members have an office assigned (for schedule assignment)
-  const teamMembersWithOffice = teamMembers.filter(m => m.office_id);
-  const hasTeamMembersWithOffice = teamMembersWithOffice.length > 0;
+  // Include owner in schedule setup if they have an office assigned
+  const ownerAsTeamMember = ownerProfile?.office_id && user?.email ? {
+    email: user.email,
+    office_id: ownerProfile.office_id,
+  } : null;
+  
+  // Combine owner + team members for schedule assignment
+  const allMembersWithOffice = [
+    ...(ownerAsTeamMember ? [ownerAsTeamMember] : []),
+    ...teamMembers.filter(m => m.office_id),
+  ];
+  const hasAnyMembersWithOffice = allMembersWithOffice.length > 0;
 
   // Fetch employee ID if not provided as prop
   useEffect(() => {
@@ -157,32 +172,49 @@ export function SetupProgressScreen({
     // Non-blocking - continue with setup
   }, [organizationId, officesWithHolidays, resolvedEmployeeId, hasOfficesWithPublicHolidays]);
 
-  // Setup employee schedules based on office schedules
+  // Setup employee schedules based on office schedules with retry logic
   const setupEmployeeSchedules = useCallback(async () => {
-    if (!hasTeamMembersWithOffice) return;
-
-    try {
-      console.log(`Setting up schedules for ${teamMembersWithOffice.length} team members...`);
-      const { data, error } = await supabase.functions.invoke('setup-employee-schedules', {
-        body: {
-          organizationId,
-          teamMembers: teamMembersWithOffice.map(m => ({
-            email: m.email,
-            officeId: m.office_id,
-          })),
-        },
-      });
-
-      if (error) {
-        console.error('Failed to setup employee schedules:', error);
-      } else {
-        console.log('Employee schedules setup result:', data);
-      }
-    } catch (err) {
-      console.error('Failed to setup employee schedules:', err);
-      // Non-blocking - continue with setup
+    if (!hasAnyMembersWithOffice) {
+      console.log('No members with offices to setup schedules for');
+      return;
     }
-  }, [organizationId, teamMembersWithOffice, hasTeamMembersWithOffice]);
+
+    console.log('setupEmployeeSchedules called with:', {
+      memberCount: allMembersWithOffice.length,
+      members: allMembersWithOffice.map(m => ({ email: m.email, officeId: m.office_id })),
+    });
+
+    const maxRetries = 2;
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`Setting up schedules for ${allMembersWithOffice.length} members (attempt ${attempt + 1}/${maxRetries + 1})...`);
+        const { data, error } = await supabase.functions.invoke('setup-employee-schedules', {
+          body: {
+            organizationId,
+            teamMembers: allMembersWithOffice.map(m => ({
+              email: m.email,
+              officeId: m.office_id,
+            })),
+          },
+        });
+
+        if (error) throw error;
+        console.log('Employee schedules setup successful:', data);
+        return; // Success, exit retry loop
+      } catch (err) {
+        lastError = err as Error;
+        console.error(`Employee schedules setup attempt ${attempt + 1} failed:`, err);
+        if (attempt < maxRetries) {
+          await new Promise(r => setTimeout(r, 1000)); // Wait 1s before retry
+        }
+      }
+    }
+    
+    console.error('All employee schedule setup attempts failed:', lastError);
+    // Non-blocking - continue with setup
+  }, [organizationId, allMembersWithOffice, hasAnyMembersWithOffice]);
 
   // Generate AI descriptions for all positions
   const generatePositionDescriptions = useCallback(async () => {
@@ -328,7 +360,7 @@ export function SetupProgressScreen({
           action: createTeamMembers,
         }]
       : []),
-    ...(hasTeamMembersWithOffice
+    ...(hasAnyMembersWithOffice
       ? [{
           id: 'schedules',
           label: 'Assigning work schedules',

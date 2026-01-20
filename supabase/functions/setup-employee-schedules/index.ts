@@ -29,6 +29,12 @@ serve(async (req) => {
 
     const { organizationId, teamMembers }: RequestBody = await req.json();
 
+    console.log('Request received:', { 
+      organizationId, 
+      teamMembersCount: teamMembers?.length,
+      teamMembers: teamMembers?.map(m => ({ email: m.email, officeId: m.officeId }))
+    });
+
     if (!organizationId || !teamMembers?.length) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields' }),
@@ -54,7 +60,10 @@ serve(async (req) => {
       (officeSchedules || []).map(s => [s.office_id, s])
     );
 
-    console.log(`Found ${officeSchedules?.length || 0} office schedules`);
+    console.log('Office schedules found:', {
+      count: officeSchedules?.length || 0,
+      officeIds: officeSchedules?.map(s => s.office_id)
+    });
 
     let createdCount = 0;
     let skippedCount = 0;

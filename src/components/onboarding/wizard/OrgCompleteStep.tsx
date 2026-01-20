@@ -27,12 +27,17 @@ interface Office {
   };
 }
 
+interface OwnerProfile {
+  office_id?: string;
+}
+
 interface OrgCompleteStepProps {
   orgName: string;
   teamMembersCount: number;
   teamMembers: TeamMember[];
   offices?: Office[];
   employeeId?: string;
+  ownerProfile?: OwnerProfile;
   organizationId: string;
   onFinish: () => void;
   onBack: () => void;
@@ -45,6 +50,7 @@ export function OrgCompleteStep({
   teamMembers,
   offices,
   employeeId,
+  ownerProfile,
   organizationId,
   onFinish, 
   onBack, 
@@ -70,6 +76,7 @@ export function OrgCompleteStep({
         teamMembers={teamMembers}
         offices={offices}
         employeeId={employeeId}
+        ownerProfile={ownerProfile}
         onComplete={onFinish}
       />
     );
