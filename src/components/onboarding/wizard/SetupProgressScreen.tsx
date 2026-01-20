@@ -120,6 +120,25 @@ export function SetupProgressScreen({
     }
   }, [organizationId, teamMembersWithOffice, hasTeamMembersWithOffice]);
 
+  // Generate AI descriptions for all positions
+  const generatePositionDescriptions = useCallback(async () => {
+    try {
+      console.log('Generating AI descriptions for positions...');
+      const { data, error } = await supabase.functions.invoke('bulk-generate-position-descriptions', {
+        body: { organizationId },
+      });
+
+      if (error) {
+        console.error('Failed to generate position descriptions:', error);
+      } else {
+        console.log('Position descriptions result:', data);
+      }
+    } catch (err) {
+      console.error('Failed to generate position descriptions:', err);
+      // Non-blocking - continue with setup
+    }
+  }, [organizationId]);
+
   // Send invitation emails
   const sendInvitations = useCallback(async () => {
     if (teamMembers.length === 0) return;
@@ -154,6 +173,11 @@ export function SetupProgressScreen({
   const tasks: SetupTask[] = [
     { id: 'org', label: 'Finalizing organization settings' },
     { id: 'depts', label: 'Configuring departments and roles' },
+    { 
+      id: 'positions', 
+      label: 'Generating AI position descriptions',
+      action: generatePositionDescriptions,
+    },
     { id: 'offices', label: 'Setting up offices' },
     ...(hasOfficesWithPublicHolidays
       ? [{
