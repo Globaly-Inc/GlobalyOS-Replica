@@ -9,6 +9,7 @@ import { Mail, KeyRound } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import TurnstileWidget from "@/components/TurnstileWidget";
 import globalyosIcon from "@/assets/globalyos-icon.png";
 
 const emailSchema = z.object({
@@ -25,6 +26,26 @@ const Join = () => {
   const [inviteCode, setInviteCode] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [orgName, setOrgName] = useState<string | null>(null);
+
+  // CAPTCHA state
+  const [showCaptcha, setShowCaptcha] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileSiteKey, setTurnstileSiteKey] = useState<string | null>(null);
+
+  // Fetch Turnstile site key on mount
+  useEffect(() => {
+    const fetchTurnstileKey = async () => {
+      try {
+        const { data } = await supabase.functions.invoke('get-turnstile-key');
+        if (data?.siteKey) {
+          setTurnstileSiteKey(data.siteKey);
+        }
+      } catch (err) {
+        console.error('Failed to fetch Turnstile key:', err);
+      }
+    };
+    fetchTurnstileKey();
+  }, []);
 
   // Fetch organization name based on email
   const fetchOrgInfo = useCallback(async (emailToCheck: string) => {
@@ -106,12 +127,26 @@ const Join = () => {
       setErrors({ inviteCode: "Please enter the 6-digit code" });
       return;
     }
+
+    // If CAPTCHA is required but not completed, show error
+    if (showCaptcha && !turnstileToken) {
+      toast({
+        title: "Verification required",
+        description: "Please complete the security check",
+        variant: "destructive",
+      });
+      return;
+    }
     
     setLoading(true);
 
     try {
       const response = await supabase.functions.invoke('verify-otp', {
-        body: { email: email.toLowerCase().trim(), code: inviteCode.trim() }
+        body: { 
+          email: email.toLowerCase().trim(), 
+          code: inviteCode.trim(),
+          turnstileToken: turnstileToken || undefined 
+        }
       });
 
       if (response.error) {
@@ -121,16 +156,31 @@ const Join = () => {
           variant: "destructive",
         });
       } else if (response.data?.error) {
-        toast({
-          title: "Verification failed",
-          description: response.data.error,
-          variant: "destructive",
-        });
+        // Check if CAPTCHA is now required
+        if (response.data?.captchaRequired) {
+          setShowCaptcha(true);
+          setTurnstileToken(null); // Reset token for new attempt
+          toast({
+            title: "Security verification required",
+            description: "Please complete the security check below",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Verification failed",
+            description: response.data.error,
+            variant: "destructive",
+          });
+        }
       } else if (response.data?.session) {
         await supabase.auth.setSession({
           access_token: response.data.session.access_token,
           refresh_token: response.data.session.refresh_token,
         });
+        
+        // Reset CAPTCHA state on success
+        setShowCaptcha(false);
+        setTurnstileToken(null);
         
         toast({
           title: "Welcome to GlobalyOS!",
@@ -152,6 +202,23 @@ const Join = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleTurnstileVerify = (token: string) => {
+    setTurnstileToken(token);
+  };
+
+  const handleTurnstileError = () => {
+    setTurnstileToken(null);
+    toast({
+      title: "Verification failed",
+      description: "Please try the security check again",
+      variant: "destructive",
+    });
+  };
+
+  const handleTurnstileExpire = () => {
+    setTurnstileToken(null);
   };
 
   return (
@@ -218,7 +285,17 @@ const Join = () => {
             {errors.inviteCode && <p className="text-sm text-destructive text-center">{errors.inviteCode}</p>}
           </div>
 
-          <Button type="submit" className="w-full" disabled={loading || inviteCode.length !== 6}>
+          {/* CAPTCHA Widget - shown after failed attempts */}
+          {showCaptcha && turnstileSiteKey && (
+            <TurnstileWidget
+              siteKey={turnstileSiteKey}
+              onVerify={handleTurnstileVerify}
+              onError={handleTurnstileError}
+              onExpire={handleTurnstileExpire}
+            />
+          )}
+
+          <Button type="submit" className="w-full" disabled={loading || inviteCode.length !== 6 || (showCaptcha && !turnstileToken)}>
             {loading ? "Verifying..." : "Join Team"}
           </Button>
 
