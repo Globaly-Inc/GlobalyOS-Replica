@@ -287,7 +287,17 @@ export function DepartmentsRolesStep({
     setIsSubmitting(true);
 
     try {
-      // Persist positions to database (ignore duplicates from seeded data)
+      // First, delete ALL existing positions for this organization (removes pre-seeded defaults)
+      const { error: deleteError } = await supabase
+        .from('positions')
+        .delete()
+        .eq('organization_id', organizationId);
+
+      if (deleteError) {
+        console.error('Failed to clear existing positions:', deleteError);
+      }
+
+      // Now insert only the user-selected positions
       for (const position of finalPositions) {
         const { error } = await supabase
           .from('positions')
@@ -299,8 +309,7 @@ export function DepartmentsRolesStep({
           .select()
           .maybeSingle();
 
-        // Ignore unique constraint violations (position already exists from seeded/template data)
-        if (error && error.code !== '23505' && !error.message?.includes('duplicate')) {
+        if (error) {
           console.error('Failed to insert position:', position.name, error);
         }
       }
