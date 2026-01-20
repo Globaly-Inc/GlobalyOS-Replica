@@ -243,6 +243,7 @@ export default function EmployeeOnboardingWizard() {
             initialData={onboardingData?.personal_info}
             prefillData={{ full_name: employee?.full_name || '', email: employee?.personal_email || undefined }}
             onSave={handleProfileSave}
+            onBack={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
             isSaving={saveStep.isPending || saveProfile.isPending}
           />
         );
