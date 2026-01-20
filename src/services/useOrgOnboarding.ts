@@ -34,6 +34,8 @@ export interface OrgOnboardingData {
     company_size?: string;
     business_address?: string;
     business_address_components?: { [key: string]: string | number | boolean | null } | null;
+    legal_business_name?: string;
+    business_registration_number?: string;
   };
   offices: Array<{
     id?: string;
@@ -376,6 +378,39 @@ export function useCompleteOrgOnboarding() {
         } catch (leaveErr) {
           console.error('Failed to seed leave types:', leaveErr);
           // Don't fail onboarding if leave type seeding fails
+        }
+      }
+
+      // Sync organization_info to the organizations table
+      const { data: fullOnboardingData } = await supabase
+        .from('org_onboarding_data')
+        .select('organization_info')
+        .eq('organization_id', currentOrg.id)
+        .single();
+
+      const orgInfo = fullOnboardingData?.organization_info as OrgOnboardingData['organization_info'] | undefined;
+      if (orgInfo) {
+        const syncPayload: Record<string, unknown> = {
+          name: orgInfo.name || currentOrg.name,
+          logo_url: orgInfo.logo_url || null,
+          legal_business_name: orgInfo.legal_business_name || null,
+          business_address: orgInfo.business_address || null,
+          business_address_components: orgInfo.business_address_components || null,
+          business_registration_number: orgInfo.business_registration_number || null,
+          website: orgInfo.website || null,
+          industry: orgInfo.industry || null,
+          country: orgInfo.business_address_components?.country as string || null,
+        };
+
+        const { error: syncError } = await supabase
+          .from('organizations')
+          .update(syncPayload)
+          .eq('id', currentOrg.id);
+
+        if (syncError) {
+          console.error('Failed to sync organization info to organizations table:', syncError);
+        } else {
+          console.log('Successfully synced organization info to organizations table');
         }
       }
 
