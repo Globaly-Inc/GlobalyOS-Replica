@@ -13,6 +13,7 @@ import { AppVersionBadge } from '@/components/ui/AppVersionBadge';
 import RouteTracker from '@/components/RouteTracker';
 import Landing from './pages/Landing';
 import { OrgProtectedRoute } from './components/OrgProtectedRoute';
+import { FeatureProtectedRoute } from './components/FeatureProtectedRoute';
 
 // Lazy load public website pages
 const Features = lazy(() => import('./pages/Features'));
@@ -205,13 +206,13 @@ const App = () => <QueryClientProvider client={queryClient}>
                   <Route path="chat" element={<OrgProtectedRoute><Chat /></OrgProtectedRoute>} />
                   <Route path="wiki" element={<OrgProtectedRoute><Wiki /></OrgProtectedRoute>} />
                   <Route path="wiki/edit/:pageId" element={<OrgProtectedRoute><WikiEditPage /></OrgProtectedRoute>} />
-                  <Route path="ask-ai" element={<OrgProtectedRoute><AskAI /></OrgProtectedRoute>} />
+                  <Route path="ask-ai" element={<OrgProtectedRoute><FeatureProtectedRoute feature="ask-ai"><AskAI /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="tasks" element={<OrgProtectedRoute><Tasks /></OrgProtectedRoute>} />
                   <Route path="crm" element={<OrgProtectedRoute><CRM /></OrgProtectedRoute>} />
-                  <Route path="payroll" element={<OrgProtectedRoute><Payroll /></OrgProtectedRoute>} />
-                  <Route path="workflows" element={<OrgProtectedRoute><Workflows /></OrgProtectedRoute>} />
-                  <Route path="workflows/:workflowId" element={<OrgProtectedRoute><ApplicationDetail /></OrgProtectedRoute>} />
-                  <Route path="my-payslips" element={<OrgProtectedRoute><MyPayslips /></OrgProtectedRoute>} />
+                  <Route path="payroll" element={<OrgProtectedRoute><FeatureProtectedRoute feature="payroll"><Payroll /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                  <Route path="workflows" element={<OrgProtectedRoute><FeatureProtectedRoute feature="workflows"><Workflows /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                  <Route path="workflows/:workflowId" element={<OrgProtectedRoute><FeatureProtectedRoute feature="workflows"><ApplicationDetail /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                  <Route path="my-payslips" element={<OrgProtectedRoute><FeatureProtectedRoute feature="payroll"><MyPayslips /></FeatureProtectedRoute></OrgProtectedRoute>} />
                 </Route>
                 
                 {/* Super Admin Portal - separate from org context */}

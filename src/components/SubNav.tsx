@@ -3,12 +3,14 @@ import { OrgLink } from './OrgLink';
 import { useLocation, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useFeatureFlags, FeatureName } from '@/hooks/useFeatureFlags';
 
 interface SubNavItem {
   name: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   adminOnly?: boolean;
+  featureFlag?: FeatureName;
 }
 
 const teamSubNavItems: SubNavItem[] = [
@@ -16,21 +18,23 @@ const teamSubNavItems: SubNavItem[] = [
   { name: 'Team Cal', href: '/calendar', icon: Calendar },
   { name: 'Leave', href: '/leave-history', icon: CalendarDays },
   { name: 'Attendance', href: '/attendance-history', icon: Clock },
-  { name: 'Workflows', href: '/workflows', icon: GitBranch, adminOnly: true },
-  { name: 'Payroll', href: '/payroll', icon: DollarSign, adminOnly: true },
+  { name: 'Workflows', href: '/workflows', icon: GitBranch, adminOnly: true, featureFlag: 'workflows' },
+  { name: 'Payroll', href: '/payroll', icon: DollarSign, adminOnly: true, featureFlag: 'payroll' },
 ];
 
 export const SubNav = () => {
   const location = useLocation();
   const { orgCode } = useParams<{ orgCode: string }>();
   const { isOwner, isAdmin, isHR } = useUserRole();
+  const { isEnabled } = useFeatureFlags();
   
   const basePath = orgCode ? `/org/${orgCode}` : '';
   const canAccessAdmin = isOwner || isAdmin || isHR;
   
-  // Filter items based on role
+  // Filter items based on role and feature flags
   const visibleItems = teamSubNavItems.filter(item => {
     if (item.adminOnly && !canAccessAdmin) return false;
+    if (item.featureFlag && !isEnabled(item.featureFlag)) return false;
     return true;
   });
   
