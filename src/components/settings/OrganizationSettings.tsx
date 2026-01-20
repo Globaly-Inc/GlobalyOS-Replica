@@ -306,15 +306,6 @@ export function OrganizationSettings({ isOwner }: OrganizationSettingsProps) {
               </Popover>
             </div>
 
-            <div className="space-y-2">
-              <Label>Company Size</Label>
-              <Input 
-                value={currentOrg?.company_size || "Not specified"} 
-                disabled 
-                className="text-muted-foreground" 
-              />
-              <p className="text-xs text-muted-foreground">Set during signup</p>
-            </div>
           </div>
 
         </div>
