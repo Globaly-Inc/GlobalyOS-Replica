@@ -35,6 +35,8 @@ interface OrgInfoStepProps {
     country?: string;
     industry?: string;
     company_size?: string;
+    business_address?: string;
+    business_address_components?: { [key: string]: string | number | boolean | null } | null;
   };
   onSave: (data: Record<string, unknown>) => void;
   onBack: () => void;
@@ -50,8 +52,8 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
     website: initialData?.website || '',
     industry: initialData?.industry || signupData?.industry || '',
     company_size: initialData?.company_size || signupData?.company_size || '',
-    business_address: initialData?.business_address || '',
-    business_address_components: initialData?.business_address_components || null,
+    business_address: initialData?.business_address || signupData?.business_address || '',
+    business_address_components: initialData?.business_address_components || signupData?.business_address_components || null,
     legal_business_name: initialData?.legal_business_name || '',
     business_registration_number: initialData?.business_registration_number || '',
   });
@@ -65,6 +67,8 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
         ...prev,
         industry: prev.industry || signupData.industry || '',
         company_size: prev.company_size || signupData.company_size || '',
+        business_address: prev.business_address || signupData.business_address || '',
+        business_address_components: prev.business_address_components || signupData.business_address_components || null,
       }));
     }
   }, [signupData]);
@@ -163,9 +167,15 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
               placeholder="Start typing your business address..."
               required
             />
-            <p className="text-xs text-muted-foreground">
-              Search for your office or business location
-            </p>
+            {formData.business_address && !formData.business_address_components?.formatted_address ? (
+              <p className="text-xs text-warning">
+                Please select an address from the dropdown suggestions
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Search for your office or business location
+              </p>
+            )}
           </div>
 
           {/* Row 4: Website + Business Registration Number */}
@@ -263,7 +273,7 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
             </Button>
             <Button 
               type="submit" 
-              disabled={isSaving || !formData.name || !formData.business_address || !formData.legal_business_name} 
+              disabled={isSaving || !formData.name || !formData.business_address || !formData.business_address_components?.formatted_address || !formData.legal_business_name} 
               className="flex-1"
             >
               {isSaving ? 'Saving...' : 'Continue'}
