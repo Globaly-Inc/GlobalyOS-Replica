@@ -173,7 +173,7 @@ export function OrganizationSettings({ isOwner }: OrganizationSettingsProps) {
         {/* Business Identity Section */}
         <div className="space-y-4">
           <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Business Identity</h3>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="orgName">Trading Business Name</Label>
               <Input
@@ -194,10 +194,10 @@ export function OrganizationSettings({ isOwner }: OrganizationSettingsProps) {
                 placeholder="Registered company name"
               />
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Organization ID</Label>
-            <Input value={currentOrg?.slug || ""} disabled className="font-mono text-sm" />
+            <div className="space-y-2">
+              <Label>Organization ID</Label>
+              <Input value={currentOrg?.slug || ""} disabled className="font-mono text-sm" />
+            </div>
           </div>
         </div>
 
