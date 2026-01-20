@@ -404,9 +404,9 @@ const Signup = () => {
                 <div className="mb-4">
                   {billingCycle === 'annual' ? (
                     <>
-                      <span className="text-3xl font-bold">{getAnnualTotal('starter')}</span>
-                      <span className="text-muted-foreground">/year</span>
-                      <p className="text-sm text-muted-foreground">({getPrice('starter')}/mo)</p>
+                      <span className="text-3xl font-bold">{getPrice('starter')}</span>
+                      <span className="text-muted-foreground">/mo</span>
+                      <p className="text-sm text-muted-foreground">{getAnnualTotal('starter')} Billed Annually</p>
                       <p className="text-sm text-success">Save ${getAnnualSavings('starter')}/year</p>
                     </>
                   ) : (
@@ -442,9 +442,9 @@ const Signup = () => {
                 <div className="mb-4">
                   {billingCycle === 'annual' ? (
                     <>
-                      <span className="text-3xl font-bold">{getAnnualTotal('growth')}</span>
-                      <span className="text-muted-foreground">/year</span>
-                      <p className="text-sm text-muted-foreground">({getPrice('growth')}/mo)</p>
+                      <span className="text-3xl font-bold">{getPrice('growth')}</span>
+                      <span className="text-muted-foreground">/mo</span>
+                      <p className="text-sm text-muted-foreground">{getAnnualTotal('growth')} Billed Annually</p>
                       <p className="text-sm text-success">Save ${getAnnualSavings('growth')}/year</p>
                     </>
                   ) : (
