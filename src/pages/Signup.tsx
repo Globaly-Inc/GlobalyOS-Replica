@@ -354,30 +354,32 @@ const Signup = () => {
         {step === 1 && (
           <div className="space-y-6">
             {/* Billing Toggle */}
-            <div className="flex items-center justify-center gap-4">
-              <span className={cn("font-medium", billingCycle === 'monthly' ? "text-foreground" : "text-muted-foreground")}>
-                Monthly
-              </span>
-              <button
-                onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')}
-                className={cn(
-                  "relative w-14 h-7 rounded-full transition-colors",
-                  billingCycle === 'annual' ? "bg-primary" : "bg-muted"
-                )}
-              >
-                <div
+            <div className="flex flex-col items-center gap-2">
+              <div className="flex items-center justify-center gap-4">
+                <span className={cn("font-medium", billingCycle === 'monthly' ? "text-foreground" : "text-muted-foreground")}>
+                  Monthly
+                </span>
+                <button
+                  onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')}
                   className={cn(
-                    "absolute w-5 h-5 bg-white rounded-full top-1 transition-transform",
-                    billingCycle === 'annual' ? "translate-x-8" : "translate-x-1"
+                    "relative w-14 h-7 rounded-full transition-colors",
+                    billingCycle === 'annual' ? "bg-primary" : "bg-muted"
                   )}
-                />
-              </button>
-              <span className={cn("font-medium", billingCycle === 'annual' ? "text-foreground" : "text-muted-foreground")}>
-                Annual
-              </span>
+                >
+                  <div
+                    className={cn(
+                      "absolute w-5 h-5 bg-white rounded-full top-1 transition-transform",
+                      billingCycle === 'annual' ? "translate-x-8" : "translate-x-1"
+                    )}
+                  />
+                </button>
+                <span className={cn("font-medium", billingCycle === 'annual' ? "text-foreground" : "text-muted-foreground")}>
+                  Annual Billing
+                </span>
+              </div>
               {billingCycle === 'annual' && (
                 <Badge variant="secondary" className="bg-success/10 text-success border-success/20">
-                  Save 20%
+                  Save 20% on all plans
                 </Badge>
               )}
             </div>
