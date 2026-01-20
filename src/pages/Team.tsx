@@ -685,14 +685,13 @@ const Team = () => {
             >
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {paginatedEmployees.map((employee) => {
-                  // Determine displayed status: new hires who haven't completed onboarding show as "invited"
-                  const displayStatus = (employee.is_new_hire && !employee.employee_onboarding_completed)
+                  // Determine displayed status: employees who haven't completed onboarding show as "invited"
+                  const displayStatus = !employee.employee_onboarding_completed
                     ? 'invited'
                     : employee.status;
                   
-                  // Show resend button for Owner/Admin/HR when employee is a new hire who hasn't completed onboarding
+                  // Show resend button for Owner/Admin/HR when employee hasn't completed onboarding
                   const canResendInvite = (isOwner || isAdmin || isHR) && 
-                    employee.is_new_hire === true && 
                     !employee.employee_onboarding_completed;
 
                   return (

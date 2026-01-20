@@ -193,7 +193,7 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
         employmentType: validated.employmentType,
         role: 'member', // Default role
         organizationId: currentOrg?.id,
-        isNewHire: true,
+        isNewHire: false,
         // Optional fields with defaults
         phone: '',
         dateOfBirth: '',
