@@ -213,9 +213,20 @@ serve(async (req) => {
       );
     }
 
-    // Check if code matches
-    if (otpRecord.code !== code) {
-      console.error('Invalid OTP code');
+    // Trim the code to remove any accidental whitespace
+    const trimmedCode = code.trim();
+    
+    // Check if code matches with detailed logging for debugging
+    if (otpRecord.code !== trimmedCode) {
+      console.error('Invalid OTP code - mismatch detected', {
+        email,
+        enteredLength: trimmedCode.length,
+        storedLength: otpRecord.code.length,
+        enteredFirstLast: trimmedCode.length >= 2 ? `${trimmedCode[0]}***${trimmedCode[trimmedCode.length-1]}` : 'too_short',
+        storedFirstLast: `${otpRecord.code[0]}***${otpRecord.code[otpRecord.code.length-1]}`,
+        hadWhitespace: code !== trimmedCode,
+        failedAttempts: otpRecord.failed_attempts
+      });
       const newFailedAttempts = currentFailedAttempts + 1;
       await supabase
         .from('otp_codes')

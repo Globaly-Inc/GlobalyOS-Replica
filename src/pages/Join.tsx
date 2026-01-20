@@ -111,7 +111,7 @@ const Join = () => {
 
     try {
       const response = await supabase.functions.invoke('verify-otp', {
-        body: { email: email.toLowerCase().trim(), code: inviteCode }
+        body: { email: email.toLowerCase().trim(), code: inviteCode.trim() }
       });
 
       if (response.error) {
