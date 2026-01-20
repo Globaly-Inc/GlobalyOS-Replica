@@ -399,113 +399,65 @@ serve(async (req: Request) => {
     const appUrl = APP_URL;
     const joinUrl = `${appUrl}/join?email=${encodeURIComponent(normalizedEmail)}`;
 
-    // Send invitation email via Resend API
+    // Send invitation email via Resend API - Minimal design
     const emailHtml = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; line-height: 1.6; color: #1e293b; margin: 0; padding: 0; background-color: #f1f5f9; }
-          .wrapper { background-color: #f1f5f9; padding: 40px 20px; }
-          .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1); }
-          .header { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); padding: 32px; text-align: center; }
-          .header img { width: 64px; height: 64px; border-radius: 16px; margin-bottom: 16px; }
-          .header h1 { color: white; margin: 0; font-size: 24px; font-weight: 600; }
-          .header p { color: rgba(255, 255, 255, 0.9); margin: 8px 0 0 0; font-size: 16px; }
-          .content { padding: 32px; }
-          .greeting { font-size: 18px; margin-bottom: 20px; }
-          .invite-message { background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-radius: 12px; padding: 20px; margin-bottom: 24px; border-left: 4px solid #6366f1; }
-          .invite-message p { margin: 0; color: #1e40af; font-size: 16px; }
-          .section-title { font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
-          .inviter-card { background: #f8fafc; border-radius: 12px; padding: 20px; margin-bottom: 24px; border: 1px solid #e2e8f0; }
-          .inviter-info { display: flex; align-items: flex-start; }
-          .inviter-avatar { width: 48px; height: 48px; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 18px; margin-right: 16px; flex-shrink: 0; }
-          .inviter-details { flex: 1; }
-          .inviter-name { font-weight: 600; color: #1e293b; font-size: 16px; margin: 0; }
-          .inviter-position { color: #64748b; font-size: 14px; margin: 4px 0 0 0; }
-          .inviter-email { color: #6366f1; font-size: 14px; margin: 4px 0 0 0; text-decoration: none; }
-          .details-card { background: #f8fafc; border-radius: 12px; padding: 20px; margin-bottom: 24px; border: 1px solid #e2e8f0; }
-          .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0; }
-          .detail-row:last-child { border-bottom: none; }
-          .detail-label { color: #64748b; font-size: 14px; }
-          .detail-value { color: #1e293b; font-size: 14px; font-weight: 500; }
-          .code-section { text-align: center; margin: 32px 0; }
-          .code-label { font-size: 14px; color: #64748b; margin-bottom: 12px; }
-          .code-box { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; font-size: 36px; font-weight: 700; letter-spacing: 12px; text-align: center; padding: 24px 32px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.4); }
-          .cta { text-align: center; margin: 32px 0; }
-          .button { display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 12px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.4); transition: transform 0.2s; }
-          .note { background: #f0fdf4; border-radius: 12px; padding: 16px; margin-top: 24px; border: 1px solid #bbf7d0; }
-          .note p { margin: 0; color: #166534; font-size: 14px; }
-          .note strong { color: #15803d; }
-          .footer { background: #f8fafc; padding: 24px 32px; text-align: center; border-top: 1px solid #e2e8f0; }
-          .footer p { margin: 0; color: #64748b; font-size: 14px; }
-          .footer a { color: #6366f1; text-decoration: none; }
-        </style>
       </head>
-      <body>
-        <div class="wrapper">
-          <div class="container">
-            <div class="header">
-              <img src="${logoUrl}" alt="GlobalyOS" />
-              <h1>You're Invited!</h1>
-              <p>Join ${businessName} on GlobalyOS</p>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.5; color: #1e293b; margin: 0; padding: 0; background-color: #f8fafc;">
+        <div style="background-color: #f8fafc; padding: 24px 16px;">
+          <div style="max-width: 480px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            
+            <!-- Header -->
+            <div style="padding: 20px 24px; text-align: center; border-bottom: 1px solid #e2e8f0;">
+              <img src="${logoUrl}" alt="GlobalyOS" style="width: 48px; height: 48px; border-radius: 10px;" />
+              <h1 style="color: #1e293b; margin: 12px 0 4px 0; font-size: 20px; font-weight: 600;">You're Invited</h1>
+              <p style="color: #64748b; margin: 0; font-size: 14px;">Join ${businessName} on GlobalyOS</p>
             </div>
-            <div class="content">
-              <p class="greeting">Hi <strong>${fullName}</strong>,</p>
+            
+            <!-- Content -->
+            <div style="padding: 24px;">
+              <p style="margin: 0 0 16px 0; font-size: 15px;">Hi <strong>${fullName}</strong>,</p>
+              <p style="margin: 0 0 20px 0; font-size: 14px; color: #475569;">${inviterName} has invited you to join <strong>${businessName}</strong>.</p>
               
-              <div class="invite-message">
-                <p><strong>${inviterName}</strong> has invited you to join <strong>${businessName}</strong> on GlobalyOS.</p>
-              </div>
-
-              <p class="section-title">Invited By</p>
-              <div class="inviter-card">
-                <table cellpadding="0" cellspacing="0" border="0" width="100%">
+              <!-- Details -->
+              <div style="background: #f8fafc; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px;">
+                <table cellpadding="0" cellspacing="0" border="0" width="100%" style="font-size: 13px;">
                   <tr>
-                    <td width="64" valign="top">
-                      <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); border-radius: 50%; text-align: center; line-height: 48px; color: white; font-weight: 600; font-size: 18px;">${inviterName.charAt(0).toUpperCase()}</div>
-                    </td>
-                    <td valign="top">
-                      <p style="font-weight: 600; color: #1e293b; font-size: 16px; margin: 0;">${inviterName}</p>
-                      ${inviterPosition ? `<p style="color: #64748b; font-size: 14px; margin: 4px 0 0 0;">${inviterPosition}</p>` : ''}
-                      ${inviterEmail ? `<p style="margin: 4px 0 0 0;"><a href="mailto:${inviterEmail}" style="color: #6366f1; font-size: 14px; text-decoration: none;">${inviterEmail}</a></p>` : ''}
-                    </td>
+                    <td style="color: #64748b; padding: 4px 0;">Position</td>
+                    <td style="color: #1e293b; font-weight: 500; text-align: right; padding: 4px 0;">${position}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #64748b; padding: 4px 0;">Department</td>
+                    <td style="color: #1e293b; font-weight: 500; text-align: right; padding: 4px 0;">${department}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #64748b; padding: 4px 0;">Start Date</td>
+                    <td style="color: #1e293b; font-weight: 500; text-align: right; padding: 4px 0;">${joinDate ? new Date(joinDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBC'}</td>
                   </tr>
                 </table>
               </div>
-
-              <p class="section-title">Your Details</p>
-              <div class="details-card">
-                <div class="detail-row">
-                  <span class="detail-label">Position</span>
-                  <span class="detail-value">${position}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Department</span>
-                  <span class="detail-value">${department}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Start Date</span>
-                  <span class="detail-value">${joinDate ? new Date(joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'To be confirmed'}</span>
-                </div>
+              
+              <!-- Code -->
+              <div style="text-align: center; margin: 24px 0;">
+                <p style="font-size: 12px; color: #64748b; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px;">Your Login Code</p>
+                <div style="background: #f0f4ff; color: #4f46e5; font-size: 28px; font-weight: 700; letter-spacing: 8px; padding: 16px 24px; border-radius: 8px; display: inline-block;">${inviteCode}</div>
               </div>
-
-              <div class="code-section">
-                <p class="code-label">Your Login Code</p>
-                <div class="code-box">${inviteCode}</div>
+              
+              <!-- CTA -->
+              <div style="text-align: center; margin: 20px 0;">
+                <a href="${joinUrl}" style="display: inline-block; background: #4f46e5; color: white; padding: 12px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">Join Team</a>
               </div>
-
-              <div class="cta">
-                <a href="${joinUrl}" class="button">Join ${businessName}</a>
-              </div>
-
-              <div class="note">
-                <p><strong>Note:</strong> This code is valid for 7 days. Click the button above and enter your code to get started.</p>
-              </div>
+              
+              <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 16px 0 0 0;">Code valid for 7 days</p>
             </div>
-            <div class="footer">
-              <p>Questions? Contact <a href="mailto:${inviterEmail || 'support@globalyos.com'}">${inviterEmail || 'your administrator'}</a></p>
+            
+            <!-- Footer -->
+            <div style="background: #f8fafc; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+              <p style="margin: 0; color: #64748b; font-size: 12px;">Questions? Contact <a href="mailto:${inviterEmail || 'support@globalyos.com'}" style="color: #4f46e5; text-decoration: none;">${inviterEmail || 'support'}</a></p>
             </div>
           </div>
         </div>
