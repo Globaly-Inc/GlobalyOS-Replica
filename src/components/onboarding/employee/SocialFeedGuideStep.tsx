@@ -5,14 +5,15 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, ArrowLeft, Home, Trophy, Heart, MessageSquare, Megaphone, Sparkles } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Home, Trophy, Heart, MessageSquare, Megaphone, Sparkles, Loader2 } from 'lucide-react';
 
 interface SocialFeedGuideStepProps {
   onContinue: () => void;
   onBack?: () => void;
+  isNavigating?: boolean;
 }
 
-export function SocialFeedGuideStep({ onContinue, onBack }: SocialFeedGuideStepProps) {
+export function SocialFeedGuideStep({ onContinue, onBack, isNavigating = false }: SocialFeedGuideStepProps) {
   return (
     <Card className="border-0 shadow-lg">
       <CardHeader className="text-center pb-4">
@@ -91,14 +92,23 @@ export function SocialFeedGuideStep({ onContinue, onBack }: SocialFeedGuideStepP
 
         <div className="flex gap-3">
           {onBack && (
-            <Button variant="outline" onClick={onBack} className="h-12 px-6">
+            <Button variant="outline" onClick={onBack} disabled={isNavigating} className="h-12 px-6">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
             </Button>
           )}
-          <Button onClick={onContinue} className="flex-1 h-12 text-base font-semibold" size="lg">
-            Let's Go
-            <ArrowRight className="ml-2 h-5 w-5" />
+          <Button onClick={onContinue} disabled={isNavigating} className="flex-1 h-12 text-base font-semibold" size="lg">
+            {isNavigating ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Please wait...
+              </>
+            ) : (
+              <>
+                Let's Go
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </>
+            )}
           </Button>
         </div>
       </CardContent>

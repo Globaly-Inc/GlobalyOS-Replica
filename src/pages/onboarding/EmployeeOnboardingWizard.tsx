@@ -49,8 +49,16 @@ export default function EmployeeOnboardingWizard() {
   const saveProfile = useSaveEmployeeProfile();
   const saveTimezone = useSaveEmployeeTimezone();
   const completeOnboarding = useCompleteEmployeeOnboarding();
-  
+
   const [currentStep, setCurrentStep] = useState(1);
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  // Combined busy state for all async operations
+  const isBusy = isNavigating || 
+    saveStep.isPending || 
+    saveProfile.isPending || 
+    saveTimezone.isPending || 
+    completeOnboarding.isPending;
 
   // Type for employee data
   interface EmployeeForOnboarding {
@@ -180,14 +188,22 @@ export default function EmployeeOnboardingWizard() {
   };
 
   const handleNext = async (stepData?: Record<string, unknown>) => {
-    if (currentStep >= TOTAL_EMPLOYEE_STEPS) {
-      await completeOnboarding.mutateAsync(false);
-      navigate(`/org/${currentOrg?.slug}`);
-      return;
-    }
+    // Prevent concurrent navigation
+    if (isNavigating || isBusy) return;
+    
+    setIsNavigating(true);
+    try {
+      if (currentStep >= TOTAL_EMPLOYEE_STEPS) {
+        await completeOnboarding.mutateAsync(false);
+        navigate(`/org/${currentOrg?.slug}`);
+        return;
+      }
 
-    await saveStep.mutateAsync({ stepData: stepData || {}, advanceStep: true });
-    setCurrentStep((prev) => Math.min(prev + 1, TOTAL_EMPLOYEE_STEPS));
+      await saveStep.mutateAsync({ stepData: stepData || {}, advanceStep: true });
+      setCurrentStep((prev) => Math.min(prev + 1, TOTAL_EMPLOYEE_STEPS));
+    } finally {
+      setIsNavigating(false);
+    }
   };
 
   const handleProfileSave = async (data: ProfileFormData) => {
@@ -243,6 +259,7 @@ export default function EmployeeOnboardingWizard() {
             officeLocation={office?.city && office?.country ? `${office.city}, ${office.country}` : undefined}
             avatarUrl={employee?.avatar_url}
             onContinue={() => handleNext()}
+            isNavigating={isBusy}
           />
         );
       case 'complete-profile':
@@ -253,7 +270,7 @@ export default function EmployeeOnboardingWizard() {
             prefillData={{ full_name: employee?.full_name || '', email: employee?.personal_email || undefined }}
             onSave={handleProfileSave}
             onBack={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
-            isSaving={saveStep.isPending || saveProfile.isPending}
+            isSaving={isBusy}
           />
         );
       case 'timezone-setup':
@@ -261,7 +278,7 @@ export default function EmployeeOnboardingWizard() {
           <TimezoneSetupStep 
             onSave={handleTimezoneSave} 
             onBack={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
-            isSaving={saveStep.isPending || saveTimezone.isPending} 
+            isSaving={isBusy} 
           />
         );
       case 'checkin-guide':
@@ -269,6 +286,7 @@ export default function EmployeeOnboardingWizard() {
           <CheckInGuideStep 
             onContinue={() => handleNext()} 
             onBack={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
+            isNavigating={isBusy}
           />
         );
       case 'leave-guide':
@@ -276,6 +294,7 @@ export default function EmployeeOnboardingWizard() {
           <LeaveGuideStep 
             onContinue={() => handleNext()} 
             onBack={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
+            isNavigating={isBusy}
           />
         );
       case 'profile-guide':
@@ -284,6 +303,7 @@ export default function EmployeeOnboardingWizard() {
             employeeName={firstName} 
             onContinue={() => handleNext()} 
             onBack={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
+            isNavigating={isBusy}
           />
         );
       case 'social-feed-guide':
@@ -291,6 +311,7 @@ export default function EmployeeOnboardingWizard() {
           <SocialFeedGuideStep 
             onContinue={() => handleNext()} 
             onBack={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
+            isNavigating={isBusy}
           />
         );
       case 'directory-wiki-guide':
@@ -298,6 +319,7 @@ export default function EmployeeOnboardingWizard() {
           <DirectoryWikiGuideStep 
             onContinue={() => handleNext()} 
             onBack={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
+            isNavigating={isBusy}
           />
         );
       case 'complete':
@@ -307,7 +329,7 @@ export default function EmployeeOnboardingWizard() {
             orgName={currentOrg?.name || 'the team'}
             onFinish={() => handleNext()}
             onBack={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
-            isCompleting={completeOnboarding.isPending}
+            isCompleting={isBusy}
           />
         );
       default:

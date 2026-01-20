@@ -6,7 +6,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowRight, MapPin, Briefcase, Sparkles } from 'lucide-react';
+import { ArrowRight, MapPin, Briefcase, Sparkles, Loader2 } from 'lucide-react';
 
 interface EmployeeWelcomeStepProps {
   employeeName: string;
@@ -19,6 +19,7 @@ interface EmployeeWelcomeStepProps {
   officeLocation?: string;
   avatarUrl?: string | null;
   onContinue: () => void;
+  isNavigating?: boolean;
 }
 
 export function EmployeeWelcomeStep({
@@ -32,6 +33,7 @@ export function EmployeeWelcomeStep({
   officeLocation,
   avatarUrl,
   onContinue,
+  isNavigating = false,
 }: EmployeeWelcomeStepProps) {
   return (
     <Card className="border-0 shadow-xl overflow-hidden">
@@ -112,12 +114,22 @@ export function EmployeeWelcomeStep({
 
         {/* CTA Button */}
         <Button 
-          onClick={onContinue} 
+          onClick={onContinue}
+          disabled={isNavigating}
           className="w-full h-14 text-lg font-semibold shadow-lg hover:shadow-xl transition-all" 
           size="lg"
         >
-          Let's Get Started
-          <ArrowRight className="ml-2 h-5 w-5" />
+          {isNavigating ? (
+            <>
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              Please wait...
+            </>
+          ) : (
+            <>
+              Let's Get Started
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </>
+          )}
         </Button>
       </CardContent>
     </Card>
