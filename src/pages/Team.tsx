@@ -37,6 +37,8 @@ interface Employee {
   status: 'invited' | 'active' | 'inactive';
   office_id: string | null;
   work_location?: 'office' | 'hybrid' | 'remote' | null;
+  is_new_hire?: boolean;
+  employee_onboarding_completed?: boolean;
   profiles: {
     full_name: string;
     email: string;
@@ -105,7 +107,7 @@ const Team = () => {
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [quickInviteDialogOpen, setQuickInviteDialogOpen] = useState(false);
   const [recoverDialogOpen, setRecoverDialogOpen] = useState(false);
-  const { isAdmin, isHR } = useUserRole();
+  const { isOwner, isAdmin, isHR } = useUserRole();
   const { currentOrg } = useOrganization();
   const { navigateOrg } = useOrgNavigation();
 
@@ -205,6 +207,8 @@ const Team = () => {
         status: e.status,
         office_id: e.office_id,
         work_location: e.work_location,
+        is_new_hire: e.is_new_hire,
+        employee_onboarding_completed: e.employee_onboarding_completed,
         profiles: {
           full_name: e.full_name,
           email: e.email,
@@ -680,30 +684,42 @@ const Team = () => {
               )}
             >
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {paginatedEmployees.map((employee) => (
-                  <EmployeeCard
-                    key={employee.id}
-                    employee={{
-                      id: employee.id,
-                      name: employee.profiles.full_name,
-                      email: employee.profiles.email,
-                      position: employee.position,
-                      department: employee.department,
-                      joinDate: employee.join_date,
-                      phone: employee.phone || undefined,
-                      city: employee.city || undefined,
-                      country: employee.country || undefined,
-                      avatar: employee.profiles.avatar_url || undefined,
-                      status: employee.status,
-                      officeName: employee.offices?.name,
-                      officeEmployeeCount: employee.office_id ? officeEmployeeCounts[employee.office_id] : undefined,
-                      workLocation: employee.work_location || undefined,
-                    }}
-                    showResendInvite={isHR}
-                    role={userRoles[employee.user_id]}
-                    isOnline={onlineStatuses[employee.id]}
-                  />
-                ))}
+                {paginatedEmployees.map((employee) => {
+                  // Determine displayed status: new hires who haven't completed onboarding show as "invited"
+                  const displayStatus = (employee.is_new_hire && !employee.employee_onboarding_completed)
+                    ? 'invited'
+                    : employee.status;
+                  
+                  // Show resend button for Owner/Admin/HR when employee is a new hire who hasn't completed onboarding
+                  const canResendInvite = (isOwner || isAdmin || isHR) && 
+                    employee.is_new_hire === true && 
+                    !employee.employee_onboarding_completed;
+
+                  return (
+                    <EmployeeCard
+                      key={employee.id}
+                      employee={{
+                        id: employee.id,
+                        name: employee.profiles.full_name,
+                        email: employee.profiles.email,
+                        position: employee.position,
+                        department: employee.department,
+                        joinDate: employee.join_date,
+                        phone: employee.phone || undefined,
+                        city: employee.city || undefined,
+                        country: employee.country || undefined,
+                        avatar: employee.profiles.avatar_url || undefined,
+                        status: displayStatus,
+                        officeName: employee.offices?.name,
+                        officeEmployeeCount: employee.office_id ? officeEmployeeCounts[employee.office_id] : undefined,
+                        workLocation: employee.work_location || undefined,
+                      }}
+                      showResendInvite={canResendInvite}
+                      role={userRoles[employee.user_id]}
+                      isOnline={onlineStatuses[employee.id]}
+                    />
+                  );
+                })}
               </div>
 
               {filteredEmployees.length === 0 ? (

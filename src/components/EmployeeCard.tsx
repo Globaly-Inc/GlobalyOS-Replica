@@ -96,7 +96,7 @@ export const EmployeeCard = ({ employee, showResendInvite = false, role, isOnlin
           {employee.workLocation && (
             <Badge 
               variant="secondary" 
-              className={`absolute top-2 ${showResendInvite && employee.status === 'invited' ? 'right-11' : 'right-2'} text-[10px] px-1.5 py-0 h-5 ${WORK_LOCATION_CONFIG[employee.workLocation]?.bgColor} ${WORK_LOCATION_CONFIG[employee.workLocation]?.color} border-0`}
+              className={`absolute top-2 ${showResendInvite ? 'right-11' : 'right-2'} text-[10px] px-1.5 py-0 h-5 ${WORK_LOCATION_CONFIG[employee.workLocation]?.bgColor} ${WORK_LOCATION_CONFIG[employee.workLocation]?.color} border-0`}
             >
               {employee.workLocation === 'office' ? (
                 <Building2 className="h-3 w-3 mr-0.5" />
@@ -110,7 +110,7 @@ export const EmployeeCard = ({ employee, showResendInvite = false, role, isOnlin
           )}
 
           {/* Resend Invite Button - Top Right */}
-          {showResendInvite && employee.status === 'invited' && (
+          {showResendInvite && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
