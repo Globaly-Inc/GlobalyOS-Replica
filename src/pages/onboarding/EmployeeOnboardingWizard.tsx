@@ -48,10 +48,23 @@ export default function EmployeeOnboardingWizard() {
   
   const [currentStep, setCurrentStep] = useState(1);
 
+  // Type for employee data
+  interface EmployeeForOnboarding {
+    id: string;
+    user_id: string | null;
+    position: string | null;
+    department: string | null;
+    personal_email: string | null;
+    office_id: string | null;
+    offices: { name: string | null; city: string | null; country: string | null } | null;
+    full_name: string;
+    avatar_url: string | null;
+  }
+
   // Fetch employee data for welcome screen
-  const { data: employee } = useQuery({
+  const { data: employee } = useQuery<EmployeeForOnboarding | null>({
     queryKey: ['employee-for-onboarding', employeeId],
-    queryFn: async () => {
+    queryFn: async (): Promise<EmployeeForOnboarding | null> => {
       if (!employeeId) return null;
       
       const { data: empData, error: empError } = await supabase
@@ -86,33 +99,45 @@ export default function EmployeeOnboardingWizard() {
         }
       }
       
-      return { ...empData, full_name: fullName, avatar_url: avatarUrl };
+      const offices = empData.offices as { name: string | null; city: string | null; country: string | null } | null;
+      
+      return {
+        id: empData.id,
+        user_id: empData.user_id,
+        position: empData.position,
+        department: empData.department,
+        personal_email: empData.personal_email,
+        office_id: empData.office_id,
+        offices,
+        full_name: fullName,
+        avatar_url: avatarUrl,
+      };
     },
     enabled: !!employeeId,
   });
 
   // Fetch owner name for welcome step
-  const { data: ownerName } = useQuery({
+  const { data: ownerName } = useQuery<string | null>({
     queryKey: ['org-owner-name', currentOrg?.id],
-    queryFn: async () => {
+    queryFn: async (): Promise<string | null> => {
       if (!currentOrg?.id) return null;
       
-      const { data } = await supabase
+      // Use separate query to avoid deep type inference
+      const { data, error } = await supabase
         .from('employees')
         .select('user_id')
-        .eq('organization_id', currentOrg.id)
-        .eq('role', 'owner')
+        .match({ organization_id: currentOrg.id, role: 'owner' })
         .maybeSingle();
       
-      if (data?.user_id) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('full_name')
-          .eq('id', data.user_id)
-          .maybeSingle();
-        return profile?.full_name || null;
-      }
-      return null;
+      if (error || !data?.user_id) return null;
+      
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', data.user_id)
+        .maybeSingle();
+        
+      return profile?.full_name || null;
     },
     enabled: !!currentOrg?.id,
   });
