@@ -139,6 +139,25 @@ export function SetupProgressScreen({
     }
   }, [organizationId]);
 
+  // Generate AI descriptions for employment types
+  const generateEmploymentTypeDescriptions = useCallback(async () => {
+    try {
+      console.log('Generating AI descriptions for employment types...');
+      const { data, error } = await supabase.functions.invoke('bulk-generate-employment-type-descriptions', {
+        body: { organizationId },
+      });
+
+      if (error) {
+        console.error('Failed to generate employment type descriptions:', error);
+      } else {
+        console.log('Employment type descriptions result:', data);
+      }
+    } catch (err) {
+      console.error('Failed to generate employment type descriptions:', err);
+      // Non-blocking - continue with setup
+    }
+  }, [organizationId]);
+
   // Send invitation emails
   const sendInvitations = useCallback(async () => {
     if (teamMembers.length === 0) return;
@@ -177,6 +196,11 @@ export function SetupProgressScreen({
       id: 'positions', 
       label: 'Generating AI position descriptions',
       action: generatePositionDescriptions,
+    },
+    {
+      id: 'employment-types',
+      label: 'Generating employment type descriptions',
+      action: generateEmploymentTypeDescriptions,
     },
     { id: 'offices', label: 'Setting up offices' },
     ...(hasOfficesWithPublicHolidays

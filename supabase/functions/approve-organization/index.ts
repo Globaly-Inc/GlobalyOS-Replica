@@ -296,12 +296,36 @@ async function setupOrganization(
 async function seedDefaultData(supabaseAdmin: any, orgId: string) {
   console.log(`Seeding default data for organization: ${orgId}`);
 
-  // Seed employment types
+  // Seed employment types with default descriptions
   const employmentTypes = [
-    { name: 'trainee', label: 'Trainee', display_order: 1, is_system: true },
-    { name: 'intern', label: 'Intern', display_order: 2, is_system: true },
-    { name: 'contract', label: 'Contract', display_order: 3, is_system: true },
-    { name: 'employee', label: 'Employee', display_order: 4, is_system: true },
+    { 
+      name: 'trainee', 
+      label: 'Trainee', 
+      display_order: 1, 
+      is_system: true,
+      description: 'Entry-level role focused on skill development through structured training programs and mentorship. Trainees work under close supervision while building foundational competencies for their career path.'
+    },
+    { 
+      name: 'intern', 
+      label: 'Intern', 
+      display_order: 2, 
+      is_system: true,
+      description: 'Temporary position offering practical work experience, typically for students or recent graduates. Internships provide hands-on exposure to professional environments while developing industry-relevant skills.'
+    },
+    { 
+      name: 'contract', 
+      label: 'Contract', 
+      display_order: 3, 
+      is_system: true,
+      description: 'Fixed-term employment with defined project scope or duration. Contract workers bring specialized expertise for specific initiatives and operate with clear deliverables and timelines.'
+    },
+    { 
+      name: 'employee', 
+      label: 'Employee', 
+      display_order: 4, 
+      is_system: true,
+      description: 'Full-time or part-time permanent staff member with standard benefits and long-term commitment to the organization. Employees are integral team members contributing to ongoing operations and growth.'
+    },
   ];
 
   const { error: etError } = await supabaseAdmin
