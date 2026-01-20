@@ -341,6 +341,20 @@ export function InviteTeamMemberDialog({ open, onOpenChange, onSuccess }: Invite
         return;
       }
 
+      // Check if user already exists (graceful skip)
+      const responseData = data as { skipped?: boolean; code?: string } | null;
+      if (responseData?.skipped && responseData?.code === 'USER_EXISTS') {
+        toast({ 
+          title: "User Already Exists", 
+          description: `${formData.firstName} ${formData.lastName} already has an account in the system` 
+        });
+        setTimeout(() => {
+          onSuccess?.();
+          onOpenChange(false);
+        }, 1500);
+        return;
+      }
+
       setSuccess(true);
       toast({ title: "Team Member Added!", description: `${formData.firstName} ${formData.lastName} has been added and will receive login details` });
       setTimeout(() => {

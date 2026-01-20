@@ -216,6 +216,20 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
         return;
       }
 
+      // Check if user already exists (graceful skip)
+      const responseData = data as { skipped?: boolean; code?: string } | null;
+      if (responseData?.skipped && responseData?.code === 'USER_EXISTS') {
+        toast({ 
+          title: "User Already Exists", 
+          description: `${formData.fullName} already has an account in the system` 
+        });
+        setTimeout(() => {
+          onSuccess?.();
+          onOpenChange(false);
+        }, 1500);
+        return;
+      }
+
       setSuccess(true);
       toast({ title: "Invitation Sent!", description: `${formData.fullName} will receive an email with login details` });
       setTimeout(() => {
