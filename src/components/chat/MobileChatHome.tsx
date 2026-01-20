@@ -127,62 +127,57 @@ const MobileChatHome = ({ onSelectChat, onNewChat, onNewSpace }: MobileChatHomeP
 
   return (
     <div className="flex flex-col h-full bg-background">
-      {/* Sticky Header + Search */}
-      <div className="sticky top-0 z-10 bg-background">
-        {/* Header */}
-        <div className="px-2 pt-3 pb-2 bg-card border-b border-border/50">
-          <div className="flex items-center justify-between px-2">
-            <h1 className="text-xl font-bold text-foreground">Messages</h1>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-10 w-10 -mr-2">
-                  <MessageSquarePlus className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={onNewChat}>
-                  <Users className="h-4 w-4 mr-2" />
-                  New Chat
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onNewSpace}>
-                  <Hash className="h-4 w-4 mr-2" />
-                  New Space
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+      {/* Compact Sticky Header + Search */}
+      <div className="sticky top-0 z-10 bg-card border-b border-border/50">
+        <div className="px-3 py-2 flex items-center justify-between">
+          <h1 className="text-lg font-bold text-foreground">Messages</h1>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 -mr-1">
+                <MessageSquarePlus className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={onNewChat}>
+                <Users className="h-4 w-4 mr-2" />
+                New Chat
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onNewSpace}>
+                <Hash className="h-4 w-4 mr-2" />
+                New Space
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-        
-        {/* Sticky Search Bar */}
-        <div className="px-2 py-2 bg-background border-b border-border/30">
+        <div className="px-3 pb-2">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search chats..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-muted/40 border-0 h-11 rounded-xl text-base"
+              className="pl-9 bg-muted/40 border-0 h-9 rounded-lg text-sm"
             />
           </div>
         </div>
       </div>
 
       <ScrollArea className="flex-1">
-        {/* Shortcuts - More prominent with badges */}
-        <div className="px-2 py-3 border-b border-border/20">
-          <div className="flex gap-3">
+        {/* Shortcuts - Compact */}
+        <div className="px-3 py-2 border-b border-border/20">
+          <div className="flex gap-2">
             <button
               onClick={() => onSelectChat({ type: 'mentions', id: 'mentions', name: 'Mentions' })}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary/10 hover:bg-primary/15 active:bg-primary/20 text-primary text-sm font-semibold transition-colors"
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary/10 hover:bg-primary/15 active:bg-primary/20 text-primary text-sm font-medium transition-colors"
             >
-              <AtSign className="h-4 w-4" />
+              <AtSign className="h-3.5 w-3.5" />
               Mentions
             </button>
             <button
               onClick={() => onSelectChat({ type: 'starred', id: 'starred', name: 'Starred' })}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-amber-100 dark:bg-amber-900/30 hover:bg-amber-200 dark:hover:bg-amber-900/40 active:bg-amber-300 dark:active:bg-amber-900/50 text-amber-700 dark:text-amber-400 text-sm font-semibold transition-colors"
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-amber-100 dark:bg-amber-900/30 hover:bg-amber-200 dark:hover:bg-amber-900/40 active:bg-amber-300 dark:active:bg-amber-900/50 text-amber-700 dark:text-amber-400 text-sm font-medium transition-colors"
             >
-              <Star className="h-4 w-4" />
+              <Star className="h-3.5 w-3.5" />
               Starred
             </button>
           </div>
@@ -190,8 +185,8 @@ const MobileChatHome = ({ onSelectChat, onNewChat, onNewSpace }: MobileChatHomeP
 
         {/* Direct Messages */}
         {sortedConversations.length > 0 && (
-          <div className="px-2 py-3">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1">
+          <div className="px-3 py-2">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-0.5">
               Direct Messages
             </h3>
             <div className="space-y-0.5">
@@ -205,38 +200,38 @@ const MobileChatHome = ({ onSelectChat, onNewChat, onNewSpace }: MobileChatHomeP
                     key={conv.id}
                     onClick={() => handleSelectConversation(conv)}
                     className={cn(
-                      "flex items-center gap-3 w-full p-3 rounded-2xl transition-colors text-left",
+                      "flex items-center gap-2.5 w-full p-2 rounded-xl transition-colors text-left",
                       hasUnread 
                         ? "bg-primary/5 hover:bg-primary/10 active:bg-primary/15" 
                         : "hover:bg-muted/50 active:bg-muted"
                     )}
                   >
                     <div className="relative flex-shrink-0">
-                      <Avatar className="h-14 w-14">
+                      <Avatar className="h-11 w-11">
                         <AvatarImage src={getConversationAvatar(conv) || undefined} />
-                        <AvatarFallback className="bg-primary/10 text-primary text-base font-semibold">
+                        <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
                           {conv.is_group ? (
-                            <Users className="h-6 w-6" />
+                            <Users className="h-5 w-5" />
                           ) : (
                             getInitials(getConversationDisplayName(conv))
                           )}
                         </AvatarFallback>
                       </Avatar>
                       {!conv.is_group && isOnline && (
-                        <span className="absolute bottom-0.5 right-0.5 h-4 w-4 rounded-full bg-green-500 border-[2.5px] border-background" />
+                        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-background" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-0.5">
+                      <div className="flex items-center justify-between gap-2">
                         <span className={cn(
-                          "font-semibold truncate text-[15px]",
+                          "font-semibold truncate text-sm",
                           hasUnread ? "text-foreground" : "text-foreground"
                         )}>
                           {getConversationDisplayName(conv)}
                         </span>
                         {conv.last_message && (
                           <span className={cn(
-                            "text-xs flex-shrink-0",
+                            "text-[11px] flex-shrink-0",
                             hasUnread ? "text-primary font-medium" : "text-muted-foreground"
                           )}>
                             {formatMessageTime(conv.last_message.created_at)}
@@ -245,7 +240,7 @@ const MobileChatHome = ({ onSelectChat, onNewChat, onNewSpace }: MobileChatHomeP
                       </div>
                       {conv.last_message && (
                         <p className={cn(
-                          "text-sm truncate leading-snug",
+                          "text-xs truncate leading-snug mt-0.5",
                           hasUnread ? "text-foreground font-medium" : "text-muted-foreground"
                         )}>
                           {conv.last_message.content}
@@ -253,7 +248,7 @@ const MobileChatHome = ({ onSelectChat, onNewChat, onNewSpace }: MobileChatHomeP
                       )}
                     </div>
                     {hasUnread && (
-                      <div className="flex-shrink-0 h-6 min-w-6 px-2 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">
+                      <div className="flex-shrink-0 h-5 min-w-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
                         {conv.unread_count! > 99 ? "99+" : conv.unread_count}
                       </div>
                     )}
@@ -266,8 +261,8 @@ const MobileChatHome = ({ onSelectChat, onNewChat, onNewSpace }: MobileChatHomeP
 
         {/* Spaces */}
         {sortedSpaces.length > 0 && (
-          <div className="px-2 py-3">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1">
+          <div className="px-3 py-2">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-0.5">
               Spaces
             </h3>
             <div className="space-y-0.5">
@@ -279,30 +274,30 @@ const MobileChatHome = ({ onSelectChat, onNewChat, onNewSpace }: MobileChatHomeP
                     key={space.id}
                     onClick={() => handleSelectSpace(space)}
                     className={cn(
-                      "flex items-center gap-3 w-full p-3 rounded-2xl transition-colors text-left",
+                      "flex items-center gap-2.5 w-full p-2 rounded-xl transition-colors text-left",
                       hasUnread 
                         ? "bg-primary/5 hover:bg-primary/10 active:bg-primary/15" 
                         : "hover:bg-muted/50 active:bg-muted"
                     )}
                   >
-                    <div className="flex items-center justify-center h-14 w-14 rounded-2xl bg-primary/10 text-primary flex-shrink-0 overflow-hidden">
+                    <div className="flex items-center justify-center h-11 w-11 rounded-xl bg-primary/10 text-primary flex-shrink-0 overflow-hidden">
                       {space.icon_url ? (
-                        <img src={space.icon_url} alt={space.name} className="h-full w-full rounded-2xl object-cover" />
+                        <img src={space.icon_url} alt={space.name} className="h-full w-full rounded-xl object-cover" loading="lazy" />
                       ) : (
-                        <Hash className="h-6 w-6" />
+                        <Hash className="h-5 w-5" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-0.5">
+                      <div className="flex items-center justify-between gap-2">
                         <span className={cn(
-                          "font-semibold truncate text-[15px]",
+                          "font-semibold truncate text-sm",
                           hasUnread ? "text-foreground" : "text-foreground"
                         )}>
                           {space.name}
                         </span>
                         {space.last_message && (
                           <span className={cn(
-                            "text-xs flex-shrink-0",
+                            "text-[11px] flex-shrink-0",
                             hasUnread ? "text-primary font-medium" : "text-muted-foreground"
                           )}>
                             {formatMessageTime(space.last_message.created_at)}
@@ -311,7 +306,7 @@ const MobileChatHome = ({ onSelectChat, onNewChat, onNewSpace }: MobileChatHomeP
                       </div>
                       {space.last_message && (
                         <p className={cn(
-                          "text-sm truncate leading-snug",
+                          "text-xs truncate leading-snug mt-0.5",
                           hasUnread ? "text-foreground font-medium" : "text-muted-foreground"
                         )}>
                           {space.last_message.content}
@@ -319,7 +314,7 @@ const MobileChatHome = ({ onSelectChat, onNewChat, onNewSpace }: MobileChatHomeP
                       )}
                     </div>
                     {hasUnread && (
-                      <div className="flex-shrink-0 h-6 min-w-6 px-2 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">
+                      <div className="flex-shrink-0 h-5 min-w-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
                         {space.unread_count! > 99 ? "99+" : space.unread_count}
                       </div>
                     )}
