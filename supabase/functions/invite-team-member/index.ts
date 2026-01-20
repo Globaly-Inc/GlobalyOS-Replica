@@ -430,8 +430,7 @@ serve(async (req: Request) => {
     `;
 
     // Send invitation email via Resend API (unless skipEmail is true)
-    const body = await req.clone().json() as InviteRequest;
-    const skipEmail = body.skipEmail ?? false;
+    const skipEmail = data.skipEmail ?? false;
 
     if (!skipEmail) {
       try {
