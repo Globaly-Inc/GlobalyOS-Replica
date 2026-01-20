@@ -10938,8 +10938,10 @@ export type Database = {
           created_at: string | null
           department: string | null
           email: string | null
+          employee_onboarding_completed: boolean | null
           full_name: string | null
           id: string | null
+          is_new_hire: boolean | null
           join_date: string | null
           manager_id: string | null
           office_id: string | null
