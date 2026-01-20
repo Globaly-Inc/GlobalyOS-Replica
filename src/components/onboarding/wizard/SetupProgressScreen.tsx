@@ -158,6 +158,52 @@ export function SetupProgressScreen({
     }
   }, [organizationId]);
 
+  // Create team member accounts (auth.users, profiles, employees, etc.)
+  const createTeamMembers = useCallback(async () => {
+    if (teamMembers.length === 0) return;
+
+    console.log(`Creating ${teamMembers.length} team member accounts...`);
+
+    for (const member of teamMembers) {
+      try {
+        // Split full name for firstName/lastName
+        const nameParts = (member.full_name || '').trim().split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
+        const { data, error } = await supabase.functions.invoke('invite-team-member', {
+          body: {
+            email: member.email,
+            fullName: member.full_name,
+            firstName,
+            lastName,
+            position: member.position || 'Team Member',
+            department: member.department || 'General',
+            role: member.role || 'member',
+            officeId: member.office_id || null,
+            organizationId,
+            employmentType: 'employee',
+            skipEmail: true, // Emails sent separately via send-pending-invitations
+          },
+        });
+
+        if (error) {
+          // Check for 409 (user exists) - skip gracefully
+          const errorContext = data?.error?.context || data?.context;
+          if (error.message?.includes('409') || errorContext?.code === 'USER_EXISTS') {
+            console.log(`User ${member.email} already exists, skipping`);
+          } else {
+            console.error(`Failed to create ${member.email}:`, error);
+          }
+        } else {
+          console.log(`Created account for ${member.email}`);
+        }
+      } catch (err) {
+        console.error(`Error creating ${member.email}:`, err);
+      }
+    }
+  }, [organizationId, teamMembers]);
+
   // Send invitation emails
   const sendInvitations = useCallback(async () => {
     if (teamMembers.length === 0) return;
@@ -208,6 +254,14 @@ export function SetupProgressScreen({
           id: 'holidays',
           label: 'Setting up public holidays',
           action: setupPublicHolidays,
+        }]
+      : []),
+    // Create team member accounts BEFORE schedules and invitations
+    ...(teamMembersCount > 0
+      ? [{
+          id: 'accounts',
+          label: `Creating ${teamMembersCount} team account${teamMembersCount > 1 ? 's' : ''}`,
+          action: createTeamMembers,
         }]
       : []),
     ...(hasTeamMembersWithOffice
