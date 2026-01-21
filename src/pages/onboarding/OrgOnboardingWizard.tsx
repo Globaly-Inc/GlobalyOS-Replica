@@ -175,6 +175,7 @@ export default function OrgOnboardingWizard() {
             orgName={currentOrg?.name || 'your organization'}
             initialFeatures={onboardingData?.enabled_features || []}
             onContinue={(enabled_features) => handleNext({ enabled_features })}
+            isSaving={saveStep.isPending || isAdvancing}
           />
         );
       case 'organization-info':

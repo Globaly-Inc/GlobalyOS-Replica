@@ -392,13 +392,13 @@ export function TeamSeedingStep({
           </Button>
 
           <div className="flex gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={onBack} className="flex-1">
+            <Button type="button" variant="outline" onClick={onBack} disabled={isSaving} className="flex-1">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
             </Button>
             
             {members.length === 0 || !hasValidMembers ? (
-              <Button type="button" variant="secondary" onClick={onSkip} className="flex-1">
+              <Button type="button" variant="secondary" onClick={onSkip} disabled={isSaving} className="flex-1">
                 Skip for now
                 <SkipForward className="ml-2 h-4 w-4" />
               </Button>
