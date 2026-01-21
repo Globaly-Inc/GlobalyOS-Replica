@@ -2757,6 +2757,7 @@ export type Database = {
           last_working_day: string | null
           latitude: number | null
           legal_entity_id: string | null
+          linkedin_url: string | null
           longitude: number | null
           manager_id: string | null
           office_id: string | null
@@ -2807,6 +2808,7 @@ export type Database = {
           last_working_day?: string | null
           latitude?: number | null
           legal_entity_id?: string | null
+          linkedin_url?: string | null
           longitude?: number | null
           manager_id?: string | null
           office_id?: string | null
@@ -2857,6 +2859,7 @@ export type Database = {
           last_working_day?: string | null
           latitude?: number | null
           legal_entity_id?: string | null
+          linkedin_url?: string | null
           longitude?: number | null
           manager_id?: string | null
           office_id?: string | null
