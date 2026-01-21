@@ -11,6 +11,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { formatDateTime } from "@/lib/utils";
 import QRCode from "qrcode";
 import { QRLocationPicker } from "./QRLocationPicker";
+import { generateOfficeQRPDF } from "./offices/OfficeQRPDFExport";
 
 interface Office {
   id: string;
@@ -154,11 +155,14 @@ export const AttendanceQRButton = () => {
   const handleDownload = () => {
     if (!qrCodeDataUrl || !selectedOffice) return;
     
-    const selectedOfficeName = offices?.find(o => o.id === selectedOffice)?.name || "office";
-    const link = document.createElement("a");
-    link.download = `qr-code-${selectedOfficeName.toLowerCase().replace(/\s+/g, "-")}.png`;
-    link.href = qrCodeDataUrl;
-    link.click();
+    const officeName = offices?.find(o => o.id === selectedOffice)?.name || "Office";
+    
+    generateOfficeQRPDF({
+      officeName,
+      qrCodeDataUrl,
+      orgName: currentOrg?.name || '',
+      orgLogoUrl: currentOrg?.logo_url || null,
+    });
   };
 
   const selectedOfficeName = offices?.find(o => o.id === selectedOffice)?.name;
