@@ -357,8 +357,8 @@ export function CompleteProfileStep({
               cropShape="circle"
             />
             
-            {/* Row 1: Full Name + Date of Birth */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Row 1: Full Name, Date of Birth, Gender */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Full Name</Label>
                 <Input 
@@ -382,10 +382,28 @@ export function CompleteProfileStep({
                   <p className="text-sm text-destructive">{errors.date_of_birth}</p>
                 )}
               </div>
+              <div className="space-y-2">
+                <Label>Gender</Label>
+                <Select
+                  value={formData.gender}
+                  onValueChange={(v) => updateField('gender', v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GENDER_OPTIONS.map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            {/* Row 2: Personal Email, Phone, Gender */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Row 2: Personal Email, Phone */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Personal Email <span className="text-destructive">*</span></Label>
                 <div className="relative">
@@ -414,24 +432,6 @@ export function CompleteProfileStep({
                 {errors.phone && (
                   <p className="text-sm text-destructive">{errors.phone}</p>
                 )}
-              </div>
-              <div className="space-y-2">
-                <Label>Gender</Label>
-                <Select
-                  value={formData.gender}
-                  onValueChange={(v) => updateField('gender', v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {GENDER_OPTIONS.map(opt => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
             </div>
           </div>
