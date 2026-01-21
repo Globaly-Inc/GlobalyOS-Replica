@@ -5,7 +5,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, ArrowLeft, User, Camera, Shield, Settings, Loader2, Lock } from 'lucide-react';
+import { ArrowRight, ArrowLeft, User, Shield, Loader2, Lock, LayoutDashboard } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface ProfileGuideStepProps {
@@ -26,9 +26,9 @@ export function ProfileGuideStep({ employeeName, avatarUrl, onContinue, onBack, 
             {employeeName.charAt(0).toUpperCase()}
           </AvatarFallback>
         </Avatar>
-        <CardTitle className="text-2xl">Access Your Profile</CardTitle>
+        <CardTitle className="text-2xl">Your Profile, Your Work ID</CardTitle>
         <CardDescription className="text-base">
-          Your profile is your professional identity in GlobalyOS
+          One place for your professional presence in the company
         </CardDescription>
       </CardHeader>
 
@@ -50,9 +50,9 @@ export function ProfileGuideStep({ employeeName, avatarUrl, onContinue, onBack, 
               color: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400',
             },
             {
-              icon: Settings,
-              title: 'Manage preferences',
-              description: 'Control your notification settings and display options.',
+              icon: LayoutDashboard,
+              title: '360 View of Your Work',
+              description: 'Access your KPIs, OKRs, reviews, attendance history, and time-off balance in one unified view.',
               color: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
             },
           ].map((item, i) => (
