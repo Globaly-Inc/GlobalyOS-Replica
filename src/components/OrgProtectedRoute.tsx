@@ -44,7 +44,7 @@ export const OrgProtectedRoute = ({
     staleTime: 0, // Always refetch to get latest onboarding status
   });
 
-  // Check employee onboarding status for new hires
+  // Check employee onboarding status for all employees
   const { data: employeeOnboardingStatus, isLoading: employeeOnboardingLoading } = useQuery({
     queryKey: ['employee-onboarding-check', session?.user?.id, currentOrg?.id],
     queryFn: async () => {
@@ -171,12 +171,11 @@ export const OrgProtectedRoute = ({
 
   // STEP 2: Only check employee onboarding AFTER org onboarding is complete
   // This prevents the redirect loop between org and employee onboarding
-  // Only applies to new hires (is_new_hire === true)
+  // Applies to ALL employees who haven't completed onboarding
   if (
     !isDemoOrg &&
     !isEmployeeOnboardingRoute &&
     onboardingStatus?.org_onboarding_completed === true &&
-    employeeOnboardingStatus?.is_new_hire === true &&
     employeeOnboardingStatus?.employee_onboarding_completed === false
   ) {
     return <Navigate to={`/org/${currentOrg.slug}/onboarding/team`} replace />;
