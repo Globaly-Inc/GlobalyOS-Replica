@@ -5,8 +5,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { CheckCircle2, Loader2, Circle } from 'lucide-react';
+import { CheckCircle2, Circle, Building2, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -66,6 +65,7 @@ export function SetupProgressScreen({
   const [progress, setProgress] = useState(0);
   const [resolvedEmployeeId, setResolvedEmployeeId] = useState<string | null>(employeeId || null);
   const [isReady, setIsReady] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
 
   // Check if any offices have public holidays enabled
   const officesWithHolidays = offices.filter(o => o.public_holidays_enabled && o.address_components?.country_code);
@@ -117,34 +117,12 @@ export function SetupProgressScreen({
 
   // Setup public holidays for offices with retry logic
   const setupPublicHolidays = useCallback(async () => {
-    console.log('setupPublicHolidays called with:', {
-      hasOfficesWithPublicHolidays,
-      resolvedEmployeeId,
-      officesCount: officesWithHolidays.length,
-      offices: officesWithHolidays.map(o => ({
-        id: o.id,
-        name: o.name,
-        countryCode: o.address_components?.country_code,
-      })),
-    });
-
-    if (!hasOfficesWithPublicHolidays) {
-      console.log('No offices with public holidays enabled, skipping');
-      return;
-    }
-    
-    if (!resolvedEmployeeId) {
-      console.warn('Cannot setup public holidays: missing employeeId');
-      return;
-    }
+    if (!hasOfficesWithPublicHolidays || !resolvedEmployeeId) return;
 
     const maxRetries = 2;
-    let lastError: Error | null = null;
-
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        console.log(`Setting up public holidays (attempt ${attempt + 1}/${maxRetries + 1})...`);
-        const { data, error } = await supabase.functions.invoke('setup-public-holidays', {
+        const { error } = await supabase.functions.invoke('setup-public-holidays', {
           body: {
             organizationId,
             offices: officesWithHolidays.map(o => ({
@@ -154,43 +132,22 @@ export function SetupProgressScreen({
             createdBy: resolvedEmployeeId,
           },
         });
-
         if (error) throw error;
-        
-        console.log('Public holidays setup successful:', data);
-        return; // Success, exit retry loop
+        return;
       } catch (err) {
-        lastError = err as Error;
-        console.error(`Public holidays setup attempt ${attempt + 1} failed:`, err);
-        if (attempt < maxRetries) {
-          await new Promise(r => setTimeout(r, 1000)); // Wait 1s before retry
-        }
+        if (attempt < maxRetries) await new Promise(r => setTimeout(r, 1000));
       }
     }
-
-    console.error('All public holiday setup attempts failed:', lastError);
-    // Non-blocking - continue with setup
   }, [organizationId, officesWithHolidays, resolvedEmployeeId, hasOfficesWithPublicHolidays]);
 
-  // Setup employee schedules based on office schedules with retry logic
+  // Setup employee schedules
   const setupEmployeeSchedules = useCallback(async () => {
-    if (!hasAnyMembersWithOffice) {
-      console.log('No members with offices to setup schedules for');
-      return;
-    }
-
-    console.log('setupEmployeeSchedules called with:', {
-      memberCount: allMembersWithOffice.length,
-      members: allMembersWithOffice.map(m => ({ email: m.email, officeId: m.office_id })),
-    });
+    if (!hasAnyMembersWithOffice) return;
 
     const maxRetries = 2;
-    let lastError: Error | null = null;
-
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        console.log(`Setting up schedules for ${allMembersWithOffice.length} members (attempt ${attempt + 1}/${maxRetries + 1})...`);
-        const { data, error } = await supabase.functions.invoke('setup-employee-schedules', {
+        const { error } = await supabase.functions.invoke('setup-employee-schedules', {
           body: {
             organizationId,
             teamMembers: allMembersWithOffice.map(m => ({
@@ -199,75 +156,47 @@ export function SetupProgressScreen({
             })),
           },
         });
-
         if (error) throw error;
-        console.log('Employee schedules setup successful:', data);
-        return; // Success, exit retry loop
+        return;
       } catch (err) {
-        lastError = err as Error;
-        console.error(`Employee schedules setup attempt ${attempt + 1} failed:`, err);
-        if (attempt < maxRetries) {
-          await new Promise(r => setTimeout(r, 1000)); // Wait 1s before retry
-        }
+        if (attempt < maxRetries) await new Promise(r => setTimeout(r, 1000));
       }
     }
-    
-    console.error('All employee schedule setup attempts failed:', lastError);
-    // Non-blocking - continue with setup
   }, [organizationId, allMembersWithOffice, hasAnyMembersWithOffice]);
 
-  // Generate AI descriptions for all positions
+  // Generate AI descriptions for positions
   const generatePositionDescriptions = useCallback(async () => {
     try {
-      console.log('Generating AI descriptions for positions...');
-      const { data, error } = await supabase.functions.invoke('bulk-generate-position-descriptions', {
+      await supabase.functions.invoke('bulk-generate-position-descriptions', {
         body: { organizationId },
       });
-
-      if (error) {
-        console.error('Failed to generate position descriptions:', error);
-      } else {
-        console.log('Position descriptions result:', data);
-      }
     } catch (err) {
       console.error('Failed to generate position descriptions:', err);
-      // Non-blocking - continue with setup
     }
   }, [organizationId]);
 
   // Generate AI descriptions for employment types
   const generateEmploymentTypeDescriptions = useCallback(async () => {
     try {
-      console.log('Generating AI descriptions for employment types...');
-      const { data, error } = await supabase.functions.invoke('bulk-generate-employment-type-descriptions', {
+      await supabase.functions.invoke('bulk-generate-employment-type-descriptions', {
         body: { organizationId },
       });
-
-      if (error) {
-        console.error('Failed to generate employment type descriptions:', error);
-      } else {
-        console.log('Employment type descriptions result:', data);
-      }
     } catch (err) {
       console.error('Failed to generate employment type descriptions:', err);
-      // Non-blocking - continue with setup
     }
   }, [organizationId]);
 
-  // Create team member accounts (auth.users, profiles, employees, etc.)
+  // Create team member accounts
   const createTeamMembers = useCallback(async () => {
     if (teamMembers.length === 0) return;
 
-    console.log(`Creating ${teamMembers.length} team member accounts...`);
-
     for (const member of teamMembers) {
       try {
-        // Split full name for firstName/lastName
         const nameParts = (member.full_name || '').trim().split(' ');
         const firstName = nameParts[0] || '';
         const lastName = nameParts.slice(1).join(' ') || '';
 
-        const { data, error } = await supabase.functions.invoke('invite-team-member', {
+        await supabase.functions.invoke('invite-team-member', {
           body: {
             email: member.email,
             fullName: member.full_name,
@@ -279,21 +208,9 @@ export function SetupProgressScreen({
             officeId: member.office_id || null,
             organizationId,
             employmentType: 'employee',
-            skipEmail: true, // Emails sent separately via send-pending-invitations
+            skipEmail: true,
           },
         });
-
-        if (error) {
-          // Check for 409 (user exists) - skip gracefully
-          const errorContext = data?.error?.context || data?.context;
-          if (error.message?.includes('409') || errorContext?.code === 'USER_EXISTS') {
-            console.log(`User ${member.email} already exists, skipping`);
-          } else {
-            console.error(`Failed to create ${member.email}:`, error);
-          }
-        } else {
-          console.log(`Created account for ${member.email}`);
-        }
       } catch (err) {
         console.error(`Error creating ${member.email}:`, err);
       }
@@ -305,8 +222,7 @@ export function SetupProgressScreen({
     if (teamMembers.length === 0) return;
     
     try {
-      console.log(`Sending invitation emails to ${teamMembers.length} team members...`);
-      const { data, error } = await supabase.functions.invoke('send-pending-invitations', {
+      await supabase.functions.invoke('send-pending-invitations', {
         body: {
           organizationId,
           teamMembers: teamMembers.map(m => ({
@@ -318,116 +234,65 @@ export function SetupProgressScreen({
           })),
         },
       });
-
-      if (error) {
-        console.error('Failed to send invitation emails:', error);
-      } else {
-        console.log('Invitation emails result:', data);
-      }
     } catch (err) {
       console.error('Failed to send invitation emails:', err);
-      // Don't fail setup if emails fail
     }
   }, [organizationId, teamMembers]);
 
-  // Define tasks dynamically based on configuration
+  // Define tasks dynamically
   const tasks: SetupTask[] = [
     { id: 'org', label: 'Finalizing organization settings' },
     { id: 'depts', label: 'Configuring departments and roles' },
-    { 
-      id: 'positions', 
-      label: 'Generating AI position descriptions',
-      action: generatePositionDescriptions,
-    },
-    {
-      id: 'employment-types',
-      label: 'Generating employment type descriptions',
-      action: generateEmploymentTypeDescriptions,
-    },
+    { id: 'positions', label: 'Generating AI position descriptions', action: generatePositionDescriptions },
+    { id: 'employment-types', label: 'Generating employment type descriptions', action: generateEmploymentTypeDescriptions },
     { id: 'offices', label: 'Setting up offices' },
-    ...(hasOfficesWithPublicHolidays
-      ? [{
-          id: 'holidays',
-          label: 'Setting up public holidays',
-          action: setupPublicHolidays,
-        }]
-      : []),
-    // Create team member accounts BEFORE schedules and invitations
-    ...(teamMembersCount > 0
-      ? [{
-          id: 'accounts',
-          label: `Creating ${teamMembersCount} team account${teamMembersCount > 1 ? 's' : ''}`,
-          action: createTeamMembers,
-        }]
-      : []),
-    ...(hasAnyMembersWithOffice
-      ? [{
-          id: 'schedules',
-          label: 'Assigning work schedules',
-          action: setupEmployeeSchedules,
-        }]
-      : []),
-    ...(teamMembersCount > 0
-      ? [{
-          id: 'invites',
-          label: `Sending ${teamMembersCount} invitation${teamMembersCount > 1 ? 's' : ''}`,
-          action: sendInvitations,
-        }]
-      : []),
+    ...(hasOfficesWithPublicHolidays ? [{ id: 'holidays', label: 'Setting up public holidays', action: setupPublicHolidays }] : []),
+    ...(teamMembersCount > 0 ? [{ id: 'accounts', label: `Creating ${teamMembersCount} team account${teamMembersCount > 1 ? 's' : ''}`, action: createTeamMembers }] : []),
+    ...(hasAnyMembersWithOffice ? [{ id: 'schedules', label: 'Assigning work schedules', action: setupEmployeeSchedules }] : []),
+    ...(teamMembersCount > 0 ? [{ id: 'invites', label: `Sending ${teamMembersCount} invitation${teamMembersCount > 1 ? 's' : ''}`, action: sendInvitations }] : []),
     { id: 'dashboard', label: 'Preparing your dashboard' },
   ];
 
-  // Animate through tasks sequentially - wait until ready
+  // Calculate minimum duration per task for ~10 second experience
+  const minTotalDuration = 10000;
+  const minPerTask = Math.max(800, minTotalDuration / tasks.length);
+
+  // Animate through tasks sequentially
   useEffect(() => {
-    // Wait for employee ID resolution if we have offices with holidays
-    if (!isReady) {
-      console.log('Waiting for setup to be ready...');
-      return;
-    }
+    if (!isReady) return;
 
     let cancelled = false;
 
     const runTasks = async () => {
-      console.log('Starting setup tasks...', { 
-        taskCount: tasks.length, 
-        resolvedEmployeeId,
-        hasOfficesWithPublicHolidays 
-      });
-
       for (let i = 0; i < tasks.length; i++) {
         if (cancelled) return;
         
         const task = tasks[i];
         setCurrentTask(task.id);
         
-        // Update progress smoothly during task
         const progressPerTask = 100 / tasks.length;
         const startProgress = i * progressPerTask;
-        
-        // Animate progress during task execution
         setProgress(startProgress);
         
-        // Execute task action if exists
         if (task.action) {
           await task.action();
         }
         
-        // Simulate minimum task duration for visual effect
-        await new Promise(resolve => setTimeout(resolve, 600 + Math.random() * 400));
+        // Ensure minimum duration per task for smooth experience
+        await new Promise(resolve => setTimeout(resolve, minPerTask + Math.random() * 200));
         
         if (cancelled) return;
         
-        // Mark task complete
         setCompletedTasks(prev => [...prev, task.id]);
         setProgress(startProgress + progressPerTask);
       }
       
-      // All tasks complete
       setCurrentTask(null);
       setProgress(100);
+      setIsComplete(true);
       
-      // Brief pause at 100% before redirect
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // Show completion state briefly before redirect
+      await new Promise(resolve => setTimeout(resolve, 1200));
       
       if (!cancelled) {
         onComplete();
@@ -439,67 +304,153 @@ export function SetupProgressScreen({
     return () => {
       cancelled = true;
     };
-  }, [isReady, resolvedEmployeeId]); // Re-run when ready or employeeId resolves
+  }, [isReady, resolvedEmployeeId]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 p-4">
-      <Card className="w-full max-w-md border-0 shadow-lg">
-        <CardHeader className="text-center pb-4">
-          <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-            <Loader2 className="h-8 w-8 text-primary animate-spin" />
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4 overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-[10%] w-32 h-32 bg-primary/10 rounded-full blur-3xl animate-float" />
+        <div className="absolute bottom-20 right-[10%] w-40 h-40 bg-accent/10 rounded-full blur-3xl animate-float-particle" />
+        <div className="absolute top-1/2 left-[20%] w-24 h-24 bg-success/10 rounded-full blur-2xl animate-twinkle" />
+        <div className="absolute top-[30%] right-[25%] w-20 h-20 bg-primary/5 rounded-full blur-2xl animate-float" style={{ animationDelay: '1s' }} />
+      </div>
+
+      {/* Main content card */}
+      <Card className="relative w-full max-w-lg border-0 shadow-2xl bg-card/95 backdrop-blur-sm animate-scale-in">
+        <CardHeader className="text-center pb-2 pt-8">
+          {/* Animated logo with pulsing rings */}
+          <div className="relative mx-auto mb-6 h-20 w-20">
+            {/* Outer pulsing rings */}
+            <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" style={{ animationDuration: '2s' }} />
+            <div className="absolute inset-2 rounded-full bg-primary/15 animate-ping" style={{ animationDuration: '2.5s', animationDelay: '0.3s' }} />
+            
+            {/* Gradient spinning border */}
+            <div 
+              className="absolute inset-0 rounded-full p-[3px] animate-spin"
+              style={{ 
+                background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)), hsl(var(--primary)))',
+                animationDuration: '3s'
+              }}
+            >
+              <div className="h-full w-full rounded-full bg-card flex items-center justify-center">
+                <Building2 className="h-8 w-8 text-primary" />
+              </div>
+            </div>
           </div>
-          <CardTitle className="text-xl">{orgName}</CardTitle>
-          <CardDescription className="text-base">
-            Operating System is setting up...
+
+          <CardTitle className="text-2xl font-semibold tracking-tight">
+            Setting up {orgName}
+          </CardTitle>
+          <CardDescription className="text-base mt-2">
+            <span className="inline-flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+              </span>
+              Configuring your workspace
+            </span>
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Task list with animated checkmarks */}
-          <div className="space-y-3">
-            {tasks.map((task) => {
+
+        <CardContent className="space-y-6 pb-8">
+          {/* Task list with animations */}
+          <div className="space-y-2">
+            {tasks.map((task, index) => {
               const isCompleted = completedTasks.includes(task.id);
               const isCurrent = currentTask === task.id;
+              const isPending = !isCompleted && !isCurrent;
               
               return (
                 <div
                   key={task.id}
                   className={cn(
-                    "flex items-center gap-3 transition-all duration-300",
-                    isCompleted && "animate-fade-in"
+                    "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-500 ease-out",
+                    isCurrent && "bg-primary/5 border border-primary/20 shadow-sm scale-[1.02]",
+                    isCompleted && "opacity-80",
+                    isPending && "opacity-40"
                   )}
+                  style={{
+                    transitionDelay: `${index * 30}ms`,
+                  }}
                 >
-                  {isCompleted ? (
-                    <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0 animate-scale-in" />
-                  ) : isCurrent ? (
-                    <Loader2 className="h-5 w-5 text-primary flex-shrink-0 animate-spin" />
-                  ) : (
-                    <Circle className="h-5 w-5 text-muted-foreground/40 flex-shrink-0" />
-                  )}
+                  {/* Animated status icon */}
+                  <div className="relative h-5 w-5 flex-shrink-0">
+                    {isCompleted ? (
+                      <CheckCircle2 className="h-5 w-5 text-green-500 animate-scale-in" />
+                    ) : isCurrent ? (
+                      <div className="relative h-5 w-5">
+                        <div className="absolute inset-0 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+                      </div>
+                    ) : (
+                      <Circle className="h-5 w-5 text-muted-foreground/30" />
+                    )}
+                  </div>
+                  
                   <span
                     className={cn(
-                      "text-sm transition-colors duration-300",
-                      isCompleted
-                        ? "text-foreground"
-                        : isCurrent
-                        ? "text-foreground font-medium"
-                        : "text-muted-foreground"
+                      "text-sm transition-all duration-300 flex-1",
+                      isCompleted && "text-muted-foreground",
+                      isCurrent && "text-foreground font-medium",
+                      isPending && "text-muted-foreground"
                     )}
                   >
                     {task.label}
                   </span>
+
+                  {/* Completion indicator */}
+                  {isCompleted && (
+                    <span className="text-xs text-green-600 font-medium animate-fade-in">Done</span>
+                  )}
                 </div>
               );
             })}
           </div>
 
-          {/* Progress bar */}
-          <div className="space-y-2">
-            <Progress value={progress} className="h-2" />
-            <p className="text-center text-sm text-muted-foreground">
-              {Math.round(progress)}% complete
-            </p>
+          {/* Enhanced progress bar */}
+          <div className="space-y-3 pt-2">
+            <div className="relative h-2.5 w-full bg-muted rounded-full overflow-hidden">
+              {/* Progress fill with gradient */}
+              <div 
+                className="absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out"
+                style={{ 
+                  width: `${progress}%`,
+                  background: 'linear-gradient(90deg, hsl(var(--primary)), hsl(var(--accent)))',
+                }}
+              />
+              {/* Shimmer effect */}
+              <div 
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-marquee"
+                style={{ width: '200%' }}
+              />
+            </div>
+            
+            {/* Progress stats */}
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">
+                {completedTasks.length} of {tasks.length} tasks complete
+              </span>
+              <span className="font-medium text-primary">
+                {Math.round(progress)}%
+              </span>
+            </div>
           </div>
         </CardContent>
+
+        {/* Completion overlay */}
+        {isComplete && (
+          <div className="absolute inset-0 flex items-center justify-center bg-card/95 backdrop-blur-sm rounded-lg animate-fade-in z-10">
+            <div className="text-center space-y-4">
+              <div className="mx-auto h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center animate-scale-in">
+                <Sparkles className="h-8 w-8 text-green-600 dark:text-green-400" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-xl font-semibold">All set!</p>
+                <p className="text-sm text-muted-foreground">Redirecting to your dashboard...</p>
+              </div>
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   );
