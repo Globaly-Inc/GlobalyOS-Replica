@@ -145,9 +145,9 @@ serve(async (req) => {
 
 IMPORTANT: Return ONLY valid JSON, no markdown, no code blocks, no explanation.`;
 
-    const userPrompt = `For a ${sizeContext} in the ${normalizedCategory} industry, suggest:
+const userPrompt = `For a ${sizeContext} in the ${normalizedCategory} industry, suggest:
 1. 6-8 relevant departments (MUST always include "Executive" as the first department)
-2. 10-15 common positions with their departments (include CEO, CTO, CFO, COO in Executive department)
+2. 10-15 common positions with their departments. For executive roles, use full forms: "Chief Executive Officer (CEO)", "Chief Technology Officer (CTO)", "Chief Financial Officer (CFO)", "Chief Operating Officer (COO)"
 
 Focus on practical, commonly used structures. Consider the industry-specific roles.${learningContext}
 
@@ -279,8 +279,8 @@ function getDefaultStructure(industry?: string) {
     'Technology': {
       departments: ['Executive', 'Engineering', 'Product', 'Design', 'Marketing', 'Sales', 'Human Resources', 'Finance'],
       positions: [
-        { name: 'CEO', department: 'Executive' },
-        { name: 'CTO', department: 'Executive' },
+        { name: 'Chief Executive Officer (CEO)', department: 'Executive' },
+        { name: 'Chief Technology Officer (CTO)', department: 'Executive' },
         { name: 'Software Engineer', department: 'Engineering' },
         { name: 'Senior Engineer', department: 'Engineering' },
         { name: 'Engineering Manager', department: 'Engineering' },
@@ -296,7 +296,7 @@ function getDefaultStructure(industry?: string) {
     'Education Consultancy': {
       departments: ['Executive', 'Visa & Immigration', 'Student Services', 'Admissions', 'Counseling', 'Marketing', 'Finance', 'Administration'],
       positions: [
-        { name: 'CEO', department: 'Executive' },
+        { name: 'Chief Executive Officer (CEO)', department: 'Executive' },
         { name: 'Director of Immigration', department: 'Visa & Immigration' },
         { name: 'Migration Agent', department: 'Visa & Immigration' },
         { name: 'Visa Consultant', department: 'Visa & Immigration' },
@@ -314,7 +314,7 @@ function getDefaultStructure(industry?: string) {
     'Healthcare': {
       departments: ['Executive', 'Medical', 'Nursing', 'Administration', 'Finance', 'Human Resources', 'Operations'],
       positions: [
-        { name: 'CEO', department: 'Executive' },
+        { name: 'Chief Executive Officer (CEO)', department: 'Executive' },
         { name: 'Medical Director', department: 'Medical' },
         { name: 'Physician', department: 'Medical' },
         { name: 'Nurse Manager', department: 'Nursing' },
@@ -329,7 +329,7 @@ function getDefaultStructure(industry?: string) {
     'Retail': {
       departments: ['Executive', 'Store Operations', 'Sales', 'Merchandising', 'Marketing', 'Finance', 'Human Resources'],
       positions: [
-        { name: 'CEO', department: 'Executive' },
+        { name: 'Chief Executive Officer (CEO)', department: 'Executive' },
         { name: 'Store Manager', department: 'Store Operations' },
         { name: 'Assistant Manager', department: 'Store Operations' },
         { name: 'Sales Associate', department: 'Sales' },
@@ -343,7 +343,7 @@ function getDefaultStructure(industry?: string) {
     'Migration Agency': {
       departments: ['Executive', 'Immigration Consulting', 'Case Management', 'Compliance', 'Client Services', 'Marketing', 'Administration'],
       positions: [
-        { name: 'CEO', department: 'Executive' },
+        { name: 'Chief Executive Officer (CEO)', department: 'Executive' },
         { name: 'Principal Migration Agent', department: 'Immigration Consulting' },
         { name: 'Migration Agent', department: 'Immigration Consulting' },
         { name: 'Case Manager', department: 'Case Management' },
@@ -360,9 +360,9 @@ function getDefaultStructure(industry?: string) {
   const result = industryDefaults[industry || ''] || {
     departments: ['Executive', 'Operations', 'Sales', 'Marketing', 'Finance', 'Human Resources', 'Customer Service'],
     positions: [
-      { name: 'CEO', department: 'Executive' },
-      { name: 'COO', department: 'Executive' },
-      { name: 'CFO', department: 'Executive' },
+      { name: 'Chief Executive Officer (CEO)', department: 'Executive' },
+      { name: 'Chief Operating Officer (COO)', department: 'Executive' },
+      { name: 'Chief Financial Officer (CFO)', department: 'Executive' },
       { name: 'Operations Manager', department: 'Operations' },
       { name: 'Sales Manager', department: 'Sales' },
       { name: 'Sales Representative', department: 'Sales' },
@@ -377,7 +377,7 @@ function getDefaultStructure(industry?: string) {
   // Ensure Executive is always first
   if (!result.departments.includes('Executive')) {
     result.departments.unshift('Executive');
-    result.positions.unshift({ name: 'CEO', department: 'Executive' });
+    result.positions.unshift({ name: 'Chief Executive Officer (CEO)', department: 'Executive' });
   } else if (result.departments[0] !== 'Executive') {
     result.departments = ['Executive', ...result.departments.filter(d => d !== 'Executive')];
   }
