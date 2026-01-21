@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { DatePicker } from '@/components/ui/date-picker';
 import { ArrowRight, User } from 'lucide-react';
 
 interface PersonalInfoStepProps {
@@ -70,10 +71,13 @@ export function PersonalInfoStep({ initialData, prefillData, onSave, isSaving }:
             </div>
             <div className="space-y-2">
               <Label>Date of Birth</Label>
-              <Input
-                type="date"
+              <DatePicker
                 value={formData.date_of_birth}
-                onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
+                onChange={(value) => setFormData({ ...formData, date_of_birth: value })}
+                placeholder="Select date of birth"
+                allowFutureDates={false}
+                fromYear={1940}
+                toYear={new Date().getFullYear() - 16}
               />
             </div>
           </div>

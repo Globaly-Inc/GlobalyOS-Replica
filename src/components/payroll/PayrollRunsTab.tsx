@@ -12,9 +12,9 @@ import { Plus, Calculator, Play, Check, Eye, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, addDays } from "date-fns";
 import type { PayrollRun, CreatePayrollRunInput, PayrollRunStatus, PayrollRunItem } from "@/types/payroll";
@@ -279,31 +279,28 @@ export const PayrollRunsTab = () => {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="period_start">Period Start</Label>
-                <Input
-                  id="period_start"
-                  type="date"
+                <DatePicker
                   value={formData.period_start}
-                  onChange={(e) => setFormData(prev => ({ ...prev, period_start: e.target.value }))}
+                  onChange={(value) => setFormData(prev => ({ ...prev, period_start: value }))}
+                  placeholder="Select start date"
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="period_end">Period End</Label>
-                <Input
-                  id="period_end"
-                  type="date"
+                <DatePicker
                   value={formData.period_end}
-                  onChange={(e) => setFormData(prev => ({ ...prev, period_end: e.target.value }))}
+                  onChange={(value) => setFormData(prev => ({ ...prev, period_end: value }))}
+                  placeholder="Select end date"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="pay_date">Pay Date</Label>
-              <Input
-                id="pay_date"
-                type="date"
+              <DatePicker
                 value={formData.pay_date}
-                onChange={(e) => setFormData(prev => ({ ...prev, pay_date: e.target.value }))}
+                onChange={(value) => setFormData(prev => ({ ...prev, pay_date: value }))}
+                placeholder="Select pay date"
               />
             </div>
           </div>

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { toast } from "sonner";
@@ -366,11 +367,10 @@ export const RecoverOrphanedUsersDialog = ({ open, onOpenChange }: RecoverOrphan
 
                   <div className="space-y-2">
                     <Label htmlFor="joinDate">Join Date *</Label>
-                    <Input
-                      id="joinDate"
-                      type="date"
+                    <DatePicker
                       value={joinDate}
-                      onChange={(e) => setJoinDate(e.target.value)}
+                      onChange={(value) => setJoinDate(value)}
+                      placeholder="Select join date"
                     />
                   </div>
 

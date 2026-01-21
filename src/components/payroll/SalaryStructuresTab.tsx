@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import type { CreateSalaryStructureInput, SalaryPeriod, SalaryType } from "@/types/payroll";
@@ -304,11 +305,10 @@ export const SalaryStructuresTab = () => {
 
             <div className="space-y-2">
               <Label htmlFor="effective_from">Effective From</Label>
-              <Input
-                id="effective_from"
-                type="date"
+              <DatePicker
                 value={formData.effective_from}
-                onChange={(e) => setFormData(prev => ({ ...prev, effective_from: e.target.value }))}
+                onChange={(value) => setFormData(prev => ({ ...prev, effective_from: value }))}
+                placeholder="Select effective date"
               />
             </div>
           </div>

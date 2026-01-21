@@ -8,11 +8,11 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { DatePicker } from "@/components/ui/date-picker";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useProrationPreview } from "@/services/useWorkflows";
@@ -117,12 +117,12 @@ export function SetResignationDialog({
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="lastWorkingDay">Last Working Day</Label>
-            <Input
-              id="lastWorkingDay"
-              type="date"
+            <DatePicker
               value={lastWorkingDay}
-              onChange={(e) => setLastWorkingDay(e.target.value)}
-              min={minDate}
+              onChange={(value) => setLastWorkingDay(value)}
+              placeholder="Select last working day"
+              allowPastDates={false}
+              minDate={addDays(new Date(), 1)}
             />
           </div>
 

@@ -15,6 +15,7 @@ import { ArrowRight, ArrowLeft, User, Home, Phone, Linkedin, AlertCircle, Camera
 import { cn } from '@/lib/utils';
 import { AddressAutocomplete, type AddressComponents } from '@/components/ui/address-autocomplete';
 import { ImageCropper } from '@/components/ui/image-cropper';
+import { DatePicker } from '@/components/ui/date-picker';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -368,10 +369,13 @@ export function CompleteProfileStep({
               </div>
               <div className="space-y-2">
                 <Label>Date of Birth <span className="text-destructive">*</span></Label>
-                <Input
-                  type="date"
+                <DatePicker
                   value={formData.date_of_birth}
-                  onChange={(e) => updateField('date_of_birth', e.target.value)}
+                  onChange={(value) => updateField('date_of_birth', value)}
+                  placeholder="Select date of birth"
+                  allowFutureDates={false}
+                  fromYear={1940}
+                  toYear={new Date().getFullYear() - 16}
                   className={inputClassName('date_of_birth')}
                 />
                 {errors.date_of_birth && (
