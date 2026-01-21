@@ -2321,10 +2321,12 @@ export type Database = {
           created_at: string | null
           current_step: number | null
           employee_id: string
+          guides_viewed: Json | null
           id: string
           organization_id: string
           personal_info: Json | null
           skipped: boolean | null
+          timezone_setup_completed: boolean | null
           tour_completed: boolean | null
           updated_at: string | null
         }
@@ -2334,10 +2336,12 @@ export type Database = {
           created_at?: string | null
           current_step?: number | null
           employee_id: string
+          guides_viewed?: Json | null
           id?: string
           organization_id: string
           personal_info?: Json | null
           skipped?: boolean | null
+          timezone_setup_completed?: boolean | null
           tour_completed?: boolean | null
           updated_at?: string | null
         }
@@ -2347,10 +2351,12 @@ export type Database = {
           created_at?: string | null
           current_step?: number | null
           employee_id?: string
+          guides_viewed?: Json | null
           id?: string
           organization_id?: string
           personal_info?: Json | null
           skipped?: boolean | null
+          timezone_setup_completed?: boolean | null
           tour_completed?: boolean | null
           updated_at?: string | null
         }
