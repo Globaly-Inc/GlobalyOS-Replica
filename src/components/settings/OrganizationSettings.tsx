@@ -7,10 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Building2, Users, Save, Check, ChevronsUpDown, Globe, FileText, MapPin, Mail, Phone } from "lucide-react";
+import { Building2, Users, Save, Check, ChevronsUpDown, Globe, FileText, Mail, Phone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganization } from "@/hooks/useOrganization";
-import { AddressAutocomplete, AddressComponents } from "@/components/ui/address-autocomplete";
+import { StructuredAddressInput, type AddressValue, EMPTY_ADDRESS } from "@/components/ui/structured-address-input";
 import { LogoUpload } from "@/components/onboarding/wizard/LogoUpload";
 import { BUSINESS_CATEGORIES } from "@/constants/businessCategories";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,24 @@ import { cn } from "@/lib/utils";
 interface OrganizationSettingsProps {
   isOwner: boolean;
 }
+
+// Helper to extract address value from stored components
+const extractAddressValue = (
+  components?: Record<string, unknown> | null
+): AddressValue => {
+  if (!components) return EMPTY_ADDRESS;
+  return {
+    country: (components.country_code as string) || '',
+    street: (components.route as string) || '',
+    city: (components.locality as string) || '',
+    state: (components.administrative_area_level_1 as string) || '',
+    postcode: (components.postal_code as string) || '',
+    lat: components.lat as number | undefined,
+    lng: components.lng as number | undefined,
+    place_id: components.place_id as string | undefined,
+    google_maps_url: components.google_maps_url as string | undefined,
+  };
+};
 
 export function OrganizationSettings({ isOwner }: OrganizationSettingsProps) {
   const { toast } = useToast();
@@ -28,8 +46,7 @@ export function OrganizationSettings({ isOwner }: OrganizationSettingsProps) {
   // Form state
   const [orgName, setOrgName] = useState("");
   const [legalBusinessName, setLegalBusinessName] = useState("");
-  const [businessAddress, setBusinessAddress] = useState("");
-  const [businessAddressComponents, setBusinessAddressComponents] = useState<AddressComponents | null>(null);
+  const [addressValue, setAddressValue] = useState<AddressValue>(EMPTY_ADDRESS);
   const [website, setWebsite] = useState("");
   const [businessRegistrationNumber, setBusinessRegistrationNumber] = useState("");
   const [businessEmail, setBusinessEmail] = useState("");
@@ -43,8 +60,7 @@ export function OrganizationSettings({ isOwner }: OrganizationSettingsProps) {
     if (currentOrg) {
       setOrgName(currentOrg.name);
       setLegalBusinessName(currentOrg.legal_business_name || "");
-      setBusinessAddress(currentOrg.business_address || "");
-      setBusinessAddressComponents(currentOrg.business_address_components as AddressComponents | null);
+      setAddressValue(extractAddressValue(currentOrg.business_address_components as Record<string, unknown> | null));
       setWebsite(currentOrg.website || "");
       setBusinessRegistrationNumber(currentOrg.business_registration_number || "");
       setBusinessEmail(currentOrg.business_email || "");
@@ -84,14 +100,6 @@ export function OrganizationSettings({ isOwner }: OrganizationSettingsProps) {
     }
   };
 
-
-  const handleAddressChange = (address: string, components?: AddressComponents) => {
-    setBusinessAddress(address);
-    if (components) {
-      setBusinessAddressComponents(components);
-    }
-  };
-
   const normalizeWebsite = (url: string): string => {
     if (!url.trim()) return "";
     let normalized = url.trim().toLowerCase();
@@ -106,17 +114,33 @@ export function OrganizationSettings({ isOwner }: OrganizationSettingsProps) {
     
     setLoading(true);
     try {
+      // Build address components for storage
+      const business_address = [addressValue.street, addressValue.city, addressValue.state, addressValue.postcode].filter(Boolean).join(', ');
+      const business_address_components = {
+        country_code: addressValue.country,
+        country: addressValue.country,
+        route: addressValue.street,
+        locality: addressValue.city,
+        administrative_area_level_1: addressValue.state,
+        postal_code: addressValue.postcode,
+        lat: addressValue.lat,
+        lng: addressValue.lng,
+        place_id: addressValue.place_id,
+        google_maps_url: addressValue.google_maps_url,
+        formatted_address: business_address,
+      };
+
       const updatePayload: Record<string, unknown> = {
         name: orgName.trim(),
         legal_business_name: legalBusinessName.trim() || null,
-        business_address: businessAddress || null,
-        business_address_components: businessAddressComponents || null,
+        business_address: business_address || null,
+        business_address_components: business_address_components || null,
         website: normalizeWebsite(website) || null,
         business_registration_number: businessRegistrationNumber.trim() || null,
         business_email: businessEmail.trim() || null,
         business_phone: businessPhone.trim() || null,
         industry: industry || null,
-        country: businessAddressComponents?.country || currentOrg.country || null,
+        country: addressValue.country || currentOrg.country || null,
       };
 
       const { error } = await supabase
@@ -228,15 +252,14 @@ export function OrganizationSettings({ isOwner }: OrganizationSettingsProps) {
           <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Contact Details</h3>
           
           <div className="space-y-2">
-            <Label htmlFor="businessAddress" className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-muted-foreground" />
+            <Label className="flex items-center gap-2">
               Business Address
             </Label>
-            <AddressAutocomplete
-              value={businessAddress}
-              onChange={handleAddressChange}
-              placeholder="Start typing your business address..."
+            <StructuredAddressInput
+              value={addressValue}
+              onChange={setAddressValue}
               disabled={!isOwner}
+              allowBusinesses
             />
           </div>
 

@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ArrowRight, ArrowLeft, User, Home, Phone, Linkedin, AlertCircle, Camera, Upload, Loader2, Mail } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { AddressAutocomplete, type AddressComponents } from '@/components/ui/address-autocomplete';
+import { StructuredAddressInput, type AddressValue, EMPTY_ADDRESS } from '@/components/ui/structured-address-input';
 import { ImageCropper } from '@/components/ui/image-cropper';
 import { DatePicker } from '@/components/ui/date-picker';
 import { supabase } from '@/integrations/supabase/client';
@@ -255,26 +255,19 @@ export function CompleteProfileStep({
     }
   };
 
-  const handleAddressChange = (address: string, components?: AddressComponents) => {
-    if (components) {
-      setFormData(prev => ({
-        ...prev,
-        home_address: address,
-        street: components.street_number 
-          ? `${components.street_number} ${components.route || ''}`.trim()
-          : components.route || '',
-        city: components.locality || '',
-        state: components.administrative_area_level_1 || '',
-        postcode: components.postal_code || '',
-        country: components.country || '',
-      }));
-      setHasValidAddress(true);
-      if (errors.street) {
-        setErrors(prev => ({ ...prev, street: undefined }));
-      }
-    } else {
-      setFormData(prev => ({ ...prev, home_address: address }));
-      setHasValidAddress(false);
+  const handleAddressChange = (addressValue: AddressValue) => {
+    setFormData(prev => ({
+      ...prev,
+      home_address: [addressValue.street, addressValue.city, addressValue.state, addressValue.postcode].filter(Boolean).join(', '),
+      street: addressValue.street,
+      city: addressValue.city,
+      state: addressValue.state,
+      postcode: addressValue.postcode,
+      country: addressValue.country,
+    }));
+    setHasValidAddress(!!(addressValue.country && addressValue.street));
+    if (errors.street && addressValue.street) {
+      setErrors(prev => ({ ...prev, street: undefined }));
     }
   };
 
@@ -468,34 +461,21 @@ export function CompleteProfileStep({
               Home Address
             </div>
             
-            <div className="space-y-2">
-              <Label>Address <span className="text-destructive">*</span></Label>
-              <AddressAutocomplete
-                value={formData.home_address}
-                onChange={handleAddressChange}
-                placeholder="Start typing your home address..."
-                allowBusinesses={false}
-                className={errors.street ? 'border-destructive' : ''}
-              />
-              {!hasValidAddress && formData.home_address && (
-                <p className="text-sm text-amber-600">
-                  Please select an address from the suggestions
-                </p>
-              )}
-              {errors.street && (
-                <p className="text-sm text-destructive">{errors.street}</p>
-              )}
-            </div>
-            
-            {/* Show parsed address preview when valid */}
-            {hasValidAddress && formData.street && (
-              <div className="p-3 bg-muted/50 rounded-lg text-sm space-y-1">
-                <p><span className="font-medium">Street:</span> {formData.street}</p>
-                <p><span className="font-medium">City:</span> {formData.city}</p>
-                <p><span className="font-medium">State:</span> {formData.state}</p>
-                <p><span className="font-medium">Postal Code:</span> {formData.postcode}</p>
-                <p><span className="font-medium">Country:</span> {formData.country}</p>
-              </div>
+            <StructuredAddressInput
+              value={{
+                country: formData.country,
+                street: formData.street,
+                city: formData.city,
+                state: formData.state,
+                postcode: formData.postcode,
+              }}
+              onChange={handleAddressChange}
+              required
+              allowBusinesses={false}
+              error={!!errors.street}
+            />
+            {errors.street && (
+              <p className="text-sm text-destructive">{errors.street}</p>
             )}
           </div>
 

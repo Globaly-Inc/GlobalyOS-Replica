@@ -135,7 +135,10 @@ export function AddressAutocomplete({
   }, []);
 
   // Load Google Maps API and initialize autocomplete
+  // Re-initialize when countryCode changes
   useEffect(() => {
+    let isMounted = true;
+    
     const loadAndInit = async () => {
       try {
         // Load Google Maps script if not already loaded
@@ -165,8 +168,16 @@ export function AddressAutocomplete({
           await googleMapsPromise;
         }
         
+        if (!isMounted) return;
+        
+        // Clean up previous autocomplete instance if exists
+        if (autocompleteRef.current) {
+          google.maps.event.clearInstanceListeners(autocompleteRef.current);
+          autocompleteRef.current = null;
+        }
+        
         // Initialize autocomplete
-        if (inputRef.current && window.google?.maps?.places && !autocompleteRef.current) {
+        if (inputRef.current && window.google?.maps?.places) {
           // Use establishment + geocode types for comprehensive results
           // This finds both addresses AND businesses like "GlobalyHub"
           autocompleteRef.current = new google.maps.places.Autocomplete(inputRef.current, {
@@ -241,18 +252,24 @@ export function AddressAutocomplete({
           });
         }
         
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       } catch (err) {
         console.error('Error initializing Google Places:', err);
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     loadAndInit();
 
     return () => {
+      isMounted = false;
       if (autocompleteRef.current) {
         google.maps.event.clearInstanceListeners(autocompleteRef.current);
+        autocompleteRef.current = null;
       }
     };
   }, [countryCode, allowBusinesses, onChange]);
