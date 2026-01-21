@@ -161,7 +161,7 @@ export function KnowledgeTransferList({ transfers, employeeId, workflowId, canEd
                         {transfer.scheduled_date && (
                           <div className="flex items-center gap-1">
                             <Calendar className="h-4 w-4" />
-                            {format(new Date(transfer.scheduled_date), "MMM d, yyyy")}
+                            {format(new Date(transfer.scheduled_date), "dd MMM yyyy")}
                           </div>
                         )}
                         {transfer.recipient && (

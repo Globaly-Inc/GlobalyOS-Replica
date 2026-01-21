@@ -90,7 +90,7 @@ export function OffboardingPanel({ employeeId, lastWorkingDay, canEdit = false }
               <div>
                 <h2 className="text-lg font-semibold">Offboarding Progress</h2>
                 <p className="text-sm text-muted-foreground">
-                  Last working day: {format(new Date(lastWorkingDay), "MMMM d, yyyy")}
+                  Last working day: {format(new Date(lastWorkingDay), "dd MMM yyyy")}
                 </p>
               </div>
             </div>

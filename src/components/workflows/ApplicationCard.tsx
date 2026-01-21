@@ -71,7 +71,7 @@ export function ApplicationCard({ workflow, onClick }: ApplicationCardProps) {
           <div className="flex items-center gap-4 mt-2">
             <span className="text-xs text-muted-foreground">
               {workflow.type === 'onboarding' ? 'Started' : 'Last Day'}:{' '}
-              {format(new Date(workflow.target_date), 'MMM d, yyyy')}
+              {format(new Date(workflow.target_date), 'dd MMM yyyy')}
             </span>
             
             <div className="flex-1 max-w-[200px]">

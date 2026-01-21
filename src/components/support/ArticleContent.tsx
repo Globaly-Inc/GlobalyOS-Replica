@@ -110,7 +110,7 @@ export const ArticleContent = ({ article, onHelpful, isAdmin = false }: ArticleC
           </span>
           <span className="flex items-center gap-1">
             <Clock className="h-4 w-4" />
-            Updated {format(new Date(article.updated_at), 'MMM d, yyyy')}
+            Updated {format(new Date(article.updated_at), 'dd MMM yyyy')}
           </span>
         </div>
       </header>

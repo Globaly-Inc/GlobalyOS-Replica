@@ -358,7 +358,7 @@ const AttendanceHistory = () => {
                 <div className="flex items-center gap-4">
                   {getStatusIcon(record.status)}
                   <div>
-                    <p className="font-medium">{format(parseISO(record.date), "EEEE, MMMM d, yyyy")}</p>
+                    <p className="font-medium">{format(parseISO(record.date), "EEEE, dd MMM yyyy")}</p>
                       <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
                         <div className="flex flex-col gap-0.5">
                           <span>

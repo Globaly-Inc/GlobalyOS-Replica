@@ -141,7 +141,7 @@ export const OrgActivityTab = ({ organizationId }: OrgActivityTabProps) => {
   const getDateLabel = (date: Date) => {
     if (isToday(date)) return 'Today';
     if (isYesterday(date)) return 'Yesterday';
-    return format(date, 'EEEE, MMMM d, yyyy');
+    return format(date, 'EEEE, dd MMM yyyy');
   };
 
   const renderChanges = (changes: unknown) => {

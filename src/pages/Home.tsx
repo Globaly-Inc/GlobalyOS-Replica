@@ -520,7 +520,7 @@ const Home = () => {
                     {greeting}{currentUserName ? `, ${currentUserName}` : ""}
                   </h1>
                   <p className="text-sm text-white/80 mt-1">
-                    {formatInTimeZone(currentTime, timezone, "EEEE, MMMM d, yyyy")} • {formatInTimeZone(currentTime, timezone, "h:mm a")}
+                    {formatInTimeZone(currentTime, timezone, "EEEE, dd MMM yyyy")} • {formatInTimeZone(currentTime, timezone, "h:mm a")}
                   </p>
                   <Popover open={timezonePopoverOpen} onOpenChange={setTimezonePopoverOpen}>
                     <PopoverTrigger asChild>

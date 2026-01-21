@@ -203,7 +203,7 @@ export const SalaryStructuresTab = () => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Effective:</span>
-                    <span>{format(new Date(structure.effective_from), 'MMM d, yyyy')}</span>
+                    <span>{format(new Date(structure.effective_from), 'dd MMM yyyy')}</span>
                   </div>
                   {structure.components && structure.components.length > 0 && (
                     <div className="pt-2 border-t mt-2">

@@ -82,7 +82,7 @@ export function DatePicker({
         >
           <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
           <span className="flex-1 truncate">
-            {selectedDate ? format(selectedDate, "MMMM d, yyyy") : placeholder}
+            {selectedDate ? format(selectedDate, "dd MMM yyyy") : placeholder}
           </span>
           {clearable && value && (
             <X

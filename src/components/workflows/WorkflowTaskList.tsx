@@ -205,7 +205,7 @@ export function WorkflowTaskList({ tasks, canEdit = false }: WorkflowTaskListPro
                             )}
                             {task.completed_by_employee && task.completed_at && (
                               <p className="text-xs text-muted-foreground mt-1">
-                                Completed by {task.completed_by_employee.profiles.full_name} on {format(new Date(task.completed_at), "MMM d, yyyy")}
+                                Completed by {task.completed_by_employee.profiles.full_name} on {format(new Date(task.completed_at), "dd MMM yyyy")}
                               </p>
                             )}
                           </div>

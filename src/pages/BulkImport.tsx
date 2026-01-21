@@ -412,7 +412,7 @@ const DatePickerCell = ({
           )}
         >
           <span className="truncate">
-            {selectedDate ? format(selectedDate, 'd MMM yyyy') : <span className="text-muted-foreground">{placeholder}</span>}
+            {selectedDate ? format(selectedDate, 'dd MMM yyyy') : <span className="text-muted-foreground">{placeholder}</span>}
           </span>
           <CalendarIcon className="ml-1 h-3 w-3 shrink-0 opacity-50" />
         </button>

@@ -283,7 +283,7 @@ const ManageSpacesDialog = ({
                           <span>•</span>
                           <span>
                             Created{" "}
-                            {format(new Date(space.created_at), "MMM d, yyyy")}
+                            {format(new Date(space.created_at), "dd MMM yyyy")}
                           </span>
                         </div>
                       </div>

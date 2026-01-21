@@ -356,7 +356,7 @@ const BillingSettings = () => {
               {subscription?.current_period_end && (
                 <p className="text-sm text-muted-foreground">
                   {subscription.cancel_at_period_end ? "Cancels on" : "Renews on"}{" "}
-                  {format(parseISO(subscription.current_period_end), "MMM d, yyyy")}
+                  {format(parseISO(subscription.current_period_end), "dd MMM yyyy")}
                 </p>
               )}
               <div className="flex gap-2 mt-2">
@@ -529,7 +529,7 @@ const BillingSettings = () => {
                 {invoices.map((invoice) => (
                   <TableRow key={invoice.id}>
                     <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
-                    <TableCell>{format(parseISO(invoice.created_at), "MMM d, yyyy")}</TableCell>
+                    <TableCell>{format(parseISO(invoice.created_at), "dd MMM yyyy")}</TableCell>
                     <TableCell>
                       ${invoice.amount.toFixed(2)} {invoice.currency}
                     </TableCell>
