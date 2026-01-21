@@ -84,6 +84,7 @@ export function StructuredAddressInput({
   
   const handleAddressSelect = (address: string, components?: AddressComponents) => {
     if (components && components.formatted_address) {
+      // Google autocomplete selection - auto-populate all fields
       onChange({
         ...value,
         street: components.street_number 
@@ -96,6 +97,16 @@ export function StructuredAddressInput({
         lng: components.lng,
         place_id: components.place_id,
         google_maps_url: components.google_maps_url,
+      });
+    } else {
+      // Manual input - just update the street field, clear geocoding data
+      onChange({
+        ...value,
+        street: address,
+        lat: undefined,
+        lng: undefined,
+        place_id: undefined,
+        google_maps_url: undefined,
       });
     }
   };
