@@ -28,9 +28,14 @@ import { OfficesStep } from '@/components/onboarding/wizard/OfficesStep';
 import { DepartmentsRolesStep } from '@/components/onboarding/wizard/DepartmentsRolesStep';
 import { TeamSeedingStep } from '@/components/onboarding/wizard/TeamSeedingStep';
 import { OrgCompleteStep } from '@/components/onboarding/wizard/OrgCompleteStep';
+import { ProfileGuideStep } from '@/components/onboarding/employee/ProfileGuideStep';
+import { DirectoryWikiGuideStep } from '@/components/onboarding/employee/DirectoryWikiGuideStep';
+import { SocialFeedGuideStep } from '@/components/onboarding/employee/SocialFeedGuideStep';
+import { CheckInGuideStep } from '@/components/onboarding/employee/CheckInGuideStep';
+import { LeaveGuideStep } from '@/components/onboarding/employee/LeaveGuideStep';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 12;
 const STEP_NAMES = [
   'Welcome',
   'Organization',
@@ -38,6 +43,11 @@ const STEP_NAMES = [
   'Departments & Roles',
   'Your Profile',
   'Team',
+  'Profile',
+  'Directory & Wiki',
+  'Social Feed',
+  'Check-In',
+  'Leave',
   'Complete'
 ];
 
@@ -245,6 +255,48 @@ export default function OrgOnboardingWizard() {
             onSkip={() => handleNext({ team_members: [] })}
             isSaving={saveStep.isPending || isAdvancing}
             organizationId={currentOrg?.id || ''}
+          />
+        );
+      case 'profile-guide':
+        return (
+          <ProfileGuideStep
+            employeeName={session?.user?.user_metadata?.full_name?.split(' ')[0] || 'there'}
+            avatarUrl={onboardingData?.owner_profile?.avatar_url}
+            onContinue={() => handleNext()}
+            onBack={handleBack}
+            isNavigating={saveStep.isPending || isAdvancing}
+          />
+        );
+      case 'directory-wiki-guide':
+        return (
+          <DirectoryWikiGuideStep
+            onContinue={() => handleNext()}
+            onBack={handleBack}
+            isNavigating={saveStep.isPending || isAdvancing}
+          />
+        );
+      case 'social-feed-guide':
+        return (
+          <SocialFeedGuideStep
+            onContinue={() => handleNext()}
+            onBack={handleBack}
+            isNavigating={saveStep.isPending || isAdvancing}
+          />
+        );
+      case 'checkin-guide':
+        return (
+          <CheckInGuideStep
+            onContinue={() => handleNext()}
+            onBack={handleBack}
+            isNavigating={saveStep.isPending || isAdvancing}
+          />
+        );
+      case 'leave-guide':
+        return (
+          <LeaveGuideStep
+            onContinue={() => handleNext()}
+            onBack={handleBack}
+            isNavigating={saveStep.isPending || isAdvancing}
           />
         );
       case 'complete':
