@@ -15,7 +15,8 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { AddressAutocomplete, AddressComponents } from '@/components/ui/address-autocomplete';
+import { StructuredAddressInput, type AddressValue, EMPTY_ADDRESS } from '@/components/ui/structured-address-input';
+import { type AddressComponents } from '@/components/ui/address-autocomplete';
 import { 
   Building2, 
   Users, 
@@ -179,20 +180,29 @@ const Signup = () => {
   const [organizationName, setOrganizationName] = useState("");
   const [industry, setIndustry] = useState("");
   const [companySize, setCompanySize] = useState("");
-  const [businessAddress, setBusinessAddress] = useState("");
+  const [businessAddressValue, setBusinessAddressValue] = useState<AddressValue>(EMPTY_ADDRESS);
   const [businessAddressComponents, setBusinessAddressComponents] = useState<AddressComponents | null>(null);
-  const [country, setCountry] = useState("");
   const [businessCategoryOpen, setBusinessCategoryOpen] = useState(false);
 
-  // Handle address change from autocomplete
-  const handleAddressChange = (address: string, components?: AddressComponents) => {
-    setBusinessAddress(address);
-    setBusinessAddressComponents(components || null);
+  // Handle address change from StructuredAddressInput
+  const handleAddressChange = (addressValue: AddressValue) => {
+    setBusinessAddressValue(addressValue);
     
-    // Auto-extract country from address components
-    if (components?.country) {
-      setCountry(components.country);
-    }
+    // Build address components for backend
+    const components: AddressComponents = {
+      locality: addressValue.city,
+      administrative_area_level_1: addressValue.state,
+      postal_code: addressValue.postcode,
+      country: addressValue.country,
+      country_code: addressValue.country,
+      lat: addressValue.lat,
+      lng: addressValue.lng,
+      place_id: addressValue.place_id,
+      google_maps_url: addressValue.google_maps_url,
+      formatted_address: addressValue.street,
+      route: addressValue.street,
+    };
+    setBusinessAddressComponents(components);
   };
   
   // Step 3: User details
@@ -224,14 +234,15 @@ const Signup = () => {
         organizationName, 
         industry, 
         companySize, 
-        businessAddress,
-        country,
+        businessAddress: businessAddressValue.street,
+        country: businessAddressValue.country,
         fullName, 
         email, 
         phone, 
         acceptTerms 
       });
       setErrors({});
+      return true;
       return true;
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -273,9 +284,9 @@ const Signup = () => {
           organizationName,
           industry,
           companySize,
-          businessAddress,
+          businessAddress: businessAddressValue.street,
           businessAddressComponents,
-          country,
+          country: businessAddressValue.country,
           ownerName: fullName,
           ownerEmail: email,
           ownerPhone: phone,
@@ -540,21 +551,16 @@ const Signup = () => {
                     )}
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="businessAddress">Business Address *</Label>
-                    <AddressAutocomplete
-                      value={businessAddress}
-                      onChange={handleAddressChange}
-                      placeholder="Start typing your business address..."
-                      required
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Search for your office or business location
-                    </p>
-                    {errors.businessAddress && (
-                      <p className="text-sm text-destructive">{errors.businessAddress}</p>
-                    )}
-                  </div>
+                  <StructuredAddressInput
+                    value={businessAddressValue}
+                    onChange={handleAddressChange}
+                    required
+                    allowBusinesses
+                    addressLabel="Business Address"
+                  />
+                  {errors.businessAddress && (
+                    <p className="text-sm text-destructive">{errors.businessAddress}</p>
+                  )}
 
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">

@@ -1,9 +1,9 @@
 /**
  * Structured Address Input Component
- * Two-row address input with country selector, street autocomplete, and editable city/state/postcode
+ * Single-row or two-row address input with country selector and street autocomplete
  * 
- * Row 1: Country dropdown + Street Address (autocomplete)
- * Row 2: City, State/Province, Postcode (editable, auto-populated)
+ * Default (singleRow=true): Country dropdown + Full Address (autocomplete shows full address minus country)
+ * Expanded (singleRow=false): Country + Street + editable City/State/Postcode
  */
 
 import { useEffect, useRef } from 'react';
@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 
 export interface AddressValue {
   country: string;        // ISO 2-letter code
-  street: string;
+  street: string;         // In singleRow mode, this contains the full formatted address (minus country)
   city: string;
   state: string;
   postcode: string;
@@ -36,6 +36,10 @@ export interface StructuredAddressInputProps {
   compact?: boolean;
   /** Error state for street field */
   error?: boolean;
+  /** Show only single row with full address (hides city/state/postcode row). Defaults to true. */
+  singleRow?: boolean;
+  /** Custom label for address field. Defaults to "Address". */
+  addressLabel?: string;
 }
 
 // Empty address value for initialization
@@ -56,6 +60,8 @@ export function StructuredAddressInput({
   className,
   compact = false,
   error = false,
+  singleRow = true,
+  addressLabel = 'Address',
 }: StructuredAddressInputProps) {
   const isCountrySelected = !!value.country;
   const prevCountryRef = useRef(value.country);
@@ -84,12 +90,26 @@ export function StructuredAddressInput({
   
   const handleAddressSelect = (address: string, components?: AddressComponents) => {
     if (components && components.formatted_address) {
-      // Google autocomplete selection - auto-populate all fields
+      // Google autocomplete selection
+      // For singleRow mode: show full formatted address minus country in the street field
+      // This provides a complete display while still storing components internally
+      let displayAddress: string;
+      
+      if (singleRow) {
+        // Remove country from the end of formatted address for cleaner display
+        displayAddress = components.formatted_address
+          .replace(new RegExp(`,?\\s*${components.country}$`, 'i'), '')
+          .trim();
+      } else {
+        // Traditional mode: just street number + route
+        displayAddress = components.street_number 
+          ? `${components.street_number} ${components.route || ''}`.trim()
+          : components.route || address;
+      }
+      
       onChange({
         ...value,
-        street: components.street_number 
-          ? `${components.street_number} ${components.route || ''}`.trim()
-          : components.route || address,
+        street: displayAddress,
         city: components.locality || '',
         state: components.administrative_area_level_1 || '',
         postcode: components.postal_code || '',
@@ -117,7 +137,7 @@ export function StructuredAddressInput({
   
   return (
     <div className={cn("space-y-4", className)}>
-      {/* Row 1: Country + Street Address */}
+      {/* Row 1: Country + Address */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="space-y-2">
           {!compact && (
@@ -136,7 +156,7 @@ export function StructuredAddressInput({
         <div className="sm:col-span-2 space-y-2">
           {!compact && (
             <Label>
-              Street Address {required && <span className="text-destructive">*</span>}
+              {addressLabel} {required && <span className="text-destructive">*</span>}
             </Label>
           )}
           <AddressAutocomplete
@@ -151,36 +171,38 @@ export function StructuredAddressInput({
         </div>
       </div>
       
-      {/* Row 2: City, State, Postcode */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="space-y-2">
-          {!compact && <Label>City</Label>}
-          <Input
-            value={value.city}
-            onChange={(e) => handleFieldChange('city', e.target.value)}
-            disabled={disabled || !isCountrySelected}
-            placeholder={isCountrySelected ? "City" : "—"}
-          />
+      {/* Row 2: City, State, Postcode - Only show if singleRow is false */}
+      {!singleRow && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            {!compact && <Label>City</Label>}
+            <Input
+              value={value.city}
+              onChange={(e) => handleFieldChange('city', e.target.value)}
+              disabled={disabled || !isCountrySelected}
+              placeholder={isCountrySelected ? "City" : "—"}
+            />
+          </div>
+          <div className="space-y-2">
+            {!compact && <Label>State/Province</Label>}
+            <Input
+              value={value.state}
+              onChange={(e) => handleFieldChange('state', e.target.value)}
+              disabled={disabled || !isCountrySelected}
+              placeholder={isCountrySelected ? "State" : "—"}
+            />
+          </div>
+          <div className="space-y-2">
+            {!compact && <Label>Postcode</Label>}
+            <Input
+              value={value.postcode}
+              onChange={(e) => handleFieldChange('postcode', e.target.value)}
+              disabled={disabled || !isCountrySelected}
+              placeholder={isCountrySelected ? "Postcode" : "—"}
+            />
+          </div>
         </div>
-        <div className="space-y-2">
-          {!compact && <Label>State/Province</Label>}
-          <Input
-            value={value.state}
-            onChange={(e) => handleFieldChange('state', e.target.value)}
-            disabled={disabled || !isCountrySelected}
-            placeholder={isCountrySelected ? "State" : "—"}
-          />
-        </div>
-        <div className="space-y-2">
-          {!compact && <Label>Postcode</Label>}
-          <Input
-            value={value.postcode}
-            onChange={(e) => handleFieldChange('postcode', e.target.value)}
-            disabled={disabled || !isCountrySelected}
-            placeholder={isCountrySelected ? "Postcode" : "—"}
-          />
-        </div>
-      </div>
+      )}
     </div>
   );
 }

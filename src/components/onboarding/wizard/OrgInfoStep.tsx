@@ -49,9 +49,17 @@ const extractAddressValue = (
   components?: { [key: string]: string | number | boolean | null } | null
 ): AddressValue => {
   if (!components) return EMPTY_ADDRESS;
+  
+  // For singleRow mode, prefer formatted_address (minus country) for display
+  const formattedAddress = (components.formatted_address as string) || '';
+  const country = (components.country as string) || '';
+  const displayAddress = formattedAddress 
+    ? formattedAddress.replace(new RegExp(`,?\\s*${country}$`, 'i'), '').trim()
+    : (components.route as string) || '';
+  
   return {
     country: (components.country_code as string) || '',
-    street: (components.route as string) || '',
+    street: displayAddress,
     city: (components.locality as string) || '',
     state: (components.administrative_area_level_1 as string) || '',
     postcode: (components.postal_code as string) || '',
@@ -185,15 +193,13 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
           </div>
 
           {/* Row 3: Business Address */}
-          <div className="space-y-2">
-            <Label>Business Address *</Label>
-            <StructuredAddressInput
-              value={addressValue}
-              onChange={setAddressValue}
-              required
-              allowBusinesses
-            />
-          </div>
+          <StructuredAddressInput
+            value={addressValue}
+            onChange={setAddressValue}
+            required
+            allowBusinesses
+            addressLabel="Business Address"
+          />
 
           {/* Row 4: Website + Business Registration Number */}
           <div className="grid grid-cols-2 gap-4">
