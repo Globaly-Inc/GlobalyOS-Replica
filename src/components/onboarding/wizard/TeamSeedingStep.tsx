@@ -3,7 +3,7 @@
  * Full-width card layout with details in 2 rows, manager selection, and role descriptions
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -21,10 +21,12 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import { ArrowLeft, ArrowRight, Users, Plus, Trash2, SkipForward, Crown, Check, ChevronsUpDown } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Users, Plus, Trash2, SkipForward, Crown, Check, ChevronsUpDown, Camera, Loader2 } from 'lucide-react';
 import { useEmploymentTypes } from '@/hooks/useEmploymentTypes';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { ImageCropper } from '@/components/ui/image-cropper';
+import { toast } from '@/hooks/use-toast';
 
 interface Position {
   name: string;
@@ -41,6 +43,7 @@ interface TeamMember {
   office_id?: string;
   manager_id?: string;
   is_new_hire: boolean;
+  avatar_url?: string;
 }
 
 interface Office {
@@ -97,17 +100,18 @@ const ROLES = [
   },
 ];
 
-const emptyMember: TeamMember = {
+const createEmptyMember = (defaultOfficeId?: string): TeamMember => ({
   email: '',
   full_name: '',
   department: '',
   position: '',
-  employment_type: '',
+  employment_type: 'employee',
   role: 'member',
-  office_id: '',
+  office_id: defaultOfficeId || '',
   manager_id: '',
   is_new_hire: false,
-};
+  avatar_url: '',
+});
 
 export function TeamSeedingStep({ 
   initialMembers, 
@@ -138,6 +142,12 @@ export function TeamSeedingStep({
   const [positionOpenStates, setPositionOpenStates] = useState<Record<number, boolean>>({});
   const [departmentSearches, setDepartmentSearches] = useState<Record<number, string>>({});
   const [positionSearches, setPositionSearches] = useState<Record<number, string>>({});
+
+  // Avatar upload states
+  const [avatarUploading, setAvatarUploading] = useState<Record<number, boolean>>({});
+  const [cropperOpen, setCropperOpen] = useState<Record<number, boolean>>({});
+  const [selectedImages, setSelectedImages] = useState<Record<number, string>>({});
+  const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   // Sync with parent data when it changes
   useEffect(() => {
@@ -210,7 +220,16 @@ export function TeamSeedingStep({
           .select('id, name')
           .eq('organization_id', organizationId)
           .order('name');
-        if (data) setOffices(data);
+        if (data) {
+          setOffices(data);
+          // Auto-select office if only one exists
+          if (data.length === 1) {
+            const defaultOfficeId = data[0].id;
+            setMembers(prev => prev.map(m => 
+              m.office_id ? m : { ...m, office_id: defaultOfficeId }
+            ));
+          }
+        }
       } catch (error) {
         console.error('Failed to load offices:', error);
       } finally {
@@ -221,7 +240,8 @@ export function TeamSeedingStep({
   }, [organizationId]);
 
   const addMember = () => {
-    setMembers([...members, { ...emptyMember }]);
+    const defaultOfficeId = offices.length === 1 ? offices[0].id : '';
+    setMembers([...members, createEmptyMember(defaultOfficeId)]);
   };
 
   const removeMember = (index: number) => {
@@ -316,6 +336,76 @@ export function TeamSeedingStep({
       });
     } catch (err) {
       console.error('Failed to save learning:', err);
+    }
+  };
+
+  // Avatar upload handlers
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+  const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+  const validateFile = (file: File): boolean => {
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      toast({
+        title: 'Invalid file type',
+        description: 'Please upload JPEG, PNG, or WebP image',
+        variant: 'destructive',
+      });
+      return false;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      toast({
+        title: 'File too large',
+        description: 'Please select an image under 5MB',
+        variant: 'destructive',
+      });
+      return false;
+    }
+    return true;
+  };
+
+  const handleFileSelect = (index: number, file: File) => {
+    if (!validateFile(file)) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setSelectedImages(prev => ({ ...prev, [index]: e.target?.result as string }));
+      setCropperOpen(prev => ({ ...prev, [index]: true }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCropComplete = async (index: number, blob: Blob) => {
+    setAvatarUploading(prev => ({ ...prev, [index]: true }));
+    
+    try {
+      const tempId = `team-member-${Date.now()}-${index}`;
+      const filePath = `team-invites/${organizationId}/${tempId}.png`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, blob, { contentType: 'image/png', upsert: true });
+      
+      if (uploadError) throw uploadError;
+      
+      const { data: urlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+      
+      const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+      updateMember(index, 'avatar_url', publicUrl);
+      
+      toast({ title: 'Photo uploaded' });
+    } catch (error) {
+      console.error('Upload failed:', error);
+      toast({
+        title: 'Upload failed',
+        description: 'Could not upload photo. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setAvatarUploading(prev => ({ ...prev, [index]: false }));
+      setCropperOpen(prev => ({ ...prev, [index]: false }));
+      setSelectedImages(prev => ({ ...prev, [index]: '' }));
     }
   };
 
@@ -434,26 +524,56 @@ export function TeamSeedingStep({
               
               return (
                 <Card key={index} className="p-4">
-                  {/* Row 0: Member Type Selection + Delete */}
+                  {/* Row 0: Avatar + Member Type Selection + Delete */}
                   <div className="flex items-center justify-between mb-3">
-                    <RadioGroup
-                      value={member.is_new_hire ? 'new_hire' : 'existing'}
-                      onValueChange={(v) => updateMember(index, 'is_new_hire', v === 'new_hire')}
-                      className="flex items-center gap-4"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="existing" id={`existing-${index}`} />
-                        <Label htmlFor={`existing-${index}`} className="text-sm font-normal cursor-pointer">
-                          Existing Team
-                        </Label>
+                    <div className="flex items-center gap-3">
+                      {/* Avatar Upload */}
+                      <div 
+                        className="relative cursor-pointer group"
+                        onClick={() => fileInputRefs.current[index]?.click()}
+                      >
+                        <Avatar className="h-10 w-10 border-2 border-dashed border-muted-foreground/50 group-hover:border-primary transition-colors">
+                          <AvatarImage src={member.avatar_url} />
+                          <AvatarFallback className="bg-muted">
+                            {avatarUploading[index] ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Camera className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
+                            )}
+                          </AvatarFallback>
+                        </Avatar>
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          className="hidden"
+                          ref={el => fileInputRefs.current[index] = el}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleFileSelect(index, file);
+                            e.target.value = '';
+                          }}
+                        />
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="new_hire" id={`new-hire-${index}`} />
-                        <Label htmlFor={`new-hire-${index}`} className="text-sm font-normal cursor-pointer">
-                          New Hire
-                        </Label>
-                      </div>
-                    </RadioGroup>
+                      
+                      <RadioGroup
+                        value={member.is_new_hire ? 'new_hire' : 'existing'}
+                        onValueChange={(v) => updateMember(index, 'is_new_hire', v === 'new_hire')}
+                        className="flex items-center gap-4"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="existing" id={`existing-${index}`} />
+                          <Label htmlFor={`existing-${index}`} className="text-sm font-normal cursor-pointer">
+                            Existing Team
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="new_hire" id={`new-hire-${index}`} />
+                          <Label htmlFor={`new-hire-${index}`} className="text-sm font-normal cursor-pointer">
+                            New Hire
+                          </Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
                     <Button
                       type="button"
                       variant="ghost"
@@ -465,10 +585,19 @@ export function TeamSeedingStep({
                     </Button>
                   </div>
 
+                  {/* ImageCropper for this member */}
+                  <ImageCropper
+                    open={cropperOpen[index] || false}
+                    onOpenChange={(open) => setCropperOpen(prev => ({ ...prev, [index]: open }))}
+                    imageSrc={selectedImages[index] || ''}
+                    onCropComplete={(blob) => handleCropComplete(index, blob)}
+                    cropShape="circle"
+                  />
+
                   {/* Row 1: Name, Email, Office, Manager */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
                     <div>
-                      <Label className="text-xs text-muted-foreground mb-1.5 block">Name *</Label>
+                      <Label className="text-xs text-muted-foreground mb-1.5 block">Employee Full Name *</Label>
                       <Input
                         value={member.full_name}
                         onChange={(e) => updateMember(index, 'full_name', e.target.value)}
@@ -477,7 +606,7 @@ export function TeamSeedingStep({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-muted-foreground mb-1.5 block">Email *</Label>
+                      <Label className="text-xs text-muted-foreground mb-1.5 block">Work Email (username for login with OTP) *</Label>
                       <Input
                         type="email"
                         value={member.email}
