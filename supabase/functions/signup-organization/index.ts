@@ -179,49 +179,71 @@ Deno.serve(async (req) => {
 
       // Send notification to Super Admin(s)
       try {
-        // Get all super admin emails from user_roles joined with profiles
-        const { data: superAdmins, error: adminError } = await supabase
+        console.log('Looking for super admins to notify...');
+        
+        // Step 1: Get all super admin user IDs from user_roles
+        const { data: superAdminRoles, error: rolesError } = await supabase
           .from('user_roles')
-          .select('user_id, profiles!inner(email)')
+          .select('user_id')
           .eq('role', 'super_admin');
 
-        if (adminError) {
-          console.error('Error fetching super admins:', adminError);
-        } else if (superAdmins && superAdmins.length > 0) {
-          const superAdminEmails = superAdmins
-            .map((sa: any) => sa.profiles?.email)
-            .filter((email: string | null) => email);
+        if (rolesError) {
+          console.error('Error fetching super admin roles:', rolesError);
+        } else if (superAdminRoles && superAdminRoles.length > 0) {
+          console.log(`Found ${superAdminRoles.length} super admin role(s)`);
+          
+          // Step 2: Get profiles for those user IDs
+          const userIds = superAdminRoles.map(r => r.user_id);
+          
+          const { data: adminProfiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('email')
+            .in('id', userIds);
 
-          if (superAdminEmails.length > 0) {
-            const reviewUrl = `${APP_BASE_URL}/super-admin/organisations`;
+          if (profilesError) {
+            console.error('Error fetching super admin profiles:', profilesError);
+          } else if (adminProfiles && adminProfiles.length > 0) {
+            console.log(`Found ${adminProfiles.length} admin profile(s) with emails`);
+            
+            const superAdminEmails = adminProfiles
+              .map((p: any) => p.email)
+              .filter((email: string | null) => email);
 
-            const adminHtml = render(
-              React.createElement(SuperAdminNotificationEmail, {
-                organizationName,
-                ownerName,
-                ownerEmail,
-                ownerPhone,
-                plan,
-                industry: industry || '',
-                companySize: companySize || '',
-                country: country || '',
-                reviewUrl,
-              })
-            );
+            if (superAdminEmails.length > 0) {
+              console.log('Sending super admin notification to:', superAdminEmails);
+              
+              const reviewUrl = `${APP_BASE_URL}/super-admin/organisations`;
 
-            const adminEmailResult = await resend.emails.send({
-              from: 'GlobalyOS <hello@globalyos.com>',
-              to: superAdminEmails,
-              subject: `New Signup: ${organizationName} - Review Required`,
-              html: adminHtml,
-            });
+              const adminHtml = render(
+                React.createElement(SuperAdminNotificationEmail, {
+                  organizationName,
+                  ownerName,
+                  ownerEmail,
+                  ownerPhone,
+                  plan,
+                  industry: industry || '',
+                  companySize: companySize || '',
+                  country: country || '',
+                  reviewUrl,
+                })
+              );
 
-            console.log('Super admin notification sent to:', superAdminEmails, adminEmailResult);
+              const adminEmailResult = await resend.emails.send({
+                from: 'GlobalyOS <hello@globalyos.com>',
+                to: superAdminEmails,
+                subject: `New Signup: ${organizationName} - Review Required`,
+                html: adminHtml,
+              });
+
+              console.log('Super admin notification sent successfully:', adminEmailResult);
+            } else {
+              console.warn('No valid super admin emails found in profiles');
+            }
           } else {
-            console.warn('No super admin emails found');
+            console.warn('No admin profiles found for super admin user IDs:', userIds);
           }
         } else {
-          console.warn('No super admins found in database');
+          console.warn('No super admin roles found in database');
         }
       } catch (adminEmailError) {
         console.error('Failed to send super admin notification:', adminEmailError);
