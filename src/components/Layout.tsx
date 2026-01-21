@@ -30,7 +30,7 @@ import TrialBanner from "./TrialBanner";
 import { SpotlightTour } from "./SpotlightTour";
 
 import { useUserRole } from "@/hooks/useUserRole";
-import { InstallAppBanner } from "./InstallAppBanner";
+
 import { GetHelpButton } from "./GetHelpButton";
 import { usePageVisitTracking } from "@/hooks/usePageVisitTracking";
 import { KpiGenerationProgress } from "./kpi/KpiGenerationProgress";
@@ -715,11 +715,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       */}
       <main className={`container px-4 md:px-8 ${isFullHeightPage ? 'h-[calc(100vh-4rem)] overflow-hidden pt-0 pb-0' : 'pt-2 pb-24 md:pb-8 overflow-x-hidden'}`}>{children}</main>
 
+
       {/* Mobile Bottom Navigation */}
       <MobileBottomNav userProfile={userProfile} isOnline={isOnline} />
-
-      {/* Install App Banner for Mobile */}
-      <InstallAppBanner />
 
       {/* Mobile Search */}
       <MobileSearch open={mobileSearchOpen} onOpenChange={setMobileSearchOpen} />

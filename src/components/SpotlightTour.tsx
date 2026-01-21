@@ -106,9 +106,18 @@ export const SpotlightTour = ({ run: externalRun, onComplete }: SpotlightTourPro
   const [steps, setSteps] = useState<TourStep[]>([]);
   const [loading, setLoading] = useState(true);
   const [waitingForNavigation, setWaitingForNavigation] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Owner is determined by actual owner role
   const isOwnerRole = isOwner;
+
+  // Detect mobile device and disable tour on mobile
+  useEffect(() => {
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    const mobileCheck = /iphone|ipad|ipod|android|webos|blackberry|iemobile|opera mini/.test(userAgent);
+    const smallScreen = window.innerWidth < 768;
+    setIsMobile(mobileCheck || smallScreen);
+  }, []);
   
   // Set up steps based on role
   useEffect(() => {
@@ -305,8 +314,8 @@ export const SpotlightTour = ({ run: externalRun, onComplete }: SpotlightTourPro
     ? location.pathname.startsWith(currentStep.requiredRoute) 
     : true;
 
-  // Don't render if loading, no steps, or waiting for navigation
-  if (loading || steps.length === 0 || waitingForNavigation) return null;
+  // Don't render if loading, no steps, waiting for navigation, or on mobile
+  if (loading || steps.length === 0 || waitingForNavigation || isMobile) return null;
   
   // Only run the tour if we're on the correct route and target exists
   const shouldRun = run && onCorrectRoute && targetExists;
