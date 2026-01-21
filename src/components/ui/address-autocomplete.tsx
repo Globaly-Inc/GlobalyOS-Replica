@@ -21,6 +21,7 @@ export interface AddressComponents {
   formatted_address?: string;
   lat?: number;
   lng?: number;
+  place_name?: string; // Business/place name if applicable
 }
 
 interface AddressAutocompleteProps {
@@ -31,6 +32,7 @@ interface AddressAutocompleteProps {
   required?: boolean;
   countryCode?: string; // ISO 3166-1 alpha-2 country code (e.g., 'AU', 'US')
   className?: string;
+  allowBusinesses?: boolean; // Default true - set false for address-only search
 }
 
 declare global {
@@ -43,11 +45,12 @@ declare global {
 export function AddressAutocomplete({
   value,
   onChange,
-  placeholder = 'Start typing an address...',
+  placeholder = 'Start typing an address or business...',
   disabled = false,
   required = false,
   countryCode,
   className,
+  allowBusinesses = true,
 }: AddressAutocompleteProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
@@ -127,8 +130,9 @@ export function AddressAutocomplete({
     }
 
     autocompleteRef.current = new google.maps.places.Autocomplete(inputRef.current, {
-      types: ['address'],
-      fields: ['address_components', 'formatted_address', 'geometry'],
+      // Only restrict to addresses if allowBusinesses is explicitly false
+      ...(allowBusinesses === false ? { types: ['address'] } : {}),
+      fields: ['address_components', 'formatted_address', 'geometry', 'name'],
       componentRestrictions: countryCode ? { country: countryCode.toLowerCase() } : undefined,
     });
 
@@ -145,6 +149,7 @@ export function AddressAutocomplete({
         formatted_address: place.formatted_address,
         lat: place.geometry?.location?.lat(),
         lng: place.geometry?.location?.lng(),
+        place_name: place.name, // Capture business/place name
       };
 
       // Parse address components
@@ -192,7 +197,7 @@ export function AddressAutocomplete({
         google.maps.event.removeListener(listenerRef.current);
       }
     };
-  }, [isScriptLoaded, onChange, countryCode]);
+  }, [isScriptLoaded, onChange, countryCode, allowBusinesses]);
 
   // Handle manual input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
