@@ -75,7 +75,7 @@ export interface OrgOnboardingData {
   updated_at: string;
 }
 
-// New step order: Welcome+Features, Org, Offices, Depts/Roles, Profile, Team, Complete
+// New step order: Welcome+Features, Org, Offices, Depts/Roles, Profile, Team, Guides, Complete
 const ORG_ONBOARDING_STEPS = [
   'welcome',
   'organization-info',
@@ -83,6 +83,11 @@ const ORG_ONBOARDING_STEPS = [
   'departments-roles',
   'owner-profile',
   'team-members',
+  'profile-guide',
+  'directory-wiki-guide',
+  'social-feed-guide',
+  'checkin-guide',
+  'leave-guide',
   'complete',
 ] as const;
 
@@ -422,7 +427,7 @@ export function useCompleteOrgOnboarding() {
         .update({
           completed_at: new Date().toISOString(),
           skipped,
-          current_step: 7,
+          current_step: 12,
         })
         .eq('organization_id', currentOrg.id);
 
@@ -433,7 +438,7 @@ export function useCompleteOrgOnboarding() {
         .from('organizations')
         .update({
           org_onboarding_completed: true,
-          org_onboarding_step: 7,
+          org_onboarding_step: 12,
         })
         .eq('id', currentOrg.id);
 
