@@ -15,7 +15,7 @@ export interface EmployeeOnboardingData {
   organization_id: string;
   current_step: number;
   personal_info: {
-    preferred_name?: string;
+    personal_email?: string;
     phone?: string;
     date_of_birth?: string;
     gender?: string;
@@ -266,6 +266,7 @@ export function useSaveEmployeeProfile() {
 
   return useMutation({
     mutationFn: async (profileData: {
+      personal_email?: string;
       phone?: string;
       date_of_birth?: string;
       gender?: string;
@@ -285,6 +286,7 @@ export function useSaveEmployeeProfile() {
       const { error } = await supabase
         .from('employees')
         .update({
+          personal_email: profileData.personal_email,
           phone: profileData.phone,
           date_of_birth: profileData.date_of_birth,
           gender: profileData.gender,
