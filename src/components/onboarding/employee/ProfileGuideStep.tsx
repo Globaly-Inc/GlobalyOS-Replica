@@ -29,22 +29,6 @@ export function ProfileGuideStep({ employeeName, onContinue, onBack, isNavigatin
       </CardHeader>
 
       <CardContent className="space-y-6">
-        {/* Visual hint - avatar in header */}
-        <div className="flex items-center justify-center">
-          <div className="flex items-center gap-2 px-4 py-2 bg-muted rounded-full border-2 border-dashed border-primary/50">
-            <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                {employeeName.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <span className="text-sm font-medium">{employeeName}</span>
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          </div>
-        </div>
-
-        <p className="text-center text-sm text-muted-foreground">
-          Click your avatar in the header to access your profile
-        </p>
 
         {/* Key points */}
         <div className="space-y-3">
