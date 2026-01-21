@@ -1,6 +1,6 @@
 /**
  * Organization Onboarding - Organization Info Step
- * Collects organization details with Google Places address autocomplete
+ * Collects organization details with structured address input
  * Includes logo upload and legal business details
  */
 
@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { ArrowLeft, ArrowRight, Building2, Check, ChevronsUpDown } from 'lucide-react';
-import { AddressAutocomplete, AddressComponents } from '@/components/ui/address-autocomplete';
+import { StructuredAddressInput, type AddressValue, EMPTY_ADDRESS } from '@/components/ui/structured-address-input';
 import { LogoUpload } from './LogoUpload';
 import { cn } from '@/lib/utils';
 import { BUSINESS_CATEGORIES } from '@/constants/businessCategories';
@@ -43,7 +43,24 @@ interface OrgInfoStepProps {
   isSaving: boolean;
 }
 
-// COUNTRY_DEFAULTS removed - country derived from address
+// Helper to extract address value from stored components
+const extractAddressValue = (
+  address?: string,
+  components?: { [key: string]: string | number | boolean | null } | null
+): AddressValue => {
+  if (!components) return EMPTY_ADDRESS;
+  return {
+    country: (components.country_code as string) || '',
+    street: (components.route as string) || '',
+    city: (components.locality as string) || '',
+    state: (components.administrative_area_level_1 as string) || '',
+    postcode: (components.postal_code as string) || '',
+    lat: components.lat as number | undefined,
+    lng: components.lng as number | undefined,
+    place_id: components.place_id as string | undefined,
+    google_maps_url: components.google_maps_url as string | undefined,
+  };
+};
 
 export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving }: OrgInfoStepProps) {
   const [formData, setFormData] = useState({
@@ -52,11 +69,15 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
     website: initialData?.website || '',
     industry: initialData?.industry || signupData?.industry || '',
     company_size: initialData?.company_size || signupData?.company_size || '',
-    business_address: initialData?.business_address || signupData?.business_address || '',
-    business_address_components: initialData?.business_address_components || signupData?.business_address_components || null,
     legal_business_name: initialData?.legal_business_name || '',
     business_registration_number: initialData?.business_registration_number || '',
   });
+
+  const [addressValue, setAddressValue] = useState<AddressValue>(
+    extractAddressValue(initialData?.business_address, initialData?.business_address_components) ||
+    extractAddressValue(signupData?.business_address, signupData?.business_address_components) ||
+    EMPTY_ADDRESS
+  );
 
   const [businessCategoryOpen, setBusinessCategoryOpen] = useState(false);
 
@@ -67,9 +88,10 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
         ...prev,
         industry: prev.industry || signupData.industry || '',
         company_size: prev.company_size || signupData.company_size || '',
-        business_address: prev.business_address || signupData.business_address || '',
-        business_address_components: prev.business_address_components || signupData.business_address_components || null,
       }));
+      if (!addressValue.country && signupData.business_address_components) {
+        setAddressValue(extractAddressValue(signupData.business_address, signupData.business_address_components));
+      }
     }
   }, [signupData]);
 
@@ -82,9 +104,27 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
       normalizedWebsite = `https://${normalizedWebsite}`;
     }
     
+    // Build address components for storage
+    const business_address = [addressValue.street, addressValue.city, addressValue.state, addressValue.postcode].filter(Boolean).join(', ');
+    const business_address_components = {
+      country_code: addressValue.country,
+      country: addressValue.country, // Will be resolved to name elsewhere
+      route: addressValue.street,
+      locality: addressValue.city,
+      administrative_area_level_1: addressValue.state,
+      postal_code: addressValue.postcode,
+      lat: addressValue.lat,
+      lng: addressValue.lng,
+      place_id: addressValue.place_id,
+      google_maps_url: addressValue.google_maps_url,
+      formatted_address: business_address,
+    };
+    
     onSave({
       ...formData,
       website: normalizedWebsite,
+      business_address,
+      business_address_components,
     });
   };
 
@@ -92,25 +132,11 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleAddressChange = (address: string, components?: AddressComponents) => {
-    // Convert AddressComponents to simple key-value object for storage
-    const simpleComponents = components ? Object.entries(components).reduce((acc, [key, value]) => {
-      if (value !== undefined) {
-        acc[key] = typeof value === 'object' ? JSON.stringify(value) : value;
-      }
-      return acc;
-    }, {} as { [key: string]: string | number | boolean | null }) : null;
-    
-    setFormData((prev) => ({
-      ...prev,
-      business_address: address,
-      business_address_components: simpleComponents,
-    }));
-  };
-
   const handleLogoChange = (url: string | null) => {
     updateField('logo_url', url || '');
   };
+
+  const hasValidAddress = !!(addressValue.country && addressValue.street);
 
   return (
     <Card className="border-0 shadow-lg">
@@ -160,22 +186,13 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
 
           {/* Row 3: Business Address */}
           <div className="space-y-2">
-            <Label htmlFor="business_address">Business Address *</Label>
-            <AddressAutocomplete
-              value={formData.business_address}
-              onChange={handleAddressChange}
-              placeholder="Start typing your business address..."
+            <Label>Business Address *</Label>
+            <StructuredAddressInput
+              value={addressValue}
+              onChange={setAddressValue}
               required
+              allowBusinesses
             />
-            {formData.business_address && !formData.business_address_components?.formatted_address ? (
-              <p className="text-xs text-warning">
-                Please select an address from the dropdown suggestions
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Search for your office or business location
-              </p>
-            )}
           </div>
 
           {/* Row 4: Website + Business Registration Number */}
@@ -273,7 +290,7 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
             </Button>
             <Button 
               type="submit" 
-              disabled={isSaving || !formData.name || !formData.business_address || !formData.business_address_components?.formatted_address || !formData.legal_business_name} 
+              disabled={isSaving || !formData.name || !hasValidAddress || !formData.legal_business_name} 
               className="flex-1"
             >
               {isSaving ? 'Saving...' : 'Continue'}

@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { AddressAutocomplete, type AddressComponents } from "@/components/ui/address-autocomplete";
-import { Pencil, MapPin, Check } from "lucide-react";
+import { StructuredAddressInput, type AddressValue, EMPTY_ADDRESS } from "@/components/ui/structured-address-input";
+import { Pencil, MapPin } from "lucide-react";
+import { getCountryCodeFromName } from "@/lib/countries";
 
 interface AddressData {
   street: string | null;
@@ -22,86 +22,53 @@ interface EditAddressDialogProps {
   onSave: (address: AddressData) => Promise<void>;
 }
 
-// Build a displayable address string from components
-const buildAddressString = (address: AddressData): string => {
-  const parts = [
-    address.street,
-    address.city,
-    address.state,
-    address.postcode,
-    address.country,
-  ].filter(Boolean);
-  return parts.join(', ');
-};
-
 export function EditAddressDialog({ address, onSave }: EditAddressDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [fullAddress, setFullAddress] = useState('');
-  const [hasValidAddress, setHasValidAddress] = useState(false);
-  const [formData, setFormData] = useState<AddressData>({
-    street: address.street || "",
-    city: address.city || "",
-    state: address.state || "",
-    postcode: address.postcode || "",
-    country: address.country || "",
-    latitude: address.latitude || null,
-    longitude: address.longitude || null,
-    place_id: address.place_id || null,
-    google_maps_url: address.google_maps_url || null,
-  });
+  const [addressValue, setAddressValue] = useState<AddressValue>(EMPTY_ADDRESS);
 
   const handleOpen = (isOpen: boolean) => {
     setOpen(isOpen);
     if (isOpen) {
-      const addressString = buildAddressString(address);
-      setFullAddress(addressString);
-      setHasValidAddress(!!address.street);
-      setFormData({
-        street: address.street || "",
-        city: address.city || "",
-        state: address.state || "",
-        postcode: address.postcode || "",
-        country: address.country || "",
-        latitude: address.latitude || null,
-        longitude: address.longitude || null,
-        place_id: address.place_id || null,
-        google_maps_url: address.google_maps_url || null,
+      // Convert incoming address to AddressValue format
+      const countryCode = address.country 
+        ? getCountryCodeFromName(address.country) || address.country
+        : '';
+      setAddressValue({
+        country: countryCode,
+        street: address.street || '',
+        city: address.city || '',
+        state: address.state || '',
+        postcode: address.postcode || '',
+        lat: address.latitude ?? undefined,
+        lng: address.longitude ?? undefined,
+        place_id: address.place_id ?? undefined,
+        google_maps_url: address.google_maps_url ?? undefined,
       });
-    }
-  };
-
-  const handleAddressChange = (addr: string, components?: AddressComponents) => {
-    setFullAddress(addr);
-    if (components && components.formatted_address) {
-      setFormData({
-        street: components.street_number 
-          ? `${components.street_number} ${components.route || ''}`.trim()
-          : components.route || '',
-        city: components.locality || '',
-        state: components.administrative_area_level_1 || '',
-        postcode: components.postal_code || '',
-        country: components.country || '',
-        latitude: components.lat || null,
-        longitude: components.lng || null,
-        place_id: components.place_id || null,
-        google_maps_url: components.google_maps_url || null,
-      });
-      setHasValidAddress(true);
-    } else {
-      setHasValidAddress(false);
     }
   };
 
   const handleSave = async () => {
     setLoading(true);
     try {
-      await onSave(formData);
+      await onSave({
+        street: addressValue.street || null,
+        city: addressValue.city || null,
+        state: addressValue.state || null,
+        postcode: addressValue.postcode || null,
+        country: addressValue.country || null,
+        latitude: addressValue.lat ?? null,
+        longitude: addressValue.lng ?? null,
+        place_id: addressValue.place_id ?? null,
+        google_maps_url: addressValue.google_maps_url ?? null,
+      });
       setOpen(false);
     } finally {
       setLoading(false);
     }
   };
+
+  const hasValidAddress = !!addressValue.country && !!addressValue.street;
 
   return (
     <Dialog open={open} onOpenChange={handleOpen}>
@@ -110,65 +77,27 @@ export function EditAddressDialog({ address, onSave }: EditAddressDialogProps) {
           <Pencil className="h-3 w-3" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit Address</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-4">
-          <div className="space-y-2">
-            <Label htmlFor="address">Search Address</Label>
-            <AddressAutocomplete
-              value={fullAddress}
-              onChange={handleAddressChange}
-              placeholder="Start typing your address..."
-              allowBusinesses={false}
-            />
-            <p className="text-xs text-muted-foreground">
-              Search and select your home address from the suggestions
-            </p>
-          </div>
+          <StructuredAddressInput
+            value={addressValue}
+            onChange={setAddressValue}
+            allowBusinesses={false}
+          />
 
-          {/* Show parsed address preview when valid */}
-          {hasValidAddress && formData.street && (
-            <div className="p-3 bg-muted/50 rounded-lg space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium text-success">
-                <Check className="h-4 w-4" />
-                Address confirmed
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Street:</span>{' '}
-                  <span className="text-foreground">{formData.street}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">City:</span>{' '}
-                  <span className="text-foreground">{formData.city}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">State:</span>{' '}
-                  <span className="text-foreground">{formData.state}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Postcode:</span>{' '}
-                  <span className="text-foreground">{formData.postcode}</span>
-                </div>
-                <div className="col-span-2">
-                  <span className="text-muted-foreground">Country:</span>{' '}
-                  <span className="text-foreground">{formData.country}</span>
-                </div>
-              </div>
-              {formData.google_maps_url && (
-                <a 
-                  href={formData.google_maps_url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                >
-                  <MapPin className="h-3 w-3" />
-                  View on Google Maps
-                </a>
-              )}
-            </div>
+          {hasValidAddress && addressValue.google_maps_url && (
+            <a 
+              href={addressValue.google_maps_url} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+            >
+              <MapPin className="h-3 w-3" />
+              View on Google Maps
+            </a>
           )}
 
           <div className="flex justify-end gap-2 pt-4">
