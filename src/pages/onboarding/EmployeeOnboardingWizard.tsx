@@ -358,7 +358,8 @@ export default function EmployeeOnboardingWizard() {
       case 'profile-guide':
         return (
           <ProfileGuideStep 
-            employeeName={firstName} 
+            employeeName={firstName}
+            avatarUrl={employee?.avatar_url}
             onContinue={() => handleNext()} 
             onBack={handleBack}
             isNavigating={isBusy}
