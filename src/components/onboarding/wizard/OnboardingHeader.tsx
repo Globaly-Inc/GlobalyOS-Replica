@@ -1,12 +1,19 @@
 /**
  * Organization Onboarding - Header with Progress Indicator
- * Shows step pills with completion status and skip option
+ * Shows segmented phase progress bar with grouped steps
  */
 
 import { cn } from '@/lib/utils';
-import { Check, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Check } from 'lucide-react';
 import globalyosIcon from '@/assets/globalyos-icon.png';
+
+// Phase groupings for 12 steps
+const PHASES = [
+  { label: 'Setup', steps: [1, 2, 3, 4] },
+  { label: 'Profile', steps: [5, 6] },
+  { label: 'Guides', steps: [7, 8, 9, 10, 11] },
+  { label: 'Complete', steps: [12] },
+];
 
 interface OnboardingHeaderProps {
   currentStep: number;
@@ -25,7 +32,7 @@ export function OnboardingHeader({
     <div className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b">
       <div className="max-w-6xl mx-auto px-4 py-3">
         {/* Top row: Logo */}
-        <div className="flex items-center justify-center mt-4 mb-8">
+        <div className="flex items-center justify-center mt-4 mb-4">
           <div className="flex items-center gap-3">
             <img 
               src={globalyosIcon} 
@@ -36,46 +43,71 @@ export function OnboardingHeader({
           </div>
         </div>
         
-        {/* Step indicator pills - all visible without scroll */}
-        <div className="flex justify-center w-full px-2">
-          <div className="flex items-center gap-0.5 justify-center flex-wrap">
-            {stepNames.map((name, index) => {
-              const stepNumber = index + 1;
-              const isCompleted = stepNumber < currentStep;
-              const isCurrent = stepNumber === currentStep;
+        {/* Segmented phase progress indicator */}
+        <div className="flex flex-col items-center w-full px-2">
+          {/* Phase segments row */}
+          <div className="flex items-center justify-center gap-2">
+            {PHASES.map((phase, phaseIndex) => {
+              const isPhaseCompleted = phase.steps.every(s => s < currentStep);
+              const isPhaseActive = phase.steps.includes(currentStep);
+              const isPhaseUpcoming = phase.steps.every(s => s > currentStep);
               
               return (
-                <div key={index} className="flex items-center">
+                <div key={phaseIndex} className="flex items-center">
+                  {/* Phase segment */}
                   <div
                     className={cn(
-                      'flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-all',
-                      isCompleted && 'bg-primary/10 text-primary',
-                      isCurrent && 'bg-primary text-primary-foreground',
-                      !isCompleted && !isCurrent && 'bg-muted text-muted-foreground'
+                      'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all',
+                      isPhaseCompleted && 'bg-primary/10 text-primary',
+                      isPhaseActive && 'bg-primary text-primary-foreground',
+                      isPhaseUpcoming && 'bg-muted text-muted-foreground'
                     )}
                   >
-                    {isCompleted ? (
+                    {/* Phase label or checkmark for complete phase */}
+                    {isPhaseCompleted && phase.label !== 'Complete' ? (
                       <Check className="h-3 w-3" />
                     ) : (
-                      <span className={cn(
-                        'w-4 h-4 rounded-full flex items-center justify-center text-[10px]',
-                        isCurrent ? 'bg-primary-foreground/20' : 'bg-muted-foreground/20'
-                      )}>
-                        {stepNumber}
-                      </span>
+                      <span>{phase.label}</span>
                     )}
-                    <span>{name}</span>
+                    
+                    {/* Mini dots for steps in this phase */}
+                    <div className="flex items-center gap-0.5 ml-1">
+                      {phase.steps.map((stepNum) => {
+                        const isDotCompleted = stepNum < currentStep;
+                        const isDotCurrent = stepNum === currentStep;
+                        
+                        return (
+                          <div
+                            key={stepNum}
+                            className={cn(
+                              'rounded-full transition-all',
+                              isDotCompleted && 'w-1.5 h-1.5 bg-primary',
+                              isDotCurrent && 'w-2 h-2 bg-primary-foreground',
+                              !isDotCompleted && !isDotCurrent && 'w-1.5 h-1.5 bg-current opacity-30'
+                            )}
+                          />
+                        );
+                      })}
+                    </div>
                   </div>
                   
-                  {index < stepNames.length - 1 && (
+                  {/* Arrow connector between phases */}
+                  {phaseIndex < PHASES.length - 1 && (
                     <div className={cn(
-                      'w-2 h-0.5 mx-0.5',
-                      isCompleted ? 'bg-primary/50' : 'bg-muted'
-                    )} />
+                      'mx-1 text-xs',
+                      isPhaseCompleted ? 'text-primary' : 'text-muted-foreground'
+                    )}>
+                      →
+                    </div>
                   )}
                 </div>
               );
             })}
+          </div>
+          
+          {/* Current step indicator text */}
+          <div className="mt-3 text-sm text-muted-foreground">
+            Step {currentStep} of {totalSteps}: <span className="font-medium text-foreground">{stepNames[currentStep - 1]}</span>
           </div>
         </div>
       </div>
