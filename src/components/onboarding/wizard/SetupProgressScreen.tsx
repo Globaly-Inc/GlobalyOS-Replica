@@ -259,8 +259,13 @@ export function SetupProgressScreen({
   const tasks: SetupTask[] = [
     { id: 'org', label: 'Finalizing organization settings' },
     { id: 'depts', label: 'Configuring departments and roles' },
-    { id: 'positions', label: 'Generating AI position descriptions', action: generatePositionDescriptions },
-    { id: 'employment-types', label: 'Generating employment type descriptions', action: generateEmploymentTypeDescriptions },
+    { id: 'positions', label: 'Generating AI position descriptions', action: async () => {
+      // Run both position and employment type descriptions in parallel (employment types hidden from UI)
+      await Promise.all([
+        generatePositionDescriptions(),
+        generateEmploymentTypeDescriptions(),
+      ]);
+    }},
     { id: 'offices', label: 'Setting up offices' },
     ...(hasOfficesWithPublicHolidays ? [{ id: 'holidays', label: 'Setting up public holidays', action: setupPublicHolidays }] : []),
     ...(teamMembersCount > 0 ? [{ id: 'accounts', label: `Creating ${teamMembersCount} team account${teamMembersCount > 1 ? 's' : ''}`, action: createTeamMembers }] : []),
@@ -323,7 +328,7 @@ export function SetupProgressScreen({
   }, [isReady, resolvedEmployeeId]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4 overflow-hidden">
+    <div className="flex flex-col items-center bg-gradient-to-br from-primary/5 via-background to-accent/5 -mx-4 -mt-48 min-h-screen pt-32 pb-8 px-4 overflow-hidden">
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-[10%] w-32 h-32 bg-primary/10 rounded-full blur-3xl animate-float" />
