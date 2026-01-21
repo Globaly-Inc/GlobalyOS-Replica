@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { toast } from "sonner";
 import { Loader2, Plus } from "lucide-react";
 import { useAdminActivityLog } from "@/hooks/useAdminActivityLog";
@@ -165,11 +166,11 @@ export function CreateInvoiceDialog({
 
           <div className="space-y-2">
             <Label htmlFor="due_date">Due Date</Label>
-            <Input
-              id="due_date"
-              type="date"
+            <DatePicker
               value={form.due_date}
-              onChange={(e) => setForm({ ...form, due_date: e.target.value })}
+              onChange={(value) => setForm({ ...form, due_date: value })}
+              placeholder="Select due date"
+              allowPastDates={false}
             />
           </div>
 

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DatePicker } from "@/components/ui/date-picker";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -169,10 +170,10 @@ export const EditAttendanceDialog = ({
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label>Date</Label>
-            <Input
-              type="date"
+            <DatePicker
               value={recordDate}
-              onChange={(e) => setRecordDate(e.target.value)}
+              onChange={(value) => setRecordDate(value)}
+              placeholder="Select date"
             />
           </div>
 

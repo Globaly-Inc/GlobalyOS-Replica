@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DatePicker } from "@/components/ui/date-picker";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -174,12 +175,10 @@ export const AddEmployeeDialog = ({ onSuccess }: { onSuccess?: () => void }) => 
 
           <div className="space-y-2">
             <Label htmlFor="joinDate">Join Date *</Label>
-            <Input
-              id="joinDate"
-              type="date"
+            <DatePicker
               value={formData.joinDate}
-              onChange={(e) => setFormData({ ...formData, joinDate: e.target.value })}
-              required
+              onChange={(value) => setFormData({ ...formData, joinDate: value })}
+              placeholder="Select join date"
             />
             {errors.joinDate && <p className="text-sm text-destructive">{errors.joinDate}</p>}
           </div>

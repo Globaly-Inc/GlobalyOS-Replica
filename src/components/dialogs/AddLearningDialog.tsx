@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Plus } from "lucide-react";
 const formSchema = z.object({
   type: z.enum(["certification", "course", "training", "conference", "workshop", "seminar", "other"]),
@@ -158,7 +159,11 @@ export const AddLearningDialog = ({
             }) => <FormItem>
                     <FormLabel>Completion Date</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <DatePicker
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Select date"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>} />
@@ -168,7 +173,11 @@ export const AddLearningDialog = ({
             }) => <FormItem>
                     <FormLabel>Expiry Date (if applicable)</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <DatePicker
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Select date"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>} />
