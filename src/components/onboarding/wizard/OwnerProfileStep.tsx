@@ -39,6 +39,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { expandPositionName } from '@/utils/position-names';
 
 interface DepartmentsRolesData {
   departments: string[];
@@ -1059,7 +1060,7 @@ export function OwnerProfileStep({
                                   formData.position === pos.name ? 'opacity-100' : 'opacity-0'
                                 )}
                               />
-                              {pos.name}
+                              {expandPositionName(pos.name)}
                             </CommandItem>
                           ))}
                         </CommandGroup>
