@@ -5,7 +5,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, ArrowLeft, User, Camera, Shield, Settings, Loader2 } from 'lucide-react';
+import { ArrowRight, ArrowLeft, User, Camera, Shield, Settings, Loader2, Lock } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface ProfileGuideStepProps {
@@ -50,9 +50,9 @@ export function ProfileGuideStep({ employeeName, avatarUrl, onContinue, onBack, 
               color: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
             },
             {
-              icon: Shield,
-              title: 'View your information',
-              description: 'See your position, department, attendance history, and leave balance.',
+              icon: Lock,
+              title: 'Your privacy is protected',
+              description: 'Personal details like salary, ID numbers, and emergency contacts are only visible to you, your manager, and HR/Admin.',
               color: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400',
             },
             {
@@ -72,6 +72,19 @@ export function ProfileGuideStep({ employeeName, avatarUrl, onContinue, onBack, 
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Privacy highlight callout */}
+        <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 flex items-start gap-3">
+          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+            <Shield className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <h4 className="font-medium text-foreground text-sm">Built-in Privacy Protection</h4>
+            <p className="text-sm text-muted-foreground mt-1">
+              Team members can only see your work email and basic job info. Sensitive data like salary, banking details, tax numbers, and emergency contacts are restricted to authorized personnel only.
+            </p>
+          </div>
         </div>
 
         <div className="flex gap-3">
