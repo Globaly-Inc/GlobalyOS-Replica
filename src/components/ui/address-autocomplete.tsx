@@ -58,8 +58,25 @@ export function AddressAutocomplete({
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const listenerRef = useRef<google.maps.MapsEventListener | null>(null);
-  const isSelectingRef = useRef(false); // Track when user is selecting from dropdown
-  const lastSelectedValueRef = useRef<string>(''); // Track last selected value to prevent overwrite
+  const isSelectingRef = useRef(false);
+  const lastSelectedValueRef = useRef<string>('');
+  const isPacSelectionPendingRef = useRef(false); // Track if PAC dropdown selection is pending
+
+  // Handle Enter key to prevent form submission when autocomplete dropdown is open
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      const pacContainer = document.querySelector('.pac-container');
+      const isDropdownVisible = pacContainer && 
+        window.getComputedStyle(pacContainer).display !== 'none' &&
+        pacContainer.childNodes.length > 0;
+      
+      if (isDropdownVisible) {
+        e.preventDefault();
+        e.stopPropagation();
+        isPacSelectionPendingRef.current = true;
+      }
+    }
+  }, []);
 
   // Load Google Maps script
   const loadGoogleMapsScript = useCallback(async () => {
@@ -140,16 +157,18 @@ export function AddressAutocomplete({
       const place = autocompleteRef.current?.getPlace();
       
       if (!place?.address_components) {
+        isPacSelectionPendingRef.current = false;
         return;
       }
 
       isSelectingRef.current = true;
+      isPacSelectionPendingRef.current = false;
 
       const components: AddressComponents = {
         formatted_address: place.formatted_address,
         lat: place.geometry?.location?.lat(),
         lng: place.geometry?.location?.lng(),
-        place_name: place.name, // Capture business/place name
+        place_name: place.name,
       };
 
       // Parse address components
@@ -184,12 +203,19 @@ export function AddressAutocomplete({
       const formattedAddress = place.formatted_address || '';
       lastSelectedValueRef.current = formattedAddress;
       setHasValidAddress(true);
+      
+      // Force update the input value immediately to sync with Google's selection
+      if (inputRef.current) {
+        inputRef.current.value = formattedAddress;
+      }
+      
+      // Call onChange with the formatted address and all components
       onChange(formattedAddress, components);
       
       // Reset selecting flag after a short delay
       setTimeout(() => {
         isSelectingRef.current = false;
-      }, 100);
+      }, 150);
     });
 
     return () => {
@@ -228,6 +254,7 @@ export function AddressAutocomplete({
         type="text"
         value={value}
         onChange={handleInputChange}
+        onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled || isLoading}
         required={required}
