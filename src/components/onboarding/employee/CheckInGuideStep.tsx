@@ -1,19 +1,93 @@
 /**
  * Owner Onboarding - QR Code Download Guide Step
  * Explains QR-based attendance with 100m geofencing for owners
+ * Allows downloading pre-generated QR PDFs for each office
  */
 
+import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowRight, ArrowLeft, QrCode, MapPin, Building2, Download, RefreshCw, Loader2 } from 'lucide-react';
+import QRCode from 'qrcode';
+import { generateOfficeQRPDF } from '@/components/offices/OfficeQRPDFExport';
 
 interface CheckInGuideStepProps {
   onContinue: () => void;
   onBack?: () => void;
   isNavigating?: boolean;
+  offices?: Array<{ 
+    id?: string; 
+    name: string; 
+    city?: string | null;
+  }>;
+  organizationId?: string;
+  orgName?: string;
+  orgLogoUrl?: string | null;
 }
 
-export function CheckInGuideStep({ onContinue, onBack, isNavigating = false }: CheckInGuideStepProps) {
+export function CheckInGuideStep({ 
+  onContinue, 
+  onBack, 
+  isNavigating = false,
+  offices = [],
+  organizationId,
+  orgName,
+  orgLogoUrl,
+}: CheckInGuideStepProps) {
+  const [selectedOffice, setSelectedOffice] = useState<string>('');
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
+
+  // Filter offices that have IDs (already saved to DB)
+  const savedOffices = offices.filter(o => o.id);
+
+  // Auto-select first office
+  useEffect(() => {
+    if (savedOffices.length > 0 && !selectedOffice) {
+      setSelectedOffice(savedOffices[0].id!);
+    }
+  }, [savedOffices, selectedOffice]);
+
+  // Fetch pre-generated QR code for selected office
+  const { data: qrCode, isLoading: isLoadingQR } = useQuery({
+    queryKey: ['office-qr-code', selectedOffice],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('office_qr_codes')
+        .select('*')
+        .eq('office_id', selectedOffice)
+        .eq('is_active', true)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedOffice,
+  });
+
+  // Generate QR image from code
+  useEffect(() => {
+    if (qrCode?.code) {
+      QRCode.toDataURL(qrCode.code, { width: 300, margin: 2 })
+        .then(setQrCodeDataUrl)
+        .catch(console.error);
+    } else {
+      setQrCodeDataUrl('');
+    }
+  }, [qrCode?.code]);
+
+  const handleDownload = () => {
+    if (!qrCodeDataUrl || !selectedOffice) return;
+    const officeName = savedOffices.find(o => o.id === selectedOffice)?.name || 'Office';
+    generateOfficeQRPDF({
+      officeName,
+      qrCodeDataUrl,
+      orgName: orgName || '',
+      orgLogoUrl: orgLogoUrl || null,
+    });
+  };
+
   return (
     <Card className="border-0 shadow-lg">
       <CardHeader className="text-center pb-4">
@@ -27,16 +101,74 @@ export function CheckInGuideStep({ onContinue, onBack, isNavigating = false }: C
       </CardHeader>
 
       <CardContent className="space-y-6">
-        {/* Visual demo - QR with geofence */}
+        {/* Interactive QR Download Section */}
         <div className="flex flex-col items-center gap-4 p-6 bg-blue-50 dark:bg-blue-950/20 rounded-xl border border-blue-200 dark:border-blue-800">
-          <div className="relative">
-            <div className="h-24 w-24 rounded-xl bg-white dark:bg-gray-900 border-2 border-blue-300 dark:border-blue-700 flex items-center justify-center shadow-sm">
-              <QrCode className="h-12 w-12 text-blue-600" />
+          {savedOffices.length > 0 ? (
+            <>
+              {/* Office Selector */}
+              <Select value={selectedOffice} onValueChange={setSelectedOffice}>
+                <SelectTrigger className="w-full max-w-[280px] bg-white dark:bg-gray-900">
+                  <SelectValue placeholder="Select an office" />
+                </SelectTrigger>
+                <SelectContent>
+                  {savedOffices.map((office) => (
+                    <SelectItem key={office.id} value={office.id!}>
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-muted-foreground" />
+                        <span>{office.name}</span>
+                        {office.city && (
+                          <span className="text-xs text-muted-foreground">({office.city})</span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* QR Preview + Download */}
+              {selectedOffice && (
+                <>
+                  {isLoadingQR ? (
+                    <div className="h-32 w-32 flex items-center justify-center">
+                      <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                    </div>
+                  ) : qrCodeDataUrl ? (
+                    <div className="relative">
+                      <div className="h-32 w-32 rounded-xl bg-white border-2 border-blue-300 dark:border-blue-700 p-2 shadow-sm">
+                        <img src={qrCodeDataUrl} alt="Office QR Code" className="w-full h-full" />
+                      </div>
+                      <div className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full bg-green-500 flex items-center justify-center shadow-md">
+                        <MapPin className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="h-32 w-32 rounded-xl bg-white/50 dark:bg-gray-900/50 border-2 border-dashed border-blue-300 dark:border-blue-700 flex items-center justify-center">
+                      <QrCode className="h-8 w-8 text-blue-400" />
+                    </div>
+                  )}
+
+                  {qrCodeDataUrl && (
+                    <Button onClick={handleDownload} size="sm" className="gap-2">
+                      <Download className="h-4 w-4" />
+                      Download A4 PDF
+                    </Button>
+                  )}
+                </>
+              )}
+            </>
+          ) : (
+            /* Fallback: Static illustration when no offices exist yet */
+            <div className="relative">
+              <div className="h-24 w-24 rounded-xl bg-white dark:bg-gray-900 border-2 border-blue-300 dark:border-blue-700 flex items-center justify-center shadow-sm">
+                <QrCode className="h-12 w-12 text-blue-600" />
+              </div>
+              <div className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full bg-green-500 flex items-center justify-center shadow-md">
+                <MapPin className="h-4 w-4 text-white" />
+              </div>
             </div>
-            <div className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full bg-green-500 flex items-center justify-center shadow-md">
-              <MapPin className="h-4 w-4 text-white" />
-            </div>
-          </div>
+          )}
+
+          {/* Geofence badge */}
           <div className="text-center">
             <p className="text-sm font-medium text-blue-700 dark:text-blue-300">100m Geofence</p>
             <p className="text-xs text-blue-600/70 dark:text-blue-400/70">Auto-verified location</p>

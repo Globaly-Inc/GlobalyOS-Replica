@@ -289,6 +289,10 @@ export default function OrgOnboardingWizard() {
             onContinue={() => handleNext()}
             onBack={handleBack}
             isNavigating={saveStep.isPending || isAdvancing}
+            offices={onboardingData?.offices || []}
+            organizationId={currentOrg?.id}
+            orgName={currentOrg?.name}
+            orgLogoUrl={currentOrg?.logo_url}
           />
         );
       case 'leave-guide':
