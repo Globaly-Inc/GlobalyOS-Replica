@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { AddressAutocomplete, AddressComponents } from "@/components/ui/address-autocomplete";
+import { AddressAutocomplete, type AddressComponents } from "@/components/ui/address-autocomplete";
 import { Pencil, MapPin, Check } from "lucide-react";
 
 interface AddressData {
@@ -131,7 +131,7 @@ export function EditAddressDialog({ address, onSave }: EditAddressDialogProps) {
           {/* Show parsed address preview when valid */}
           {hasValidAddress && formData.street && (
             <div className="p-3 bg-muted/50 rounded-lg space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium text-green-600 dark:text-green-400">
+              <div className="flex items-center gap-2 text-sm font-medium text-success">
                 <Check className="h-4 w-4" />
                 Address confirmed
               </div>
