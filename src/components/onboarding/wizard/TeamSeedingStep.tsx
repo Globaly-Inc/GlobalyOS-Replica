@@ -428,12 +428,14 @@ export function TeamSeedingStep({
                         onValueChange={(v: TeamMember['role']) => updateMember(index, 'role', v)}
                       >
                         <SelectTrigger className="h-9">
-                          <SelectValue />
+                          <SelectValue>
+                            {ROLES.find(r => r.value === member.role)?.label}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           {ROLES.map((role) => (
-                            <SelectItem key={role.value} value={role.value}>
-                              <div className="flex flex-col py-0.5">
+                            <SelectItem key={role.value} value={role.value} className="py-2">
+                              <div className="flex flex-col">
                                 <span className="font-medium">{role.label}</span>
                                 <span className="text-xs text-muted-foreground">{role.description}</span>
                               </div>
