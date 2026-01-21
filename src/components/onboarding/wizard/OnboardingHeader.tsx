@@ -10,7 +10,7 @@ import globalyosIcon from '@/assets/globalyos-icon.png';
 // Phase groupings for 12 steps
 const PHASES = [
   { label: 'Setup', steps: [1, 2, 3, 4] },
-  { label: 'Profile', steps: [5, 6] },
+  { label: 'Profile & Team', steps: [5, 6] },
   { label: 'Guides', steps: [7, 8, 9, 10, 11] },
   { label: 'Complete', steps: [12] },
 ];
@@ -63,12 +63,11 @@ export function OnboardingHeader({
                       isPhaseUpcoming && 'bg-muted text-muted-foreground'
                     )}
                   >
-                    {/* Phase label or checkmark for complete phase */}
-                    {isPhaseCompleted && phase.label !== 'Complete' ? (
+                    {/* Phase label with checkmark for completed phases */}
+                    {isPhaseCompleted && phase.label !== 'Complete' && (
                       <Check className="h-3 w-3" />
-                    ) : (
-                      <span>{phase.label}</span>
                     )}
+                    <span>{phase.label}</span>
                     
                     {/* Mini dots for steps in this phase */}
                     <div className="flex items-center gap-0.5 ml-1">
