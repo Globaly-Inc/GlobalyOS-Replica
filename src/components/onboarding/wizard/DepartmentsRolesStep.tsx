@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, ArrowRight, Sparkles, Plus, Trash2, Loader2, Building2, Users, CheckSquare, Square, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { expandPositionName } from '@/utils/position-names';
 
 interface Position {
   name: string;
@@ -531,7 +532,7 @@ export function DepartmentsRolesStep({
                     onCheckedChange={() => togglePosition(index)}
                   />
                   <div className="flex-1 min-w-0">
-                    <span className="font-medium text-sm">{position.name}</span>
+                    <span className="font-medium text-sm">{expandPositionName(position.name)}</span>
                     {customPositions.has(position.name) && (
                       <span className="ml-1 text-xs text-muted-foreground">(custom)</span>
                     )}
