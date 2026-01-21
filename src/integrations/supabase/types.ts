@@ -2749,18 +2749,22 @@ export type Database = {
           employee_onboarding_step: number | null
           employment_type: string | null
           gender: string | null
+          google_maps_url: string | null
           id: string
           id_number: string | null
           is_new_hire: boolean | null
           join_date: string
           last_working_day: string | null
+          latitude: number | null
           legal_entity_id: string | null
+          longitude: number | null
           manager_id: string | null
           office_id: string | null
           organization_id: string | null
           payroll_profile_id: string | null
           personal_email: string | null
           phone: string | null
+          place_id: string | null
           position: string
           position_effective_date: string | null
           postcode: string | null
@@ -2795,18 +2799,22 @@ export type Database = {
           employee_onboarding_step?: number | null
           employment_type?: string | null
           gender?: string | null
+          google_maps_url?: string | null
           id?: string
           id_number?: string | null
           is_new_hire?: boolean | null
           join_date: string
           last_working_day?: string | null
+          latitude?: number | null
           legal_entity_id?: string | null
+          longitude?: number | null
           manager_id?: string | null
           office_id?: string | null
           organization_id?: string | null
           payroll_profile_id?: string | null
           personal_email?: string | null
           phone?: string | null
+          place_id?: string | null
           position: string
           position_effective_date?: string | null
           postcode?: string | null
@@ -2841,18 +2849,22 @@ export type Database = {
           employee_onboarding_step?: number | null
           employment_type?: string | null
           gender?: string | null
+          google_maps_url?: string | null
           id?: string
           id_number?: string | null
           is_new_hire?: boolean | null
           join_date?: string
           last_working_day?: string | null
+          latitude?: number | null
           legal_entity_id?: string | null
+          longitude?: number | null
           manager_id?: string | null
           office_id?: string | null
           organization_id?: string | null
           payroll_profile_id?: string | null
           personal_email?: string | null
           phone?: string | null
+          place_id?: string | null
           position?: string
           position_effective_date?: string | null
           postcode?: string | null
@@ -5062,11 +5074,15 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string
+          google_maps_url: string | null
           id: string
+          latitude: number | null
           leave_year_start_day: number | null
           leave_year_start_month: number | null
+          longitude: number | null
           name: string
           organization_id: string
+          place_id: string | null
           public_holidays_enabled: boolean | null
           timezone: string | null
           updated_at: string
@@ -5076,11 +5092,15 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          google_maps_url?: string | null
           id?: string
+          latitude?: number | null
           leave_year_start_day?: number | null
           leave_year_start_month?: number | null
+          longitude?: number | null
           name: string
           organization_id: string
+          place_id?: string | null
           public_holidays_enabled?: boolean | null
           timezone?: string | null
           updated_at?: string
@@ -5090,11 +5110,15 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          google_maps_url?: string | null
           id?: string
+          latitude?: number | null
           leave_year_start_day?: number | null
           leave_year_start_month?: number | null
+          longitude?: number | null
           name?: string
           organization_id?: string
+          place_id?: string | null
           public_holidays_enabled?: boolean | null
           timezone?: string | null
           updated_at?: string
@@ -5447,10 +5471,13 @@ export type Database = {
           country: string | null
           created_at: string
           early_checkout_reason_required: boolean | null
+          google_maps_url: string | null
           id: string
           industry: string | null
+          latitude: number | null
           legal_business_name: string | null
           logo_url: string | null
+          longitude: number | null
           max_day_in_lieu_days: number | null
           max_sessions_per_day: number | null
           multi_session_enabled: boolean | null
@@ -5460,6 +5487,7 @@ export type Database = {
           owner_email: string | null
           owner_name: string | null
           owner_phone: string | null
+          place_id: string | null
           plan: string
           rejected_at: string | null
           rejection_reason: string | null
@@ -5485,10 +5513,13 @@ export type Database = {
           country?: string | null
           created_at?: string
           early_checkout_reason_required?: boolean | null
+          google_maps_url?: string | null
           id?: string
           industry?: string | null
+          latitude?: number | null
           legal_business_name?: string | null
           logo_url?: string | null
+          longitude?: number | null
           max_day_in_lieu_days?: number | null
           max_sessions_per_day?: number | null
           multi_session_enabled?: boolean | null
@@ -5498,6 +5529,7 @@ export type Database = {
           owner_email?: string | null
           owner_name?: string | null
           owner_phone?: string | null
+          place_id?: string | null
           plan?: string
           rejected_at?: string | null
           rejection_reason?: string | null
@@ -5523,10 +5555,13 @@ export type Database = {
           country?: string | null
           created_at?: string
           early_checkout_reason_required?: boolean | null
+          google_maps_url?: string | null
           id?: string
           industry?: string | null
+          latitude?: number | null
           legal_business_name?: string | null
           logo_url?: string | null
+          longitude?: number | null
           max_day_in_lieu_days?: number | null
           max_sessions_per_day?: number | null
           multi_session_enabled?: boolean | null
@@ -5536,6 +5571,7 @@ export type Database = {
           owner_email?: string | null
           owner_name?: string | null
           owner_phone?: string | null
+          place_id?: string | null
           plan?: string
           rejected_at?: string | null
           rejection_reason?: string | null
