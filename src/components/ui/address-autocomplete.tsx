@@ -1,6 +1,13 @@
 /**
- * Address Autocomplete Component using Google Places API
- * Fixed controlled input sync with Google Places Autocomplete
+ * Google Places Autocomplete component
+ * Handles address input with Google Places suggestions
+ * Supports both addresses and establishments/businesses
+ * Uses uncontrolled input pattern to prevent React/Google DOM conflicts
+ * 
+ * Features:
+ * - Keyboard navigation (Arrow keys + Enter work properly)
+ * - Business/establishment search (finds places like "GlobalyHub")
+ * - Captures place_id and google_maps_url for map features
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -21,7 +28,9 @@ export interface AddressComponents {
   formatted_address?: string;
   lat?: number;
   lng?: number;
-  place_name?: string; // Business/place name if applicable
+  place_name?: string;
+  place_id?: string;
+  google_maps_url?: string;
 }
 
 interface AddressAutocompleteProps {
@@ -30,9 +39,9 @@ interface AddressAutocompleteProps {
   placeholder?: string;
   disabled?: boolean;
   required?: boolean;
-  countryCode?: string; // ISO 3166-1 alpha-2 country code (e.g., 'AU', 'US')
+  countryCode?: string;
   className?: string;
-  allowBusinesses?: boolean; // Default true - set false for address-only search
+  allowBusinesses?: boolean;
 }
 
 declare global {
@@ -41,6 +50,8 @@ declare global {
     initGoogleMaps?: () => void;
   }
 }
+
+let googleMapsPromise: Promise<void> | null = null;
 
 export function AddressAutocomplete({
   value,
@@ -52,199 +63,207 @@ export function AddressAutocomplete({
   className,
   allowBusinesses = true,
 }: AddressAutocompleteProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [isScriptLoaded, setIsScriptLoaded] = useState(false);
-  const [hasValidAddress, setHasValidAddress] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
-  const listenerRef = useRef<google.maps.MapsEventListener | null>(null);
   const isSelectingRef = useRef(false);
-  const lastSelectedValueRef = useRef<string>('');
-  const isPacSelectionPendingRef = useRef(false); // Track if PAC dropdown selection is pending
+  const lastSelectedAddressRef = useRef<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isValid, setIsValid] = useState(false);
 
-  // Handle Enter key to prevent form submission when autocomplete dropdown is open
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      const pacContainer = document.querySelector('.pac-container');
-      const isDropdownVisible = pacContainer && 
-        window.getComputedStyle(pacContainer).display !== 'none' &&
-        pacContainer.childNodes.length > 0;
-      
-      if (isDropdownVisible) {
-        e.preventDefault();
-        e.stopPropagation();
-        isPacSelectionPendingRef.current = true;
-      }
-    }
-  }, []);
-
-  // Load Google Maps script
-  const loadGoogleMapsScript = useCallback(async () => {
-    if (window.google?.maps?.places) {
-      setIsScriptLoaded(true);
-      return;
-    }
-
-    if (document.getElementById('google-maps-script')) {
-      // Script is loading, wait for it
-      const checkLoaded = setInterval(() => {
-        if (window.google?.maps?.places) {
-          setIsScriptLoaded(true);
-          clearInterval(checkLoaded);
-        }
-      }, 100);
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const { data, error } = await supabase.functions.invoke('get-google-maps-key');
-      
-      if (error || !data?.apiKey) {
-        console.error('Failed to fetch Google Maps API key:', error);
-        setIsLoading(false);
-        return;
-      }
-
-      const script = document.createElement('script');
-      script.id = 'google-maps-script';
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${data.apiKey}&libraries=places&loading=async`;
-      script.async = true;
-      script.defer = true;
-      
-      script.onload = () => {
-        setIsScriptLoaded(true);
-        setIsLoading(false);
-      };
-      
-      script.onerror = () => {
-        console.error('Failed to load Google Maps script');
-        setIsLoading(false);
-      };
-
-      document.head.appendChild(script);
-    } catch (err) {
-      console.error('Error loading Google Maps:', err);
-      setIsLoading(false);
-    }
-  }, []);
-
-  // Initialize autocomplete
+  // Check if current value matches a previously selected address
   useEffect(() => {
-    loadGoogleMapsScript();
-  }, [loadGoogleMapsScript]);
-
-  // Setup autocomplete when script is loaded
-  useEffect(() => {
-    if (!isScriptLoaded || !inputRef.current || !window.google?.maps?.places) {
-      return;
-    }
-
-    // Clean up previous autocomplete
-    if (listenerRef.current) {
-      google.maps.event.removeListener(listenerRef.current);
-    }
-
-    autocompleteRef.current = new google.maps.places.Autocomplete(inputRef.current, {
-      // Only restrict to addresses if allowBusinesses is explicitly false
-      ...(allowBusinesses === false ? { types: ['address'] } : {}),
-      fields: ['address_components', 'formatted_address', 'geometry', 'name'],
-      componentRestrictions: countryCode ? { country: countryCode.toLowerCase() } : undefined,
-    });
-
-    listenerRef.current = autocompleteRef.current.addListener('place_changed', () => {
-      const place = autocompleteRef.current?.getPlace();
-      
-      if (!place?.address_components) {
-        isPacSelectionPendingRef.current = false;
-        return;
-      }
-
-      isSelectingRef.current = true;
-      isPacSelectionPendingRef.current = false;
-
-      const components: AddressComponents = {
-        formatted_address: place.formatted_address,
-        lat: place.geometry?.location?.lat(),
-        lng: place.geometry?.location?.lng(),
-        place_name: place.name,
-      };
-
-      // Parse address components
-      place.address_components.forEach((component) => {
-        const type = component.types[0];
-        switch (type) {
-          case 'street_number':
-            components.street_number = component.long_name;
-            break;
-          case 'route':
-            components.route = component.long_name;
-            break;
-          case 'locality':
-            components.locality = component.long_name;
-            break;
-          case 'administrative_area_level_1':
-            components.administrative_area_level_1 = component.long_name;
-            break;
-          case 'administrative_area_level_2':
-            components.administrative_area_level_2 = component.long_name;
-            break;
-          case 'country':
-            components.country = component.long_name;
-            components.country_code = component.short_name;
-            break;
-          case 'postal_code':
-            components.postal_code = component.long_name;
-            break;
-        }
-      });
-
-      const formattedAddress = place.formatted_address || '';
-      lastSelectedValueRef.current = formattedAddress;
-      setHasValidAddress(true);
-      
-      // Force update the input value immediately to sync with Google's selection
-      if (inputRef.current) {
-        inputRef.current.value = formattedAddress;
-      }
-      
-      // Call onChange with the formatted address and all components
-      onChange(formattedAddress, components);
-      
-      // Reset selecting flag after a short delay
-      setTimeout(() => {
-        isSelectingRef.current = false;
-      }, 150);
-    });
-
-    return () => {
-      if (listenerRef.current) {
-        google.maps.event.removeListener(listenerRef.current);
-      }
-    };
-  }, [isScriptLoaded, onChange, countryCode, allowBusinesses]);
-
-  // Handle manual input changes
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    
-    // If user is manually typing (not selecting from dropdown)
-    if (!isSelectingRef.current) {
-      setHasValidAddress(false);
-      lastSelectedValueRef.current = '';
-      onChange(newValue); // No components when typing manually
-    }
-  };
-
-  // Determine if the current value matches a previously selected address
-  useEffect(() => {
-    if (value && lastSelectedValueRef.current === value) {
-      setHasValidAddress(true);
+    if (value && lastSelectedAddressRef.current && value === lastSelectedAddressRef.current) {
+      setIsValid(true);
     } else if (!value) {
-      setHasValidAddress(false);
+      setIsValid(false);
+      lastSelectedAddressRef.current = '';
     }
   }, [value]);
+
+  // Sync external value changes to input (uncontrolled pattern)
+  useEffect(() => {
+    if (inputRef.current && !isSelectingRef.current) {
+      // Only sync if the value differs to avoid cursor issues
+      if (inputRef.current.value !== value) {
+        inputRef.current.value = value;
+      }
+    }
+  }, [value]);
+
+  // Handle keyboard interactions - allow Google's autocomplete to handle navigation
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      const pacContainer = document.querySelector('.pac-container:not([style*="display: none"])');
+      const pacItems = pacContainer?.querySelectorAll('.pac-item');
+      
+      if (pacContainer && pacItems && pacItems.length > 0) {
+        // Prevent form submission while PAC dropdown is open
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Check if any item is already highlighted
+        const hasHighlighted = pacContainer.querySelector('.pac-item-selected');
+        
+        if (!hasHighlighted) {
+          // Simulate ArrowDown to highlight first item, then Enter to select
+          const downEvent = new KeyboardEvent('keydown', {
+            key: 'ArrowDown',
+            code: 'ArrowDown',
+            keyCode: 40,
+            which: 40,
+            bubbles: true,
+            cancelable: true,
+          });
+          inputRef.current?.dispatchEvent(downEvent);
+        }
+        
+        // Give Google's widget time to highlight, then trigger selection
+        setTimeout(() => {
+          const enterEvent = new KeyboardEvent('keydown', {
+            key: 'Enter',
+            code: 'Enter',
+            keyCode: 13,
+            which: 13,
+            bubbles: true,
+            cancelable: true,
+          });
+          inputRef.current?.dispatchEvent(enterEvent);
+        }, 50);
+      }
+    }
+  }, []);
+
+  // Load Google Maps API and initialize autocomplete
+  useEffect(() => {
+    const loadAndInit = async () => {
+      try {
+        // Load Google Maps script if not already loaded
+        if (!window.google?.maps?.places) {
+          if (!googleMapsPromise) {
+            googleMapsPromise = new Promise<void>(async (resolve, reject) => {
+              try {
+                const { data, error } = await supabase.functions.invoke('get-google-maps-key');
+                if (error || !data?.apiKey) {
+                  console.error('Failed to get Google Maps key:', error);
+                  reject(new Error('Failed to load Google Maps key'));
+                  return;
+                }
+                
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${data.apiKey}&libraries=places`;
+                script.async = true;
+                script.defer = true;
+                script.onload = () => resolve();
+                script.onerror = () => reject(new Error('Failed to load Google Maps script'));
+                document.head.appendChild(script);
+              } catch (err) {
+                reject(err);
+              }
+            });
+          }
+          await googleMapsPromise;
+        }
+        
+        // Initialize autocomplete
+        if (inputRef.current && window.google?.maps?.places && !autocompleteRef.current) {
+          // Use establishment + geocode types for comprehensive results
+          // This finds both addresses AND businesses like "GlobalyHub"
+          autocompleteRef.current = new google.maps.places.Autocomplete(inputRef.current, {
+            types: allowBusinesses ? ['establishment', 'geocode'] : ['address'],
+            fields: ['address_components', 'formatted_address', 'geometry', 'name', 'place_id', 'url'],
+            componentRestrictions: countryCode ? { country: countryCode.toLowerCase() } : undefined,
+          });
+
+          autocompleteRef.current.addListener('place_changed', () => {
+            const place = autocompleteRef.current?.getPlace();
+            if (!place) return;
+            
+            isSelectingRef.current = true;
+
+            const components: AddressComponents = {
+              formatted_address: place.formatted_address,
+              lat: place.geometry?.location?.lat(),
+              lng: place.geometry?.location?.lng(),
+              place_name: place.name,
+              place_id: place.place_id,
+              google_maps_url: place.url,
+            };
+
+            place.address_components?.forEach((component) => {
+              const type = component.types[0];
+              switch (type) {
+                case 'street_number':
+                  components.street_number = component.long_name;
+                  break;
+                case 'route':
+                  components.route = component.long_name;
+                  break;
+                case 'locality':
+                  components.locality = component.long_name;
+                  break;
+                case 'administrative_area_level_1':
+                  components.administrative_area_level_1 = component.long_name;
+                  break;
+                case 'administrative_area_level_2':
+                  components.administrative_area_level_2 = component.long_name;
+                  break;
+                case 'country':
+                  components.country = component.long_name;
+                  components.country_code = component.short_name;
+                  break;
+                case 'postal_code':
+                  components.postal_code = component.long_name;
+                  break;
+              }
+            });
+
+            // Use place name for businesses, formatted address for regular addresses
+            const formattedAddress = place.name && place.formatted_address && !place.formatted_address.startsWith(place.name)
+              ? `${place.name}, ${place.formatted_address}`
+              : place.formatted_address || place.name || '';
+            
+            // Force update the input value to match what Google selected
+            if (inputRef.current) {
+              inputRef.current.value = formattedAddress;
+            }
+            
+            // Track this as a valid selected address
+            lastSelectedAddressRef.current = formattedAddress;
+            setIsValid(true);
+            
+            onChange(formattedAddress, components);
+            
+            // Clear the selecting flag after a short delay
+            setTimeout(() => {
+              isSelectingRef.current = false;
+            }, 100);
+          });
+        }
+        
+        setIsLoading(false);
+      } catch (err) {
+        console.error('Error initializing Google Places:', err);
+        setIsLoading(false);
+      }
+    };
+
+    loadAndInit();
+
+    return () => {
+      if (autocompleteRef.current) {
+        google.maps.event.clearInstanceListeners(autocompleteRef.current);
+      }
+    };
+  }, [countryCode, allowBusinesses, onChange]);
+
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    // When user types, mark as not selected/valid
+    if (newValue !== lastSelectedAddressRef.current) {
+      setIsValid(false);
+    }
+    onChange(newValue);
+  }, [onChange]);
 
   return (
     <div className="relative">
@@ -252,24 +271,26 @@ export function AddressAutocomplete({
       <Input
         ref={inputRef}
         type="text"
-        value={value}
+        defaultValue={value}
         onChange={handleInputChange}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled || isLoading}
         required={required}
         className={cn(
-          "pl-9 pr-9",
-          hasValidAddress && "border-success focus-visible:ring-success",
+          'pl-9 pr-10',
+          isValid && 'border-success focus-visible:ring-success',
           className
         )}
+        autoComplete="off"
       />
-      {isLoading && (
-        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-      )}
-      {!isLoading && hasValidAddress && (
-        <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-success" />
-      )}
+      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+        {isLoading ? (
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        ) : isValid ? (
+          <CheckCircle2 className="h-4 w-4 text-success" />
+        ) : null}
+      </div>
     </div>
   );
 }
