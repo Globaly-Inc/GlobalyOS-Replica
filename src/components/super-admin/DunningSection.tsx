@@ -361,14 +361,14 @@ export function DunningSection({ organizationId, subscription }: DunningSectionP
             <Clock className="h-4 w-4 text-muted-foreground" />
             <span className="text-muted-foreground">Started:</span>
             <span className="font-medium">
-              {dunningStarted ? format(dunningStarted, "MMM d, yyyy") : "-"}
+              {dunningStarted ? format(dunningStarted, "dd MMM yyyy") : "-"}
             </span>
           </div>
           <div className="flex items-center gap-2 text-sm">
             <Clock className="h-4 w-4 text-muted-foreground" />
             <span className="text-muted-foreground">Ends:</span>
             <span className="font-medium">
-              {dunningEnds ? format(dunningEnds, "MMM d, yyyy") : "-"}
+              {dunningEnds ? format(dunningEnds, "dd MMM yyyy") : "-"}
             </span>
           </div>
           <div className="flex items-center gap-2 text-sm">

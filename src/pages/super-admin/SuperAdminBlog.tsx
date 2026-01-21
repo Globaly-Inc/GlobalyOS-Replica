@@ -209,7 +209,7 @@ export default function SuperAdminBlog() {
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground mt-1">
-                            By {post.author_name} • {format(new Date(post.created_at), "MMM d, yyyy")}
+                            By {post.author_name} • {format(new Date(post.created_at), "dd MMM yyyy")}
                             {post.reading_time_minutes && ` • ${post.reading_time_minutes} min read`}
                           </p>
                         </div>

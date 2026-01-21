@@ -14,7 +14,7 @@ const DateSeparator = ({ date }: DateSeparatorProps) => {
   const getLabel = () => {
     if (isToday(zonedDate)) return "Today";
     if (isYesterday(zonedDate)) return "Yesterday";
-    return formatInTimeZone(dateObj, timezone, "EEEE, MMMM d");
+    return formatInTimeZone(dateObj, timezone, "EEEE, dd MMM");
   };
 
   return (

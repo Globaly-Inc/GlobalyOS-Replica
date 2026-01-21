@@ -767,7 +767,7 @@ export const AttendanceNotCheckedInTab = ({
                       <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
                         <div className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          <span>{format(new Date(record.date), "MMM d, yyyy")}</span>
+                          <span>{format(new Date(record.date), "dd MMM yyyy")}</span>
                         </div>
                         {record.expected_start_time && (
                           <div className="flex items-center gap-1">
@@ -831,7 +831,7 @@ export const AttendanceNotCheckedInTab = ({
                         <TableCell>
                           <div className="text-sm">
                             <span className="font-medium">{format(new Date(record.date), "EEE")}</span>
-                            <span className="text-muted-foreground ml-1">{format(new Date(record.date), "MMM d, yyyy")}</span>
+                            <span className="text-muted-foreground ml-1">{format(new Date(record.date), "dd MMM yyyy")}</span>
                           </div>
                         </TableCell>
                         <TableCell>

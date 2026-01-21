@@ -179,7 +179,7 @@ export const PayrollRunsTab = () => {
                   <div>
                     <CardTitle className="text-base">{getRunLabel(run)}</CardTitle>
                     <CardDescription className="mt-1">
-                      {getProfileName(run.payroll_profile_id)} • {format(new Date(run.period_start), 'MMM d')} - {format(new Date(run.period_end), 'MMM d, yyyy')}
+                      {getProfileName(run.payroll_profile_id)} • {format(new Date(run.period_start), 'dd MMM')} - {format(new Date(run.period_end), 'dd MMM yyyy')}
                     </CardDescription>
                   </div>
                   <Badge className={getStatusColor(run.status)}>
@@ -381,7 +381,7 @@ const PayrollRunDetails = ({
         <DialogHeader>
           <DialogTitle>{getRunLabel(run)}</DialogTitle>
           <DialogDescription>
-            {format(new Date(run.period_start), 'MMM d')} - {format(new Date(run.period_end), 'MMM d, yyyy')}
+            {format(new Date(run.period_start), 'dd MMM')} - {format(new Date(run.period_end), 'dd MMM yyyy')}
           </DialogDescription>
         </DialogHeader>
 

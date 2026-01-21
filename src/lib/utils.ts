@@ -20,14 +20,14 @@ export function formatDateTime(date: string | Date | null | undefined, timezone?
   if (!isValidDate(dateObj)) return '';
   
   if (timezone) {
-    const formatted = formatInTimeZone(dateObj, timezone, "d MMM yyyy - h:mm a");
+    const formatted = formatInTimeZone(dateObj, timezone, "dd MMM yyyy - h:mm a");
     if (showTimezone) {
       const tzAbbr = formatInTimeZone(dateObj, timezone, "zzz");
       return `${formatted} ${tzAbbr}`;
     }
     return formatted;
   }
-  return format(dateObj, "d MMM yyyy - h:mm a");
+  return format(dateObj, "dd MMM yyyy - h:mm a");
 }
 
 export function formatDate(date: string | Date | null | undefined, timezone?: string): string {
@@ -36,9 +36,9 @@ export function formatDate(date: string | Date | null | undefined, timezone?: st
   if (!isValidDate(dateObj)) return '';
   
   if (timezone) {
-    return formatInTimeZone(dateObj, timezone, "d MMM yyyy");
+    return formatInTimeZone(dateObj, timezone, "dd MMM yyyy");
   }
-  return format(dateObj, "d MMM yyyy");
+  return format(dateObj, "dd MMM yyyy");
 }
 
 export function formatDateRange(startDate: string | Date | null | undefined, endDate: string | Date | null | undefined, timezone?: string): string {
@@ -48,11 +48,11 @@ export function formatDateRange(startDate: string | Date | null | undefined, end
   if (!isValidDate(startObj) || !isValidDate(endObj)) return '';
   
   const start = timezone 
-    ? formatInTimeZone(startObj, timezone, "d MMM yyyy")
-    : format(startObj, "d MMM yyyy");
+    ? formatInTimeZone(startObj, timezone, "dd MMM yyyy")
+    : format(startObj, "dd MMM yyyy");
   const end = timezone 
-    ? formatInTimeZone(endObj, timezone, "d MMM yyyy")
-    : format(endObj, "d MMM yyyy");
+    ? formatInTimeZone(endObj, timezone, "dd MMM yyyy")
+    : format(endObj, "dd MMM yyyy");
   return start === end ? start : `${start} - ${end}`;
 }
 

@@ -67,7 +67,7 @@ export const EditableDateField = ({
   };
 
   const displayValue = value
-    ? format(new Date(value), "MMMM d, yyyy")
+    ? format(new Date(value), "dd MMM yyyy")
     : null;
 
   const age = value ? differenceInYears(new Date(), new Date(value)) : null;

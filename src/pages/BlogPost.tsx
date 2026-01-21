@@ -207,7 +207,7 @@ export default function BlogPost() {
             {post.published_at && (
               <div className="flex items-center gap-1">
                 <CalendarDays className="w-4 h-4" />
-                <span>{format(new Date(post.published_at), "MMMM d, yyyy")}</span>
+                <span>{format(new Date(post.published_at), "dd MMM yyyy")}</span>
               </div>
             )}
             {post.reading_time_minutes && (

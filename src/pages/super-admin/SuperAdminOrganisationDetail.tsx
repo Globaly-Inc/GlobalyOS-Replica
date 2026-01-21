@@ -342,7 +342,7 @@ export default function SuperAdminOrganisationDetail() {
                       <>
                         <Separator orientation="vertical" className="h-4" />
                         <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                          Trial ends {format(new Date(org.trial_ends_at), "MMM d, yyyy")}
+                          Trial ends {format(new Date(org.trial_ends_at), "dd MMM yyyy")}
                         </Badge>
                       </>
                     )}
@@ -526,7 +526,7 @@ export default function SuperAdminOrganisationDetail() {
                         </div>
                         <div>
                           <dt className="text-sm text-muted-foreground">Created</dt>
-                          <dd className="font-medium">{format(new Date(org.created_at), "MMM d, yyyy")}</dd>
+                          <dd className="font-medium">{format(new Date(org.created_at), "dd MMM yyyy")}</dd>
                         </div>
                       </dl>
                     </CardContent>
@@ -555,7 +555,7 @@ export default function SuperAdminOrganisationDetail() {
                             <dt className="text-sm text-muted-foreground">Period Start</dt>
                             <dd className="font-medium">
                               {subscription.current_period_start
-                                ? format(new Date(subscription.current_period_start), "MMM d, yyyy")
+                                ? format(new Date(subscription.current_period_start), "dd MMM yyyy")
                                 : "-"}
                             </dd>
                           </div>
@@ -563,7 +563,7 @@ export default function SuperAdminOrganisationDetail() {
                             <dt className="text-sm text-muted-foreground">Period End</dt>
                             <dd className="font-medium">
                               {subscription.current_period_end
-                                ? format(new Date(subscription.current_period_end), "MMM d, yyyy")
+                                ? format(new Date(subscription.current_period_end), "dd MMM yyyy")
                                 : "-"}
                             </dd>
                           </div>

@@ -162,7 +162,7 @@ export function AssetHandoverList({ assets, employeeId, workflowId, canEdit = fa
                             </div>
                             {asset.returned_date && (
                               <p className="text-xs text-muted-foreground">
-                                Returned on {format(new Date(asset.returned_date), "MMM d, yyyy")}
+                                Returned on {format(new Date(asset.returned_date), "dd MMM yyyy")}
                               </p>
                             )}
                             {asset.notes && (

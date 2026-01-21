@@ -351,7 +351,7 @@ export function CouponManagement() {
                   </TableCell>
                   <TableCell>
                     {coupon.valid_until
-                      ? format(new Date(coupon.valid_until), "MMM d, yyyy")
+                      ? format(new Date(coupon.valid_until), "dd MMM yyyy")
                       : "No expiry"}
                   </TableCell>
                   <TableCell>{getStatusBadge(coupon)}</TableCell>

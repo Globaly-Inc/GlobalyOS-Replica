@@ -793,11 +793,11 @@ const KpiDetail = () => {
                 <Separator />
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Created</span>
-                  <span>{format(parseISO(kpi.created_at), 'MMM d, yyyy')}</span>
+                  <span>{format(parseISO(kpi.created_at), 'dd MMM yyyy')}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Last Updated</span>
-                  <span>{format(parseISO(kpi.updated_at), 'MMM d, yyyy')}</span>
+                  <span>{format(parseISO(kpi.updated_at), 'dd MMM yyyy')}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Total Updates</span>
@@ -907,7 +907,7 @@ const KpiDetail = () => {
                   
                   {kpi.update_settings?.next_reminder_at && reminderEnabled && (
                     <p className="text-xs text-muted-foreground text-center">
-                      Next reminder: {format(parseISO(kpi.update_settings.next_reminder_at), 'MMM d, yyyy h:mm a')}
+                      Next reminder: {format(parseISO(kpi.update_settings.next_reminder_at), 'dd MMM yyyy h:mm a')}
                     </p>
                   )}
                 </div>

@@ -71,8 +71,8 @@ export function TrialSection({ organizationId, subscription }: TrialSectionProps
             <Clock className="h-4 w-4 text-blue-600" />
             <span className="text-sm text-blue-800">
               <span className="font-medium">Trial:</span>{" "}
-              {trialStart ? format(trialStart, "MMM d") + " - " : ""}
-              {format(trialEnd, "MMM d, yyyy")}
+              {trialStart ? format(trialStart, "dd MMM") + " - " : ""}
+              {format(trialEnd, "dd MMM yyyy")}
             </span>
             {getDaysRemainingBadge()}
           </div>

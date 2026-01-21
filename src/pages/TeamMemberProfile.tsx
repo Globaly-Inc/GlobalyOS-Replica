@@ -699,7 +699,7 @@ const TeamMemberProfile = () => {
                     </Badge>}
                   {employee.last_working_day && isAdminOrHR && <Badge variant="outline" className="text-xs bg-orange-500/10 text-orange-600 border-orange-500/20 flex items-center gap-1">
                       <UserX className="h-3 w-3" />
-                      Last day: {format(new Date(employee.last_working_day), "MMM d, yyyy")}
+                      Last day: {format(new Date(employee.last_working_day), "dd MMM yyyy")}
                     </Badge>}
                 </div>
                 

@@ -170,7 +170,7 @@ const CalendarPage = () => {
         year: 'numeric',
       }).format(currentTime);
     } catch {
-      return format(currentTime, 'EEE, d MMM yyyy');
+      return format(currentTime, 'EEE, dd MMM yyyy');
     }
   }, [currentTime, timezone]);
 

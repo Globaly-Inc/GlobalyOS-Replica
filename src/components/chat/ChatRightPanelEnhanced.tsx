@@ -732,7 +732,7 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
                   </div>
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Calendar className="h-4 w-4 flex-shrink-0" />
-                    <span>Created {format(new Date(spaceDetails.created_at), "MMM d, yyyy")}</span>
+                    <span>Created {format(new Date(spaceDetails.created_at), "dd MMM yyyy")}</span>
                   </div>
                   {spaceDetails.creator_name && (
                     <div className="flex items-center gap-2 text-muted-foreground">

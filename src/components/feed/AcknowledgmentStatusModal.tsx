@@ -208,7 +208,7 @@ export const AcknowledgmentStatusModal = ({
                       </p>
                       {isAcknowledged ? (
                         <p className="text-xs text-green-600 dark:text-green-400">
-                          {format(new Date(employee.acknowledgedAt!), 'MMM d, yyyy • h:mm a')}
+                          {format(new Date(employee.acknowledgedAt!), 'dd MMM yyyy • h:mm a')}
                         </p>
                       ) : (
                         <p className="text-xs text-muted-foreground">
