@@ -24,9 +24,18 @@ const extractAddressValue = (
   components?: Record<string, unknown> | null
 ): AddressValue => {
   if (!components) return EMPTY_ADDRESS;
+  
+  // For singleRow mode, prefer formatted_address (minus country) for display
+  // Fall back to just the route/street if formatted_address isn't available
+  const formattedAddress = components.formatted_address as string | undefined;
+  const country = (components.country as string) || '';
+  const displayAddress = formattedAddress 
+    ? formattedAddress.replace(new RegExp(`,?\\s*${country}$`, 'i'), '').trim()
+    : (components.route as string) || '';
+  
   return {
     country: (components.country_code as string) || '',
-    street: (components.route as string) || '',
+    street: displayAddress,
     city: (components.locality as string) || '',
     state: (components.administrative_area_level_1 as string) || '',
     postcode: (components.postal_code as string) || '',
