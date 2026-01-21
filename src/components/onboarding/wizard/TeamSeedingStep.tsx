@@ -335,13 +335,13 @@ export function TeamSeedingStep({
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="flex items-end">
+                    <div className="flex items-end justify-end">
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
                         onClick={() => removeMember(index)}
-                        className="h-9 w-9"
+                        className="h-9 w-9 mt-5"
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
