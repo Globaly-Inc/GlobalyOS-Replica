@@ -210,7 +210,11 @@ export function CompleteProfileStep({
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof ProfileFormData, string>> = {};
     
+    // Profile picture is required
+    if (!formData.avatar_url) newErrors.avatar_url = 'Profile photo is required';
+    
     if (!formData.date_of_birth) newErrors.date_of_birth = 'Required';
+    if (!formData.gender) newErrors.gender = 'Required';
     if (!formData.personal_email.trim()) newErrors.personal_email = 'Required';
     if (!formData.phone.trim()) newErrors.phone = 'Required';
     
@@ -299,53 +303,59 @@ export function CompleteProfileStep({
             </div>
             
             {/* Photo Upload - Left-aligned, compact layout */}
-            <div className="flex items-start gap-4 pb-2">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={handleAvatarChange}
-                className="hidden"
-              />
-              <div 
-                className={cn(
-                  "relative cursor-pointer group rounded-full shrink-0",
-                  isDragging && "ring-2 ring-primary ring-offset-2"
-                )}
-                onClick={handleAvatarClick}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-              >
-                <Avatar className="h-20 w-20 border-4 border-background shadow-lg">
-                  <AvatarImage src={formData.avatar_url} alt="Profile" />
-                  <AvatarFallback className="text-lg bg-primary/10 text-primary">
-                    {userInitials}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {isUploadingAvatar ? (
-                    <Loader2 className="h-5 w-5 animate-spin text-white" />
-                  ) : (
-                    <Camera className="h-5 w-5 text-white" />
+            <div className="space-y-2">
+              <div className="flex items-start gap-4">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleAvatarChange}
+                  className="hidden"
+                />
+                <div 
+                  className={cn(
+                    "relative cursor-pointer group rounded-full shrink-0",
+                    isDragging && "ring-2 ring-primary ring-offset-2",
+                    errors.avatar_url && "ring-2 ring-destructive ring-offset-2"
                   )}
+                  onClick={handleAvatarClick}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  <Avatar className="h-20 w-20 border-4 border-background shadow-lg">
+                    <AvatarImage src={formData.avatar_url} alt="Profile" />
+                    <AvatarFallback className="text-lg bg-primary/10 text-primary">
+                      {userInitials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {isUploadingAvatar ? (
+                      <Loader2 className="h-5 w-5 animate-spin text-white" />
+                    ) : (
+                      <Camera className="h-5 w-5 text-white" />
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-col justify-center gap-2 pt-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleAvatarClick}
+                    disabled={isUploadingAvatar}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {formData.avatar_url ? 'Change Photo' : 'Upload Photo'} <span className="text-destructive ml-1">*</span>
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    Click or drag • Max 5MB
+                  </p>
                 </div>
               </div>
-              <div className="flex flex-col justify-center gap-2 pt-2">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleAvatarClick}
-                  disabled={isUploadingAvatar}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  {formData.avatar_url ? 'Change Photo' : 'Upload Photo'}
-                </Button>
-                <p className="text-xs text-muted-foreground">
-                  Click or drag • Max 5MB
-                </p>
-              </div>
+              {errors.avatar_url && (
+                <p className="text-sm text-destructive">{errors.avatar_url}</p>
+              )}
             </div>
 
             {/* Image Cropper Dialog */}
@@ -383,12 +393,12 @@ export function CompleteProfileStep({
                 )}
               </div>
               <div className="space-y-2">
-                <Label>Gender</Label>
+                <Label>Gender <span className="text-destructive">*</span></Label>
                 <Select
                   value={formData.gender}
                   onValueChange={(v) => updateField('gender', v)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={cn(errors.gender && 'border-destructive focus-visible:ring-destructive')}>
                     <SelectValue placeholder="Select..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -399,6 +409,9 @@ export function CompleteProfileStep({
                     ))}
                   </SelectContent>
                 </Select>
+                {errors.gender && (
+                  <p className="text-sm text-destructive">{errors.gender}</p>
+                )}
               </div>
             </div>
 
