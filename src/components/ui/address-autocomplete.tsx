@@ -42,6 +42,8 @@ interface AddressAutocompleteProps {
   countryCode?: string;
   className?: string;
   allowBusinesses?: boolean;
+  /** Optional function to transform the address before displaying in input */
+  formatDisplayAddress?: (formattedAddress: string, components: AddressComponents) => string;
 }
 
 declare global {
@@ -62,6 +64,7 @@ export function AddressAutocomplete({
   countryCode,
   className,
   allowBusinesses = true,
+  formatDisplayAddress,
 }: AddressAutocompleteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
@@ -240,17 +243,22 @@ export function AddressAutocomplete({
             });
 
             // Use place name for businesses, formatted address for regular addresses
-            const formattedAddress = place.name && place.formatted_address && !place.formatted_address.startsWith(place.name)
+            let formattedAddress = place.name && place.formatted_address && !place.formatted_address.startsWith(place.name)
               ? `${place.name}, ${place.formatted_address}`
               : place.formatted_address || place.name || '';
             
-            // Force update the input value to match what Google selected
+            // Allow parent to transform the display address (e.g., strip country)
+            const displayAddress = formatDisplayAddress 
+              ? formatDisplayAddress(formattedAddress, components)
+              : formattedAddress;
+            
+            // Force update the input value to match what should be displayed
             if (inputRef.current) {
-              inputRef.current.value = formattedAddress;
+              inputRef.current.value = displayAddress;
             }
             
             // Track this as a valid selected address
-            lastSelectedAddressRef.current = formattedAddress;
+            lastSelectedAddressRef.current = displayAddress;
             setIsValid(true);
             
             // Use the ref to call onChange - this is the key fix!

@@ -167,6 +167,15 @@ export function StructuredAddressInput({
             placeholder={isCountrySelected ? "Start typing your address..." : "Select a country first"}
             allowBusinesses={allowBusinesses}
             className={cn(error && 'border-destructive focus-visible:ring-destructive')}
+            formatDisplayAddress={singleRow ? (formattedAddress, components) => {
+              // Remove country from the end of formatted address for cleaner display
+              if (components.country) {
+                return formattedAddress
+                  .replace(new RegExp(`,?\\s*${components.country}$`, 'i'), '')
+                  .trim();
+              }
+              return formattedAddress;
+            } : undefined}
           />
         </div>
       </div>
