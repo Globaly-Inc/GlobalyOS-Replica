@@ -204,7 +204,8 @@ export function useInitEmployeeOnboarding() {
 }
 
 /**
- * Save step data and optionally advance to next step
+ * Save step data and set explicit step (or optionally advance)
+ * Using explicit toStep prevents race conditions and step-skipping bugs
  */
 export function useSaveEmployeeOnboardingStep() {
   const queryClient = useQueryClient();
@@ -213,21 +214,37 @@ export function useSaveEmployeeOnboardingStep() {
   return useMutation({
     mutationFn: async ({
       stepData,
-      advanceStep = true,
+      toStep,
+      advanceStep = false,
     }: {
       stepData: Partial<EmployeeOnboardingData>;
-      advanceStep?: boolean;
+      toStep?: number; // Explicit step to set (preferred)
+      advanceStep?: boolean; // Legacy: increment from current DB step
     }) => {
       if (!employeeId) throw new Error('No employee found');
 
-      // Get current data to determine next step
-      const { data: current } = await supabase
-        .from('employee_onboarding_data')
-        .select('current_step')
-        .eq('employee_id', employeeId)
-        .single();
+      let nextStep: number;
 
-      const nextStep = advanceStep ? (current?.current_step || 0) + 1 : current?.current_step;
+      if (toStep !== undefined) {
+        // Use explicit step (clamped to valid range)
+        nextStep = Math.max(1, Math.min(toStep, TOTAL_EMPLOYEE_STEPS));
+      } else if (advanceStep) {
+        // Legacy: read current and increment (less safe, can cause skipping)
+        const { data: current } = await supabase
+          .from('employee_onboarding_data')
+          .select('current_step')
+          .eq('employee_id', employeeId)
+          .single();
+        nextStep = (current?.current_step || 0) + 1;
+      } else {
+        // No change requested, keep current
+        const { data: current } = await supabase
+          .from('employee_onboarding_data')
+          .select('current_step')
+          .eq('employee_id', employeeId)
+          .single();
+        nextStep = current?.current_step || 1;
+      }
 
       const { data, error } = await supabase
         .from('employee_onboarding_data')
@@ -248,7 +265,7 @@ export function useSaveEmployeeOnboardingStep() {
         .update({ employee_onboarding_step: nextStep })
         .eq('id', employeeId);
 
-      return data;
+      return data as EmployeeOnboardingData;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employee-onboarding-data'] });
