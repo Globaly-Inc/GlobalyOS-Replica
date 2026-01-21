@@ -22,7 +22,7 @@ import {
   useSaveEmployeeProfile,
   useSaveEmployeeTimezone,
   getEmployeeStepName,
-  TOTAL_EMPLOYEE_STEPS,
+  getEmployeeOnboardingSteps,
 } from '@/services/useEmployeeOnboarding';
 import { WizardProgress } from '@/components/onboarding/wizard/WizardProgress';
 import {
@@ -133,6 +133,7 @@ export default function EmployeeOnboardingWizard() {
   });
 
   // Fetch owner name for welcome step
+  // Fetch owner name for welcome step
   const { data: ownerName } = useQuery<string | null>({
     queryKey: ['org-owner-name', currentOrg?.id],
     queryFn: async (): Promise<string | null> => {
@@ -158,6 +159,28 @@ export default function EmployeeOnboardingWizard() {
     enabled: !!currentOrg?.id,
   });
 
+  // Fetch organization's enabled features for conditional steps
+  const { data: enabledFeatures = [] } = useQuery<string[]>({
+    queryKey: ['org-enabled-features', currentOrg?.id],
+    queryFn: async (): Promise<string[]> => {
+      if (!currentOrg?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('org_onboarding_data')
+        .select('enabled_features')
+        .eq('organization_id', currentOrg.id)
+        .maybeSingle();
+      
+      if (error || !data?.enabled_features) return [];
+      return (data.enabled_features as string[]) || [];
+    },
+    enabled: !!currentOrg?.id,
+  });
+
+  // Compute dynamic steps and total based on enabled features
+  const dynamicSteps = getEmployeeOnboardingSteps(enabledFeatures);
+  const totalSteps = dynamicSteps.length;
+
   useEffect(() => {
     if (employeeId && currentOrg?.id && !dataLoading && !onboardingData) {
       initOnboarding.mutate();
@@ -182,14 +205,14 @@ export default function EmployeeOnboardingWizard() {
     
     try {
       // Final step: complete onboarding
-      if (currentStep >= TOTAL_EMPLOYEE_STEPS) {
+      if (currentStep >= totalSteps) {
         await completeOnboarding.mutateAsync(false);
         navigate(`/org/${currentOrg?.slug}`);
         return;
       }
 
       // Calculate explicit next step from UI state (not DB state)
-      const nextStep = Math.min(currentStep + 1, TOTAL_EMPLOYEE_STEPS);
+      const nextStep = Math.min(currentStep + 1, totalSteps);
       
       // Save with explicit toStep to prevent DB race conditions
       const result = await saveStep.mutateAsync({ 
@@ -207,7 +230,7 @@ export default function EmployeeOnboardingWizard() {
       navLockRef.current = false;
       setIsNavigating(false);
     }
-  }, [currentStep, isNavigating, isBusy, completeOnboarding, saveStep, navigate, currentOrg?.slug]);
+  }, [currentStep, isNavigating, isBusy, completeOnboarding, saveStep, navigate, currentOrg?.slug, totalSteps]);
 
   // Navigate back with explicit step targeting (keeps UI and DB in sync)
   const handleBack = useCallback(async () => {
@@ -294,7 +317,7 @@ export default function EmployeeOnboardingWizard() {
     await handleNext({ timezone_setup_completed: true });
   };
 
-  const stepName = getEmployeeStepName(currentStep - 1);
+  const stepName = getEmployeeStepName(currentStep - 1, enabledFeatures);
   const firstName = employee?.full_name?.split(' ')[0] || 'there';
   const office = employee?.offices as { name?: string; city?: string; country?: string } | null;
 
@@ -443,7 +466,7 @@ export default function EmployeeOnboardingWizard() {
 
       <div className="fixed top-[57px] left-0 right-0 z-40 bg-background border-b">
         <div className="max-w-4xl mx-auto px-4 py-4">
-          <WizardProgress currentStep={currentStep} totalSteps={TOTAL_EMPLOYEE_STEPS} />
+          <WizardProgress currentStep={currentStep} totalSteps={totalSteps} />
         </div>
       </div>
 
