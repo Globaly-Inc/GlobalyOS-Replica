@@ -67,8 +67,16 @@ export function AddressAutocomplete({
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const isSelectingRef = useRef(false);
   const lastSelectedAddressRef = useRef<string>('');
+  // Store onChange in a ref to avoid recreating the useEffect on every render
+  const onChangeRef = useRef(onChange);
+  const instanceIdRef = useRef(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isValid, setIsValid] = useState(false);
+
+  // Keep the ref updated with latest onChange
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   // Check if current value matches a previously selected address
   useEffect(() => {
@@ -135,9 +143,10 @@ export function AddressAutocomplete({
   }, []);
 
   // Load Google Maps API and initialize autocomplete
-  // Re-initialize when countryCode changes
+  // Re-initialize when countryCode changes (NOT onChange - that's in a ref)
   useEffect(() => {
     let isMounted = true;
+    const currentInstance = ++instanceIdRef.current;
     
     const loadAndInit = async () => {
       try {
@@ -168,7 +177,8 @@ export function AddressAutocomplete({
           await googleMapsPromise;
         }
         
-        if (!isMounted) return;
+        // Check if this instance is still current
+        if (!isMounted || currentInstance !== instanceIdRef.current) return;
         
         // Clean up previous autocomplete instance if exists
         if (autocompleteRef.current) {
@@ -243,7 +253,8 @@ export function AddressAutocomplete({
             lastSelectedAddressRef.current = formattedAddress;
             setIsValid(true);
             
-            onChange(formattedAddress, components);
+            // Use the ref to call onChange - this is the key fix!
+            onChangeRef.current(formattedAddress, components);
             
             // Clear the selecting flag after a short delay
             setTimeout(() => {
@@ -252,12 +263,12 @@ export function AddressAutocomplete({
           });
         }
         
-        if (isMounted) {
+        if (isMounted && currentInstance === instanceIdRef.current) {
           setIsLoading(false);
         }
       } catch (err) {
         console.error('Error initializing Google Places:', err);
-        if (isMounted) {
+        if (isMounted && currentInstance === instanceIdRef.current) {
           setIsLoading(false);
         }
       }
@@ -272,7 +283,7 @@ export function AddressAutocomplete({
         autocompleteRef.current = null;
       }
     };
-  }, [countryCode, allowBusinesses, onChange]);
+  }, [countryCode, allowBusinesses]); // Removed onChange - now using ref
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
@@ -280,8 +291,9 @@ export function AddressAutocomplete({
     if (newValue !== lastSelectedAddressRef.current) {
       setIsValid(false);
     }
-    onChange(newValue);
-  }, [onChange]);
+    // Use the ref to call onChange
+    onChangeRef.current(newValue);
+  }, []);
 
   return (
     <div className="relative">
