@@ -134,9 +134,9 @@ export default function EmployeeOnboardingWizard() {
     queryFn: async (): Promise<string | null> => {
       if (!currentOrg?.id) return null;
       
-      // Use separate query to avoid deep type inference
+      // Query user_roles table (role column is on user_roles, not employees)
       const { data, error } = await supabase
-        .from('employees')
+        .from('user_roles')
         .select('user_id')
         .match({ organization_id: currentOrg.id, role: 'owner' })
         .maybeSingle();
