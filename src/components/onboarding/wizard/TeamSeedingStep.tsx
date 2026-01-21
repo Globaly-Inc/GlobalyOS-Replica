@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, ArrowRight, Users, Plus, Trash2, SkipForward, Crown } from 'lucide-react';
@@ -24,6 +25,7 @@ interface TeamMember {
   role: 'admin' | 'hr' | 'manager' | 'member';
   office_id?: string;
   manager_id?: string;
+  is_new_hire: boolean;
 }
 
 interface Office {
@@ -89,6 +91,7 @@ const emptyMember: TeamMember = {
   role: 'member',
   office_id: '',
   manager_id: '',
+  is_new_hire: false,
 };
 
 export function TeamSeedingStep({ 
@@ -182,11 +185,14 @@ export function TeamSeedingStep({
     setMembers(members.filter((_, i) => i !== index));
   };
 
-  const updateMember = (index: number, field: keyof TeamMember, value: string) => {
+  const updateMember = (index: number, field: keyof TeamMember, value: string | boolean) => {
     setMembers(members.map((member, i) => {
       if (i !== index) return member;
       if (field === 'department') {
-        return { ...member, department: value, position: '' };
+        return { ...member, department: value as string, position: '' };
+      }
+      if (field === 'is_new_hire') {
+        return { ...member, is_new_hire: value as boolean };
       }
       return { ...member, [field]: value };
     }));
@@ -201,15 +207,29 @@ export function TeamSeedingStep({
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
 
+  const isValidMember = (m: TeamMember) => {
+    return (
+      m.email &&
+      m.full_name &&
+      isValidEmail(m.email) &&
+      m.department &&
+      m.position &&
+      m.employment_type &&
+      m.office_id &&
+      m.manager_id &&
+      m.role
+    );
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Just save valid members - invitations will be sent on final completion
-    const validMembers = members.filter(m => m.email && m.full_name && isValidEmail(m.email));
+    const validMembers = members.filter(isValidMember);
     onSave(validMembers);
   };
 
-  const hasValidMembers = members.some(m => m.email && m.full_name && isValidEmail(m.email));
+  const hasValidMembers = members.some(isValidMember);
 
   return (
     <Card className="border-0 shadow-lg">
@@ -274,8 +294,39 @@ export function TeamSeedingStep({
               
               return (
                 <Card key={index} className="p-4">
-                  {/* Row 1: Name, Email, Office, Manager, Delete */}
-                  <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-3 mb-3">
+                  {/* Row 0: Member Type Selection + Delete */}
+                  <div className="flex items-center justify-between mb-3">
+                    <RadioGroup
+                      value={member.is_new_hire ? 'new_hire' : 'existing'}
+                      onValueChange={(v) => updateMember(index, 'is_new_hire', v === 'new_hire')}
+                      className="flex items-center gap-4"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="existing" id={`existing-${index}`} />
+                        <Label htmlFor={`existing-${index}`} className="text-sm font-normal cursor-pointer">
+                          Existing Team
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="new_hire" id={`new-hire-${index}`} />
+                        <Label htmlFor={`new-hire-${index}`} className="text-sm font-normal cursor-pointer">
+                          New Hire
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeMember(index)}
+                      className="h-8 w-8"
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+
+                  {/* Row 1: Name, Email, Office, Manager */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
                     <div>
                       <Label className="text-xs text-muted-foreground mb-1.5 block">Name *</Label>
                       <Input
@@ -296,7 +347,7 @@ export function TeamSeedingStep({
                       />
                     </div>
                     <div>
-                      <Label className="text-xs text-muted-foreground mb-1.5 block">Office</Label>
+                      <Label className="text-xs text-muted-foreground mb-1.5 block">Office *</Label>
                       <Select
                         value={member.office_id || ''}
                         onValueChange={(v) => updateMember(index, 'office_id', v)}
@@ -315,7 +366,7 @@ export function TeamSeedingStep({
                       </Select>
                     </div>
                     <div>
-                      <Label className="text-xs text-muted-foreground mb-1.5 block">Manager</Label>
+                      <Label className="text-xs text-muted-foreground mb-1.5 block">Manager *</Label>
                       <Select
                         value={member.manager_id || ''}
                         onValueChange={(v) => updateMember(index, 'manager_id', v)}
@@ -335,23 +386,12 @@ export function TeamSeedingStep({
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="flex items-end justify-end">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeMember(index)}
-                        className="h-9 w-9 mt-5"
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
                   </div>
                   
                   {/* Row 2: Department, Position, Employment Type, Role */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                     <div>
-                      <Label className="text-xs text-muted-foreground mb-1.5 block">Department</Label>
+                      <Label className="text-xs text-muted-foreground mb-1.5 block">Department *</Label>
                       <Select
                         value={member.department || ''}
                         onValueChange={(v) => updateMember(index, 'department', v)}
@@ -377,7 +417,7 @@ export function TeamSeedingStep({
                       </Select>
                     </div>
                     <div>
-                      <Label className="text-xs text-muted-foreground mb-1.5 block">Position</Label>
+                      <Label className="text-xs text-muted-foreground mb-1.5 block">Position *</Label>
                       <Select
                         value={member.position || ''}
                         onValueChange={(v) => updateMember(index, 'position', v)}
@@ -403,7 +443,7 @@ export function TeamSeedingStep({
                       </Select>
                     </div>
                     <div>
-                      <Label className="text-xs text-muted-foreground mb-1.5 block">Type</Label>
+                      <Label className="text-xs text-muted-foreground mb-1.5 block">Type *</Label>
                       <Select
                         value={member.employment_type || ''}
                         onValueChange={(v) => updateMember(index, 'employment_type', v)}
@@ -422,7 +462,7 @@ export function TeamSeedingStep({
                       </Select>
                     </div>
                     <div>
-                      <Label className="text-xs text-muted-foreground mb-1.5 block">Role</Label>
+                      <Label className="text-xs text-muted-foreground mb-1.5 block">Role *</Label>
                       <Select
                         value={member.role}
                         onValueChange={(v: TeamMember['role']) => updateMember(index, 'role', v)}

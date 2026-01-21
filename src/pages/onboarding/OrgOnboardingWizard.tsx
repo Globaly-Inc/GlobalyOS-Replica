@@ -232,7 +232,10 @@ export default function OrgOnboardingWizard() {
       case 'team-members':
         return (
           <TeamSeedingStep
-            initialMembers={onboardingData?.team_members || []}
+            initialMembers={(onboardingData?.team_members || []).map(m => ({
+              ...m,
+              is_new_hire: (m as { is_new_hire?: boolean }).is_new_hire ?? false,
+            }))}
             departmentsRoles={onboardingData?.departments_roles}
             ownerProfile={onboardingData?.owner_profile}
             ownerName={session?.user?.user_metadata?.full_name || ''}
