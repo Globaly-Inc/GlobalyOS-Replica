@@ -38,15 +38,9 @@ export function ProfileGuideStep({ employeeName, avatarUrl, onContinue, onBack, 
         <div className="space-y-3">
           {[
             {
-              icon: Camera,
-              title: 'Update your photo',
-              description: 'Add a professional photo so your team can recognize you.',
-              color: 'bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400',
-            },
-            {
               icon: User,
-              title: 'Edit personal details',
-              description: 'Keep your contact info, emergency contacts, and more up to date.',
+              title: 'Update your profile',
+              description: 'Add a professional photo and keep your contact info, emergency contacts, and more up to date.',
               color: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
             },
             {
