@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle2, Circle, Building2, Sparkles } from 'lucide-react';
+import { CheckCircle2, Circle, Building2, PartyPopper } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -66,6 +66,22 @@ export function SetupProgressScreen({
   const [resolvedEmployeeId, setResolvedEmployeeId] = useState<string | null>(employeeId || null);
   const [isReady, setIsReady] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const [confetti, setConfetti] = useState<{ id: number; x: number; delay: number; color: string; size: number; isCircle: boolean }[]>([]);
+
+  // Generate confetti particles when setup completes
+  useEffect(() => {
+    if (isComplete) {
+      const particles = Array.from({ length: 60 }, (_, i) => ({
+        id: i,
+        x: Math.random() * 100,
+        delay: Math.random() * 0.8,
+        color: ['#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4'][Math.floor(Math.random() * 6)],
+        size: 8 + Math.random() * 8,
+        isCircle: Math.random() > 0.5,
+      }));
+      setConfetti(particles);
+    }
+  }, [isComplete]);
 
   // Check if any offices have public holidays enabled
   const officesWithHolidays = offices.filter(o => o.public_holidays_enabled && o.address_components?.country_code);
@@ -291,8 +307,8 @@ export function SetupProgressScreen({
       setProgress(100);
       setIsComplete(true);
       
-      // Show completion state briefly before redirect
-      await new Promise(resolve => setTimeout(resolve, 1200));
+      // Show completion celebration with confetti before redirect
+      await new Promise(resolve => setTimeout(resolve, 2500));
       
       if (!cancelled) {
         onComplete();
@@ -437,16 +453,35 @@ export function SetupProgressScreen({
           </div>
         </CardContent>
 
-        {/* Completion overlay */}
+        {/* Completion celebration with confetti */}
         {isComplete && (
-          <div className="absolute inset-0 flex items-center justify-center bg-card/95 backdrop-blur-sm rounded-lg animate-fade-in z-10">
-            <div className="text-center space-y-4">
-              <div className="mx-auto h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center animate-scale-in">
-                <Sparkles className="h-8 w-8 text-green-600 dark:text-green-400" />
+          <div className="absolute inset-0 flex items-center justify-center bg-card/95 backdrop-blur-sm rounded-lg animate-fade-in z-10 overflow-hidden">
+            {/* Confetti particles */}
+            {confetti.map((particle) => (
+              <div
+                key={particle.id}
+                className="absolute animate-confetti"
+                style={{
+                  left: `${particle.x}%`,
+                  top: '-20px',
+                  animationDelay: `${particle.delay}s`,
+                  backgroundColor: particle.color,
+                  width: `${particle.size}px`,
+                  height: `${particle.size}px`,
+                  borderRadius: particle.isCircle ? '50%' : '2px',
+                }}
+              />
+            ))}
+            
+            {/* Celebration content */}
+            <div className="relative z-10 text-center space-y-4">
+              <div className="mx-auto h-20 w-20 rounded-full bg-gradient-to-br from-green-100 to-emerald-100 dark:from-green-900/40 dark:to-emerald-900/40 flex items-center justify-center animate-scale-in shadow-lg">
+                <PartyPopper className="h-10 w-10 text-green-600 dark:text-green-400 animate-bounce" />
               </div>
-              <div className="space-y-1">
-                <p className="text-xl font-semibold">All set!</p>
-                <p className="text-sm text-muted-foreground">Redirecting to your dashboard...</p>
+              <div className="space-y-2">
+                <p className="text-2xl font-bold">🎉 All set!</p>
+                <p className="text-base text-muted-foreground">Your workspace is ready</p>
+                <p className="text-sm text-muted-foreground animate-pulse">Redirecting to dashboard...</p>
               </div>
             </div>
           </div>
