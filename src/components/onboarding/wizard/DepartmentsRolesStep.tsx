@@ -315,20 +315,29 @@ export function DepartmentsRolesStep({
         }
       }
 
-      // Save learning data for future improvements (fire and forget)
+      // Save learning data for future AI improvements
       if (industry && organizationId) {
-        supabase.functions.invoke('save-org-structure-learning', {
-          body: {
-            businessCategory: industry,
-            selectedDepartments: finalDepartments,
-            selectedPositions: finalPositions.map(({ name, department }) => ({ name, department })),
-            customDepartments: Array.from(customDepartments),
-            customPositions: Array.from(customPositions),
-            organizationId
+        try {
+          const { data: learningResult, error: learningError } = await supabase.functions.invoke('save-org-structure-learning', {
+            body: {
+              businessCategory: industry,
+              companySize: companySize || 'small',
+              selectedDepartments: finalDepartments,
+              selectedPositions: finalPositions.map(({ name, department }) => ({ name, department })),
+              customDepartments: Array.from(customDepartments),
+              customPositions: Array.from(customPositions),
+              organizationId
+            }
+          });
+          
+          if (learningError) {
+            console.error('Learning save error:', learningError);
+          } else {
+            console.log('Learning data saved:', learningResult);
           }
-        }).catch(err => {
-          console.error('Failed to save learning data:', err);
-        });
+        } catch (err) {
+          console.error('Failed to invoke learning function:', err);
+        }
       }
 
       onSave({
