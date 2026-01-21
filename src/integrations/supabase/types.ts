@@ -5267,6 +5267,7 @@ export type Database = {
       org_structure_learning: {
         Row: {
           action: string
+          added_to_templates: boolean | null
           business_category: string
           created_at: string | null
           department_name: string | null
@@ -5274,9 +5275,11 @@ export type Database = {
           organization_id: string
           position_department: string | null
           position_name: string | null
+          processed_at: string | null
         }
         Insert: {
           action: string
+          added_to_templates?: boolean | null
           business_category: string
           created_at?: string | null
           department_name?: string | null
@@ -5284,9 +5287,11 @@ export type Database = {
           organization_id: string
           position_department?: string | null
           position_name?: string | null
+          processed_at?: string | null
         }
         Update: {
           action?: string
+          added_to_templates?: boolean | null
           business_category?: string
           created_at?: string | null
           department_name?: string | null
@@ -5294,6 +5299,7 @@ export type Database = {
           organization_id?: string
           position_department?: string | null
           position_name?: string | null
+          processed_at?: string | null
         }
         Relationships: [
           {
@@ -8502,6 +8508,78 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      template_departments: {
+        Row: {
+          business_category: string
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          sort_order: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          business_category: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          business_category?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      template_positions: {
+        Row: {
+          business_category: string
+          created_at: string | null
+          department_name: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          responsibilities: string[] | null
+          sort_order: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          business_category: string
+          created_at?: string | null
+          department_name: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          responsibilities?: string[] | null
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          business_category?: string
+          created_at?: string | null
+          department_name?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          responsibilities?: string[] | null
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       test_results: {
         Row: {
