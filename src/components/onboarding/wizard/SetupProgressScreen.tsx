@@ -328,17 +328,18 @@ export function SetupProgressScreen({
   }, [isReady, resolvedEmployeeId]);
 
   return (
-    <div className="flex flex-col items-center bg-gradient-to-br from-primary/5 via-background to-accent/5 -mx-4 -mt-48 min-h-screen pt-32 pb-8 px-4 overflow-hidden">
-      {/* Animated background elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+    <div className="relative">
+      {/* Fixed animated background elements */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-accent/5" />
         <div className="absolute top-20 left-[10%] w-32 h-32 bg-primary/10 rounded-full blur-3xl animate-float" />
         <div className="absolute bottom-20 right-[10%] w-40 h-40 bg-accent/10 rounded-full blur-3xl animate-float-particle" />
         <div className="absolute top-1/2 left-[20%] w-24 h-24 bg-success/10 rounded-full blur-2xl animate-twinkle" />
         <div className="absolute top-[30%] right-[25%] w-20 h-20 bg-primary/5 rounded-full blur-2xl animate-float" style={{ animationDelay: '1s' }} />
       </div>
 
-      {/* Main content card */}
-      <Card className="relative w-full max-w-lg border-0 shadow-2xl bg-card/95 backdrop-blur-sm animate-scale-in">
+      {/* Main content card - inherits parent max-w-2xl mx-auto layout */}
+      <Card className="relative border-0 shadow-2xl bg-card/95 backdrop-blur-sm animate-scale-in">
         <CardHeader className="text-center pb-2 pt-8">
           {/* Animated logo with pulsing rings */}
           <div className="relative mx-auto mb-6 h-20 w-20">
