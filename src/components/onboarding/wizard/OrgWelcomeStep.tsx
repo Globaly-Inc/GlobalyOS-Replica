@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, ArrowRight, Lock } from 'lucide-react';
+import { Sparkles, ArrowRight, Lock, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FEATURES, getDefaultEnabledFeatures } from './FeatureSelectionStep';
 
@@ -16,9 +16,10 @@ interface OrgWelcomeStepProps {
   orgName: string;
   initialFeatures: string[];
   onContinue: (enabledFeatures: string[]) => void;
+  isSaving?: boolean;
 }
 
-export function OrgWelcomeStep({ ownerName, orgName, initialFeatures, onContinue }: OrgWelcomeStepProps) {
+export function OrgWelcomeStep({ ownerName, orgName, initialFeatures, onContinue, isSaving = false }: OrgWelcomeStepProps) {
   // Initialize with core features always included
   const [enabledFeatures, setEnabledFeatures] = useState<Set<string>>(() => {
     const initial = initialFeatures.length > 0 
@@ -155,11 +156,21 @@ export function OrgWelcomeStep({ ownerName, orgName, initialFeatures, onContinue
         <div className="pt-4">
           <Button 
             onClick={handleContinue} 
+            disabled={isSaving}
             className="w-full h-12 text-base"
             size="lg"
           >
-            Get Started
-            <ArrowRight className="ml-2 h-4 w-4" />
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Please wait...
+              </>
+            ) : (
+              <>
+                Get Started
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </>
+            )}
           </Button>
           <p className="text-center text-xs text-muted-foreground mt-3">
             Takes about 5 minutes • You can change features later in Settings

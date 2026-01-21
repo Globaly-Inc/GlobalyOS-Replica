@@ -267,7 +267,7 @@ export function OrgInfoStep({ initialData, signupData, onSave, onBack, isSaving 
           </div>
 
           <div className="flex gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={onBack} className="flex-1">
+            <Button type="button" variant="outline" onClick={onBack} disabled={isSaving} className="flex-1">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
             </Button>
