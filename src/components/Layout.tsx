@@ -28,7 +28,7 @@ import { GlobalSearch } from "./GlobalSearch";
 import { MobileSearch } from "./MobileSearch";
 import TrialBanner from "./TrialBanner";
 import { SpotlightTour } from "./SpotlightTour";
-import { OnboardingChecklist } from "./onboarding";
+
 import { useUserRole } from "@/hooks/useUserRole";
 import { InstallAppBanner } from "./InstallAppBanner";
 import { GetHelpButton } from "./GetHelpButton";
@@ -754,8 +754,6 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       {/* Get Help Dialog */}
       <GetHelpDialog open={getHelpDialogOpen} onOpenChange={setGetHelpDialogOpen} />
 
-      {/* Onboarding Checklist - only show floating version on non-home pages */}
-      {!isHomePage && <OnboardingChecklist userRole={role} />}
 
       {/* KPI Generation Progress Indicator */}
       <KpiGenerationProgress organizationId={currentOrg?.id} />
