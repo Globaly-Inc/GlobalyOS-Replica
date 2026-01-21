@@ -13,16 +13,21 @@ serve(async (req) => {
   }
 
   try {
+    const body = await req.json();
+    console.log('save-org-structure-learning called with:', JSON.stringify(body, null, 2));
+    
     const { 
       businessCategory, 
+      companySize,
       selectedDepartments, 
       selectedPositions,
       customDepartments,
       customPositions,
       organizationId 
-    } = await req.json();
+    } = body;
 
     if (!businessCategory || !organizationId) {
+      console.error('Missing required fields:', { businessCategory, organizationId });
       return new Response(JSON.stringify({ 
         error: "Missing required fields: businessCategory and organizationId" 
       }), {
@@ -30,6 +35,18 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    
+    // Normalize company size format
+    const sizeMap: Record<string, string> = {
+      'small': 'small',
+      'medium': 'medium', 
+      'large': 'large',
+      '1-10': 'small',
+      '11-50': 'medium',
+      '50+': 'large'
+    };
+    const normalizedSize = sizeMap[companySize || 'small'] || 'small';
+    console.log('Normalized company size:', normalizedSize);
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -69,27 +86,40 @@ serve(async (req) => {
       });
     }
 
+    console.log(`Attempting to save ${learningRecords.length} learning records for ${businessCategory}`);
+    
     if (learningRecords.length > 0) {
-      const { error: insertError } = await supabase
+      const { data: insertData, error: insertError } = await supabase
         .from('org_structure_learning')
-        .insert(learningRecords);
+        .insert(learningRecords)
+        .select();
 
       if (insertError) {
         console.error('Failed to insert learning records:', insertError);
+        return new Response(JSON.stringify({ 
+          error: `Failed to save learning: ${insertError.message}`,
+          details: insertError 
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       } else {
-        console.log(`Saved ${learningRecords.length} learning records for ${businessCategory}`);
+        console.log(`Successfully saved ${insertData?.length || 0} learning records for ${businessCategory}`);
       }
     }
 
-    // Increment approval count for the template
+    // Increment approval count for the template with correct size
+    console.log(`Incrementing approval for category: ${businessCategory}, size: ${normalizedSize}`);
     const { error: rpcError } = await supabase
       .rpc('increment_template_approval', {
         p_category: businessCategory,
-        p_size: 'small'
+        p_size: normalizedSize
       });
 
     if (rpcError) {
       console.error('Failed to increment approval count:', rpcError);
+    } else {
+      console.log('Template approval incremented successfully');
     }
 
     return new Response(JSON.stringify({ 

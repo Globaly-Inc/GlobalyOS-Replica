@@ -62,29 +62,77 @@ serve(async (req) => {
       }
     }
 
-    // 2. Get learning data for context (popular additions/approvals)
+    // 2. Get learning data for context - prioritize custom additions
     let learningContext = '';
-    const { data: learningData } = await supabase
+    
+    // Get custom-added departments (most valuable learning signal)
+    const { data: customDepts, error: customDeptsErr } = await supabase
       .from('org_structure_learning')
-      .select('department_name, position_name, position_department, action')
+      .select('department_name')
       .eq('business_category', normalizedCategory)
-      .in('action', ['approved', 'added'])
-      .limit(50);
+      .eq('action', 'added')
+      .not('department_name', 'is', null);
+    
+    if (customDeptsErr) {
+      console.error('Failed to fetch custom departments:', customDeptsErr);
+    }
+    
+    // Get custom-added positions
+    const { data: customPositions, error: customPosErr } = await supabase
+      .from('org_structure_learning')
+      .select('position_name, position_department')
+      .eq('business_category', normalizedCategory)
+      .eq('action', 'added')
+      .not('position_name', 'is', null);
+    
+    if (customPosErr) {
+      console.error('Failed to fetch custom positions:', customPosErr);
+    }
 
-    if (learningData && learningData.length > 0) {
-      const popularDepts = [...new Set(learningData.filter(l => l.department_name).map(l => l.department_name))];
-      const popularPositions = [...new Set(learningData.filter(l => l.position_name).map(l => `${l.position_name} (${l.position_department})`))];
-      
-      if (popularDepts.length > 0 || popularPositions.length > 0) {
-        learningContext = `\n\nPrevious users in this industry commonly use:`;
-        if (popularDepts.length > 0) {
-          learningContext += `\nDepartments: ${popularDepts.slice(0, 10).join(', ')}`;
-        }
-        if (popularPositions.length > 0) {
-          learningContext += `\nPositions: ${popularPositions.slice(0, 15).join(', ')}`;
-        }
-        console.log('Including learning context from', learningData.length, 'records');
+    // Count occurrences for popularity
+    const deptCounts: Record<string, number> = {};
+    (customDepts || []).forEach(d => {
+      if (d.department_name) {
+        deptCounts[d.department_name] = (deptCounts[d.department_name] || 0) + 1;
       }
+    });
+    
+    const posCounts: Record<string, { count: number; dept: string }> = {};
+    (customPositions || []).forEach(p => {
+      if (p.position_name) {
+        const key = p.position_name;
+        if (!posCounts[key]) {
+          posCounts[key] = { count: 0, dept: p.position_department || '' };
+        }
+        posCounts[key].count++;
+      }
+    });
+
+    // Sort by popularity
+    const popularDepts = Object.entries(deptCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([name, count]) => `${name} (added ${count}x)`);
+    
+    const popularPositions = Object.entries(posCounts)
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 15)
+      .map(([name, data]) => `${name} in ${data.dept} (added ${data.count}x)`);
+
+    if (popularDepts.length > 0 || popularPositions.length > 0) {
+      learningContext = `\n\nIMPORTANT - Users in this industry frequently ADD these custom items (you MUST include them):`;
+      if (popularDepts.length > 0) {
+        learningContext += `\nCustom Departments: ${popularDepts.join(', ')}`;
+      }
+      if (popularPositions.length > 0) {
+        learningContext += `\nCustom Positions: ${popularPositions.join(', ')}`;
+      }
+      console.log('Including learning context:', { 
+        customDepts: popularDepts.length, 
+        customPositions: popularPositions.length 
+      });
+    } else {
+      console.log('No learning data found for category:', normalizedCategory);
     }
 
     const sizeContext = companySize === 'large' 
