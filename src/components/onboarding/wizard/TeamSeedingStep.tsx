@@ -1,14 +1,14 @@
 /**
  * Organization Onboarding - Team Members Seeding Step
- * Table format with owner profile at top (read-only) and editable team member rows
+ * Full-width card layout with details in 2 rows, manager selection, and role descriptions
  */
 
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, ArrowRight, Users, Plus, Trash2, SkipForward, Crown } from 'lucide-react';
@@ -23,6 +23,7 @@ interface TeamMember {
   employment_type?: string;
   role: 'admin' | 'hr' | 'manager' | 'member';
   office_id?: string;
+  manager_id?: string;
 }
 
 interface Office {
@@ -57,10 +58,26 @@ interface TeamSeedingStepProps {
 }
 
 const ROLES = [
-  { value: 'admin', label: 'Admin' },
-  { value: 'hr', label: 'HR' },
-  { value: 'manager', label: 'Manager' },
-  { value: 'member', label: 'Member' },
+  { 
+    value: 'admin', 
+    label: 'Admin',
+    description: 'Full access to all settings, team management, and data'
+  },
+  { 
+    value: 'hr', 
+    label: 'HR',
+    description: 'Manage employees, leave, attendance, and HR policies'
+  },
+  { 
+    value: 'manager', 
+    label: 'Manager',
+    description: 'View team reports, approve leave, and manage direct reports'
+  },
+  { 
+    value: 'member', 
+    label: 'Member',
+    description: 'Standard access to personal profile and team features'
+  },
 ];
 
 const emptyMember: TeamMember = {
@@ -71,6 +88,7 @@ const emptyMember: TeamMember = {
   employment_type: '',
   role: 'member',
   office_id: '',
+  manager_id: '',
 };
 
 export function TeamSeedingStep({ 
@@ -110,6 +128,30 @@ export function TeamSeedingStep({
     if (!ownerProfile?.office_id || !offices.length) return null;
     return offices.find(o => o.id === ownerProfile.office_id)?.name;
   }, [ownerProfile?.office_id, offices]);
+
+  // Manager options: Owner + all team members with names
+  const managerOptions = useMemo(() => {
+    const options: Array<{ id: string; name: string; isOwner?: boolean }> = [];
+    
+    // Add owner as first option
+    options.push({
+      id: 'owner',
+      name: ownerName || 'Owner',
+      isOwner: true
+    });
+    
+    // Add all team members with names
+    members.forEach((m, index) => {
+      if (m.full_name) {
+        options.push({
+          id: `member-${index}`,
+          name: m.full_name
+        });
+      }
+    });
+    
+    return options;
+  }, [members, ownerName]);
 
   // Fetch offices created in previous step
   useEffect(() => {
@@ -182,202 +224,228 @@ export function TeamSeedingStep({
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="overflow-x-auto rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead className="w-[160px]">Name</TableHead>
-                  <TableHead className="w-[180px]">Email</TableHead>
-                  <TableHead className="w-[120px]">Office</TableHead>
-                  <TableHead className="w-[130px]">Department</TableHead>
-                  <TableHead className="w-[130px]">Position</TableHead>
-                  <TableHead className="w-[100px]">Type</TableHead>
-                  <TableHead className="w-[90px]">Role</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {/* Owner Row - Read Only */}
-                <TableRow className="bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-7 w-7">
-                        <AvatarImage src={ownerProfile?.avatar_url} />
-                        <AvatarFallback className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">
-                          {ownerInitials}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex items-center gap-1 min-w-0">
-                        <span className="font-medium text-sm truncate">{ownerName || 'You'}</span>
-                        <Crown className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm truncate max-w-[180px]">
-                    {ownerEmail}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {ownerOfficeName || '-'}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {ownerProfile?.department || '-'}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {ownerProfile?.position || '-'}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    Employee
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300 text-xs">
-                      Owner
-                    </Badge>
-                  </TableCell>
-                  <TableCell></TableCell>
-                </TableRow>
+          {/* Owner Card - Read Only */}
+          <Card className="p-4 bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
+            <div className="flex items-center gap-3 mb-4">
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={ownerProfile?.avatar_url} />
+                <AvatarFallback className="bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">
+                  {ownerInitials}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium truncate">{ownerName || 'You'}</span>
+                  <Crown className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                  <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300 text-xs">
+                    Owner
+                  </Badge>
+                </div>
+                <span className="text-sm text-muted-foreground truncate block">{ownerEmail}</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <span className="text-xs text-muted-foreground block mb-1">Office</span>
+                <span className="font-medium">{ownerOfficeName || '-'}</span>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground block mb-1">Department</span>
+                <span className="font-medium">{ownerProfile?.department || '-'}</span>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground block mb-1">Position</span>
+                <span className="font-medium">{ownerProfile?.position || '-'}</span>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground block mb-1">Type</span>
+                <span className="font-medium">Employee</span>
+              </div>
+            </div>
+          </Card>
 
-                {/* Editable Team Member Rows */}
-                {members.map((member, index) => {
-                  const memberPositions = getPositionsForMember(member.department || '');
+          {/* Team Member Cards */}
+          <div className="space-y-3">
+            {members.map((member, index) => {
+              const memberPositions = getPositionsForMember(member.department || '');
+              const availableManagers = managerOptions.filter(
+                (opt) => opt.id !== `member-${index}` // Exclude self from manager list
+              );
+              
+              return (
+                <Card key={index} className="p-4">
+                  {/* Row 1: Name, Email, Office, Manager, Delete */}
+                  <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-3 mb-3">
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1.5 block">Name *</Label>
+                      <Input
+                        value={member.full_name}
+                        onChange={(e) => updateMember(index, 'full_name', e.target.value)}
+                        placeholder="Full name"
+                        className="h-9"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1.5 block">Email *</Label>
+                      <Input
+                        type="email"
+                        value={member.email}
+                        onChange={(e) => updateMember(index, 'email', e.target.value)}
+                        placeholder="email@company.com"
+                        className="h-9"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1.5 block">Office</Label>
+                      <Select
+                        value={member.office_id || ''}
+                        onValueChange={(v) => updateMember(index, 'office_id', v)}
+                        disabled={loadingOffices}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Select office" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {offices.map((office) => (
+                            <SelectItem key={office.id} value={office.id}>
+                              {office.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1.5 block">Manager</Label>
+                      <Select
+                        value={member.manager_id || ''}
+                        onValueChange={(v) => updateMember(index, 'manager_id', v)}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Select manager" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableManagers.map((mgr) => (
+                            <SelectItem key={mgr.id} value={mgr.id}>
+                              <div className="flex items-center gap-2">
+                                <span>{mgr.name}</span>
+                                {mgr.isOwner && <Crown className="h-3 w-3 text-amber-500" />}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeMember(index)}
+                        className="h-9 w-9"
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
                   
-                  return (
-                    <TableRow key={index}>
-                      <TableCell className="p-2">
-                        <Input
-                          value={member.full_name}
-                          onChange={(e) => updateMember(index, 'full_name', e.target.value)}
-                          placeholder="Full name"
-                          className="h-8 text-sm"
-                        />
-                      </TableCell>
-                      <TableCell className="p-2">
-                        <Input
-                          type="email"
-                          value={member.email}
-                          onChange={(e) => updateMember(index, 'email', e.target.value)}
-                          placeholder="email@company.com"
-                          className="h-8 text-sm"
-                        />
-                      </TableCell>
-                      <TableCell className="p-2">
-                        <Select
-                          value={member.office_id || ''}
-                          onValueChange={(v) => updateMember(index, 'office_id', v)}
-                          disabled={loadingOffices}
-                        >
-                          <SelectTrigger className="h-8 text-sm">
-                            <SelectValue placeholder="Select" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {offices.map((office) => (
-                              <SelectItem key={office.id} value={office.id}>
-                                {office.name}
+                  {/* Row 2: Department, Position, Employment Type, Role */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1.5 block">Department</Label>
+                      <Select
+                        value={member.department || ''}
+                        onValueChange={(v) => updateMember(index, 'department', v)}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Select department" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {departments.length > 0 ? (
+                            departments.map((dept) => (
+                              <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                            ))
+                          ) : (
+                            <>
+                              <SelectItem value="Executive">Executive</SelectItem>
+                              <SelectItem value="Operations">Operations</SelectItem>
+                              <SelectItem value="Sales">Sales</SelectItem>
+                              <SelectItem value="Marketing">Marketing</SelectItem>
+                              <SelectItem value="General">General</SelectItem>
+                            </>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1.5 block">Position</Label>
+                      <Select
+                        value={member.position || ''}
+                        onValueChange={(v) => updateMember(index, 'position', v)}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Select position" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {memberPositions.length > 0 ? (
+                            memberPositions.map((pos, idx) => (
+                              <SelectItem key={`${pos.name}-${idx}`} value={pos.name}>
+                                {pos.name}
                               </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell className="p-2">
-                        <Select
-                          value={member.department || ''}
-                          onValueChange={(v) => updateMember(index, 'department', v)}
-                        >
-                          <SelectTrigger className="h-8 text-sm">
-                            <SelectValue placeholder="Select" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {departments.length > 0 ? (
-                              departments.map((dept) => (
-                                <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                              ))
-                            ) : (
-                              <>
-                                <SelectItem value="Executive">Executive</SelectItem>
-                                <SelectItem value="Operations">Operations</SelectItem>
-                                <SelectItem value="Sales">Sales</SelectItem>
-                                <SelectItem value="Marketing">Marketing</SelectItem>
-                                <SelectItem value="General">General</SelectItem>
-                              </>
-                            )}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell className="p-2">
-                        <Select
-                          value={member.position || ''}
-                          onValueChange={(v) => updateMember(index, 'position', v)}
-                        >
-                          <SelectTrigger className="h-8 text-sm">
-                            <SelectValue placeholder="Select" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {memberPositions.length > 0 ? (
-                              memberPositions.map((pos, idx) => (
-                                <SelectItem key={`${pos.name}-${idx}`} value={pos.name}>
-                                  {pos.name}
-                                </SelectItem>
-                              ))
-                            ) : (
-                              <>
-                                <SelectItem value="Team Member">Team Member</SelectItem>
-                                <SelectItem value="Manager">Manager</SelectItem>
-                                <SelectItem value="Specialist">Specialist</SelectItem>
-                              </>
-                            )}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell className="p-2">
-                        <Select
-                          value={member.employment_type || ''}
-                          onValueChange={(v) => updateMember(index, 'employment_type', v)}
-                          disabled={loadingEmploymentTypes}
-                        >
-                          <SelectTrigger className="h-8 text-sm">
-                            <SelectValue placeholder="Select" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {employmentTypes.map((type) => (
-                              <SelectItem key={type.id} value={type.name}>
-                                {type.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell className="p-2">
-                        <Select
-                          value={member.role}
-                          onValueChange={(v: TeamMember['role']) => updateMember(index, 'role', v)}
-                        >
-                          <SelectTrigger className="h-8 text-sm">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ROLES.map((role) => (
-                              <SelectItem key={role.value} value={role.value}>
-                                {role.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell className="p-2">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeMember(index)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                            ))
+                          ) : (
+                            <>
+                              <SelectItem value="Team Member">Team Member</SelectItem>
+                              <SelectItem value="Manager">Manager</SelectItem>
+                              <SelectItem value="Specialist">Specialist</SelectItem>
+                            </>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1.5 block">Type</Label>
+                      <Select
+                        value={member.employment_type || ''}
+                        onValueChange={(v) => updateMember(index, 'employment_type', v)}
+                        disabled={loadingEmploymentTypes}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {employmentTypes.map((type) => (
+                            <SelectItem key={type.id} value={type.name}>
+                              {type.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1.5 block">Role</Label>
+                      <Select
+                        value={member.role}
+                        onValueChange={(v: TeamMember['role']) => updateMember(index, 'role', v)}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ROLES.map((role) => (
+                            <SelectItem key={role.value} value={role.value}>
+                              <div className="flex flex-col py-0.5">
+                                <span className="font-medium">{role.label}</span>
+                                <span className="text-xs text-muted-foreground">{role.description}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
           </div>
 
           {/* Add Team Member Button */}
