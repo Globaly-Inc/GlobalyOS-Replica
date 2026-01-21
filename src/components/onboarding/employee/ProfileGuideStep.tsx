@@ -5,23 +5,27 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, ArrowLeft, User, Camera, Shield, Settings, ChevronDown, Loader2 } from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { ArrowRight, ArrowLeft, User, Camera, Shield, Settings, Loader2 } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface ProfileGuideStepProps {
   employeeName: string;
+  avatarUrl?: string | null;
   onContinue: () => void;
   onBack?: () => void;
   isNavigating?: boolean;
 }
 
-export function ProfileGuideStep({ employeeName, onContinue, onBack, isNavigating = false }: ProfileGuideStepProps) {
+export function ProfileGuideStep({ employeeName, avatarUrl, onContinue, onBack, isNavigating = false }: ProfileGuideStepProps) {
   return (
     <Card className="border-0 shadow-lg">
       <CardHeader className="text-center pb-4">
-        <div className="mx-auto mb-4 h-16 w-16 rounded-2xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-          <User className="h-8 w-8 text-purple-600" />
-        </div>
+        <Avatar className="mx-auto mb-4 h-20 w-20 border-4 border-primary/20">
+          <AvatarImage src={avatarUrl || undefined} alt={employeeName} />
+          <AvatarFallback className="bg-primary/10 text-primary text-2xl font-semibold">
+            {employeeName.charAt(0).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
         <CardTitle className="text-2xl">Access Your Profile</CardTitle>
         <CardDescription className="text-base">
           Your profile is your professional identity in GlobalyOS
