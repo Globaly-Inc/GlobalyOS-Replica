@@ -13,13 +13,15 @@ interface WizardProgressProps {
 }
 
 export function WizardProgress({ currentStep, totalSteps, className }: WizardProgressProps) {
-  const progress = ((currentStep - 1) / (totalSteps - 1)) * 100;
+  // Clamp values to prevent overflow display issues
+  const displayStep = Math.min(currentStep, totalSteps);
+  const progress = Math.min(((displayStep - 1) / (totalSteps - 1)) * 100, 100);
 
   return (
     <div className={cn('space-y-2', className)}>
       <div className="flex items-center justify-between text-sm">
         <span className="text-muted-foreground">
-          Step {currentStep} of {totalSteps}
+          Step {displayStep} of {totalSteps}
         </span>
         <span className="text-muted-foreground">
           {Math.round(progress)}% complete

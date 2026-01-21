@@ -160,7 +160,7 @@ export default function EmployeeOnboardingWizard() {
   });
 
   // Fetch organization's enabled features for conditional steps
-  const { data: enabledFeatures = [] } = useQuery<string[]>({
+  const { data: enabledFeatures = [], isLoading: featuresLoading } = useQuery<string[]>({
     queryKey: ['org-enabled-features', currentOrg?.id],
     queryFn: async (): Promise<string[]> => {
       if (!currentOrg?.id) return [];
@@ -187,13 +187,22 @@ export default function EmployeeOnboardingWizard() {
     }
   }, [employeeId, currentOrg?.id, dataLoading, onboardingData]);
 
+  // Redirect to dashboard if onboarding is already completed
+  useEffect(() => {
+    if (onboardingData?.completed_at && currentOrg?.slug) {
+      navigate(`/org/${currentOrg.slug}`);
+    }
+  }, [onboardingData?.completed_at, currentOrg?.slug, navigate]);
+
   // Sync UI step from DB only on initial load or when not navigating
   // This prevents the UI from jumping during in-flight mutations
+  // Clamp step to valid range to prevent overflow issues
   useEffect(() => {
-    if (onboardingData?.current_step && !navLockRef.current && !isNavigating) {
-      setCurrentStep(onboardingData.current_step);
+    if (onboardingData?.current_step && !navLockRef.current && !isNavigating && totalSteps > 0) {
+      const clampedStep = Math.min(Math.max(onboardingData.current_step, 1), totalSteps);
+      setCurrentStep(clampedStep);
     }
-  }, [onboardingData?.current_step, isNavigating]);
+  }, [onboardingData?.current_step, isNavigating, totalSteps]);
 
   // Navigate to next step with explicit step targeting (prevents race conditions)
   const handleNext = useCallback(async (stepData?: Record<string, unknown>) => {
@@ -265,7 +274,7 @@ export default function EmployeeOnboardingWizard() {
   };
 
   // Early returns after all hooks
-  if (authLoading || dataLoading || initOnboarding.isPending) {
+  if (authLoading || dataLoading || featuresLoading || initOnboarding.isPending) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
