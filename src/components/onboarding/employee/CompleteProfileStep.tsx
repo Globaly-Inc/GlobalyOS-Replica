@@ -503,17 +503,14 @@ export function CompleteProfileStep({
 
           {/* Emergency Contact Section */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Phone className="h-4 w-4" />
-              Emergency Contact
-            </div>
-            
-            <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-                <p className="text-sm text-amber-800 dark:text-amber-200">
-                  In case of emergency, we need someone we can contact on your behalf.
-                </p>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Phone className="h-4 w-4" />
+                Emergency Contact
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <AlertCircle className="h-3.5 w-3.5" />
+                <span>Someone we can contact on your behalf</span>
               </div>
             </div>
 
