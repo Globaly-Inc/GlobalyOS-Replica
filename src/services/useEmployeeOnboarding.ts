@@ -50,28 +50,81 @@ export interface EmployeeOnboardingData {
   updated_at: string;
 }
 
-const EMPLOYEE_ONBOARDING_STEPS = [
+/**
+ * Base steps that are always shown (without conditional feature guides)
+ */
+const BASE_EMPLOYEE_ONBOARDING_STEPS = [
   'welcome',
   'complete-profile',
   'timezone-setup',
-  'checkin-guide',
-  'leave-guide',
   'profile-guide',
-  'social-feed-guide',
   'directory-wiki-guide',
+  'social-feed-guide',
   'complete',
 ] as const;
 
-export const TOTAL_EMPLOYEE_STEPS = EMPLOYEE_ONBOARDING_STEPS.length;
+/**
+ * All possible step names (for type safety)
+ */
+const ALL_EMPLOYEE_ONBOARDING_STEPS = [
+  'welcome',
+  'complete-profile',
+  'timezone-setup',
+  'profile-guide',
+  'directory-wiki-guide',
+  'social-feed-guide',
+  'checkin-guide',
+  'leave-guide',
+  'complete',
+] as const;
 
-export type EmployeeOnboardingStep = typeof EMPLOYEE_ONBOARDING_STEPS[number];
+export type EmployeeOnboardingStep = typeof ALL_EMPLOYEE_ONBOARDING_STEPS[number];
 
-export const getEmployeeStepIndex = (step: EmployeeOnboardingStep): number => {
-  return EMPLOYEE_ONBOARDING_STEPS.indexOf(step);
+/**
+ * Get dynamic onboarding steps based on enabled features
+ * Conditionally adds checkin-guide and leave-guide before 'complete'
+ */
+export const getEmployeeOnboardingSteps = (enabledFeatures: string[]): EmployeeOnboardingStep[] => {
+  const steps: EmployeeOnboardingStep[] = [
+    'welcome',
+    'complete-profile',
+    'timezone-setup',
+    'profile-guide',
+    'directory-wiki-guide',
+    'social-feed-guide',
+  ];
+
+  // Add conditional steps before 'complete'
+  if (enabledFeatures.includes('attendance')) {
+    steps.push('checkin-guide');
+  }
+  if (enabledFeatures.includes('leave')) {
+    steps.push('leave-guide');
+  }
+
+  steps.push('complete');
+  return steps;
 };
 
-export const getEmployeeStepName = (index: number): EmployeeOnboardingStep => {
-  return EMPLOYEE_ONBOARDING_STEPS[index] || 'welcome';
+/**
+ * Legacy constant for backwards compatibility (assumes all features enabled)
+ */
+export const TOTAL_EMPLOYEE_STEPS = BASE_EMPLOYEE_ONBOARDING_STEPS.length + 2; // +2 for attendance & leave
+
+/**
+ * Get step index from step name (dynamic based on enabled features)
+ */
+export const getEmployeeStepIndex = (step: EmployeeOnboardingStep, enabledFeatures: string[] = ['attendance', 'leave']): number => {
+  const steps = getEmployeeOnboardingSteps(enabledFeatures);
+  return steps.indexOf(step);
+};
+
+/**
+ * Get step name from index (dynamic based on enabled features)
+ */
+export const getEmployeeStepName = (index: number, enabledFeatures: string[] = ['attendance', 'leave']): EmployeeOnboardingStep => {
+  const steps = getEmployeeOnboardingSteps(enabledFeatures);
+  return steps[index] || 'welcome';
 };
 
 /**
