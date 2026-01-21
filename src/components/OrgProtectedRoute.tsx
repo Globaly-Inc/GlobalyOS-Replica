@@ -158,40 +158,25 @@ export const OrgProtectedRoute = ({
     return <Navigate to={targetPath} replace />;
   }
 
-  // Check org onboarding status - redirect to org onboarding if not complete
-  // Skip onboarding enforcement for GlobalyHub demo organization
-  const isOrgOnboardingRoute = location.pathname.includes('/onboarding') && !location.pathname.includes('/onboarding/team');
+  // Route classification
+  const isAnyOnboardingRoute = location.pathname.includes('/onboarding');
+  const isEmployeeOnboardingRoute = location.pathname.includes('/onboarding/team');
   const isDemoOrg = currentOrg.slug === 'globalyhub';
-  if (onboardingStatus && !onboardingStatus.org_onboarding_completed && !isOrgOnboardingRoute && !isDemoOrg) {
+
+  // STEP 1: Check org onboarding status first
+  // Skip this check if we're on ANY onboarding route (including /onboarding/team)
+  if (onboardingStatus && !onboardingStatus.org_onboarding_completed && !isAnyOnboardingRoute && !isDemoOrg) {
     return <Navigate to={`/org/${currentOrg.slug}/onboarding`} replace />;
   }
 
-  // Check employee onboarding status for new hires
-  // Skip for GlobalyHub demo organization and org onboarding routes
-  const isEmployeeOnboardingRoute = location.pathname.includes('/onboarding/team');
-  const isAnyOnboardingRoute = location.pathname.includes('/onboarding');
-  
-  // CRITICAL: Wait for employee status to load before allowing access
-  // This prevents race condition where null status bypasses the check
-  if (
-    !isDemoOrg &&
-    !isAnyOnboardingRoute &&
-    employeeOnboardingStatus === null
-  ) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Checking your account...</p>
-        </div>
-      </div>
-    );
-  }
-  
-  // Redirect employees who haven't completed onboarding
+  // STEP 2: Only check employee onboarding AFTER org onboarding is complete
+  // This prevents the redirect loop between org and employee onboarding
+  // Only applies to new hires (is_new_hire === true)
   if (
     !isDemoOrg &&
     !isEmployeeOnboardingRoute &&
+    onboardingStatus?.org_onboarding_completed === true &&
+    employeeOnboardingStatus?.is_new_hire === true &&
     employeeOnboardingStatus?.employee_onboarding_completed === false
   ) {
     return <Navigate to={`/org/${currentOrg.slug}/onboarding/team`} replace />;
