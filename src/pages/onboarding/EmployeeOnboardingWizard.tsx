@@ -208,6 +208,7 @@ export default function EmployeeOnboardingWizard() {
 
   const handleProfileSave = async (data: ProfileFormData) => {
     await saveProfile.mutateAsync({
+      avatar_url: data.avatar_url,
       personal_email: data.personal_email,
       phone: data.phone,
       date_of_birth: data.date_of_birth,
@@ -267,7 +268,11 @@ export default function EmployeeOnboardingWizard() {
         return (
           <CompleteProfileStep
             employeeId={employeeId!}
-            initialData={onboardingData?.personal_info}
+            userId={session?.user?.id || ''}
+            initialData={{
+              ...onboardingData?.personal_info,
+              avatar_url: employee?.avatar_url || undefined,
+            }}
             prefillData={{ full_name: employee?.full_name || '', email: employee?.personal_email || undefined }}
             onSave={handleProfileSave}
             onBack={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}

@@ -3,20 +3,26 @@
  * Collect all required personal details including emergency contact
  */
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { ArrowRight, ArrowLeft, User, Home, Phone, Linkedin, AlertCircle, Mail } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ArrowRight, ArrowLeft, User, Home, Phone, Linkedin, AlertCircle, Camera, Upload, Loader2, Mail } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AddressAutocomplete, type AddressComponents } from '@/components/ui/address-autocomplete';
+import { ImageCropper } from '@/components/ui/image-cropper';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 interface CompleteProfileStepProps {
   employeeId: string;
+  userId: string;
   initialData?: {
+    avatar_url?: string;
     personal_email?: string;
     phone?: string;
     date_of_birth?: string;
@@ -46,6 +52,7 @@ interface CompleteProfileStepProps {
 }
 
 export interface ProfileFormData {
+  avatar_url: string;
   personal_email: string;
   phone: string;
   date_of_birth: string;
@@ -79,6 +86,8 @@ const GENDER_OPTIONS = [
 ];
 
 export function CompleteProfileStep({ 
+  employeeId,
+  userId,
   initialData, 
   prefillData, 
   onSave, 
@@ -94,6 +103,7 @@ export function CompleteProfileStep({
   };
 
   const [formData, setFormData] = useState<ProfileFormData>({
+    avatar_url: initialData?.avatar_url || '',
     personal_email: initialData?.personal_email || '',
     phone: initialData?.phone || '',
     date_of_birth: initialData?.date_of_birth || '',
@@ -112,6 +122,89 @@ export function CompleteProfileStep({
 
   const [errors, setErrors] = useState<Partial<Record<keyof ProfileFormData, string>>>({});
   const [hasValidAddress, setHasValidAddress] = useState(!!initialData?.address?.street);
+
+  // Avatar upload state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [selectedImageSrc, setSelectedImageSrc] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+  const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+  const validateFile = (file: File): boolean => {
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      toast({ title: 'Invalid file type', description: 'Please upload JPEG, PNG, or WebP image', variant: 'destructive' });
+      return false;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      toast({ title: 'File too large', description: 'Please select an image under 5MB', variant: 'destructive' });
+      return false;
+    }
+    return true;
+  };
+
+  const handleFileSelect = (file: File) => {
+    if (!validateFile(file)) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setSelectedImageSrc(e.target?.result as string);
+      setCropperOpen(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAvatarClick = () => fileInputRef.current?.click();
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFileSelect(file);
+    if (e.target) e.target.value = '';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
+  const handleDragLeave = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); };
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileSelect(file);
+  };
+
+  const handleCropComplete = async (blob: Blob) => {
+    setIsUploadingAvatar(true);
+    try {
+      const filePath = `${userId}/avatar-${Date.now()}.png`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, blob, { contentType: 'image/png', upsert: true });
+      
+      if (uploadError) throw uploadError;
+      
+      const { data: urlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+      
+      const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+      setFormData(prev => ({ ...prev, avatar_url: publicUrl }));
+      
+      toast({ title: 'Photo uploaded', description: 'Your profile photo has been updated.' });
+    } catch (error) {
+      console.error('Failed to upload avatar:', error);
+      toast({ title: 'Upload failed', description: 'Could not upload photo. Please try again.', variant: 'destructive' });
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const userInitials = prefillData?.full_name
+    ?.split(' ')
+    .map((n: string) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) || 'U';
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof ProfileFormData, string>> = {};
@@ -203,6 +296,65 @@ export function CompleteProfileStep({
               <User className="h-4 w-4" />
               Personal Details
             </div>
+            
+            {/* Photo Upload - Left-aligned, compact layout */}
+            <div className="flex items-start gap-4 pb-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleAvatarChange}
+                className="hidden"
+              />
+              <div 
+                className={cn(
+                  "relative cursor-pointer group rounded-full shrink-0",
+                  isDragging && "ring-2 ring-primary ring-offset-2"
+                )}
+                onClick={handleAvatarClick}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                <Avatar className="h-20 w-20 border-4 border-background shadow-lg">
+                  <AvatarImage src={formData.avatar_url} alt="Profile" />
+                  <AvatarFallback className="text-lg bg-primary/10 text-primary">
+                    {userInitials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {isUploadingAvatar ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-white" />
+                  ) : (
+                    <Camera className="h-5 w-5 text-white" />
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-col justify-center gap-2 pt-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleAvatarClick}
+                  disabled={isUploadingAvatar}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  {formData.avatar_url ? 'Change Photo' : 'Upload Photo'}
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Click or drag • Max 5MB
+                </p>
+              </div>
+            </div>
+
+            {/* Image Cropper Dialog */}
+            <ImageCropper
+              open={cropperOpen}
+              onOpenChange={setCropperOpen}
+              imageSrc={selectedImageSrc || ''}
+              onCropComplete={handleCropComplete}
+              cropShape="circle"
+            />
             
             {/* Row 1: Full Name + Date of Birth */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -266,6 +266,7 @@ export function useSaveEmployeeProfile() {
 
   return useMutation({
     mutationFn: async (profileData: {
+      avatar_url?: string;
       personal_email?: string;
       phone?: string;
       date_of_birth?: string;
@@ -282,6 +283,17 @@ export function useSaveEmployeeProfile() {
       superpowers?: string[];
     }) => {
       if (!employeeId) throw new Error('No employee found');
+
+      // Update avatar in profiles table if provided
+      if (profileData.avatar_url) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.id) {
+          await supabase
+            .from('profiles')
+            .update({ avatar_url: profileData.avatar_url })
+            .eq('id', user.id);
+        }
+      }
 
       const { error } = await supabase
         .from('employees')
