@@ -10,7 +10,8 @@ import {
   CreditCard,
   FlaskConical,
   Headphones,
-  AlertCircle
+  AlertCircle,
+  LayoutTemplate
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -22,6 +23,7 @@ const navItems = [
   { path: "/super-admin/analytics", label: "Analytics", icon: BarChart3 },
   { path: "/super-admin/organisations", label: "Organisations", icon: Building2 },
   { path: "/super-admin/users", label: "Users", icon: Users },
+  { path: "/super-admin/templates", label: "Templates", icon: LayoutTemplate },
   { path: "/super-admin/payments", label: "Subscription", icon: CreditCard },
   { path: "/super-admin/customer-success", label: "Customer Success", icon: Headphones },
   { path: "/super-admin/error-logs", label: "Error Logs", icon: AlertCircle },
