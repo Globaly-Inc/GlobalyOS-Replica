@@ -208,6 +208,7 @@ export default function EmployeeOnboardingWizard() {
 
   const handleProfileSave = async (data: ProfileFormData) => {
     await saveProfile.mutateAsync({
+      personal_email: data.personal_email,
       phone: data.phone,
       date_of_birth: data.date_of_birth,
       gender: data.gender,
@@ -224,7 +225,7 @@ export default function EmployeeOnboardingWizard() {
     
     await handleNext({
       personal_info: {
-        preferred_name: data.preferred_name,
+        personal_email: data.personal_email,
         phone: data.phone,
         date_of_birth: data.date_of_birth,
         gender: data.gender,

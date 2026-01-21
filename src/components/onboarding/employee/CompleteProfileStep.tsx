@@ -10,13 +10,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { ArrowRight, ArrowLeft, User, Home, Phone, Linkedin, AlertCircle } from 'lucide-react';
+import { ArrowRight, ArrowLeft, User, Home, Phone, Linkedin, AlertCircle, Mail } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { AddressAutocomplete, type AddressComponents } from '@/components/ui/address-autocomplete';
 
 interface CompleteProfileStepProps {
   employeeId: string;
   initialData?: {
-    preferred_name?: string;
+    personal_email?: string;
     phone?: string;
     date_of_birth?: string;
     gender?: string;
@@ -45,7 +46,7 @@ interface CompleteProfileStepProps {
 }
 
 export interface ProfileFormData {
-  preferred_name: string;
+  personal_email: string;
   phone: string;
   date_of_birth: string;
   gender: string;
@@ -54,6 +55,7 @@ export interface ProfileFormData {
   state: string;
   postcode: string;
   country: string;
+  home_address: string;
   emergency_contact_name: string;
   emergency_contact_relationship: string;
   emergency_contact_phone: string;
@@ -83,8 +85,16 @@ export function CompleteProfileStep({
   onBack,
   isSaving 
 }: CompleteProfileStepProps) {
+  // Build initial home_address from existing address components
+  const buildInitialAddress = () => {
+    if (!initialData?.address) return '';
+    const { street, city, state, postcode, country } = initialData.address;
+    const parts = [street, city, state, postcode, country].filter(Boolean);
+    return parts.join(', ');
+  };
+
   const [formData, setFormData] = useState<ProfileFormData>({
-    preferred_name: initialData?.preferred_name || '',
+    personal_email: initialData?.personal_email || '',
     phone: initialData?.phone || '',
     date_of_birth: initialData?.date_of_birth || '',
     gender: initialData?.gender || '',
@@ -93,6 +103,7 @@ export function CompleteProfileStep({
     state: initialData?.address?.state || '',
     postcode: initialData?.address?.postcode || '',
     country: initialData?.address?.country || '',
+    home_address: buildInitialAddress(),
     emergency_contact_name: initialData?.emergency_contact?.name || '',
     emergency_contact_relationship: initialData?.emergency_contact?.relationship || '',
     emergency_contact_phone: initialData?.emergency_contact?.phone || '',
@@ -100,18 +111,25 @@ export function CompleteProfileStep({
   });
 
   const [errors, setErrors] = useState<Partial<Record<keyof ProfileFormData, string>>>({});
+  const [hasValidAddress, setHasValidAddress] = useState(!!initialData?.address?.street);
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof ProfileFormData, string>> = {};
     
-    if (!formData.preferred_name.trim()) newErrors.preferred_name = 'Required';
-    if (!formData.phone.trim()) newErrors.phone = 'Required';
     if (!formData.date_of_birth) newErrors.date_of_birth = 'Required';
-    if (!formData.street.trim()) newErrors.street = 'Required';
-    if (!formData.city.trim()) newErrors.city = 'Required';
-    if (!formData.state.trim()) newErrors.state = 'Required';
-    if (!formData.postcode.trim()) newErrors.postcode = 'Required';
-    if (!formData.country.trim()) newErrors.country = 'Required';
+    if (!formData.personal_email.trim()) newErrors.personal_email = 'Required';
+    if (!formData.phone.trim()) newErrors.phone = 'Required';
+    
+    // Email format validation
+    if (formData.personal_email && !formData.personal_email.includes('@')) {
+      newErrors.personal_email = 'Invalid email format';
+    }
+    
+    // Validate address was selected from autocomplete
+    if (!hasValidAddress || !formData.street.trim()) {
+      newErrors.street = 'Please select an address from suggestions';
+    }
+    
     if (!formData.emergency_contact_name.trim()) newErrors.emergency_contact_name = 'Required';
     if (!formData.emergency_contact_relationship) newErrors.emergency_contact_relationship = 'Required';
     if (!formData.emergency_contact_phone.trim()) newErrors.emergency_contact_phone = 'Required';
@@ -139,6 +157,29 @@ export function CompleteProfileStep({
     }
   };
 
+  const handleAddressChange = (address: string, components?: AddressComponents) => {
+    if (components) {
+      setFormData(prev => ({
+        ...prev,
+        home_address: address,
+        street: components.street_number 
+          ? `${components.street_number} ${components.route || ''}`.trim()
+          : components.route || '',
+        city: components.locality || '',
+        state: components.administrative_area_level_1 || '',
+        postcode: components.postal_code || '',
+        country: components.country || '',
+      }));
+      setHasValidAddress(true);
+      if (errors.street) {
+        setErrors(prev => ({ ...prev, street: undefined }));
+      }
+    } else {
+      setFormData(prev => ({ ...prev, home_address: address }));
+      setHasValidAddress(false);
+    }
+  };
+
   const inputClassName = (field: keyof ProfileFormData) =>
     cn(errors[field] && 'border-destructive focus-visible:ring-destructive');
 
@@ -163,6 +204,7 @@ export function CompleteProfileStep({
               Personal Details
             </div>
             
+            {/* Row 1: Full Name + Date of Birth */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Full Name</Label>
@@ -173,17 +215,37 @@ export function CompleteProfileStep({
                 />
               </div>
               <div className="space-y-2">
-                <Label>Preferred Name <span className="text-destructive">*</span></Label>
+                <Label>Date of Birth <span className="text-destructive">*</span></Label>
                 <Input
-                  value={formData.preferred_name}
-                  onChange={(e) => updateField('preferred_name', e.target.value)}
-                  placeholder="How should we call you?"
-                  className={inputClassName('preferred_name')}
+                  type="date"
+                  value={formData.date_of_birth}
+                  onChange={(e) => updateField('date_of_birth', e.target.value)}
+                  className={inputClassName('date_of_birth')}
                 />
+                {errors.date_of_birth && (
+                  <p className="text-sm text-destructive">{errors.date_of_birth}</p>
+                )}
               </div>
             </div>
 
+            {/* Row 2: Personal Email, Phone, Gender */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Personal Email <span className="text-destructive">*</span></Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="email"
+                    value={formData.personal_email}
+                    onChange={(e) => updateField('personal_email', e.target.value)}
+                    placeholder="your.email@personal.com"
+                    className={cn("pl-9", inputClassName('personal_email'))}
+                  />
+                </div>
+                {errors.personal_email && (
+                  <p className="text-sm text-destructive">{errors.personal_email}</p>
+                )}
+              </div>
               <div className="space-y-2">
                 <Label>Phone <span className="text-destructive">*</span></Label>
                 <Input
@@ -193,15 +255,9 @@ export function CompleteProfileStep({
                   placeholder="+1 234 567 8900"
                   className={inputClassName('phone')}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label>Date of Birth <span className="text-destructive">*</span></Label>
-                <Input
-                  type="date"
-                  value={formData.date_of_birth}
-                  onChange={(e) => updateField('date_of_birth', e.target.value)}
-                  className={inputClassName('date_of_birth')}
-                />
+                {errors.phone && (
+                  <p className="text-sm text-destructive">{errors.phone}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Gender</Label>
@@ -233,56 +289,35 @@ export function CompleteProfileStep({
               Home Address
             </div>
             
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Street Address <span className="text-destructive">*</span></Label>
-                <Input
-                  value={formData.street}
-                  onChange={(e) => updateField('street', e.target.value)}
-                  placeholder="123 Main Street, Apt 4B"
-                  className={inputClassName('street')}
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <Label>City <span className="text-destructive">*</span></Label>
-                  <Input
-                    value={formData.city}
-                    onChange={(e) => updateField('city', e.target.value)}
-                    placeholder="City"
-                    className={inputClassName('city')}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>State/Province <span className="text-destructive">*</span></Label>
-                  <Input
-                    value={formData.state}
-                    onChange={(e) => updateField('state', e.target.value)}
-                    placeholder="State"
-                    className={inputClassName('state')}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Postal Code <span className="text-destructive">*</span></Label>
-                  <Input
-                    value={formData.postcode}
-                    onChange={(e) => updateField('postcode', e.target.value)}
-                    placeholder="12345"
-                    className={inputClassName('postcode')}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Country <span className="text-destructive">*</span></Label>
-                  <Input
-                    value={formData.country}
-                    onChange={(e) => updateField('country', e.target.value)}
-                    placeholder="Country"
-                    className={inputClassName('country')}
-                  />
-                </div>
-              </div>
+            <div className="space-y-2">
+              <Label>Address <span className="text-destructive">*</span></Label>
+              <AddressAutocomplete
+                value={formData.home_address}
+                onChange={handleAddressChange}
+                placeholder="Start typing your home address..."
+                allowBusinesses={false}
+                className={errors.street ? 'border-destructive' : ''}
+              />
+              {!hasValidAddress && formData.home_address && (
+                <p className="text-sm text-amber-600">
+                  Please select an address from the suggestions
+                </p>
+              )}
+              {errors.street && (
+                <p className="text-sm text-destructive">{errors.street}</p>
+              )}
             </div>
+            
+            {/* Show parsed address preview when valid */}
+            {hasValidAddress && formData.street && (
+              <div className="p-3 bg-muted/50 rounded-lg text-sm space-y-1">
+                <p><span className="font-medium">Street:</span> {formData.street}</p>
+                <p><span className="font-medium">City:</span> {formData.city}</p>
+                <p><span className="font-medium">State:</span> {formData.state}</p>
+                <p><span className="font-medium">Postal Code:</span> {formData.postcode}</p>
+                <p><span className="font-medium">Country:</span> {formData.country}</p>
+              </div>
+            )}
           </div>
 
           <Separator />
@@ -312,6 +347,9 @@ export function CompleteProfileStep({
                   placeholder="Full name"
                   className={inputClassName('emergency_contact_name')}
                 />
+                {errors.emergency_contact_name && (
+                  <p className="text-sm text-destructive">{errors.emergency_contact_name}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Relationship <span className="text-destructive">*</span></Label>
@@ -330,6 +368,9 @@ export function CompleteProfileStep({
                     ))}
                   </SelectContent>
                 </Select>
+                {errors.emergency_contact_relationship && (
+                  <p className="text-sm text-destructive">{errors.emergency_contact_relationship}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Phone Number <span className="text-destructive">*</span></Label>
@@ -340,6 +381,9 @@ export function CompleteProfileStep({
                   placeholder="+1 234 567 8900"
                   className={inputClassName('emergency_contact_phone')}
                 />
+                {errors.emergency_contact_phone && (
+                  <p className="text-sm text-destructive">{errors.emergency_contact_phone}</p>
+                )}
               </div>
             </div>
           </div>
