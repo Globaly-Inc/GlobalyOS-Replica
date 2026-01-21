@@ -281,6 +281,16 @@ export function CompleteProfileStep({
   const inputClassName = (field: keyof ProfileFormData) =>
     cn(errors[field] && 'border-destructive focus-visible:ring-destructive');
 
+  // Prevent Enter key from submitting form on regular inputs
+  const handleFormKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    if (e.key === 'Enter' && e.target instanceof HTMLInputElement) {
+      // Allow Enter in textarea but prevent in regular inputs
+      if (e.target.type !== 'textarea') {
+        e.preventDefault();
+      }
+    }
+  };
+
   return (
     <Card className="border-0 shadow-lg">
       <CardHeader className="text-center pb-4">
@@ -294,7 +304,7 @@ export function CompleteProfileStep({
       </CardHeader>
 
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} onKeyDown={handleFormKeyDown} className="space-y-6">
           {/* Personal Details Section */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">

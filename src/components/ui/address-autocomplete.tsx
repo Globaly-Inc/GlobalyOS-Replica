@@ -91,13 +91,14 @@ export function AddressAutocomplete({
   }, [value]);
 
   // Handle keyboard interactions - allow Google's autocomplete to handle navigation
+  // CRITICAL: Prevent Enter from bubbling to form when PAC dropdown is visible
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       const pacContainer = document.querySelector('.pac-container:not([style*="display: none"])');
       const pacItems = pacContainer?.querySelectorAll('.pac-item');
       
       if (pacContainer && pacItems && pacItems.length > 0) {
-        // Prevent form submission while PAC dropdown is open
+        // CRITICAL: Prevent form submission while PAC dropdown is open
         e.preventDefault();
         e.stopPropagation();
         
