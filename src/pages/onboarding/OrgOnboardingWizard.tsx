@@ -293,6 +293,7 @@ export default function OrgOnboardingWizard() {
             organizationId={currentOrg?.id}
             orgName={currentOrg?.name}
             orgLogoUrl={currentOrg?.logo_url}
+            employeeId={currentEmployee?.id}
           />
         );
       case 'leave-guide':

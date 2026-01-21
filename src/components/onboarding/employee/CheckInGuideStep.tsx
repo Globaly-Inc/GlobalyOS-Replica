@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,6 +26,7 @@ interface CheckInGuideStepProps {
   organizationId?: string;
   orgName?: string;
   orgLogoUrl?: string | null;
+  employeeId?: string;
 }
 
 export function CheckInGuideStep({ 
@@ -36,6 +37,7 @@ export function CheckInGuideStep({
   organizationId,
   orgName,
   orgLogoUrl,
+  employeeId,
 }: CheckInGuideStepProps) {
   const [selectedOffice, setSelectedOffice] = useState<string>('');
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
@@ -49,6 +51,8 @@ export function CheckInGuideStep({
       setSelectedOffice(savedOffices[0].id!);
     }
   }, [savedOffices, selectedOffice]);
+
+  const queryClient = useQueryClient();
 
   // Fetch pre-generated QR code for selected office
   const { data: qrCode, isLoading: isLoadingQR } = useQuery({
@@ -65,6 +69,48 @@ export function CheckInGuideStep({
     },
     enabled: !!selectedOffice,
   });
+
+  // Auto-generate QR code if none exists
+  const generateQRMutation = useMutation({
+    mutationFn: async (officeId: string) => {
+      if (!organizationId || !employeeId) throw new Error('Missing required fields');
+      
+      const qrCodeValue = `${officeId}-${Date.now()}-${Math.random().toString(36).substring(2, 14)}`;
+      
+      const { data, error } = await supabase
+        .from('office_qr_codes')
+        .insert({
+          office_id: officeId,
+          organization_id: organizationId,
+          code: qrCodeValue,
+          is_active: true,
+          radius_meters: 100,
+          created_by: employeeId,
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['office-qr-code', selectedOffice] });
+    },
+  });
+
+  // Auto-generate QR code on page load if none exists
+  useEffect(() => {
+    if (
+      selectedOffice &&
+      organizationId &&
+      employeeId &&
+      !isLoadingQR &&
+      !qrCode &&
+      !generateQRMutation.isPending
+    ) {
+      generateQRMutation.mutate(selectedOffice);
+    }
+  }, [selectedOffice, organizationId, employeeId, isLoadingQR, qrCode, generateQRMutation.isPending]);
 
   // Generate QR image from code
   useEffect(() => {
@@ -128,7 +174,7 @@ export function CheckInGuideStep({
               {/* QR Preview + Download */}
               {selectedOffice && (
                 <>
-                  {isLoadingQR ? (
+                  {(isLoadingQR || generateQRMutation.isPending) ? (
                     <div className="h-32 w-32 flex items-center justify-center">
                       <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
                     </div>
