@@ -12,9 +12,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, ArrowRight, Users, Plus, Trash2, SkipForward, Crown } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { ArrowLeft, ArrowRight, Users, Plus, Trash2, SkipForward, Crown, Check, ChevronsUpDown } from 'lucide-react';
 import { useEmploymentTypes } from '@/hooks/useEmploymentTypes';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
+
+interface Position {
+  name: string;
+  department: string;
+}
 
 interface TeamMember {
   email: string;
@@ -114,9 +129,37 @@ export function TeamSeedingStep({
   const [offices, setOffices] = useState<Office[]>([]);
   const [loadingOffices, setLoadingOffices] = useState(false);
 
-  // Get departments and positions from previous step
-  const departments = departmentsRoles?.departments || [];
-  const allPositions = departmentsRoles?.positions || [];
+  // Local state for departments and positions (including custom additions)
+  const [localDepartments, setLocalDepartments] = useState<string[]>(departmentsRoles?.departments || []);
+  const [localPositions, setLocalPositions] = useState<Position[]>(departmentsRoles?.positions || []);
+
+  // Dropdown open states and search values per member
+  const [departmentOpenStates, setDepartmentOpenStates] = useState<Record<number, boolean>>({});
+  const [positionOpenStates, setPositionOpenStates] = useState<Record<number, boolean>>({});
+  const [departmentSearches, setDepartmentSearches] = useState<Record<number, string>>({});
+  const [positionSearches, setPositionSearches] = useState<Record<number, string>>({});
+
+  // Sync with parent data when it changes
+  useEffect(() => {
+    if (departmentsRoles?.departments) {
+      setLocalDepartments(prev => {
+        const combined = new Set([...departmentsRoles.departments, ...prev]);
+        return Array.from(combined);
+      });
+    }
+  }, [departmentsRoles?.departments]);
+
+  useEffect(() => {
+    if (departmentsRoles?.positions) {
+      setLocalPositions(prev => {
+        const existingKeys = new Set(prev.map(p => `${p.name}::${p.department}`));
+        const newPositions = departmentsRoles.positions.filter(
+          p => !existingKeys.has(`${p.name}::${p.department}`)
+        );
+        return [...prev, ...newPositions];
+      });
+    }
+  }, [departmentsRoles?.positions]);
 
   // Owner display helpers
   const ownerInitials = useMemo(() => {
@@ -199,8 +242,81 @@ export function TeamSeedingStep({
   };
 
   const getPositionsForMember = (memberDepartment: string) => {
-    if (!memberDepartment) return allPositions;
-    return allPositions.filter(p => p.department === memberDepartment);
+    if (!memberDepartment) return localPositions;
+    return localPositions.filter(p => p.department === memberDepartment);
+  };
+
+  // Add custom department
+  const addCustomDepartment = async (memberIndex: number, deptName: string) => {
+    const trimmedName = deptName.trim();
+    if (!trimmedName) return;
+
+    // Add to local state for immediate UI update
+    if (!localDepartments.includes(trimmedName)) {
+      setLocalDepartments(prev => [...prev, trimmedName]);
+    }
+
+    // Update member's department
+    updateMember(memberIndex, 'department', trimmedName);
+
+    // Close dropdown & clear search
+    setDepartmentOpenStates(prev => ({ ...prev, [memberIndex]: false }));
+    setDepartmentSearches(prev => ({ ...prev, [memberIndex]: '' }));
+
+    // Record for AI learning (fire and forget)
+    recordLearning('department', trimmedName);
+  };
+
+  // Add custom position
+  const addCustomPosition = async (memberIndex: number, posName: string, department: string) => {
+    const trimmedName = posName.trim();
+    if (!trimmedName || !department) return;
+
+    // Add to local positions
+    const newPos: Position = { name: trimmedName, department };
+    if (!localPositions.find(p => p.name === trimmedName && p.department === department)) {
+      setLocalPositions(prev => [...prev, newPos]);
+    }
+
+    // Insert into positions table for this org
+    try {
+      await supabase.from('positions').insert({
+        organization_id: organizationId,
+        name: trimmedName,
+        department: department,
+      });
+    } catch (error) {
+      console.error('Failed to save position to database:', error);
+    }
+
+    // Update member
+    updateMember(memberIndex, 'position', trimmedName);
+
+    // Close & clear
+    setPositionOpenStates(prev => ({ ...prev, [memberIndex]: false }));
+    setPositionSearches(prev => ({ ...prev, [memberIndex]: '' }));
+
+    // Record for AI learning
+    recordLearning('position', trimmedName, department);
+  };
+
+  // Record custom additions for AI learning
+  const recordLearning = async (type: 'department' | 'position', name: string, department?: string) => {
+    try {
+      await supabase.functions.invoke('save-org-structure-learning', {
+        body: {
+          businessCategory: 'General Business', // Could be enhanced with actual org industry
+          companySize: 'small',
+          selectedDepartments: type === 'department' ? [name] : [],
+          selectedPositions: type === 'position' ? [{ name, department }] : [],
+          customDepartments: type === 'department' ? [name] : [],
+          customPositions: type === 'position' ? [name] : [],
+          organizationId,
+        }
+      });
+    } catch (err) {
+      console.error('Failed to save learning:', err);
+    }
   };
 
   const isValidEmail = (email: string) => {
@@ -230,6 +346,21 @@ export function TeamSeedingStep({
   };
 
   const hasValidMembers = members.some(isValidMember);
+
+  // Filter departments based on search
+  const getFilteredDepartments = (index: number) => {
+    const search = (departmentSearches[index] || '').toLowerCase();
+    if (!search) return localDepartments;
+    return localDepartments.filter(dept => dept.toLowerCase().includes(search));
+  };
+
+  // Filter positions based on search and department
+  const getFilteredPositions = (index: number, department: string) => {
+    const search = (positionSearches[index] || '').toLowerCase();
+    const deptPositions = getPositionsForMember(department);
+    if (!search) return deptPositions;
+    return deptPositions.filter(pos => pos.name.toLowerCase().includes(search));
+  };
 
   return (
     <Card className="border-0 shadow-lg">
@@ -287,9 +418,18 @@ export function TeamSeedingStep({
           {/* Team Member Cards */}
           <div className="space-y-3">
             {members.map((member, index) => {
-              const memberPositions = getPositionsForMember(member.department || '');
+              const filteredDepartments = getFilteredDepartments(index);
+              const filteredPositions = getFilteredPositions(index, member.department || '');
               const availableManagers = managerOptions.filter(
                 (opt) => opt.id !== `member-${index}` // Exclude self from manager list
+              );
+              const departmentSearch = departmentSearches[index] || '';
+              const positionSearch = positionSearches[index] || '';
+              const showAddDepartment = departmentSearch && !filteredDepartments.some(
+                d => d.toLowerCase() === departmentSearch.toLowerCase()
+              );
+              const showAddPosition = positionSearch && member.department && !filteredPositions.some(
+                p => p.name.toLowerCase() === positionSearch.toLowerCase()
               );
               
               return (
@@ -390,58 +530,135 @@ export function TeamSeedingStep({
                   
                   {/* Row 2: Department, Position, Employment Type, Role */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    {/* Department - Searchable Combobox */}
                     <div>
                       <Label className="text-xs text-muted-foreground mb-1.5 block">Department *</Label>
-                      <Select
-                        value={member.department || ''}
-                        onValueChange={(v) => updateMember(index, 'department', v)}
+                      <Popover
+                        open={departmentOpenStates[index] || false}
+                        onOpenChange={(open) => setDepartmentOpenStates(prev => ({ ...prev, [index]: open }))}
                       >
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Select department" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {departments.length > 0 ? (
-                            departments.map((dept) => (
-                              <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                            ))
-                          ) : (
-                            <>
-                              <SelectItem value="Executive">Executive</SelectItem>
-                              <SelectItem value="Operations">Operations</SelectItem>
-                              <SelectItem value="Sales">Sales</SelectItem>
-                              <SelectItem value="Marketing">Marketing</SelectItem>
-                              <SelectItem value="General">General</SelectItem>
-                            </>
-                          )}
-                        </SelectContent>
-                      </Select>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={departmentOpenStates[index] || false}
+                            className="w-full h-9 justify-between font-normal"
+                          >
+                            <span className="truncate">
+                              {member.department || 'Select department...'}
+                            </span>
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                          <Command shouldFilter={false}>
+                            <CommandInput
+                              placeholder="Search or add new..."
+                              value={departmentSearch}
+                              onValueChange={(val) => setDepartmentSearches(prev => ({ ...prev, [index]: val }))}
+                            />
+                            <CommandList className="max-h-[200px]">
+                              {filteredDepartments.length === 0 && !showAddDepartment && (
+                                <CommandEmpty>No departments found.</CommandEmpty>
+                              )}
+                              <CommandGroup>
+                                {filteredDepartments.map((dept) => (
+                                  <CommandItem
+                                    key={dept}
+                                    value={dept}
+                                    onSelect={() => {
+                                      updateMember(index, 'department', dept);
+                                      setDepartmentOpenStates(prev => ({ ...prev, [index]: false }));
+                                      setDepartmentSearches(prev => ({ ...prev, [index]: '' }));
+                                    }}
+                                  >
+                                    <Check className={cn('mr-2 h-4 w-4', member.department === dept ? 'opacity-100' : 'opacity-0')} />
+                                    {dept}
+                                  </CommandItem>
+                                ))}
+                                {showAddDepartment && (
+                                  <CommandItem
+                                    value={`add-${departmentSearch}`}
+                                    onSelect={() => addCustomDepartment(index, departmentSearch)}
+                                    className="text-primary"
+                                  >
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Add "{departmentSearch}"
+                                  </CommandItem>
+                                )}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                     </div>
+
+                    {/* Position - Searchable Combobox */}
                     <div>
                       <Label className="text-xs text-muted-foreground mb-1.5 block">Position *</Label>
-                      <Select
-                        value={member.position || ''}
-                        onValueChange={(v) => updateMember(index, 'position', v)}
+                      <Popover
+                        open={positionOpenStates[index] || false}
+                        onOpenChange={(open) => setPositionOpenStates(prev => ({ ...prev, [index]: open }))}
                       >
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Select position" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {memberPositions.length > 0 ? (
-                            memberPositions.map((pos, idx) => (
-                              <SelectItem key={`${pos.name}-${idx}`} value={pos.name}>
-                                {pos.name}
-                              </SelectItem>
-                            ))
-                          ) : (
-                            <>
-                              <SelectItem value="Team Member">Team Member</SelectItem>
-                              <SelectItem value="Manager">Manager</SelectItem>
-                              <SelectItem value="Specialist">Specialist</SelectItem>
-                            </>
-                          )}
-                        </SelectContent>
-                      </Select>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={positionOpenStates[index] || false}
+                            className="w-full h-9 justify-between font-normal"
+                            disabled={!member.department}
+                          >
+                            <span className="truncate">
+                              {member.position || (member.department ? 'Select position...' : 'Select department first')}
+                            </span>
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                          <Command shouldFilter={false}>
+                            <CommandInput
+                              placeholder="Search or add new..."
+                              value={positionSearch}
+                              onValueChange={(val) => setPositionSearches(prev => ({ ...prev, [index]: val }))}
+                            />
+                            <CommandList className="max-h-[200px]">
+                              {filteredPositions.length === 0 && !showAddPosition && (
+                                <CommandEmpty>No positions found for this department.</CommandEmpty>
+                              )}
+                              <CommandGroup>
+                                {filteredPositions.map((pos, idx) => (
+                                  <CommandItem
+                                    key={`${pos.name}-${idx}`}
+                                    value={pos.name}
+                                    onSelect={() => {
+                                      updateMember(index, 'position', pos.name);
+                                      setPositionOpenStates(prev => ({ ...prev, [index]: false }));
+                                      setPositionSearches(prev => ({ ...prev, [index]: '' }));
+                                    }}
+                                  >
+                                    <Check className={cn('mr-2 h-4 w-4', member.position === pos.name ? 'opacity-100' : 'opacity-0')} />
+                                    {pos.name}
+                                  </CommandItem>
+                                ))}
+                                {showAddPosition && (
+                                  <CommandItem
+                                    value={`add-${positionSearch}`}
+                                    onSelect={() => addCustomPosition(index, positionSearch, member.department!)}
+                                    className="text-primary"
+                                  >
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Add "{positionSearch}"
+                                  </CommandItem>
+                                )}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                     </div>
+
                     <div>
                       <Label className="text-xs text-muted-foreground mb-1.5 block">Type *</Label>
                       <Select
