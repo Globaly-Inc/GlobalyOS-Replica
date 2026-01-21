@@ -293,6 +293,24 @@ function getDefaultStructure(industry?: string) {
         { name: 'Finance Manager', department: 'Finance' },
       ],
     },
+    'Education Consultancy': {
+      departments: ['Executive', 'Visa & Immigration', 'Student Services', 'Admissions', 'Counseling', 'Marketing', 'Finance', 'Administration'],
+      positions: [
+        { name: 'CEO', department: 'Executive' },
+        { name: 'Director of Immigration', department: 'Visa & Immigration' },
+        { name: 'Migration Agent', department: 'Visa & Immigration' },
+        { name: 'Visa Consultant', department: 'Visa & Immigration' },
+        { name: 'Student Services Manager', department: 'Student Services' },
+        { name: 'Student Coordinator', department: 'Student Services' },
+        { name: 'Admissions Manager', department: 'Admissions' },
+        { name: 'Admissions Officer', department: 'Admissions' },
+        { name: 'Education Counselor', department: 'Counseling' },
+        { name: 'Career Advisor', department: 'Counseling' },
+        { name: 'Marketing Manager', department: 'Marketing' },
+        { name: 'Finance Manager', department: 'Finance' },
+        { name: 'Office Administrator', department: 'Administration' },
+      ],
+    },
     'Healthcare': {
       departments: ['Executive', 'Medical', 'Nursing', 'Administration', 'Finance', 'Human Resources', 'Operations'],
       positions: [
