@@ -3,7 +3,7 @@
  * Guides new team members through personalized 9-step onboarding
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { LogOut } from 'lucide-react';
@@ -52,9 +52,13 @@ export default function EmployeeOnboardingWizard() {
 
   const [currentStep, setCurrentStep] = useState(1);
   const [isNavigating, setIsNavigating] = useState(false);
+  
+  // Synchronous navigation lock to prevent double-clicks
+  const navLockRef = useRef(false);
 
   // Combined busy state for all async operations
   const isBusy = isNavigating || 
+    navLockRef.current ||
     saveStep.isPending || 
     saveProfile.isPending || 
     saveTimezone.isPending || 
@@ -160,12 +164,84 @@ export default function EmployeeOnboardingWizard() {
     }
   }, [employeeId, currentOrg?.id, dataLoading, onboardingData]);
 
+  // Sync UI step from DB only on initial load or when not navigating
+  // This prevents the UI from jumping during in-flight mutations
   useEffect(() => {
-    if (onboardingData?.current_step) {
+    if (onboardingData?.current_step && !navLockRef.current && !isNavigating) {
       setCurrentStep(onboardingData.current_step);
     }
-  }, [onboardingData?.current_step]);
+  }, [onboardingData?.current_step, isNavigating]);
 
+  // Navigate to next step with explicit step targeting (prevents race conditions)
+  const handleNext = useCallback(async (stepData?: Record<string, unknown>) => {
+    // Synchronous lock check - prevents double-click issues
+    if (navLockRef.current || isNavigating || isBusy) return;
+    
+    navLockRef.current = true;
+    setIsNavigating(true);
+    
+    try {
+      // Final step: complete onboarding
+      if (currentStep >= TOTAL_EMPLOYEE_STEPS) {
+        await completeOnboarding.mutateAsync(false);
+        navigate(`/org/${currentOrg?.slug}`);
+        return;
+      }
+
+      // Calculate explicit next step from UI state (not DB state)
+      const nextStep = Math.min(currentStep + 1, TOTAL_EMPLOYEE_STEPS);
+      
+      // Save with explicit toStep to prevent DB race conditions
+      const result = await saveStep.mutateAsync({ 
+        stepData: stepData || {}, 
+        toStep: nextStep,
+      });
+      
+      // Update UI from mutation result for consistency
+      if (result?.current_step) {
+        setCurrentStep(result.current_step);
+      } else {
+        setCurrentStep(nextStep);
+      }
+    } finally {
+      navLockRef.current = false;
+      setIsNavigating(false);
+    }
+  }, [currentStep, isNavigating, isBusy, completeOnboarding, saveStep, navigate, currentOrg?.slug]);
+
+  // Navigate back with explicit step targeting (keeps UI and DB in sync)
+  const handleBack = useCallback(async () => {
+    if (navLockRef.current || isNavigating || currentStep <= 1) return;
+    
+    navLockRef.current = true;
+    setIsNavigating(true);
+    
+    try {
+      const prevStep = Math.max(currentStep - 1, 1);
+      
+      // Persist the step change to prevent skipping on next Continue
+      const result = await saveStep.mutateAsync({ 
+        stepData: {}, 
+        toStep: prevStep,
+      });
+      
+      if (result?.current_step) {
+        setCurrentStep(result.current_step);
+      } else {
+        setCurrentStep(prevStep);
+      }
+    } finally {
+      navLockRef.current = false;
+      setIsNavigating(false);
+    }
+  }, [currentStep, isNavigating, saveStep]);
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/auth');
+  };
+
+  // Early returns after all hooks
   if (authLoading || dataLoading || initOnboarding.isPending) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -181,30 +257,6 @@ export default function EmployeeOnboardingWizard() {
     navigate('/auth');
     return null;
   }
-
-  const handleLogout = async () => {
-    await signOut();
-    navigate('/auth');
-  };
-
-  const handleNext = async (stepData?: Record<string, unknown>) => {
-    // Prevent concurrent navigation
-    if (isNavigating || isBusy) return;
-    
-    setIsNavigating(true);
-    try {
-      if (currentStep >= TOTAL_EMPLOYEE_STEPS) {
-        await completeOnboarding.mutateAsync(false);
-        navigate(`/org/${currentOrg?.slug}`);
-        return;
-      }
-
-      await saveStep.mutateAsync({ stepData: stepData || {}, advanceStep: true });
-      setCurrentStep((prev) => Math.min(prev + 1, TOTAL_EMPLOYEE_STEPS));
-    } finally {
-      setIsNavigating(false);
-    }
-  };
 
   const handleProfileSave = async (data: ProfileFormData) => {
     await saveProfile.mutateAsync({
@@ -275,7 +327,7 @@ export default function EmployeeOnboardingWizard() {
             }}
             prefillData={{ full_name: employee?.full_name || '', email: employee?.personal_email || undefined }}
             onSave={handleProfileSave}
-            onBack={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
+            onBack={handleBack}
             isSaving={isBusy}
           />
         );
@@ -283,7 +335,7 @@ export default function EmployeeOnboardingWizard() {
         return (
           <TimezoneSetupStep 
             onSave={handleTimezoneSave} 
-            onBack={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
+            onBack={handleBack}
             isSaving={isBusy} 
           />
         );
@@ -291,7 +343,7 @@ export default function EmployeeOnboardingWizard() {
         return (
           <CheckInGuideStep 
             onContinue={() => handleNext()} 
-            onBack={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
+            onBack={handleBack}
             isNavigating={isBusy}
           />
         );
@@ -299,7 +351,7 @@ export default function EmployeeOnboardingWizard() {
         return (
           <LeaveGuideStep 
             onContinue={() => handleNext()} 
-            onBack={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
+            onBack={handleBack}
             isNavigating={isBusy}
           />
         );
@@ -308,7 +360,7 @@ export default function EmployeeOnboardingWizard() {
           <ProfileGuideStep 
             employeeName={firstName} 
             onContinue={() => handleNext()} 
-            onBack={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
+            onBack={handleBack}
             isNavigating={isBusy}
           />
         );
@@ -316,7 +368,7 @@ export default function EmployeeOnboardingWizard() {
         return (
           <SocialFeedGuideStep 
             onContinue={() => handleNext()} 
-            onBack={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
+            onBack={handleBack}
             isNavigating={isBusy}
           />
         );
@@ -324,7 +376,7 @@ export default function EmployeeOnboardingWizard() {
         return (
           <DirectoryWikiGuideStep 
             onContinue={() => handleNext()} 
-            onBack={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
+            onBack={handleBack}
             isNavigating={isBusy}
           />
         );
@@ -334,7 +386,7 @@ export default function EmployeeOnboardingWizard() {
             employeeName={firstName}
             orgName={currentOrg?.name || 'the team'}
             onFinish={() => handleNext()}
-            onBack={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
+            onBack={handleBack}
             isCompleting={isBusy}
           />
         );
