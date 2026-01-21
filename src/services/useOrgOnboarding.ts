@@ -444,6 +444,47 @@ export function useCompleteOrgOnboarding() {
 
       if (orgError) throw orgError;
 
+      // Mark owner's employee onboarding as complete (they already filled profile in org onboarding)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.id) {
+        const { data: ownerEmployee } = await supabase
+          .from('employees')
+          .select('id')
+          .eq('organization_id', currentOrg.id)
+          .eq('user_id', user.id)
+          .single();
+
+        if (ownerEmployee?.id) {
+          await supabase
+            .from('employees')
+            .update({
+              employee_onboarding_completed: true,
+              employee_onboarding_step: 9, // Mark as fully complete
+            })
+            .eq('id', ownerEmployee.id);
+
+          // Also create/update employee_onboarding_data as complete
+          await supabase
+            .from('employee_onboarding_data')
+            .upsert({
+              employee_id: ownerEmployee.id,
+              organization_id: currentOrg.id,
+              current_step: 9,
+              completed_at: new Date().toISOString(),
+              skipped: false,
+              personal_info: {},
+              timezone_setup_completed: true,
+              guides_viewed: {},
+              completed_slides: true,
+              tour_completed: true,
+            }, {
+              onConflict: 'employee_id',
+            });
+
+          console.log('Owner employee onboarding marked as complete');
+        }
+      }
+
       // Note: Invitation emails are now sent from SetupProgressScreen component
       // during the animated setup process, not here
 
