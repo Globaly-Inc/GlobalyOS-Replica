@@ -102,17 +102,15 @@ export function HoroscopeWidget({ dateOfBirth }: HoroscopeWidgetProps) {
                   return (
                     <div 
                       key={aspect.key} 
-                      className="flex items-start gap-2 text-left min-w-[120px] max-w-[150px] px-2.5 py-1.5 bg-white/10 rounded-lg"
+                      className="flex flex-col text-left min-w-[120px] max-w-[150px] h-[72px] px-2.5 py-1.5 bg-white/10 rounded-lg"
                     >
-                      <Icon className={`h-3.5 w-3.5 ${color} shrink-0 mt-0.5`} />
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-white/90 font-medium">
-                          {aspect.label}
-                        </span>
-                        <span className="text-[9px] text-white/70 mt-0.5 leading-tight">
-                          {aspect.text}
-                        </span>
-                      </div>
+                      <Icon className={`h-3.5 w-3.5 ${color} shrink-0 mb-1`} />
+                      <span className="text-[10px] text-white/90 font-medium leading-tight">
+                        {aspect.label}
+                      </span>
+                      <span className="text-[9px] text-white/70 mt-0.5 leading-tight line-clamp-2">
+                        {aspect.text}
+                      </span>
                     </div>
                   );
                 })}
