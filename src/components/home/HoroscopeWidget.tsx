@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Briefcase, Heart, Zap, Coins, Loader2, Sparkles } from 'lucide-react';
+import { Briefcase, Heart, Zap, Coins, Loader2, Sparkles, RefreshCw } from 'lucide-react';
 import { useHoroscope } from '@/hooks/useHoroscope';
 import { OrgLink } from '@/components/OrgLink';
 import { HoroscopeAspect, HoroscopeAspectKey } from '@/types/horoscope';
@@ -25,9 +25,16 @@ const ASPECT_COLORS: Record<HoroscopeAspectKey, string> = {
 };
 
 export function HoroscopeWidget({ dateOfBirth }: HoroscopeWidgetProps) {
-  const { zodiac, horoscope, isLoading, error, hasDateOfBirth } = useHoroscope(dateOfBirth);
+  const { zodiac, horoscope, isLoading, error, hasDateOfBirth, refresh } = useHoroscope(dateOfBirth);
   const [selectedAspect, setSelectedAspect] = useState<HoroscopeAspect | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refresh();
+    setIsRefreshing(false);
+  };
 
   const handleAspectClick = (aspect: HoroscopeAspect) => {
     setSelectedAspect(aspect);
@@ -91,6 +98,15 @@ export function HoroscopeWidget({ dateOfBirth }: HoroscopeWidgetProps) {
               <p className="text-sm text-white/90 font-medium">{zodiac.sign}</p>
               <p className="text-xs text-white/70">{zodiac.dateRange}</p>
             </div>
+            {/* Refresh Button */}
+            <button
+              onClick={handleRefresh}
+              disabled={isLoading || isRefreshing}
+              className="p-1.5 rounded-full hover:bg-white/10 transition-colors disabled:opacity-50"
+              title="Get new horoscope reading"
+            >
+              <RefreshCw className={`h-4 w-4 text-white/60 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </button>
           </div>
           
           {/* Right: Aspect Cards (desktop only) - clickable */}
