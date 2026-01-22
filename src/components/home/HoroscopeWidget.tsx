@@ -104,7 +104,7 @@ export function HoroscopeWidget({ dateOfBirth }: HoroscopeWidgetProps) {
                       key={aspect.key} 
                       className="flex flex-col text-left min-w-[120px] max-w-[150px] h-[100px] px-2.5 py-1.5 bg-white/10 rounded-lg"
                     >
-                      <Icon className={`h-3.5 w-3.5 ${color} shrink-0 mb-1`} />
+                      <Icon className={`h-[18px] w-[18px] ${color} shrink-0 mb-1`} />
                       <span className="text-[10px] text-white/90 font-medium leading-tight">
                         {aspect.label}
                       </span>
