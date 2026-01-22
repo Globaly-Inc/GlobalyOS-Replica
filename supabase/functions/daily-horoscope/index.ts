@@ -25,7 +25,7 @@ serve(async (req) => {
   }
 
   try {
-    const { zodiacSign } = await req.json();
+    const { zodiacSign, forceRefresh } = await req.json();
 
     if (!zodiacSign) {
       return new Response(
@@ -40,36 +40,47 @@ serve(async (req) => {
 
     const today = new Date().toISOString().split('T')[0];
 
-    // Check cache first - include new structured fields
-    const { data: cached } = await supabase
-      .from('daily_horoscopes')
-      .select('content, title, summary_paragraph, aspects, provider')
-      .eq('zodiac_sign', zodiacSign)
-      .eq('horoscope_date', today)
-      .maybeSingle();
-
-    // Return cached structured data if available
-    if (cached && cached.aspects && cached.summary_paragraph) {
-      console.log(`Returning cached structured horoscope for ${zodiacSign}`);
-      return new Response(
-        JSON.stringify({ 
-          horoscope: cached.content,
-          title: cached.title,
-          summaryParagraph: cached.summary_paragraph,
-          aspects: cached.aspects,
-          cached: true 
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // Delete existing cache if forceRefresh is true
+    if (forceRefresh) {
+      await supabase
+        .from('daily_horoscopes')
+        .delete()
+        .eq('zodiac_sign', zodiacSign)
+        .eq('horoscope_date', today);
     }
 
-    // Return cached legacy data if no structured data but content exists
-    if (cached && cached.content && !cached.aspects) {
-      console.log(`Returning cached legacy horoscope for ${zodiacSign}`);
-      return new Response(
-        JSON.stringify({ horoscope: cached.content, cached: true }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // Check cache first - include new structured fields (skip if forceRefresh)
+    if (!forceRefresh) {
+      const { data: cached } = await supabase
+        .from('daily_horoscopes')
+        .select('content, title, summary_paragraph, aspects, provider')
+        .eq('zodiac_sign', zodiacSign)
+        .eq('horoscope_date', today)
+        .maybeSingle();
+
+      // Return cached structured data if available
+      if (cached && cached.aspects && cached.summary_paragraph) {
+        console.log(`Returning cached structured horoscope for ${zodiacSign}`);
+        return new Response(
+          JSON.stringify({ 
+            horoscope: cached.content,
+            title: cached.title,
+            summaryParagraph: cached.summary_paragraph,
+            aspects: cached.aspects,
+            cached: true 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Return cached legacy data if no structured data but content exists
+      if (cached && cached.content && !cached.aspects) {
+        console.log(`Returning cached legacy horoscope for ${zodiacSign}`);
+        return new Response(
+          JSON.stringify({ horoscope: cached.content, cached: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Generate new structured horoscope using Lovable AI
@@ -91,15 +102,36 @@ You MUST respond with valid JSON matching this exact structure:
 {
   "title": "Short 3-5 word tagline for the day",
   "aspects": [
-    { "key": "career", "label": "Motivational headline of 15-25 words providing guidance and inspiration for career today", "text": "10-15 word supporting description" },
-    { "key": "relationships", "label": "Motivational headline of 15-25 words providing guidance and inspiration for relationships today", "text": "10-15 word supporting description" },
-    { "key": "wellbeing", "label": "Motivational headline of 15-25 words providing guidance and inspiration for wellbeing today", "text": "10-15 word supporting description" },
-    { "key": "money", "label": "Motivational headline of 15-25 words providing guidance and inspiration for finances today", "text": "10-15 word supporting description" }
+    { 
+      "key": "career", 
+      "label": "MUST BE 15-25 WORDS: A detailed motivational headline providing specific guidance. Example: 'Today presents excellent opportunities to collaborate with teammates on innovative projects that could reshape your department direction and showcase your unique talents to leadership.'",
+      "text": "8-12 word action tip"
+    },
+    { 
+      "key": "relationships", 
+      "label": "MUST BE 15-25 WORDS: A detailed motivational headline providing specific guidance for relationships and connections with colleagues, friends, and loved ones.",
+      "text": "8-12 word action tip"
+    },
+    { 
+      "key": "wellbeing", 
+      "label": "MUST BE 15-25 WORDS: A detailed motivational headline providing specific guidance for health, mental wellness, and work-life balance.",
+      "text": "8-12 word action tip"
+    },
+    { 
+      "key": "money", 
+      "label": "MUST BE 15-25 WORDS: A detailed motivational headline providing specific guidance for finances, investments, and prosperity.",
+      "text": "8-12 word action tip"
+    }
   ],
-  "summary_paragraph": "2-3 sentences summarizing the overall vibe for today"
+  "summary_paragraph": "EXACTLY 12 WORDS summarizing the overall vibe for today in one concise sentence."
 }
 
-IMPORTANT: Respond ONLY with the JSON object, no markdown code blocks or additional text.`;
+CRITICAL REQUIREMENTS:
+1. Each "label" MUST be 15-25 words long - count your words carefully!
+2. Each "text" should be 8-12 words
+3. The "summary_paragraph" MUST be EXACTLY 12 words - no more, no less!
+
+Respond ONLY with the JSON object, no markdown code blocks or additional text.`;
 
     const userPrompt = `Generate today's horoscope for ${zodiacSign}.`;
 

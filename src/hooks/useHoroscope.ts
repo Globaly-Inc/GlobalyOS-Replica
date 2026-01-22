@@ -9,6 +9,7 @@ interface UseHoroscopeResult {
   isLoading: boolean;
   error: string | null;
   hasDateOfBirth: boolean;
+  refresh: () => Promise<void>;
 }
 
 export function useHoroscope(dateOfBirth: string | null): UseHoroscopeResult {
@@ -32,13 +33,13 @@ export function useHoroscope(dateOfBirth: string | null): UseHoroscopeResult {
     }
   }, [dateOfBirth]);
 
-  const fetchHoroscope = async (sign: ZodiacSign) => {
+  const fetchHoroscope = async (sign: ZodiacSign, forceRefresh = false) => {
     setIsLoading(true);
     setError(null);
     
     try {
       const { data, error: fnError } = await supabase.functions.invoke<HoroscopeApiResponse>('daily-horoscope', {
-        body: { zodiacSign: sign.sign }
+        body: { zodiacSign: sign.sign, forceRefresh }
       });
 
       if (fnError) {
@@ -80,7 +81,13 @@ export function useHoroscope(dateOfBirth: string | null): UseHoroscopeResult {
       console.error('Error fetching horoscope:', err);
       setError('Could not load horoscope');
     } finally {
-      setIsLoading(false);
+    setIsLoading(false);
+    }
+  };
+
+  const refresh = async () => {
+    if (zodiac) {
+      await fetchHoroscope(zodiac, true);
     }
   };
 
@@ -89,6 +96,7 @@ export function useHoroscope(dateOfBirth: string | null): UseHoroscopeResult {
     horoscope,
     isLoading,
     error,
-    hasDateOfBirth: !!dateOfBirth
+    hasDateOfBirth: !!dateOfBirth,
+    refresh
   };
 }
