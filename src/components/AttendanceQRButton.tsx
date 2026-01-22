@@ -152,12 +152,12 @@ export const AttendanceQRButton = () => {
     },
   });
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!qrCodeDataUrl || !selectedOffice) return;
     
     const officeName = offices?.find(o => o.id === selectedOffice)?.name || "Office";
     
-    generateOfficeQRPDF({
+    await generateOfficeQRPDF({
       officeName,
       qrCodeDataUrl,
       orgName: currentOrg?.name || '',

@@ -12,12 +12,38 @@ interface OfficeQRPDFExportProps {
   orgLogoUrl: string | null;
 }
 
-export const generateOfficeQRPDF = ({
+/**
+ * Convert a remote URL to a base64 data URL
+ * This ensures images work in print windows without CORS issues
+ */
+const urlToDataUrl = async (url: string): Promise<string | null> => {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+};
+
+export const generateOfficeQRPDF = async ({
   officeName,
   qrCodeDataUrl,
   orgName,
   orgLogoUrl,
-}: OfficeQRPDFExportProps): void => {
+}: OfficeQRPDFExportProps): Promise<void> => {
+  // Convert logo URL to base64 data URL if provided
+  let logoDataUrl: string | null = null;
+  if (orgLogoUrl) {
+    logoDataUrl = await urlToDataUrl(orgLogoUrl);
+  }
+
   const printWindow = window.open('', '_blank');
   if (!printWindow) {
     alert('Please allow popups to download the QR code PDF');
@@ -167,8 +193,8 @@ export const generateOfficeQRPDF = ({
     <body>
       <div class="container">
         <div class="logo-container">
-          ${orgLogoUrl 
-            ? `<img src="${orgLogoUrl}" class="logo" alt="${orgName}" crossorigin="anonymous" />`
+          ${logoDataUrl 
+            ? `<img src="${logoDataUrl}" class="logo" alt="${orgName}" />`
             : `<div class="logo-fallback">${orgInitial}</div>`
           }
         </div>
@@ -206,10 +232,17 @@ export const generateOfficeQRPDF = ({
   printWindow.document.write(html);
   printWindow.document.close();
 
-  // Wait for images to load before printing
+  // Wait for window to fully load, then print
+  printWindow.onload = () => {
+    setTimeout(() => {
+      printWindow.print();
+    }, 100);
+  };
+
+  // Fallback in case onload doesn't fire
   setTimeout(() => {
     printWindow.print();
-  }, 500);
+  }, 1000);
 };
 
 export default generateOfficeQRPDF;

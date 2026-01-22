@@ -123,10 +123,10 @@ export function CheckInGuideStep({
     }
   }, [qrCode?.code]);
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!qrCodeDataUrl || !selectedOffice) return;
     const officeName = savedOffices.find(o => o.id === selectedOffice)?.name || 'Office';
-    generateOfficeQRPDF({
+    await generateOfficeQRPDF({
       officeName,
       qrCodeDataUrl,
       orgName: orgName || '',
