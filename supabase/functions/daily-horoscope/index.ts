@@ -6,6 +6,18 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface HoroscopeAspect {
+  key: 'career' | 'relationships' | 'wellbeing' | 'money';
+  label: string;
+  text: string;
+}
+
+interface StructuredHoroscope {
+  title: string;
+  aspects: HoroscopeAspect[];
+  summary_paragraph: string;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -28,41 +40,70 @@ serve(async (req) => {
 
     const today = new Date().toISOString().split('T')[0];
 
-    // Check cache first
+    // Check cache first - include new structured fields
     const { data: cached } = await supabase
       .from('daily_horoscopes')
-      .select('content')
+      .select('content, title, summary_paragraph, aspects, provider')
       .eq('zodiac_sign', zodiacSign)
       .eq('horoscope_date', today)
       .maybeSingle();
 
-    if (cached) {
-      console.log(`Returning cached horoscope for ${zodiacSign}`);
+    // Return cached structured data if available
+    if (cached && cached.aspects && cached.summary_paragraph) {
+      console.log(`Returning cached structured horoscope for ${zodiacSign}`);
+      return new Response(
+        JSON.stringify({ 
+          horoscope: cached.content,
+          title: cached.title,
+          summaryParagraph: cached.summary_paragraph,
+          aspects: cached.aspects,
+          cached: true 
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Return cached legacy data if no structured data but content exists
+    if (cached && cached.content && !cached.aspects) {
+      console.log(`Returning cached legacy horoscope for ${zodiacSign}`);
       return new Response(
         JSON.stringify({ horoscope: cached.content, cached: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Generate new horoscope using Lovable AI
+    // Generate new structured horoscope using Lovable AI
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    const systemPrompt = `You are a professional horoscope writer creating daily work and productivity horoscopes. 
+    const systemPrompt = `You are a professional horoscope writer creating daily work and life horoscopes.
+
 Your horoscopes should be:
 - Positive and encouraging
-- Focused on work, career, and professional growth
-- 2-3 sentences long
+- Focused on work, career, relationships, wellbeing, and financial growth
 - Actionable with subtle guidance
 - Not overly mystical or superstitious
+- Work-friendly and professional
 
-Write in second person ("You will..." or "Today brings...").`;
+You MUST respond with valid JSON matching this exact structure:
+{
+  "title": "Short 3-5 word tagline for the day",
+  "aspects": [
+    { "key": "career", "label": "2-4 word action phrase", "text": "10-15 word supporting description" },
+    { "key": "relationships", "label": "2-4 word action phrase", "text": "10-15 word supporting description" },
+    { "key": "wellbeing", "label": "2-4 word action phrase", "text": "10-15 word supporting description" },
+    { "key": "money", "label": "2-4 word action phrase", "text": "10-15 word supporting description" }
+  ],
+  "summary_paragraph": "2-3 sentences summarizing the overall vibe for today"
+}
 
-    const userPrompt = `Write today's horoscope for ${zodiacSign}. Focus on work, productivity, and professional relationships.`;
+IMPORTANT: Respond ONLY with the JSON object, no markdown code blocks or additional text.`;
 
-    console.log(`Generating horoscope for ${zodiacSign}`);
+    const userPrompt = `Generate today's horoscope for ${zodiacSign}.`;
+
+    console.log(`Generating structured horoscope for ${zodiacSign}`);
     
     // Add timeout to prevent hanging
     const controller = new AbortController();
@@ -108,19 +149,72 @@ Write in second person ("You will..." or "Today brings...").`;
       }
 
       const aiData = await aiResponse.json();
-      const horoscope = aiData.choices?.[0]?.message?.content?.trim();
+      const rawContent = aiData.choices?.[0]?.message?.content?.trim();
 
-      if (!horoscope) {
+      if (!rawContent) {
         throw new Error('Failed to generate horoscope content');
       }
 
-      // Cache the horoscope
+      // Parse the JSON response
+      let structuredHoroscope: StructuredHoroscope;
+      try {
+        // Remove potential markdown code block wrappers
+        let jsonContent = rawContent;
+        if (jsonContent.startsWith('```json')) {
+          jsonContent = jsonContent.slice(7);
+        }
+        if (jsonContent.startsWith('```')) {
+          jsonContent = jsonContent.slice(3);
+        }
+        if (jsonContent.endsWith('```')) {
+          jsonContent = jsonContent.slice(0, -3);
+        }
+        jsonContent = jsonContent.trim();
+        
+        structuredHoroscope = JSON.parse(jsonContent);
+      } catch (parseError) {
+        console.error('Failed to parse AI response as JSON:', parseError, rawContent);
+        // Fallback: use raw content as legacy format
+        const { error: insertError } = await supabase
+          .from('daily_horoscopes')
+          .upsert({
+            zodiac_sign: zodiacSign,
+            horoscope_date: today,
+            content: rawContent,
+            provider: 'ai'
+          }, {
+            onConflict: 'zodiac_sign,horoscope_date'
+          });
+
+        if (insertError) {
+          console.error('Failed to cache horoscope:', insertError);
+        }
+
+        return new Response(
+          JSON.stringify({ horoscope: rawContent, cached: false }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Validate structured response
+      if (!structuredHoroscope.title || !structuredHoroscope.aspects || !structuredHoroscope.summary_paragraph) {
+        throw new Error('Invalid structured horoscope format');
+      }
+
+      // Create legacy content from summary for backward compatibility
+      const legacyContent = structuredHoroscope.summary_paragraph;
+
+      // Cache the structured horoscope
       const { error: insertError } = await supabase
         .from('daily_horoscopes')
         .upsert({
           zodiac_sign: zodiacSign,
           horoscope_date: today,
-          content: horoscope,
+          content: legacyContent,
+          title: structuredHoroscope.title,
+          summary_paragraph: structuredHoroscope.summary_paragraph,
+          aspects: structuredHoroscope.aspects,
+          provider: 'ai'
         }, {
           onConflict: 'zodiac_sign,horoscope_date'
         });
@@ -128,11 +222,17 @@ Write in second person ("You will..." or "Today brings...").`;
       if (insertError) {
         console.error('Failed to cache horoscope:', insertError);
       } else {
-        console.log(`Cached horoscope for ${zodiacSign}`);
+        console.log(`Cached structured horoscope for ${zodiacSign}`);
       }
 
       return new Response(
-        JSON.stringify({ horoscope, cached: false }),
+        JSON.stringify({ 
+          horoscope: legacyContent,
+          title: structuredHoroscope.title,
+          summaryParagraph: structuredHoroscope.summary_paragraph,
+          aspects: structuredHoroscope.aspects,
+          cached: false 
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     } catch (fetchError) {

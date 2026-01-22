@@ -46,7 +46,7 @@ import {
 const AllPendingLeavesCard = lazy(() => import("@/components/home/AllPendingLeavesCard").then(m => ({ default: m.AllPendingLeavesCard })));
 const NotCheckedInCard = lazy(() => import("@/components/home/NotCheckedInCard").then(m => ({ default: m.NotCheckedInCard })));
 const UserHelpRequests = lazy(() => import("@/components/home/UserHelpRequests").then(m => ({ default: m.UserHelpRequests })));
-const DailyHoroscope = lazy(() => import("@/components/home/DailyHoroscope").then(m => ({ default: m.DailyHoroscope })));
+const HoroscopeWidget = lazy(() => import("@/components/home/HoroscopeWidget").then(m => ({ default: m.HoroscopeWidget })));
 const MyWorkflowTasks = lazy(() => import("@/components/home/MyWorkflowTasks").then(m => ({ default: m.MyWorkflowTasks })));
 import { WeatherDisplay } from "@/components/home/WeatherDisplay";
 import { HeroWorldClocks } from "@/components/home/HeroWorldClocks";
@@ -596,7 +596,7 @@ const Home = () => {
                       )}
                       {selectedWidget === 'horoscope' && (
                         <Suspense fallback={<div className="text-sm text-white/60">Loading...</div>}>
-                          <DailyHoroscope dateOfBirth={currentUserBirthday} variant="hero" />
+                          <HoroscopeWidget dateOfBirth={currentUserBirthday} userName={currentUserName} />
                         </Suspense>
                       )}
                       {selectedWidget === 'worldtime' && (

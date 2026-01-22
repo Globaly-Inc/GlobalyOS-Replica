@@ -2156,24 +2156,36 @@ export type Database = {
       }
       daily_horoscopes: {
         Row: {
+          aspects: Json | null
           content: string
           created_at: string | null
           horoscope_date: string
           id: string
+          provider: string | null
+          summary_paragraph: string | null
+          title: string | null
           zodiac_sign: string
         }
         Insert: {
+          aspects?: Json | null
           content: string
           created_at?: string | null
           horoscope_date?: string
           id?: string
+          provider?: string | null
+          summary_paragraph?: string | null
+          title?: string | null
           zodiac_sign: string
         }
         Update: {
+          aspects?: Json | null
           content?: string
           created_at?: string | null
           horoscope_date?: string
           id?: string
+          provider?: string | null
+          summary_paragraph?: string | null
+          title?: string | null
           zodiac_sign?: string
         }
         Relationships: []
