@@ -32,66 +32,70 @@ export const OTPEmail = ({
   redirectTo,
   emailActionType,
 }: OTPEmailProps) => {
-  const logoUrl = GLOBALYOS_LOGO_URL
-
   return (
     <Html>
       <Head />
       <Preview>Your GlobalyOS verification code is {otpCode}</Preview>
       <Body style={main}>
         <Container style={container}>
-          <Section style={logoSection}>
+          {/* Unified lighter blue header */}
+          <Section style={headerSection}>
             <Img
-              src={logoUrl}
+              src={GLOBALYOS_LOGO_URL}
               alt="GlobalyOS"
-              width="64"
-              height="64"
+              width="56"
+              height="56"
               style={logoImage}
             />
+            <Heading style={headerTitle}>Sign In to GlobalyOS</Heading>
+            <Text style={headerSubtitle}>Hi {userName}!</Text>
           </Section>
 
-          <Heading style={h1}>Hi {userName}!</Heading>
+          {/* Main Content */}
+          <Section style={contentSection}>
+            <Text style={text}>
+              Use the following 6-digit code to sign in:
+            </Text>
 
-          <Text style={text}>
-            Use the following 6-digit code to sign in to GlobalyOS:
-          </Text>
+            <Section style={codeContainer}>
+              <Text style={codeText}>{otpCode}</Text>
+            </Section>
 
-          <Section style={codeContainer}>
-            <Text style={codeText}>{otpCode}</Text>
+            <Text style={subText}>
+              This code will expire in 10 minutes.
+            </Text>
+
+            <Section style={divider} />
+
+            <Text style={alternativeText}>
+              Or click the button below to sign in directly:
+            </Text>
+
+            <Section style={buttonContainer}>
+              <Link
+                href={`${supabaseUrl}/auth/v1/verify?token=${tokenHash}&type=${emailActionType}&redirect_to=${redirectTo}`}
+                style={button}
+              >
+                Sign in to GlobalyOS
+              </Link>
+            </Section>
+
+            <Text style={warningText}>
+              If you didn't request this code, you can safely ignore this email.
+            </Text>
           </Section>
 
-          <Text style={subText}>
-            This code will expire in 10 minutes.
-          </Text>
-
-          <Section style={divider} />
-
-          <Text style={alternativeText}>
-            Or click the button below to sign in directly:
-          </Text>
-
-          <Section style={buttonContainer}>
-            <Link
-              href={`${supabaseUrl}/auth/v1/verify?token=${tokenHash}&type=${emailActionType}&redirect_to=${redirectTo}`}
-              style={button}
-            >
-              Sign in to GlobalyOS
-            </Link>
+          {/* Footer */}
+          <Section style={footerSection}>
+            <Text style={footer}>
+              © {new Date().getFullYear()} GlobalyOS - HRMS & Social Intranet
+            </Text>
           </Section>
-
-          <Text style={footer}>
-            If you didn't request this code, you can safely ignore this email.
-          </Text>
-
-          <Text style={footerBrand}>
-            © {new Date().getFullYear()} GlobalyOS - HRMS & Social Intranet
-          </Text>
         </Container>
       </Body>
     </Html>
   )
 }
-
 
 export default OTPEmail
 
@@ -104,26 +108,40 @@ const main = {
 const container = {
   backgroundColor: '#ffffff',
   margin: '0 auto',
-  padding: '40px 20px',
-  borderRadius: '12px',
+  padding: '0',
   maxWidth: '480px',
+  borderRadius: '8px',
+  overflow: 'hidden',
+  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
 }
 
-const logoSection = {
+const headerSection = {
+  background: 'linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)',
+  padding: '32px 24px',
   textAlign: 'center' as const,
-  marginBottom: '24px',
 }
 
 const logoImage = {
-  borderRadius: '16px',
+  borderRadius: '12px',
+  marginBottom: '16px',
 }
 
-const h1 = {
-  color: '#1f2937',
+const headerTitle = {
+  color: '#ffffff',
   fontSize: '24px',
-  fontWeight: 'bold' as const,
-  textAlign: 'center' as const,
-  margin: '0 0 16px',
+  fontWeight: '700',
+  margin: '0 0 8px 0',
+  lineHeight: '1.3',
+}
+
+const headerSubtitle = {
+  color: 'rgba(255, 255, 255, 0.9)',
+  fontSize: '16px',
+  margin: '0',
+}
+
+const contentSection = {
+  padding: '32px 24px',
 }
 
 const text = {
@@ -172,11 +190,11 @@ const alternativeText = {
 
 const buttonContainer = {
   textAlign: 'center' as const,
-  margin: '0 0 32px',
+  margin: '0 0 24px',
 }
 
 const button = {
-  backgroundColor: '#4f46e5',
+  backgroundColor: '#3b82f6',
   borderRadius: '8px',
   color: '#ffffff',
   display: 'inline-block',
@@ -186,16 +204,21 @@ const button = {
   textDecoration: 'none',
 }
 
-const footer = {
+const warningText = {
   color: '#9ca3af',
   fontSize: '12px',
   textAlign: 'center' as const,
-  margin: '0 0 8px',
+  margin: '0',
 }
 
-const footerBrand = {
+const footerSection = {
+  padding: '16px 24px',
+  backgroundColor: '#f8fafc',
+  textAlign: 'center' as const,
+}
+
+const footer = {
   color: '#d1d5db',
   fontSize: '12px',
-  textAlign: 'center' as const,
   margin: '0',
 }
