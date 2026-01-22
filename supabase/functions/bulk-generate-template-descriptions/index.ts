@@ -13,9 +13,9 @@ serve(async (req) => {
   try {
     const { type, id, name, department, category } = await req.json();
 
-    if (!type || !name || !category) {
+    if (!type || !category) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields: type, name, category" }),
+        JSON.stringify({ error: "Missing required fields: type, category" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -33,6 +33,13 @@ serve(async (req) => {
     let toolSchema: Record<string, unknown> = {};
 
     if (type === "department") {
+      if (!name) {
+        return new Response(
+          JSON.stringify({ error: "Missing required field: name for department" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       prompt = `You are an HR expert. Generate a brief, professional description (50-80 words) for this department:
 
 Department: ${name}
@@ -59,6 +66,13 @@ The description should explain the department's purpose and key functions within
         }
       };
     } else if (type === "position") {
+      if (!name) {
+        return new Response(
+          JSON.stringify({ error: "Missing required field: name for position" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       prompt = `You are an HR expert. Generate a professional job description for this position:
 
 Position: ${name}
@@ -94,9 +108,112 @@ Focus on responsibilities typical for this role in the ${category} industry.`;
           }
         }
       };
+    } else if (type === "positions") {
+      // Generate multiple positions for a department
+      if (!department) {
+        return new Response(
+          JSON.stringify({ error: "Missing required field: department for positions generation" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      prompt = `You are an HR expert. Generate 4-6 typical job positions for this department:
+
+Department: ${department}
+Industry: ${category}
+
+For each position, provide:
+1. Position name
+2. A professional job description (80-120 words)
+3. 5-7 key responsibilities
+
+Focus on roles typical for a ${department} department in the ${category} industry.`;
+
+      toolSchema = {
+        type: "function",
+        function: {
+          name: "generate_department_positions",
+          description: "Generate multiple positions for a department",
+          parameters: {
+            type: "object",
+            properties: {
+              positions: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string", description: "Position title" },
+                    description: { type: "string", description: "Job description (80-120 words)" },
+                    responsibilities: {
+                      type: "array",
+                      items: { type: "string" },
+                      description: "5-7 key responsibilities"
+                    }
+                  },
+                  required: ["name", "description", "responsibilities"]
+                },
+                description: "4-6 positions with descriptions"
+              }
+            },
+            required: ["positions"],
+            additionalProperties: false
+          }
+        }
+      };
+
+      console.log(`Generating positions for department: ${department} in ${category}`);
+
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: "You are a professional HR consultant creating job descriptions." },
+            { role: "user", content: prompt }
+          ],
+          tools: [toolSchema],
+          tool_choice: { type: "function", function: { name: "generate_department_positions" } }
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          return new Response(
+            JSON.stringify({ error: "Rate limited, please try again later" }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        throw new Error(`AI API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+
+      if (!toolCall?.function?.arguments) {
+        return new Response(
+          JSON.stringify({ error: "No content generated" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const parsed = JSON.parse(toolCall.function.arguments);
+      console.log(`Successfully generated ${parsed.positions?.length || 0} positions for ${department}`);
+
+      return new Response(
+        JSON.stringify({ positions: parsed.positions || [] }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     console.log(`Generating ${type} description for: ${name} in ${category}`);
+
+    const functionName = type === "department" 
+      ? "generate_department_description" 
+      : "generate_position_description";
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -111,14 +228,7 @@ Focus on responsibilities typical for this role in the ${category} industry.`;
           { role: "user", content: prompt }
         ],
         tools: [toolSchema],
-        tool_choice: { 
-          type: "function", 
-          function: { 
-            name: type === "department" 
-              ? "generate_department_description" 
-              : "generate_position_description" 
-          } 
-        }
+        tool_choice: { type: "function", function: { name: functionName } }
       }),
     });
 

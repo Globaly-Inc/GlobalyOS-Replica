@@ -1,5 +1,8 @@
 project_id = "rygowmzkvxgnxagqlyxf"
 
+[functions.generate-category-structure]
+verify_jwt = false
+
 [functions.signup-organization]
 verify_jwt = false
 

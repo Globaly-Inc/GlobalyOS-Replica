@@ -12,7 +12,7 @@ import { TemplateCategoryCard } from "@/components/super-admin/templates/Templat
 import { TemplateDepartmentEditor } from "@/components/super-admin/templates/TemplateDepartmentEditor";
 import { TemplatePositionEditor } from "@/components/super-admin/templates/TemplatePositionEditor";
 import { TemplateLearningPanel } from "@/components/super-admin/templates/TemplateLearningPanel";
-import { AIBulkDescriptionGenerator } from "@/components/super-admin/templates/AIBulkDescriptionGenerator";
+import { AITemplateTools } from "@/components/super-admin/templates/AITemplateTools";
 import { BUSINESS_CATEGORIES } from "@/constants/businessCategories";
 import { 
   Building2, 
@@ -220,19 +220,14 @@ export default function SuperAdminTemplates() {
               <p className="text-xs text-muted-foreground">from users</p>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">AI Generator</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <AIBulkDescriptionGenerator
-                selectedCategory={selectedCategory}
-                departments={filteredDepartments}
-                positions={filteredPositions}
-              />
-            </CardContent>
-          </Card>
         </div>
+
+        {/* AI Tools Card */}
+        <AITemplateTools
+          selectedCategory={selectedCategory}
+          departments={departments}
+          positions={positions}
+        />
 
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>

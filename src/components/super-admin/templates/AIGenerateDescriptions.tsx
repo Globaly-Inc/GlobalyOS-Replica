@@ -11,7 +11,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { Sparkles, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { FileText, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
 interface TemplateDepartment {
@@ -30,28 +30,24 @@ interface TemplatePosition {
   responsibilities: string[] | null;
 }
 
-interface AIBulkDescriptionGeneratorProps {
+interface AIGenerateDescriptionsProps {
   selectedCategory: string | null;
   departments: TemplateDepartment[];
   positions: TemplatePosition[];
 }
 
-export function AIBulkDescriptionGenerator({
+export function AIGenerateDescriptions({
   selectedCategory,
   departments,
   positions,
-}: AIBulkDescriptionGeneratorProps) {
+}: AIGenerateDescriptionsProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState<"idle" | "generating" | "done" | "error">("idle");
   const [results, setResults] = useState({ generated: 0, failed: 0 });
   const queryClient = useQueryClient();
 
-  // Count items needing descriptions
-  const deptsNeedingDesc = departments.filter((d) => !d.description);
-  const positionsNeedingDesc = positions.filter((p) => !p.description || !p.responsibilities?.length);
-
-  const totalNeedingDesc = deptsNeedingDesc.length + positionsNeedingDesc.length;
+  const totalNeedingDesc = departments.length + positions.length;
 
   const generateMutation = useMutation({
     mutationFn: async () => {
@@ -62,7 +58,7 @@ export function AIBulkDescriptionGenerator({
       const total = totalNeedingDesc;
 
       // Generate department descriptions
-      for (const dept of deptsNeedingDesc) {
+      for (const dept of departments) {
         try {
           const { data, error } = await supabase.functions.invoke(
             "bulk-generate-template-descriptions",
@@ -95,7 +91,7 @@ export function AIBulkDescriptionGenerator({
       }
 
       // Generate position descriptions
-      for (const pos of positionsNeedingDesc) {
+      for (const pos of positions) {
         try {
           const { data, error } = await supabase.functions.invoke(
             "bulk-generate-template-descriptions",
@@ -165,16 +161,21 @@ export function AIBulkDescriptionGenerator({
 
   return (
     <>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleGenerate}
-        disabled={totalNeedingDesc === 0}
-        className="w-full"
-      >
-        <Sparkles className="h-4 w-4 mr-2" />
-        Generate ({totalNeedingDesc})
-      </Button>
+      <div className="space-y-1">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleGenerate}
+          disabled={totalNeedingDesc === 0}
+          className="w-full justify-start"
+        >
+          <FileText className="h-4 w-4 mr-2" />
+          Generate Descriptions ({totalNeedingDesc})
+        </Button>
+        <p className="text-xs text-muted-foreground pl-1">
+          Fill missing descriptions & responsibilities
+        </p>
+      </div>
 
       <Dialog open={dialogOpen} onOpenChange={handleClose}>
         <DialogContent>
@@ -198,12 +199,15 @@ export function AIBulkDescriptionGenerator({
                 <p className="text-sm text-muted-foreground text-center">
                   {progress}% complete
                 </p>
+                <p className="text-xs text-muted-foreground text-center">
+                  {departments.length} departments, {positions.length} positions
+                </p>
               </>
             )}
 
             {status === "done" && (
               <div className="flex flex-col items-center gap-4 py-4">
-                <CheckCircle className="h-12 w-12 text-green-500" />
+                <CheckCircle className="h-12 w-12 text-emerald-500" />
                 <div className="text-center">
                   <h3 className="font-medium">Generation Complete</h3>
                   <p className="text-sm text-muted-foreground mt-1">
