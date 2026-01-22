@@ -4950,7 +4950,7 @@ export type Database = {
         Row: {
           code: string
           created_at: string
-          created_by: string
+          created_by: string | null
           id: string
           is_active: boolean
           latitude: number | null
@@ -4962,7 +4962,7 @@ export type Database = {
         Insert: {
           code: string
           created_at?: string
-          created_by: string
+          created_by?: string | null
           id?: string
           is_active?: boolean
           latitude?: number | null
@@ -4974,7 +4974,7 @@ export type Database = {
         Update: {
           code?: string
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           id?: string
           is_active?: boolean
           latitude?: number | null
