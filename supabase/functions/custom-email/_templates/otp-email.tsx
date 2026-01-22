@@ -123,7 +123,8 @@ const headerSection = {
 
 const logoImage = {
   borderRadius: '12px',
-  marginBottom: '16px',
+  margin: '0 auto 16px auto',
+  display: 'block' as const,
 }
 
 const headerTitle = {
