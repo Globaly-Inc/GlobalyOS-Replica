@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface LocationState {
   justCompletedOrgOnboarding?: boolean;
+  justCompletedEmployeeOnboarding?: boolean;
 }
 
 interface OrgProtectedRouteProps {
@@ -34,19 +35,32 @@ export const OrgProtectedRoute = ({
   const { currentOrg, organizations, loading: orgLoading, switchOrganization } = useOrganization();
   
   // Track "just completed" state to prevent redirect flickering
-  const justCompletedRef = useRef(false);
+  const justCompletedOrgRef = useRef(false);
+  const justCompletedEmployeeRef = useRef(false);
   
-  // Handle "just completed onboarding" state from navigation
+  // Handle "just completed org onboarding" state from navigation
   useEffect(() => {
     if (locationState?.justCompletedOrgOnboarding) {
-      justCompletedRef.current = true;
+      justCompletedOrgRef.current = true;
       // Clear flag after queries have had time to update
       const timer = setTimeout(() => {
-        justCompletedRef.current = false;
+        justCompletedOrgRef.current = false;
       }, 5000);
       return () => clearTimeout(timer);
     }
   }, [locationState?.justCompletedOrgOnboarding]);
+
+  // Handle "just completed employee onboarding" state from navigation
+  useEffect(() => {
+    if (locationState?.justCompletedEmployeeOnboarding) {
+      justCompletedEmployeeRef.current = true;
+      // Clear flag after queries have had time to update
+      const timer = setTimeout(() => {
+        justCompletedEmployeeRef.current = false;
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [locationState?.justCompletedEmployeeOnboarding]);
 
   // Check onboarding status for the current organization
   const { data: onboardingStatus, isLoading: onboardingLoading } = useQuery({
@@ -189,7 +203,7 @@ export const OrgProtectedRoute = ({
 
   // STEP 1: Check org onboarding status first
   // Skip this check if we're on ANY onboarding route (including /onboarding/team)
-  if (onboardingStatus && !onboardingStatus.org_onboarding_completed && !isAnyOnboardingRoute && !isDemoOrg) {
+  if (onboardingStatus && !onboardingStatus.org_onboarding_completed && !isAnyOnboardingRoute && !isDemoOrg && !justCompletedOrgRef.current) {
     return <Navigate to={`/org/${currentOrg.slug}/onboarding`} replace />;
   }
 
@@ -200,7 +214,8 @@ export const OrgProtectedRoute = ({
   if (
     !isDemoOrg &&
     !isEmployeeOnboardingRoute &&
-    !justCompletedRef.current &&
+    !justCompletedOrgRef.current &&
+    !justCompletedEmployeeRef.current &&
     onboardingStatus?.org_onboarding_completed === true &&
     employeeOnboardingStatus?.employee_onboarding_completed === false
   ) {
