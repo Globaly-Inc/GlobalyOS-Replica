@@ -503,17 +503,18 @@ const Home = () => {
           gradientClass = "from-accent via-primary/80 to-primary";
           TimeIcon = Sun;
         }
-        return <div className={`relative overflow-hidden rounded-xl p-6 shadow-lg bg-gradient-to-r ${gradientClass} animate-fade-in`} style={{
-          backgroundSize: '200% 200%',
-          animation: 'gradient-shift 6s ease infinite, fade-in 0.3s ease-out'
+        return <div className="relative overflow-hidden rounded-xl p-6 shadow-lg animate-fade-in" style={{
+          background: 'linear-gradient(180deg, hsl(0 0% 5%) 0%, hsl(280 60% 15%) 40%, hsl(290 70% 35%) 70%, hsl(300 80% 45%) 100%)',
+          animation: 'fade-in 0.3s ease-out'
         }}>
-              <style>{`
-                @keyframes gradient-shift {
-                  0% { background-position: 0% 50%; }
-                  50% { background-position: 100% 50%; }
-                  100% { background-position: 0% 50%; }
-                }
-              `}</style>
+              {/* Grain overlay */}
+              <div 
+                className="absolute inset-0 opacity-40 mix-blend-overlay pointer-events-none"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+                  backgroundRepeat: 'repeat',
+                }}
+              />
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                   <h1 className="text-2xl font-semibold text-white drop-shadow-sm">
