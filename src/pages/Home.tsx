@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trophy, Heart, MessageSquare, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon, CalendarDays, SquarePen, CalendarPlus, Cloud, CloudRain, CloudSnow, CloudSun, Wind, Filter, Crown, Users } from "lucide-react";
+import { Trophy, Heart, MessageSquare, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon, CalendarDays, SquarePen, CalendarPlus, Cloud, CloudRain, CloudSnow, CloudSun, Wind, Filter, Crown, Users, Sparkles, Globe } from "lucide-react";
 import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { InlinePostComposer } from "@/components/feed/InlinePostComposer";
@@ -26,7 +26,7 @@ import { OrgLink } from "@/components/OrgLink";
 import { format, addDays, isSameDay, parseISO, differenceInYears } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import { useTimezone, getTimezones, formatTimezoneLabel } from "@/hooks/useTimezone";
-import { Globe, Pencil } from "lucide-react";
+import { Pencil } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -47,6 +47,12 @@ const NotCheckedInCard = lazy(() => import("@/components/home/NotCheckedInCard")
 const UserHelpRequests = lazy(() => import("@/components/home/UserHelpRequests").then(m => ({ default: m.UserHelpRequests })));
 const DailyHoroscope = lazy(() => import("@/components/home/DailyHoroscope").then(m => ({ default: m.DailyHoroscope })));
 const MyWorkflowTasks = lazy(() => import("@/components/home/MyWorkflowTasks").then(m => ({ default: m.MyWorkflowTasks })));
+import { WeatherDisplay } from "@/components/home/WeatherDisplay";
+import { HeroWorldClocks } from "@/components/home/HeroWorldClocks";
+import { cn } from "@/lib/utils";
+
+type HeroWidget = 'weather' | 'horoscope' | 'worldtime';
+const HERO_WIDGET_STORAGE_KEY = 'hero-widget-selection';
 
 type DateFilter = "all" | "today" | "week" | "month";
 
@@ -127,6 +133,20 @@ const Home = () => {
     windSpeed: number;
     forecast: { date: string; tempMax: number; tempMin: number; condition: string }[];
   } | null>(null);
+  
+  // Hero widget selection with localStorage persistence
+  const [selectedWidget, setSelectedWidget] = useState<HeroWidget>(() => {
+    const saved = localStorage.getItem(HERO_WIDGET_STORAGE_KEY);
+    if (saved && ['weather', 'horoscope', 'worldtime'].includes(saved)) {
+      return saved as HeroWidget;
+    }
+    return 'weather';
+  });
+
+  // Persist widget selection
+  useEffect(() => {
+    localStorage.setItem(HERO_WIDGET_STORAGE_KEY, selectedWidget);
+  }, [selectedWidget]);
 
   const { role, isHR, isAdmin, isOwner } = useUserRole();
   const { currentOrg } = useOrganization();
@@ -515,8 +535,9 @@ const Home = () => {
                   backgroundRepeat: 'repeat',
                 }}
               />
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
+                <div className="relative z-10 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                {/* Left: Greeting, Date/Time, Timezone */}
+                <div className="flex-shrink-0">
                   <h1 className="text-2xl font-semibold text-white drop-shadow-sm">
                     {greeting}{currentUserName ? `, ${currentUserName}` : ""}
                   </h1>
@@ -556,50 +577,67 @@ const Home = () => {
                   </Popover>
                 </div>
                 
-                <hr className="md:hidden border-white/20" />
-                
-                {weather && <div className="md:text-right">
-                    <div className="flex md:justify-end gap-3 items-center">
-                      <div className="flex items-center gap-2">
-                        {weather.condition === "Clear" && <Sun className="h-8 w-8 text-yellow-300" />}
-                        {weather.condition === "Partly Cloudy" && <CloudSun className="h-8 w-8 text-white/90" />}
-                        {weather.condition === "Cloudy" && <Cloud className="h-8 w-8 text-white/80" />}
-                        {weather.condition === "Rainy" && <CloudRain className="h-8 w-8 text-blue-300" />}
-                        {weather.condition === "Snowy" && <CloudSnow className="h-8 w-8 text-white" />}
-                        {weather.condition === "Stormy" && <CloudRain className="h-8 w-8 text-purple-300" />}
-                        {weather.condition === "Foggy" && <Cloud className="h-8 w-8 text-white/60" />}
-                        <span className="text-2xl font-semibold text-white">{weather.temperature}°C</span>
+                {/* Right: Widget Toggle + Selected Widget */}
+                <div className="flex flex-col items-start md:items-end gap-3">
+                  {/* Widget Toggle Buttons */}
+                  <div className="flex items-center gap-1 bg-white/10 rounded-full p-1">
+                    <button
+                      onClick={() => setSelectedWidget('weather')}
+                      className={cn(
+                        "p-2 rounded-full transition-all",
+                        selectedWidget === 'weather' 
+                          ? "bg-white/25 shadow-sm" 
+                          : "hover:bg-white/10"
+                      )}
+                      title="Weather"
+                    >
+                      <Cloud className="h-4 w-4 text-white" />
+                    </button>
+                    <button
+                      onClick={() => setSelectedWidget('horoscope')}
+                      className={cn(
+                        "p-2 rounded-full transition-all",
+                        selectedWidget === 'horoscope' 
+                          ? "bg-white/25 shadow-sm" 
+                          : "hover:bg-white/10"
+                      )}
+                      title="Horoscope"
+                    >
+                      <Sparkles className="h-4 w-4 text-white" />
+                    </button>
+                    <button
+                      onClick={() => setSelectedWidget('worldtime')}
+                      className={cn(
+                        "p-2 rounded-full transition-all",
+                        selectedWidget === 'worldtime' 
+                          ? "bg-white/25 shadow-sm" 
+                          : "hover:bg-white/10"
+                      )}
+                      title="World Time"
+                    >
+                      <Globe className="h-4 w-4 text-white" />
+                    </button>
+                  </div>
+                  
+                  {/* Widget Content Area */}
+                  <div className="w-full md:min-w-[280px] lg:min-w-[400px]">
+                    {selectedWidget === 'weather' && weather && (
+                      <WeatherDisplay weather={weather} />
+                    )}
+                    {selectedWidget === 'weather' && !weather && (
+                      <div className="text-sm text-white/60 text-right">
+                        Loading weather...
                       </div>
-                      <div className="text-left">
-                        <p className="text-sm text-white/90 font-medium">{weather.condition}</p>
-                        <p className="text-xs text-white/70">{weather.location}</p>
-                        <div className="flex items-center gap-2 text-xs text-white/60 mt-0.5">
-                          <span>💧 {weather.humidity}%</span>
-                          <span className="flex items-center gap-0.5"><Wind className="h-3 w-3" /> {weather.windSpeed} km/h</span>
-                        </div>
-                      </div>
-                      <div className="hidden lg:flex items-center gap-2 ml-4 pl-4 border-l border-white/20">
-                        {weather.forecast.slice(0, 7).map((day, i) => {
-                          const WeatherIcon = day.condition === "Clear" ? Sun 
-                            : day.condition === "Partly Cloudy" ? CloudSun
-                            : day.condition === "Rainy" ? CloudRain
-                            : day.condition === "Snowy" ? CloudSnow
-                            : day.condition === "Stormy" ? CloudRain
-                            : Cloud;
-                          return (
-                            <div key={i} className="flex flex-col items-center text-center min-w-[40px]">
-                              <span className="text-[10px] text-white/60">{format(parseISO(day.date), "EEE")}</span>
-                              <WeatherIcon className="h-4 w-4 text-white/80 my-0.5" />
-                              <span className="text-[10px] text-white/90">{day.tempMax}°</span>
-                              <span className="text-[10px] text-white/50">{day.tempMin}°</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>}
-                <div className="hidden lg:block">
-                  <DailyHoroscope dateOfBirth={currentUserBirthday} />
+                    )}
+                    {selectedWidget === 'horoscope' && (
+                      <Suspense fallback={<div className="text-sm text-white/60">Loading...</div>}>
+                        <DailyHoroscope dateOfBirth={currentUserBirthday} variant="hero" />
+                      </Suspense>
+                    )}
+                    {selectedWidget === 'worldtime' && (
+                      <HeroWorldClocks officeCountries={[]} />
+                    )}
+                  </div>
                 </div>
               </div>
             </div>;
