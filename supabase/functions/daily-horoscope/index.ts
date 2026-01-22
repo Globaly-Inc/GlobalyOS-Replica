@@ -91,10 +91,10 @@ You MUST respond with valid JSON matching this exact structure:
 {
   "title": "Short 3-5 word tagline for the day",
   "aspects": [
-    { "key": "career", "label": "2-4 word action phrase", "text": "10-15 word supporting description" },
-    { "key": "relationships", "label": "2-4 word action phrase", "text": "10-15 word supporting description" },
-    { "key": "wellbeing", "label": "2-4 word action phrase", "text": "10-15 word supporting description" },
-    { "key": "money", "label": "2-4 word action phrase", "text": "10-15 word supporting description" }
+    { "key": "career", "label": "Motivational headline of 15-25 words providing guidance and inspiration for career today", "text": "10-15 word supporting description" },
+    { "key": "relationships", "label": "Motivational headline of 15-25 words providing guidance and inspiration for relationships today", "text": "10-15 word supporting description" },
+    { "key": "wellbeing", "label": "Motivational headline of 15-25 words providing guidance and inspiration for wellbeing today", "text": "10-15 word supporting description" },
+    { "key": "money", "label": "Motivational headline of 15-25 words providing guidance and inspiration for finances today", "text": "10-15 word supporting description" }
   ],
   "summary_paragraph": "2-3 sentences summarizing the overall vibe for today"
 }
