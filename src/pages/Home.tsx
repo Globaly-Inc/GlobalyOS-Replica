@@ -106,7 +106,28 @@ interface UpcomingCalendarEvent {
   end_time: string | null;
   event_type: string;
   daysUntil: number;
+  applies_to_all_offices: boolean;
+  office_names: string[];
 }
+
+// Helper functions for calendar event display
+const getEventTypeBadgeStyle = (eventType: string) => {
+  switch (eventType) {
+    case 'holiday':
+      return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+    case 'event':
+      return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
+    case 'meeting':
+      return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+    case 'training':
+      return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
+    default:
+      return 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300';
+  }
+};
+
+const getEventTypeLabel = (eventType: string) => 
+  eventType.charAt(0).toUpperCase() + eventType.slice(1);
 
 const Home = () => {
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
@@ -371,13 +392,16 @@ const Home = () => {
       employeeOfficeId = empData?.office_id || null;
     }
     
-    // Fetch events with office relationships
+    // Fetch events with office relationships including office names
     const { data: events } = await supabase
       .from("calendar_events")
       .select(`
         id, title, start_date, end_date, start_time, end_time, event_type,
         applies_to_all_offices,
-        calendar_event_offices(office_id)
+        calendar_event_offices(
+          office_id,
+          offices(id, name)
+        )
       `)
       .eq("organization_id", currentOrg.id)
       .gte("start_date", today)
@@ -399,10 +423,16 @@ const Home = () => {
       });
     }
     
-    // Take top 5 and calculate days until
+    // Take top 5 and calculate days until, extract office names
     const eventsWithDays = filteredEvents.slice(0, 5).map(event => {
       const eventDate = parseISO(event.start_date);
       const daysUntil = Math.ceil((eventDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Extract office names from the nested join
+      const officeNames = event.calendar_event_offices
+        ?.map(ceo => (ceo.offices as { id: string; name: string } | null)?.name)
+        .filter((name): name is string => !!name) || [];
+      
       return { 
         id: event.id,
         title: event.title,
@@ -411,7 +441,9 @@ const Home = () => {
         start_time: event.start_time,
         end_time: event.end_time,
         event_type: event.event_type,
-        daysUntil 
+        daysUntil,
+        applies_to_all_offices: event.applies_to_all_offices ?? true,
+        office_names: officeNames,
       };
     });
     
@@ -953,24 +985,63 @@ const Home = () => {
                 </OrgLink>
                 <div className="space-y-3">
                   {upcomingCalendarEvents.map(event => {
-                    const isMultiDay = event.start_date !== event.end_date;
                     const startDate = parseISO(event.start_date);
                     const endDate = parseISO(event.end_date);
-                    const dateDisplay = isMultiDay 
-                      ? `${format(startDate, "d MMM")}${event.start_time ? ` · ${format(new Date(`2000-01-01T${event.start_time}`), "h:mm a")}` : ''} - ${format(endDate, "d MMM")}${event.end_time ? ` · ${format(new Date(`2000-01-01T${event.end_time}`), "h:mm a")}` : ''}`
-                      : `${format(startDate, "d MMM")}${event.start_time ? ` · ${format(new Date(`2000-01-01T${event.start_time}`), "h:mm a")}` : ''}`;
-                    const daysLabel = event.daysUntil === 0 ? "Today" : event.daysUntil === 1 ? "Tomorrow" : `In ${event.daysUntil} days`;
+                    const isMultiDay = event.start_date !== event.end_date;
+                    
+                    // Row 3: Format date/time - "Fri, 24 Jan 2026 11:45 PM"
+                    let dateTimeDisplay = format(startDate, "EEE, d MMM yyyy");
+                    if (event.start_time) {
+                      dateTimeDisplay += ` ${format(new Date(`2000-01-01T${event.start_time}`), "h:mm a")}`;
+                    }
+                    if (event.end_time && !isMultiDay) {
+                      dateTimeDisplay += ` - ${format(new Date(`2000-01-01T${event.end_time}`), "h:mm a")}`;
+                    }
+                    if (isMultiDay) {
+                      dateTimeDisplay += ` - ${format(endDate, "EEE, d MMM yyyy")}`;
+                      if (event.end_time) {
+                        dateTimeDisplay += ` ${format(new Date(`2000-01-01T${event.end_time}`), "h:mm a")}`;
+                      }
+                    }
+                    
+                    // Relative time
+                    const daysLabel = event.daysUntil === 0 
+                      ? "today" 
+                      : event.daysUntil === 1 
+                        ? "tomorrow" 
+                        : `in ${event.daysUntil} days`;
+                    
+                    // Row 2: Office display
+                    const officeDisplay = event.applies_to_all_offices 
+                      ? "All Offices" 
+                      : event.office_names.length > 0 
+                        ? event.office_names.join(", ")
+                        : "No office assigned";
                     
                     return (
-                      <div key={event.id} className="flex items-start gap-3 rounded-lg p-2 transition-colors hover:bg-muted">
-                        <div className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
-                          event.event_type === 'holiday' ? 'bg-red-500' : 
-                          event.event_type === 'event' ? 'bg-blue-500' : 'bg-primary'
-                        }`} />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground">{event.title}</p>
-                          <p className="text-xs text-muted-foreground">{dateDisplay} · {daysLabel}</p>
+                      <div key={event.id} className="rounded-lg p-3 transition-colors hover:bg-muted space-y-1">
+                        {/* Row 1: Event Type Tag + Title */}
+                        <div className="flex items-center gap-2">
+                          <span className={cn(
+                            "text-[10px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap",
+                            getEventTypeBadgeStyle(event.event_type)
+                          )}>
+                            {getEventTypeLabel(event.event_type)}
+                          </span>
+                          <span className="text-sm font-medium text-foreground truncate">
+                            {event.title}
+                          </span>
                         </div>
+                        
+                        {/* Row 2: Office(s) */}
+                        <p className="text-xs text-muted-foreground">
+                          {officeDisplay}
+                        </p>
+                        
+                        {/* Row 3: Full date/time - relative time */}
+                        <p className="text-xs text-muted-foreground">
+                          {dateTimeDisplay} · {daysLabel}
+                        </p>
                       </div>
                     );
                   })}
