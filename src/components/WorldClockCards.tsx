@@ -33,7 +33,7 @@ interface WorldClockCardsProps {
 }
 
 const STORAGE_KEY = "world-clock-timezones";
-const MAX_CLOCKS = 7;
+const MAX_CLOCKS = 5;
 
 export const WorldClockCards = ({ officeCountries = [] }: WorldClockCardsProps) => {
   // Get system timezone from context (read-only, edited from Home page)
