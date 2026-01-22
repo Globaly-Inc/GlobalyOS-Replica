@@ -873,7 +873,7 @@ export function OfficesStep({
                                     size="lg"
                                   />
                                 </div>
-                                <div className="space-y-2">
+                                <div className="flex flex-col gap-2">
                                   <Label className="text-xs text-muted-foreground">Timezone</Label>
                                   <TimezoneSelector
                                     value={office.timezone || 'UTC'}
