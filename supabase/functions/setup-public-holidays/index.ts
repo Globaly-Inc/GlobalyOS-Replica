@@ -1,11 +1,11 @@
 /**
  * Edge Function: setup-public-holidays
  * Creates public holiday calendar events for each office based on its country
+ * Now reads from template_holidays database table instead of hardcoded data
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { COUNTRY_HOLIDAYS, DEFAULT_HOLIDAYS } from "./holidays-data.ts";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,6 +21,75 @@ interface RequestBody {
   organizationId: string;
   offices: OfficeInput[];
   createdBy: string;
+}
+
+interface Holiday {
+  title: string;
+  month: number;
+  day: number;
+}
+
+/**
+ * Fetches holidays for a specific country from the template_holidays table
+ */
+async function getHolidaysForCountry(
+  supabase: SupabaseClient,
+  countryCode: string,
+  year: number
+): Promise<Holiday[]> {
+  const { data: holidays, error } = await supabase
+    .from("template_holidays")
+    .select("title, month, day, is_movable, year")
+    .eq("country_code", countryCode.toUpperCase())
+    .eq("is_active", true)
+    .or(`year.is.null,year.eq.${year}`)
+    .order("month", { ascending: true })
+    .order("day", { ascending: true });
+
+  if (error) {
+    console.error(`Error fetching holidays for ${countryCode}:`, error);
+    return getDefaultHolidays();
+  }
+
+  if (!holidays || holidays.length === 0) {
+    console.log(`No template holidays found for ${countryCode}, using defaults`);
+    return getDefaultHolidays();
+  }
+
+  // Filter out movable holidays without calculated dates (day is null)
+  // For holidays with specific year, prefer those over generic (year=null)
+  const holidayMap = new Map<string, Holiday>();
+  
+  for (const h of holidays) {
+    if (h.day === null) {
+      // Skip movable holidays without calculated date for this year
+      continue;
+    }
+    
+    const key = h.title;
+    const existing = holidayMap.get(key);
+    
+    // If we have a year-specific entry, prefer it over generic
+    if (!existing || (h.year === year && existing)) {
+      holidayMap.set(key, {
+        title: h.title,
+        month: h.month,
+        day: h.day,
+      });
+    }
+  }
+
+  return Array.from(holidayMap.values());
+}
+
+/**
+ * Returns minimal fallback holidays when no templates exist
+ */
+function getDefaultHolidays(): Holiday[] {
+  return [
+    { month: 1, day: 1, title: "New Year's Day" },
+    { month: 12, day: 25, title: "Christmas Day" },
+  ];
 }
 
 serve(async (req) => {
@@ -57,9 +126,9 @@ serve(async (req) => {
         continue;
       }
 
-      // Get holidays for this country (fallback to default)
+      // Get holidays from template_holidays table
       const countryCode = office.countryCode.toUpperCase();
-      const holidays = COUNTRY_HOLIDAYS[countryCode] || DEFAULT_HOLIDAYS;
+      const holidays = await getHolidaysForCountry(supabase, countryCode, currentYear);
 
       console.log(`Creating ${holidays.length} holidays for office ${office.id} (${countryCode})`);
 
