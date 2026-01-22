@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Trophy, Heart, MessageSquare, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon, CalendarDays, SquarePen, CalendarPlus, Cloud, CloudRain, CloudSnow, CloudSun, Wind, Filter, Crown, Users, Sparkles, Globe } from "lucide-react";
 import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -578,66 +579,91 @@ const Home = () => {
                 </div>
                 
                 {/* Right: Widget Content + Vertical Toggle */}
-                <div className="flex items-stretch gap-2">
-                  {/* Widget Content Area */}
+                <div className="flex items-start gap-2">
+                  {/* Widget Content Area with transition */}
                   <div className="flex-1 md:min-w-[280px] lg:min-w-[380px]">
-                    {selectedWidget === 'weather' && weather && (
-                      <WeatherDisplay weather={weather} />
-                    )}
-                    {selectedWidget === 'weather' && !weather && (
-                      <div className="text-sm text-white/60 text-right">
-                        Loading weather...
-                      </div>
-                    )}
-                    {selectedWidget === 'horoscope' && (
-                      <Suspense fallback={<div className="text-sm text-white/60">Loading...</div>}>
-                        <DailyHoroscope dateOfBirth={currentUserBirthday} variant="hero" />
-                      </Suspense>
-                    )}
-                    {selectedWidget === 'worldtime' && (
-                      <HeroWorldClocks officeCountries={[]} />
-                    )}
+                    <div 
+                      key={selectedWidget}
+                      className="animate-fade-in"
+                    >
+                      {selectedWidget === 'weather' && weather && (
+                        <WeatherDisplay weather={weather} />
+                      )}
+                      {selectedWidget === 'weather' && !weather && (
+                        <div className="text-sm text-white/60 text-right">
+                          Loading weather...
+                        </div>
+                      )}
+                      {selectedWidget === 'horoscope' && (
+                        <Suspense fallback={<div className="text-sm text-white/60">Loading...</div>}>
+                          <DailyHoroscope dateOfBirth={currentUserBirthday} variant="hero" />
+                        </Suspense>
+                      )}
+                      {selectedWidget === 'worldtime' && (
+                        <HeroWorldClocks officeCountries={[]} />
+                      )}
+                    </div>
                   </div>
                   
-                  {/* Vertical Toggle Buttons - right edge */}
-                  <div className="flex flex-col gap-1 bg-white/10 rounded-xl p-1 self-start">
-                    <button
-                      onClick={() => setSelectedWidget('weather')}
-                      className={cn(
-                        "p-2 rounded-lg transition-all",
-                        selectedWidget === 'weather' 
-                          ? "bg-white/25 shadow-sm" 
-                          : "hover:bg-white/10"
-                      )}
-                      title="Weather"
-                    >
-                      <Cloud className="h-4 w-4 text-white" />
-                    </button>
-                    <button
-                      onClick={() => setSelectedWidget('horoscope')}
-                      className={cn(
-                        "p-2 rounded-lg transition-all",
-                        selectedWidget === 'horoscope' 
-                          ? "bg-white/25 shadow-sm" 
-                          : "hover:bg-white/10"
-                      )}
-                      title="Horoscope"
-                    >
-                      <Sparkles className="h-4 w-4 text-white" />
-                    </button>
-                    <button
-                      onClick={() => setSelectedWidget('worldtime')}
-                      className={cn(
-                        "p-2 rounded-lg transition-all",
-                        selectedWidget === 'worldtime' 
-                          ? "bg-white/25 shadow-sm" 
-                          : "hover:bg-white/10"
-                      )}
-                      title="World Time"
-                    >
-                      <Globe className="h-4 w-4 text-white" />
-                    </button>
-                  </div>
+                  {/* Vertical Toggle Buttons with Tooltips - right edge */}
+                  <TooltipProvider delayDuration={300}>
+                    <div className="flex flex-col gap-1 bg-white/10 rounded-xl p-1">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => setSelectedWidget('weather')}
+                            className={cn(
+                              "p-2 rounded-lg transition-all",
+                              selectedWidget === 'weather' 
+                                ? "bg-white/25 shadow-sm" 
+                                : "hover:bg-white/10"
+                            )}
+                          >
+                            <Cloud className="h-4 w-4 text-white" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="bg-popover text-popover-foreground">
+                          Weather
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => setSelectedWidget('horoscope')}
+                            className={cn(
+                              "p-2 rounded-lg transition-all",
+                              selectedWidget === 'horoscope' 
+                                ? "bg-white/25 shadow-sm" 
+                                : "hover:bg-white/10"
+                            )}
+                          >
+                            <Sparkles className="h-4 w-4 text-white" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="bg-popover text-popover-foreground">
+                          Horoscope
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => setSelectedWidget('worldtime')}
+                            className={cn(
+                              "p-2 rounded-lg transition-all",
+                              selectedWidget === 'worldtime' 
+                                ? "bg-white/25 shadow-sm" 
+                                : "hover:bg-white/10"
+                            )}
+                          >
+                            <Globe className="h-4 w-4 text-white" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="bg-popover text-popover-foreground">
+                          World Time
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </TooltipProvider>
                 </div>
               </div>
             </div>;

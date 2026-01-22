@@ -62,21 +62,26 @@ export function DailyHoroscope({ dateOfBirth, variant = 'default' }: DailyHorosc
     return null;
   }
 
-  // Hero variant - larger, standalone display for hero banner
+  // Hero variant - card style with zodiac info in one row, horoscope text below
   if (variant === 'hero') {
     return (
-      <div className="text-right max-w-md">
-        <div className="flex items-center justify-end gap-3">
-          <span className="text-3xl">{zodiac.symbol}</span>
-          <div>
-            <p className="text-lg font-medium text-white flex items-center gap-1">
+      <div className="text-right">
+        {/* Row 1: Zodiac card with symbol, name, date, element */}
+        <div className="inline-flex items-center gap-3 bg-white/10 rounded-lg px-4 py-2">
+          <span className="text-2xl">{zodiac.symbol}</span>
+          <div className="text-left">
+            <p className="text-sm font-medium text-white flex items-center gap-1">
               {zodiac.sign}
-              <Sparkles className="h-4 w-4 text-yellow-300" />
+              <Sparkles className="h-3 w-3 text-yellow-300" />
             </p>
-            <p className="text-xs text-white/70">{zodiac.dateRange} • {zodiac.element}</p>
+            <p className="text-xs text-white/70">
+              {zodiac.dateRange} • {zodiac.element}
+            </p>
           </div>
         </div>
-        <div className="mt-3 text-sm text-white/80 leading-relaxed text-right">
+        
+        {/* Row 2: Horoscope text */}
+        <div className="mt-2 text-sm text-white/80 leading-relaxed max-w-md ml-auto">
           {loading ? (
             <span className="flex items-center justify-end gap-2">
               <Loader2 className="h-4 w-4 animate-spin" /> Loading...
@@ -84,7 +89,7 @@ export function DailyHoroscope({ dateOfBirth, variant = 'default' }: DailyHorosc
           ) : error ? (
             <span className="italic">{error}</span>
           ) : horoscope ? (
-            <p className="line-clamp-3">{horoscope}</p>
+            <p className="line-clamp-2">{horoscope}</p>
           ) : (
             <span className="italic">No horoscope available</span>
           )}
