@@ -356,15 +356,10 @@ export function SetupProgressScreen({
       await new Promise(resolve => setTimeout(resolve, 2500));
       
       if (!cancelled) {
-        // Navigate directly with state flag to prevent route guard flickering
-        if (orgSlug) {
-          navigate(`/org/${orgSlug}`, { 
-            replace: true, 
-            state: { justCompletedOrgOnboarding: true } 
-          });
-        } else {
-          onComplete();
-        }
+        // Always call onComplete to trigger the completion mutation
+        // The parent (OrgOnboardingWizard) will handle the actual navigation
+        // after the backend flags are properly updated
+        onComplete();
       }
     };
 
