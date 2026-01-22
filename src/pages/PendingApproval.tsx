@@ -109,8 +109,8 @@ const PendingApproval = () => {
       )
       .subscribe();
 
-    // Keep polling as fallback (every 5 seconds for faster updates)
-    const interval = setInterval(checkStatus, 5000);
+    // Keep polling as fallback (every 30 seconds)
+    const interval = setInterval(checkStatus, 30000);
 
     return () => {
       supabase.removeChannel(channel);
@@ -302,7 +302,7 @@ const PendingApproval = () => {
                     )}
                   </Button>
                   <p className="text-xs text-muted-foreground">
-                    Auto-refreshes every 5 seconds
+                    Auto-refreshes every 30 seconds
                   </p>
                 </div>
               </div>
