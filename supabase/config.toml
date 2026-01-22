@@ -236,3 +236,9 @@ verify_jwt = false
 
 [functions.send-pending-invitations]
 verify_jwt = false
+
+[functions.get-org-structure-templates]
+verify_jwt = false
+
+[functions.suggest-custom-department-positions]
+verify_jwt = false
