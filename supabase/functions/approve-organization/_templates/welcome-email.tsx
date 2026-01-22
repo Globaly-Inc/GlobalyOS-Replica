@@ -14,6 +14,9 @@ import {
 } from 'https://esm.sh/@react-email/components@0.0.22?deps=react@18.3.1'
 import * as React from 'https://esm.sh/react@18.3.1'
 
+// Stable logo URL from Supabase Storage
+const GLOBALYOS_LOGO_URL = 'https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/system-assets//GlobalyOS%20Blue%20BG%20Icon.png';
+
 interface WelcomeEmailProps {
   ownerName: string
   organizationName: string
@@ -34,25 +37,18 @@ export const WelcomeEmail = ({
     <Preview>Welcome to GlobalyOS - Your organization has been approved!</Preview>
     <Body style={main}>
       <Container style={container}>
-        {/* Logo */}
-        <Section style={logoSection}>
-          <Img
-            src="https://globalyos.lovable.app/images/globalyos-logo-email.png"
-            width="120"
-            alt="GlobalyOS"
-            style={logo}
-          />
-        </Section>
-
-        {/* Header */}
+        {/* Unified lighter blue header */}
         <Section style={headerSection}>
-          <Heading style={h1}>Welcome to GlobalyOS! 🎉</Heading>
-          <Text style={heroText}>
-            Great news! Your organization has been approved.
-          </Text>
+          <Img
+            src={GLOBALYOS_LOGO_URL}
+            width="56"
+            height="56"
+            alt="GlobalyOS"
+            style={logoImage}
+          />
+          <Heading style={headerTitle}>Welcome to GlobalyOS! 🎉</Heading>
+          <Text style={headerSubtitle}>Your organization has been approved</Text>
         </Section>
-
-        <Hr style={hr} />
 
         {/* Main Content */}
         <Section style={contentSection}>
@@ -140,42 +136,33 @@ const container = {
   boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
 }
 
-const logoSection = {
-  backgroundColor: '#ffffff',
-  padding: '24px 32px',
-  textAlign: 'center' as const,
-}
-
-const logo = {
-  margin: '0 auto',
-}
-
 const headerSection = {
-  padding: '32px 32px 16px',
+  background: 'linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)',
+  padding: '32px 24px',
   textAlign: 'center' as const,
 }
 
-const h1 = {
-  color: '#1a1a2e',
-  fontSize: '28px',
+const logoImage = {
+  borderRadius: '12px',
+  marginBottom: '16px',
+}
+
+const headerTitle = {
+  color: '#ffffff',
+  fontSize: '24px',
   fontWeight: '700',
-  margin: '0 0 12px',
+  margin: '0 0 8px 0',
   lineHeight: '1.3',
 }
 
-const heroText = {
-  color: '#64748b',
-  fontSize: '16px',
+const headerSubtitle = {
+  color: 'rgba(255, 255, 255, 0.9)',
+  fontSize: '14px',
   margin: '0',
 }
 
-const hr = {
-  borderColor: '#e2e8f0',
-  margin: '0 32px',
-}
-
 const contentSection = {
-  padding: '24px 32px',
+  padding: '32px',
 }
 
 const text = {
@@ -226,7 +213,7 @@ const ctaSection = {
 }
 
 const ctaButton = {
-  backgroundColor: '#6366f1',
+  backgroundColor: '#3b82f6',
   borderRadius: '8px',
   color: '#ffffff',
   fontSize: '16px',
@@ -243,6 +230,11 @@ const smallText = {
   margin: '0',
 }
 
+const hr = {
+  borderColor: '#e2e8f0',
+  margin: '0 32px',
+}
+
 const footerSection = {
   padding: '24px 32px',
   backgroundColor: '#f8fafc',
@@ -257,6 +249,6 @@ const footerText = {
 }
 
 const link = {
-  color: '#6366f1',
+  color: '#3b82f6',
   textDecoration: 'underline',
 }

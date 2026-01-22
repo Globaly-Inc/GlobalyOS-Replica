@@ -14,6 +14,9 @@ import {
 } from 'https://esm.sh/@react-email/components@0.0.22?deps=react@18.3.1';
 import * as React from 'https://esm.sh/react@18.3.1';
 
+// Stable logo URL from Supabase Storage
+const GLOBALYOS_LOGO_URL = 'https://rygowmzkvxgnxagqlyxf.supabase.co/storage/v1/object/public/system-assets//GlobalyOS%20Blue%20BG%20Icon.png';
+
 interface ConfirmationEmailProps {
   ownerName: string
   organizationName: string
@@ -34,83 +37,93 @@ export const ConfirmationEmail = ({
     <Preview>Your GlobalyOS application has been received - {organizationName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Img
-          src="https://globalyos.lovable.app/images/globalyos-logo-email.png"
-          width="120"
-          alt="GlobalyOS"
-          style={logo}
-        />
-        
-        <Heading style={heading}>Application Received! 🎉</Heading>
-        
-        <Text style={paragraph}>
-          Hi {ownerName},
-        </Text>
-        
-        <Text style={paragraph}>
-          Thank you for applying to join GlobalyOS! We've received your application for <strong>{organizationName}</strong> and our team is reviewing it now.
-        </Text>
-
-        <Section style={infoBox}>
-          <Text style={infoTitle}>Application Details</Text>
-          <Text style={infoText}>
-            <strong>Organization:</strong> {organizationName}
-          </Text>
-          <Text style={infoText}>
-            <strong>Email:</strong> {email}
-          </Text>
-          <Text style={infoText}>
-            <strong>Plan:</strong> {plan.charAt(0).toUpperCase() + plan.slice(1)}
-          </Text>
+        {/* Unified lighter blue header */}
+        <Section style={headerSection}>
+          <Img
+            src={GLOBALYOS_LOGO_URL}
+            width="56"
+            height="56"
+            alt="GlobalyOS"
+            style={logoImage}
+          />
+          <Heading style={headerTitle}>Application Received! 🎉</Heading>
+          <Text style={headerSubtitle}>Thank you for choosing GlobalyOS</Text>
         </Section>
 
-        <Section style={timelineSection}>
-          <Text style={timelineTitle}>What happens next?</Text>
+        {/* Main Content */}
+        <Section style={contentSection}>
+          <Text style={paragraph}>
+            Hi {ownerName},
+          </Text>
           
-          <Section style={timelineItem}>
-            <Text style={timelineStep}>
-              <span style={stepComplete}>✓</span> Application Submitted
-            </Text>
-            <Text style={timelineDesc}>Your details have been received</Text>
-          </Section>
-          
-          <Section style={timelineItem}>
-            <Text style={timelineStep}>
-              <span style={stepInProgress}>●</span> Under Review
-            </Text>
-            <Text style={timelineDesc}>Our team is reviewing your application</Text>
-          </Section>
-          
-          <Section style={timelineItem}>
-            <Text style={timelineStep}>
-              <span style={stepPending}>○</span> Welcome Email
-            </Text>
-            <Text style={timelineDesc}>You'll receive login credentials upon approval</Text>
-          </Section>
-        </Section>
+          <Text style={paragraph}>
+            Thank you for applying to join GlobalyOS! We've received your application for <strong>{organizationName}</strong> and our team is reviewing it now.
+          </Text>
 
-        <Text style={paragraph}>
-          Most applications are reviewed within <strong>24 hours</strong>. You'll receive an email notification once your application has been processed.
-        </Text>
+          <Section style={infoBox}>
+            <Text style={infoTitle}>Application Details</Text>
+            <Text style={infoText}>
+              <strong>Organization:</strong> {organizationName}
+            </Text>
+            <Text style={infoText}>
+              <strong>Email:</strong> {email}
+            </Text>
+            <Text style={infoText}>
+              <strong>Plan:</strong> {plan.charAt(0).toUpperCase() + plan.slice(1)}
+            </Text>
+          </Section>
 
-        <Section style={buttonContainer}>
-          <Button style={button} href={statusUrl}>
-            Check Application Status
-          </Button>
+          <Section style={timelineSection}>
+            <Text style={timelineTitle}>What happens next?</Text>
+            
+            <Section style={timelineItem}>
+              <Text style={timelineStep}>
+                <span style={stepComplete}>✓</span> Application Submitted
+              </Text>
+              <Text style={timelineDesc}>Your details have been received</Text>
+            </Section>
+            
+            <Section style={timelineItem}>
+              <Text style={timelineStep}>
+                <span style={stepInProgress}>●</span> Under Review
+              </Text>
+              <Text style={timelineDesc}>Our team is reviewing your application</Text>
+            </Section>
+            
+            <Section style={timelineItem}>
+              <Text style={timelineStep}>
+                <span style={stepPending}>○</span> Welcome Email
+              </Text>
+              <Text style={timelineDesc}>You'll receive login credentials upon approval</Text>
+            </Section>
+          </Section>
+
+          <Text style={paragraph}>
+            Most applications are reviewed within <strong>24 hours</strong>. You'll receive an email notification once your application has been processed.
+          </Text>
+
+          <Section style={buttonContainer}>
+            <Button style={button} href={statusUrl}>
+              Check Application Status
+            </Button>
+          </Section>
         </Section>
 
         <Hr style={hr} />
 
-        <Text style={footer}>
-          If you have any questions, please contact our support team at{' '}
-          <Link href="mailto:support@globalyos.com" style={link}>
-            support@globalyos.com
-          </Link>
-        </Text>
-        
-        <Text style={footer}>
-          © {new Date().getFullYear()} GlobalyOS. All rights reserved.
-        </Text>
+        {/* Footer */}
+        <Section style={footerSection}>
+          <Text style={footer}>
+            If you have any questions, please contact our support team at{' '}
+            <Link href="mailto:support@globalyos.com" style={link}>
+              support@globalyos.com
+            </Link>
+          </Text>
+          
+          <Text style={footer}>
+            © {new Date().getFullYear()} GlobalyOS. All rights reserved.
+          </Text>
+        </Section>
       </Container>
     </Body>
   </Html>
@@ -127,30 +140,47 @@ const main = {
 const container = {
   backgroundColor: '#ffffff',
   margin: '0 auto',
-  padding: '40px 20px',
-  marginBottom: '64px',
-  borderRadius: '8px',
+  padding: '0',
   maxWidth: '600px',
+  borderRadius: '8px',
+  overflow: 'hidden',
+  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
 }
 
-const logo = {
-  margin: '0 auto 24px',
-  display: 'block',
-}
-
-const heading = {
-  color: '#1a1a1a',
-  fontSize: '28px',
-  fontWeight: '700',
+const headerSection = {
+  background: 'linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)',
+  padding: '32px 24px',
   textAlign: 'center' as const,
-  margin: '30px 0',
+}
+
+const logoImage = {
+  borderRadius: '12px',
+  marginBottom: '16px',
+}
+
+const headerTitle = {
+  color: '#ffffff',
+  fontSize: '24px',
+  fontWeight: '700',
+  margin: '0 0 8px 0',
+  lineHeight: '1.3',
+}
+
+const headerSubtitle = {
+  color: 'rgba(255, 255, 255, 0.9)',
+  fontSize: '14px',
+  margin: '0',
+}
+
+const contentSection = {
+  padding: '32px',
 }
 
 const paragraph = {
   color: '#525252',
   fontSize: '16px',
   lineHeight: '26px',
-  margin: '16px 0',
+  margin: '0 0 16px 0',
 }
 
 const infoBox = {
@@ -227,20 +257,25 @@ const buttonContainer = {
 }
 
 const button = {
-  backgroundColor: '#2563eb',
-  borderRadius: '6px',
+  backgroundColor: '#3b82f6',
+  borderRadius: '8px',
   color: '#fff',
   fontSize: '16px',
   fontWeight: '600',
   textDecoration: 'none',
   textAlign: 'center' as const,
   display: 'inline-block',
-  padding: '12px 24px',
+  padding: '14px 32px',
 }
 
 const hr = {
   borderColor: '#e5e5e5',
-  margin: '32px 0',
+  margin: '0 32px',
+}
+
+const footerSection = {
+  padding: '24px 32px',
+  backgroundColor: '#f8fafc',
 }
 
 const footer = {
@@ -252,6 +287,6 @@ const footer = {
 }
 
 const link = {
-  color: '#2563eb',
+  color: '#3b82f6',
   textDecoration: 'underline',
 }

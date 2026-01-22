@@ -79,14 +79,28 @@ serve(async (req: Request) => {
 
     console.log(`Processing ${teamMembers.length} pending invitations for org:`, organizationId);
 
-    // Get organization name for email
+    // Get organization name and primary office details for email
     const { data: org } = await supabase
       .from('organizations')
-      .select('name')
+      .select('name, business_address')
       .eq('id', organizationId)
       .single();
 
+    // Get primary office (first office) for the organization
+    const { data: primaryOffice } = await supabase
+      .from('offices')
+      .select('name, address, city, country')
+      .eq('organization_id', organizationId)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
     const orgName = org?.name || 'your organization';
+    const officeName = primaryOffice?.name || 'Main Office';
+    const officeAddress = primaryOffice?.address 
+      ? `${primaryOffice.address}${primaryOffice.city ? ', ' + primaryOffice.city : ''}${primaryOffice.country ? ', ' + primaryOffice.country : ''}`
+      : org?.business_address || '';
+
     const results = { sent: [] as string[], failed: [] as string[] };
 
     for (const member of teamMembers) {
@@ -127,7 +141,11 @@ serve(async (req: Request) => {
         const position = member.position || 'Team Member';
         const department = member.department || 'General';
 
-        // Build email HTML
+        // Build office details rows for email
+        const officeRow = officeName ? `<tr><td style="color: #64748b; padding: 6px 0;">Office</td><td style="color: #1e293b; font-weight: 500; text-align: right; padding: 6px 0;">${officeName}</td></tr>` : '';
+        const locationRow = officeAddress ? `<tr><td style="color: #64748b; padding: 6px 0;">Location</td><td style="color: #1e293b; font-weight: 500; text-align: right; padding: 6px 0;">${officeAddress}</td></tr>` : '';
+
+        // Build email HTML with unified lighter blue header and office details
         const emailHtml = `
         <!DOCTYPE html>
         <html>
@@ -135,49 +153,37 @@ serve(async (req: Request) => {
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Welcome to GlobalyOS</title>
-          <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f5f7; margin: 0; padding: 20px; }
-            .container { max-width: 500px; margin: 0 auto; background: #fff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden; }
-            .header { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; padding: 32px 24px; text-align: center; }
-            .header img { width: 56px; height: 56px; border-radius: 14px; margin-bottom: 12px; }
-            .header h1 { margin: 0; font-size: 22px; font-weight: 600; }
-            .content { padding: 28px 24px; }
-            .content p { color: #374151; line-height: 1.6; margin: 0 0 16px; font-size: 15px; }
-            .details { background: #f9fafb; border-radius: 10px; padding: 16px; margin: 20px 0; }
-            .details p { margin: 6px 0; font-size: 14px; color: #4b5563; }
-            .code-box { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; font-size: 28px; letter-spacing: 6px; padding: 16px 24px; border-radius: 10px; text-align: center; font-weight: 700; margin: 20px 0; }
-            .cta { text-align: center; margin: 24px 0; }
-            .button { display: inline-block; background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white !important; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 600; font-size: 15px; }
-            .note { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 13px; color: #92400e; margin: 20px 0; }
-            .footer { padding: 20px 24px; text-align: center; border-top: 1px solid #e5e7eb; }
-            .footer p { color: #9ca3af; font-size: 12px; margin: 0; }
-          </style>
         </head>
-        <body>
-          <div class="container">
-            <div class="header">
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f5f7; margin: 0; padding: 20px;">
+          <div style="max-width: 500px; margin: 0 auto; background: #fff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden;">
+            <div style="background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%); color: white; padding: 32px 24px; text-align: center;">
               <img src="${GLOBALYOS_LOGO_URL}" alt="GlobalyOS" style="width: 56px; height: 56px; border-radius: 14px; margin-bottom: 12px;" />
-              <h1>Welcome to GlobalyOS!</h1>
+              <h1 style="margin: 0 0 4px 0; font-size: 22px; font-weight: 600;">Welcome to GlobalyOS!</h1>
+              <p style="margin: 0; font-size: 14px; color: rgba(255,255,255,0.9);">Your account is ready</p>
             </div>
-            <div class="content">
-              <p>Hi <strong>${fullName}</strong>,</p>
-              <p>You've been added to <strong>${orgName}</strong> on GlobalyOS! Your account is now active. Here are your details:</p>
-              <div class="details">
-                <p><strong>Position:</strong> ${position}</p>
-                <p><strong>Department:</strong> ${department}</p>
+            <div style="padding: 28px 24px;">
+              <p style="color: #374151; line-height: 1.6; margin: 0 0 16px; font-size: 15px;">Hi <strong>${fullName}</strong>,</p>
+              <p style="color: #374151; line-height: 1.6; margin: 0 0 16px; font-size: 15px;">You've been added to <strong>${orgName}</strong> on GlobalyOS! Your account is now active. Here are your details:</p>
+              <div style="background: #f9fafb; border-radius: 10px; padding: 16px; margin: 20px 0;">
+                <table cellpadding="0" cellspacing="0" border="0" width="100%" style="font-size: 14px;">
+                  ${officeRow}
+                  ${locationRow}
+                  <tr><td style="color: #64748b; padding: 6px 0;">Position</td><td style="color: #1e293b; font-weight: 500; text-align: right; padding: 6px 0;">${position}</td></tr>
+                  <tr><td style="color: #64748b; padding: 6px 0;">Department</td><td style="color: #1e293b; font-weight: 500; text-align: right; padding: 6px 0;">${department}</td></tr>
+                </table>
               </div>
-              <p style="text-align: center; font-weight: 600;">Your Login Code:</p>
-              <div class="code-box">${inviteCode}</div>
-              <p>Click the button below and enter this code to log in:</p>
-              <div class="cta">
-                <a href="${joinUrl}" class="button">Log In to GlobalyOS</a>
+              <p style="text-align: center; font-weight: 600; color: #374151; margin: 24px 0 8px;">Your Login Code:</p>
+              <div style="background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%); color: white; font-size: 28px; letter-spacing: 6px; padding: 16px 24px; border-radius: 10px; text-align: center; font-weight: 700; margin: 0 0 20px;">${inviteCode}</div>
+              <p style="color: #374151; line-height: 1.6; margin: 0 0 16px; font-size: 15px;">Click the button below and enter this code to log in:</p>
+              <div style="text-align: center; margin: 24px 0;">
+                <a href="${joinUrl}" style="display: inline-block; background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%); color: white !important; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 600; font-size: 15px;">Log In to GlobalyOS</a>
               </div>
-              <div class="note">
+              <div style="background: #fef3c7; border-left: 3px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 13px; color: #92400e; margin: 20px 0;">
                 <strong>Note:</strong> This code is valid for 7 days. After first login, you can request a new code anytime.
               </div>
             </div>
-            <div class="footer">
-              <p>If you have any questions, please contact your administrator.</p>
+            <div style="padding: 20px 24px; text-align: center; border-top: 1px solid #e5e7eb; background: #f8fafc;">
+              <p style="color: #9ca3af; font-size: 12px; margin: 0;">If you have any questions, please contact your administrator.</p>
             </div>
           </div>
         </body>

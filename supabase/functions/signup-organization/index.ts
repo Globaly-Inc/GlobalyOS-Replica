@@ -224,6 +224,7 @@ Deno.serve(async (req) => {
                   industry: industry || '',
                   companySize: companySize || '',
                   country: country || '',
+                  businessAddress: businessAddress || '',
                   reviewUrl,
                 })
               );
