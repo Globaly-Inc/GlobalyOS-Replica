@@ -33,8 +33,11 @@ import {
   PartyPopper,
   MapPin,
   Globe,
-  Info
+  Info,
+  Download
 } from 'lucide-react';
+import QRCode from 'qrcode';
+import { generateOfficeQRPDF } from '@/components/offices/OfficeQRPDFExport';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -235,6 +238,7 @@ export function OfficesStep({
   const { toast } = useToast();
   const [isPersisting, setIsPersisting] = useState(false);
   const [expandedOffice, setExpandedOffice] = useState<string>('office-0');
+  const [downloadingQR, setDownloadingQR] = useState<string | null>(null);
 
   // Check which features are enabled globally
   const hasAttendance = enabledFeatures.includes('attendance');
@@ -397,6 +401,64 @@ export function OfficesStep({
         timezone: countryCode ? getTimezoneForCountry(countryCode) : office.timezone,
       };
     }));
+  };
+
+  // Download QR PDF for an office
+  const handleDownloadQR = async (office: Office) => {
+    if (!office.id || !organizationId) return;
+    
+    setDownloadingQR(office.id);
+    
+    try {
+      // Fetch the active QR code for this office
+      const { data: qrCode, error } = await supabase
+        .from('office_qr_codes')
+        .select('code')
+        .eq('office_id', office.id)
+        .eq('is_active', true)
+        .maybeSingle();
+      
+      if (error) throw error;
+      
+      if (!qrCode?.code) {
+        toast({
+          title: "No QR Code",
+          description: "Please save this office first to generate a QR code.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Generate QR image
+      const qrDataUrl = await QRCode.toDataURL(qrCode.code, { 
+        width: 300, 
+        margin: 2 
+      });
+      
+      // Get org info for PDF
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('name, logo_url')
+        .eq('id', organizationId)
+        .single();
+      
+      // Generate and download PDF
+      await generateOfficeQRPDF({
+        officeName: office.name,
+        qrCodeDataUrl: qrDataUrl,
+        orgName: org?.name || '',
+        orgLogoUrl: org?.logo_url || null,
+      });
+    } catch (error) {
+      console.error('Error downloading QR:', error);
+      toast({
+        title: "Download Failed",
+        description: "Could not generate QR code PDF.",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloadingQR(null);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -695,12 +757,33 @@ export function OfficesStep({
                                   <Clock className="h-4 w-4 text-primary" />
                                   <span className="text-sm font-medium">Attendance Settings</span>
                                 </div>
-                                <Switch 
-                                  id={`attendance-${index}`}
-                                  checked={office.attendance_enabled ?? true}
-                                  onCheckedChange={(v) => updateOffice(index, 'attendance_enabled', v)}
-                                  disabled={isLoading}
-                                />
+                                <div className="flex items-center gap-2">
+                                  {office.id && office.attendance_enabled && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDownloadQR(office);
+                                      }}
+                                      disabled={downloadingQR === office.id || isLoading}
+                                      className="h-8 px-2 text-muted-foreground hover:text-primary"
+                                    >
+                                      {downloadingQR === office.id ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Download className="h-4 w-4" />
+                                      )}
+                                      <span className="ml-1.5 text-xs">QR PDF</span>
+                                    </Button>
+                                  )}
+                                  <Switch 
+                                    id={`attendance-${index}`}
+                                    checked={office.attendance_enabled ?? true}
+                                    onCheckedChange={(v) => updateOffice(index, 'attendance_enabled', v)}
+                                    disabled={isLoading}
+                                  />
+                                </div>
                               </div>
 
                               {!office.attendance_enabled && (
