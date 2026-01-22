@@ -142,10 +142,14 @@ export default function OrgOnboardingWizard() {
 
     try {
       if (currentStep >= TOTAL_STEPS) {
-        // Complete onboarding - pass navigation as callback
+        // Complete onboarding - pass navigation as callback with justCompleted flag
+        // to prevent OrgProtectedRoute from redirecting back during cache refresh
         await completeOnboarding.mutateAsync({
           skipped: false,
-          onComplete: () => navigate(`/org/${currentOrg?.slug}`),
+          onComplete: () => navigate(`/org/${currentOrg?.slug}`, { 
+            replace: true, 
+            state: { justCompletedOrgOnboarding: true } 
+          }),
         });
         return;
       }
@@ -171,7 +175,10 @@ export default function OrgOnboardingWizard() {
   const handleSkip = async () => {
     await completeOnboarding.mutateAsync({
       skipped: true,
-      onComplete: () => navigate(`/org/${currentOrg?.slug}`),
+      onComplete: () => navigate(`/org/${currentOrg?.slug}`, { 
+        replace: true, 
+        state: { justCompletedOrgOnboarding: true } 
+      }),
     });
   };
 

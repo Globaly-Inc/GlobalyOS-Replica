@@ -10,6 +10,40 @@ type AppErrorBoundaryState = {
   error: Error | null;
 };
 
+/**
+ * Check if error is a dynamic import/chunk loading failure
+ * These happen when browser has stale cached JS referencing old chunks
+ */
+const isDynamicImportError = (error: Error): boolean => {
+  const message = error.message?.toLowerCase() || '';
+  return (
+    message.includes('failed to fetch dynamically imported module') ||
+    message.includes('importing a module script failed') ||
+    message.includes('loading chunk') ||
+    message.includes('loading css chunk') ||
+    message.includes('failed to load module script')
+  );
+};
+
+/**
+ * Clear all caches and service workers, then reload
+ */
+const hardReload = async () => {
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    }
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    }
+  } catch {
+    // ignore
+  }
+  window.location.reload();
+};
+
 export default class AppErrorBoundary extends React.Component<
   AppErrorBoundaryProps,
   AppErrorBoundaryState
@@ -24,6 +58,13 @@ export default class AppErrorBoundary extends React.Component<
     // eslint-disable-next-line no-console
     console.error('App render error:', error);
     
+    // Auto-recover from dynamic import failures (stale cache)
+    if (isDynamicImportError(error)) {
+      console.log('[AppErrorBoundary] Dynamic import error detected, auto-recovering...');
+      hardReload();
+      return;
+    }
+    
     // Log critical render error to database
     logErrorToDatabase({
       errorType: 'runtime',
@@ -34,23 +75,6 @@ export default class AppErrorBoundary extends React.Component<
       actionAttempted: 'Page render',
     });
   }
-
-  private hardReload = async () => {
-    try {
-      if ('serviceWorker' in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map((r) => r.unregister()));
-      }
-      if ('caches' in window) {
-        const keys = await caches.keys();
-        await Promise.all(keys.map((k) => caches.delete(k)));
-      }
-    } catch {
-      // ignore
-    }
-
-    window.location.reload();
-  };
 
   render() {
     if (!this.state.error) return this.props.children;
@@ -68,7 +92,7 @@ export default class AppErrorBoundary extends React.Component<
             <Button onClick={() => window.location.reload()}>
               Reload
             </Button>
-            <Button variant="outline" onClick={this.hardReload}>
+            <Button variant="outline" onClick={hardReload}>
               Clear cache & reload
             </Button>
           </div>
