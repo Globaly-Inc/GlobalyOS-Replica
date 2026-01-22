@@ -25,6 +25,37 @@ interface GeneratedHoliday {
   movable_rule?: string;
 }
 
+const toolSchema = {
+  type: "function",
+  function: {
+    name: "generate_holidays",
+    description: "Generate official public holidays for a country",
+    parameters: {
+      type: "object",
+      properties: {
+        holidays: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: "Official English name of the holiday" },
+              title_local: { type: "string", description: "Name in local language (if different)" },
+              month: { type: "number", description: "Month number (1-12)" },
+              day: { type: "number", description: "Day of month (1-31) - use typical/observed date" },
+              is_movable: { type: "boolean", description: "True if date changes each year (Easter, lunar holidays)" },
+              movable_rule: { type: "string", description: "Rule for calculating movable dates" }
+            },
+            required: ["title", "month", "day", "is_movable"],
+            additionalProperties: false
+          }
+        }
+      },
+      required: ["holidays"],
+      additionalProperties: false
+    }
+  }
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -33,6 +64,15 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+
+    if (!LOVABLE_API_KEY) {
+      return new Response(
+        JSON.stringify({ error: "LOVABLE_API_KEY is not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { countryCode, countryName }: RequestBody = await req.json();
@@ -60,54 +100,70 @@ serve(async (req) => {
       );
     }
 
-    // Use Lovable AI to generate holidays
-    const aiResponse = await fetch(`${supabaseUrl}/functions/v1/generate-with-ai`, {
+    // Call Lovable AI gateway
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${supabaseServiceKey}`,
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
-        prompt: `Generate a JSON array of official public holidays for ${countryName}. 
-        
-For each holiday, provide:
-- title: The official English name of the holiday
-- title_local: The name in the local language (if different from English)
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert on international public holidays. Generate accurate, officially recognized national holidays only (not regional or optional holidays)."
+          },
+          {
+            role: "user",
+            content: `Generate all official public holidays (bank holidays, national days off) for ${countryName}. 
+
+For each holiday:
+- title: Official English name
+- title_local: Name in local language (if different from English)
 - month: Month number (1-12)
-- day: Day of month (1-31) - use the typical/observed date
-- is_movable: true if the date changes each year (like Easter, lunar holidays), false for fixed dates
+- day: Day of month - use the typical/observed date
+- is_movable: true if the date changes yearly (Easter, lunar calendar holidays)
 - movable_rule: For movable holidays, describe how the date is calculated
 
-Include only nationally recognized public holidays (bank holidays, official days off).
-Exclude regional or optional holidays.
-Order by month and day.
-
-Return ONLY a valid JSON array, no other text. Example format:
-[
-  {"title": "New Year's Day", "month": 1, "day": 1, "is_movable": false},
-  {"title": "Easter Monday", "title_local": "Ostermontag", "month": 4, "day": 21, "is_movable": true, "movable_rule": "Monday after Easter Sunday"}
-]`,
+Include only nationally recognized public holidays. Exclude regional or optional holidays. Order by month and day.`
+          }
+        ],
+        tools: [toolSchema],
+        tool_choice: { type: "function", function: { name: "generate_holidays" } }
       }),
     });
 
-    if (!aiResponse.ok) {
-      throw new Error(`AI generation failed: ${aiResponse.statusText}`);
+    if (!response.ok) {
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "AI credits exhausted. Please add funds to continue." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const errorText = await response.text();
+      console.error("AI gateway error:", response.status, errorText);
+      throw new Error(`AI generation failed: ${response.statusText}`);
     }
 
-    const aiData = await aiResponse.json();
-    let holidaysJson: GeneratedHoliday[] = [];
+    const data = await response.json();
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
 
-    // Parse AI response - handle different response formats
+    if (!toolCall?.function?.arguments) {
+      console.error("No tool call in response:", JSON.stringify(data));
+      throw new Error("AI did not generate structured holiday data");
+    }
+
+    let holidaysJson: GeneratedHoliday[];
     try {
-      const content = aiData.content || aiData.text || aiData.response || JSON.stringify(aiData);
-      // Extract JSON array from the response
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        holidaysJson = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error("No JSON array found in AI response");
-      }
+      const parsed = JSON.parse(toolCall.function.arguments);
+      holidaysJson = parsed.holidays;
     } catch (parseError) {
       console.error("Failed to parse AI response:", parseError);
       throw new Error("Failed to parse AI-generated holidays");
