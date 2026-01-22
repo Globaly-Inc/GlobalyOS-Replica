@@ -53,7 +53,7 @@ serve(async (req) => {
     if (!forceRefresh) {
       const { data: cached } = await supabase
         .from('daily_horoscopes')
-        .select('content, title, summary_paragraph, aspects, provider')
+        .select('content, title, summary_paragraph, aspects, provider, created_at')
         .eq('zodiac_sign', zodiacSign)
         .eq('horoscope_date', today)
         .maybeSingle();
@@ -67,6 +67,7 @@ serve(async (req) => {
             title: cached.title,
             summaryParagraph: cached.summary_paragraph,
             aspects: cached.aspects,
+            createdAt: cached.created_at,
             cached: true 
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -263,6 +264,7 @@ Respond ONLY with the JSON object, no markdown code blocks or additional text.`;
           title: structuredHoroscope.title,
           summaryParagraph: structuredHoroscope.summary_paragraph,
           aspects: structuredHoroscope.aspects,
+          createdAt: new Date().toISOString(),
           cached: false 
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

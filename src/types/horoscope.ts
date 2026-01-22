@@ -21,6 +21,7 @@ export interface HoroscopeData {
   aspects: HoroscopeAspect[];
   summaryParagraph: string;
   legacyContent?: string;
+  createdAt?: string;
 }
 
 export interface HoroscopeApiResponse {
@@ -28,6 +29,7 @@ export interface HoroscopeApiResponse {
   title?: string;
   summaryParagraph?: string;
   aspects?: HoroscopeAspect[];
+  createdAt?: string;
   cached: boolean;
   error?: string;
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Briefcase, Heart, Zap, Coins, Loader2, Sparkles, RefreshCw } from 'lucide-react';
+import { Briefcase, Heart, Zap, Coins, Loader2, Sparkles } from 'lucide-react';
 import { useHoroscope } from '@/hooks/useHoroscope';
 import { OrgLink } from '@/components/OrgLink';
 import { HoroscopeAspect, HoroscopeAspectKey } from '@/types/horoscope';
@@ -24,17 +24,27 @@ const ASPECT_COLORS: Record<HoroscopeAspectKey, string> = {
   money: 'text-yellow-300'
 };
 
+const formatLastUpdated = (dateStr?: string) => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  const today = new Date();
+  
+  // If same day, show "Updated today"
+  if (date.toDateString() === today.toDateString()) {
+    return 'Updated today';
+  }
+  
+  // Otherwise show date
+  return `Updated ${date.toLocaleDateString('en-AU', { 
+    day: 'numeric', 
+    month: 'short' 
+  })}`;
+};
+
 export function HoroscopeWidget({ dateOfBirth }: HoroscopeWidgetProps) {
-  const { zodiac, horoscope, isLoading, error, hasDateOfBirth, refresh } = useHoroscope(dateOfBirth);
+  const { zodiac, horoscope, isLoading, error, hasDateOfBirth } = useHoroscope(dateOfBirth);
   const [selectedAspect, setSelectedAspect] = useState<HoroscopeAspect | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await refresh();
-    setIsRefreshing(false);
-  };
 
   const handleAspectClick = (aspect: HoroscopeAspect) => {
     setSelectedAspect(aspect);
@@ -75,8 +85,8 @@ export function HoroscopeWidget({ dateOfBirth }: HoroscopeWidgetProps) {
     return (
       <div className="md:text-right">
         <div className="flex md:justify-end items-center gap-3">
-          <span className="text-2xl">{zodiac.symbol}</span>
-          <div className="text-left">
+          <div className="flex flex-col items-end text-right">
+            <span className="text-2xl mb-0.5">{zodiac.symbol}</span>
             <p className="text-sm text-white/90 font-medium">{zodiac.sign}</p>
             <p className="text-xs text-white/60">{zodiac.dateRange}</p>
           </div>
@@ -90,28 +100,29 @@ export function HoroscopeWidget({ dateOfBirth }: HoroscopeWidgetProps) {
   return (
     <>
       <div className="md:text-right">
-        <div className="flex md:justify-end gap-3 items-center">
-          {/* Left: Zodiac Info */}
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">{zodiac.symbol}</span>
-            <div className="text-left">
-              <p className="text-sm text-white/90 font-medium">{zodiac.sign}</p>
-              <p className="text-xs text-white/70">{zodiac.dateRange}</p>
-            </div>
-            {/* Refresh Button */}
-            <button
-              onClick={handleRefresh}
-              disabled={isLoading || isRefreshing}
-              className="p-1.5 rounded-full hover:bg-white/10 transition-colors disabled:opacity-50"
-              title="Get new horoscope reading"
-            >
-              <RefreshCw className={`h-4 w-4 text-white/60 ${isRefreshing ? 'animate-spin' : ''}`} />
-            </button>
+        <div className="flex md:justify-end gap-3 items-stretch">
+          {/* Left: Zodiac Info - Vertical stack, right-aligned */}
+          <div className="flex flex-col items-end text-right justify-center pr-4">
+            {/* Row 1: Emoji */}
+            <span className="text-2xl mb-0.5">{zodiac.symbol}</span>
+            
+            {/* Row 2: Sign name */}
+            <p className="text-sm text-white/90 font-medium">{zodiac.sign}</p>
+            
+            {/* Row 3: Date range */}
+            <p className="text-xs text-white/70">{zodiac.dateRange}</p>
+            
+            {/* Row 4: Last updated */}
+            {horoscope?.createdAt && (
+              <p className="text-[10px] text-white/50 mt-1">
+                {formatLastUpdated(horoscope.createdAt)}
+              </p>
+            )}
           </div>
           
           {/* Right: Aspect Cards (desktop only) - clickable */}
           {hasStructuredAspects && (
-            <div className="hidden lg:flex items-center gap-2 ml-4 pl-4 border-l border-white/20">
+            <div className="hidden lg:flex items-center gap-2 pl-4 border-l border-white/20">
               {horoscope.aspects.map((aspect) => {
                 const Icon = ASPECT_ICONS[aspect.key] || Sparkles;
                 const color = ASPECT_COLORS[aspect.key] || 'text-white/80';
@@ -133,7 +144,7 @@ export function HoroscopeWidget({ dateOfBirth }: HoroscopeWidgetProps) {
           
           {/* Fallback for non-structured: show legacy text preview */}
           {!hasStructuredAspects && horoscope?.summaryParagraph && (
-            <div className="hidden lg:block ml-4 pl-4 border-l border-white/20 max-w-xs">
+            <div className="hidden lg:block pl-4 border-l border-white/20 max-w-xs">
               <p className="text-xs text-white/80 line-clamp-2 text-left">
                 {horoscope.summaryParagraph}
               </p>
