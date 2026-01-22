@@ -18,79 +18,86 @@ interface StructuredHoroscope {
   summary_paragraph: string;
 }
 
-serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+// Fetch real horoscope from API Ninjas
+async function fetchRealHoroscope(sign: string, apiKey: string): Promise<string | null> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+  
+  try {
+    const response = await fetch(
+      `https://api.api-ninjas.com/v1/horoscope?sign=${sign.toLowerCase()}`,
+      {
+        headers: { 'X-Api-Key': apiKey },
+        signal: controller.signal,
+      }
+    );
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      console.error('API Ninjas error:', response.status);
+      return null;
+    }
+    
+    const data = await response.json();
+    return data.horoscope || null;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error('API Ninjas request timed out');
+    } else {
+      console.error('Failed to fetch real horoscope:', error);
+    }
+    return null;
+  }
+}
+
+// Build system prompt based on whether we have real data
+function buildSystemPrompt(hasRealData: boolean): string {
+  if (hasRealData) {
+    return `You are a content formatter for a professional horoscope app.
+
+Your task is to take an authentic daily horoscope reading and reformat it into a structured work-focused format.
+
+IMPORTANT: Preserve the astrological themes and sentiments from the source. Do NOT invent new predictions - extract and condense what is already there.
+
+You MUST respond with valid JSON matching this exact structure:
+{
+  "title": "Short 3-5 word tagline capturing the day's theme",
+  "aspects": [
+    { 
+      "key": "career", 
+      "label": "EXACTLY 12 WORDS: Extract career/work guidance from the source horoscope.",
+      "text": "5-8 word action tip based on the source"
+    },
+    { 
+      "key": "relationships", 
+      "label": "EXACTLY 12 WORDS: Extract relationship/connection themes from the source.",
+      "text": "5-8 word action tip"
+    },
+    { 
+      "key": "wellbeing", 
+      "label": "EXACTLY 12 WORDS: Extract health/wellness advice from the source.",
+      "text": "5-8 word action tip"
+    },
+    { 
+      "key": "money", 
+      "label": "EXACTLY 12 WORDS: Extract financial/prosperity themes from the source.",
+      "text": "5-8 word action tip"
+    }
+  ],
+  "summary_paragraph": "EXACTLY 12 WORDS summarizing the overall day's theme from the source."
+}
+
+CRITICAL REQUIREMENTS:
+1. Each "label" MUST be EXACTLY 12 words - count carefully!
+2. Each "text" should be 5-8 words
+3. The "summary_paragraph" MUST be EXACTLY 12 words - no more, no less!
+
+Respond ONLY with the JSON object, no markdown code blocks or additional text.`;
   }
 
-  try {
-    const { zodiacSign, forceRefresh } = await req.json();
-
-    if (!zodiacSign) {
-      return new Response(
-        JSON.stringify({ error: 'Zodiac sign is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    const today = new Date().toISOString().split('T')[0];
-
-    // Delete existing cache if forceRefresh is true
-    if (forceRefresh) {
-      await supabase
-        .from('daily_horoscopes')
-        .delete()
-        .eq('zodiac_sign', zodiacSign)
-        .eq('horoscope_date', today);
-    }
-
-    // Check cache first - include new structured fields (skip if forceRefresh)
-    if (!forceRefresh) {
-      const { data: cached } = await supabase
-        .from('daily_horoscopes')
-        .select('content, title, summary_paragraph, aspects, provider, created_at')
-        .eq('zodiac_sign', zodiacSign)
-        .eq('horoscope_date', today)
-        .maybeSingle();
-
-      // Return cached structured data if available
-      if (cached && cached.aspects && cached.summary_paragraph) {
-        console.log(`Returning cached structured horoscope for ${zodiacSign}`);
-        return new Response(
-          JSON.stringify({ 
-            horoscope: cached.content,
-            title: cached.title,
-            summaryParagraph: cached.summary_paragraph,
-            aspects: cached.aspects,
-            createdAt: cached.created_at,
-            cached: true 
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Return cached legacy data if no structured data but content exists
-      if (cached && cached.content && !cached.aspects) {
-        console.log(`Returning cached legacy horoscope for ${zodiacSign}`);
-        return new Response(
-          JSON.stringify({ horoscope: cached.content, cached: true }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-
-    // Generate new structured horoscope using Lovable AI
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY is not configured');
-    }
-
-    const systemPrompt = `You are a professional horoscope writer creating daily work and life horoscopes.
+  // Fallback to pure generation prompt
+  return `You are a professional horoscope writer creating daily work and life horoscopes.
 
 Your horoscopes should be:
 - Positive and encouraging
@@ -133,10 +140,103 @@ CRITICAL REQUIREMENTS:
 3. The "summary_paragraph" MUST be EXACTLY 12 words - no more, no less!
 
 Respond ONLY with the JSON object, no markdown code blocks or additional text.`;
+}
 
-    const userPrompt = `Generate today's horoscope for ${zodiacSign}.`;
+serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
 
-    console.log(`Generating structured horoscope for ${zodiacSign}`);
+  try {
+    const { zodiacSign, forceRefresh } = await req.json();
+
+    if (!zodiacSign) {
+      return new Response(
+        JSON.stringify({ error: 'Zodiac sign is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const today = new Date().toISOString().split('T')[0];
+
+    // Delete existing cache if forceRefresh is true
+    if (forceRefresh) {
+      await supabase
+        .from('daily_horoscopes')
+        .delete()
+        .eq('zodiac_sign', zodiacSign)
+        .eq('horoscope_date', today);
+    }
+
+    // Check cache first - include new structured fields (skip if forceRefresh)
+    if (!forceRefresh) {
+      const { data: cached } = await supabase
+        .from('daily_horoscopes')
+        .select('content, title, summary_paragraph, aspects, provider, source_text, created_at')
+        .eq('zodiac_sign', zodiacSign)
+        .eq('horoscope_date', today)
+        .maybeSingle();
+
+      // Return cached structured data if available
+      if (cached && cached.aspects && cached.summary_paragraph) {
+        console.log(`Returning cached structured horoscope for ${zodiacSign}`);
+        return new Response(
+          JSON.stringify({ 
+            horoscope: cached.content,
+            title: cached.title,
+            summaryParagraph: cached.summary_paragraph,
+            aspects: cached.aspects,
+            provider: cached.provider,
+            createdAt: cached.created_at,
+            cached: true 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Return cached legacy data if no structured data but content exists
+      if (cached && cached.content && !cached.aspects) {
+        console.log(`Returning cached legacy horoscope for ${zodiacSign}`);
+        return new Response(
+          JSON.stringify({ horoscope: cached.content, cached: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Get API keys
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    const API_NINJAS_KEY = Deno.env.get('API_NINJAS_KEY');
+
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY is not configured');
+    }
+
+    // Try to fetch real horoscope from API Ninjas
+    let realHoroscope: string | null = null;
+    if (API_NINJAS_KEY) {
+      realHoroscope = await fetchRealHoroscope(zodiacSign, API_NINJAS_KEY);
+      if (realHoroscope) {
+        console.log(`Fetched real horoscope for ${zodiacSign} from API Ninjas`);
+      } else {
+        console.log(`Falling back to AI generation for ${zodiacSign}`);
+      }
+    } else {
+      console.log(`API_NINJAS_KEY not configured, using pure AI generation for ${zodiacSign}`);
+    }
+
+    // Build prompts based on whether we have real data
+    const systemPrompt = buildSystemPrompt(!!realHoroscope);
+    const userPrompt = realHoroscope 
+      ? `Reformat this authentic ${zodiacSign} horoscope into the structured format:\n\n"${realHoroscope}"`
+      : `Generate today's horoscope for ${zodiacSign}.`;
+
+    console.log(`Generating structured horoscope for ${zodiacSign} (source: ${realHoroscope ? 'api-ninjas' : 'ai'})`);
     
     // Add timeout to prevent hanging
     const controller = new AbortController();
@@ -214,7 +314,8 @@ Respond ONLY with the JSON object, no markdown code blocks or additional text.`;
             zodiac_sign: zodiacSign,
             horoscope_date: today,
             content: rawContent,
-            provider: 'ai'
+            source_text: realHoroscope,
+            provider: realHoroscope ? 'api-ninjas' : 'ai'
           }, {
             onConflict: 'zodiac_sign,horoscope_date'
           });
@@ -236,6 +337,7 @@ Respond ONLY with the JSON object, no markdown code blocks or additional text.`;
 
       // Create legacy content from summary for backward compatibility
       const legacyContent = structuredHoroscope.summary_paragraph;
+      const provider = realHoroscope ? 'api-ninjas' : 'ai';
 
       // Cache the structured horoscope
       const { error: insertError } = await supabase
@@ -247,7 +349,8 @@ Respond ONLY with the JSON object, no markdown code blocks or additional text.`;
           title: structuredHoroscope.title,
           summary_paragraph: structuredHoroscope.summary_paragraph,
           aspects: structuredHoroscope.aspects,
-          provider: 'ai'
+          source_text: realHoroscope,
+          provider: provider
         }, {
           onConflict: 'zodiac_sign,horoscope_date'
         });
@@ -255,7 +358,7 @@ Respond ONLY with the JSON object, no markdown code blocks or additional text.`;
       if (insertError) {
         console.error('Failed to cache horoscope:', insertError);
       } else {
-        console.log(`Cached structured horoscope for ${zodiacSign}`);
+        console.log(`Cached structured horoscope for ${zodiacSign} (provider: ${provider})`);
       }
 
       return new Response(
@@ -264,6 +367,7 @@ Respond ONLY with the JSON object, no markdown code blocks or additional text.`;
           title: structuredHoroscope.title,
           summaryParagraph: structuredHoroscope.summary_paragraph,
           aspects: structuredHoroscope.aspects,
+          provider: provider,
           createdAt: new Date().toISOString(),
           cached: false 
         }),
