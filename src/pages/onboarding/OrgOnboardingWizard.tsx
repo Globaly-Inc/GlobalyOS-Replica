@@ -314,6 +314,7 @@ export default function OrgOnboardingWizard() {
             employeeId={currentEmployee?.id}
             ownerProfile={onboardingData?.owner_profile}
             organizationId={currentOrg?.id || ''}
+            orgSlug={currentOrg?.slug}
             onFinish={() => handleNext()}
             onBack={handleBack}
             isCompleting={completeOnboarding.isPending}

@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle2, Circle, Building2, PartyPopper } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -47,6 +48,7 @@ interface SetupProgressScreenProps {
   offices?: Office[];
   employeeId?: string;
   ownerProfile?: OwnerProfile;
+  orgSlug?: string;
   onComplete: () => void;
 }
 
@@ -58,8 +60,10 @@ export function SetupProgressScreen({
   offices = [],
   employeeId,
   ownerProfile,
+  orgSlug,
   onComplete,
 }: SetupProgressScreenProps) {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [completedTasks, setCompletedTasks] = useState<string[]>([]);
   const [currentTask, setCurrentTask] = useState<string | null>(null);
@@ -181,9 +185,22 @@ export function SetupProgressScreen({
     }
   }, [organizationId, allMembersWithOffice, hasAnyMembersWithOffice]);
 
-  // Generate AI descriptions for positions
+  // Generate AI descriptions for positions (only if needed)
   const generatePositionDescriptions = useCallback(async () => {
     try {
+      // Quick check: do any positions need AI descriptions?
+      const { count } = await supabase
+        .from('positions')
+        .select('id', { count: 'exact', head: true })
+        .eq('organization_id', organizationId)
+        .is('description', null);
+      
+      if (count === 0) {
+        console.log('All positions have descriptions from templates, skipping AI generation');
+        return;
+      }
+      
+      console.log(`${count} positions need descriptions, calling AI generation...`);
       await supabase.functions.invoke('bulk-generate-position-descriptions', {
         body: { organizationId },
       });
@@ -318,7 +335,15 @@ export function SetupProgressScreen({
       await new Promise(resolve => setTimeout(resolve, 2500));
       
       if (!cancelled) {
-        onComplete();
+        // Navigate directly with state flag to prevent route guard flickering
+        if (orgSlug) {
+          navigate(`/org/${orgSlug}`, { 
+            replace: true, 
+            state: { justCompletedOrgOnboarding: true } 
+          });
+        } else {
+          onComplete();
+        }
       }
     };
 
