@@ -3,28 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Clock, Globe, Users, Save, Loader2, CalendarDays } from 'lucide-react';
+import { Clock, Users, Save, Loader2, CalendarDays } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 import { toast } from 'sonner';
 import { YearStartPicker } from '@/components/ui/year-start-picker';
+import { TimezoneSelector } from '@/components/ui/timezone-selector';
 import type { Office, OfficeSchedule } from '@/pages/ManageOffices';
-
-const TIMEZONES = [
-  { value: 'UTC', label: 'UTC' },
-  { value: 'Asia/Kathmandu', label: 'Nepal (UTC+5:45)' },
-  { value: 'Asia/Kolkata', label: 'India (UTC+5:30)' },
-  { value: 'Australia/Sydney', label: 'Sydney (UTC+10/11)' },
-  { value: 'Australia/Melbourne', label: 'Melbourne (UTC+10/11)' },
-  { value: 'America/New_York', label: 'New York (UTC-5/-4)' },
-  { value: 'America/Los_Angeles', label: 'Los Angeles (UTC-8/-7)' },
-  { value: 'Europe/London', label: 'London (UTC+0/1)' },
-  { value: 'Europe/Paris', label: 'Paris (UTC+1/2)' },
-  { value: 'Asia/Singapore', label: 'Singapore (UTC+8)' },
-  { value: 'Asia/Tokyo', label: 'Tokyo (UTC+9)' },
-];
 
 interface OfficeScheduleCardProps {
   office: Office;
@@ -341,22 +327,13 @@ export const OfficeScheduleCard = ({ office, onOfficeUpdated }: OfficeScheduleCa
               />
             </div>
             <div className="space-y-2">
-              <Label className="flex items-center gap-1">
-                <Globe className="h-3 w-3" />
-                Timezone
-              </Label>
-              <Select value={formData.timezone} onValueChange={(value) => setFormData(prev => ({ ...prev, timezone: value }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIMEZONES.map((tz) => (
-                    <SelectItem key={tz.value} value={tz.value}>
-                      {tz.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Timezone</Label>
+              <TimezoneSelector 
+                value={formData.timezone} 
+                onChange={(value) => setFormData(prev => ({ ...prev, timezone: value }))}
+                countryCode={office.country || undefined}
+                className="w-full"
+              />
             </div>
             <div className="space-y-2">
               <Label className="flex items-center gap-1">

@@ -3,8 +3,6 @@ import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { Plus, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { getCountryFlag } from "@/lib/countryFlags";
-import { getTimezones, formatTimezoneLabel } from "@/hooks/useTimezone";
 import { useTimezone } from "@/hooks/useTimezone";
 import {
   Popover,
@@ -20,6 +18,15 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
+import {
+  TIMEZONE_DATABASE,
+  getTimezoneFlag,
+  getTimezoneDisplayName,
+  getTimezoneOffset,
+  getPrimaryTimezoneForCountry,
+  searchTimezones,
+  formatTimezoneWithFlag,
+} from "@/constants/timezones";
 
 interface WorldClockCardsProps {
   officeCountries?: string[];
@@ -27,97 +34,6 @@ interface WorldClockCardsProps {
 
 const STORAGE_KEY = "world-clock-timezones";
 const MAX_CLOCKS = 7;
-
-// Map country names to default timezones
-const countryToTimezone: Record<string, string> = {
-  "Australia": "Australia/Sydney",
-  "Nepal": "Asia/Kathmandu",
-  "India": "Asia/Kolkata",
-  "United States": "America/New_York",
-  "United Kingdom": "Europe/London",
-  "Japan": "Asia/Tokyo",
-  "Germany": "Europe/Berlin",
-  "France": "Europe/Paris",
-  "China": "Asia/Shanghai",
-  "Singapore": "Asia/Singapore",
-  "UAE": "Asia/Dubai",
-  "United Arab Emirates": "Asia/Dubai",
-  "Canada": "America/Toronto",
-  "Brazil": "America/Sao_Paulo",
-  "South Korea": "Asia/Seoul",
-  "Netherlands": "Europe/Amsterdam",
-  "New Zealand": "Pacific/Auckland",
-  "Thailand": "Asia/Bangkok",
-  "Philippines": "Asia/Manila",
-  "Indonesia": "Asia/Jakarta",
-  "Malaysia": "Asia/Singapore",
-  "Vietnam": "Asia/Bangkok",
-  "Mexico": "America/Mexico_City",
-  "Spain": "Europe/Madrid",
-  "Italy": "Europe/Rome",
-  "Switzerland": "Europe/Zurich",
-  "Sweden": "Europe/Stockholm",
-  "Norway": "Europe/Oslo",
-  "Denmark": "Europe/Copenhagen",
-  "Finland": "Europe/Helsinki",
-  "Poland": "Europe/Warsaw",
-  "Russia": "Europe/Moscow",
-  "Turkey": "Europe/Istanbul",
-  "Egypt": "Africa/Cairo",
-  "South Africa": "Africa/Johannesburg",
-  "Nigeria": "Africa/Lagos",
-  "Kenya": "Africa/Nairobi",
-};
-
-// Map timezone to country for flag display
-const timezoneToCountry: Record<string, string> = {
-  "Asia/Katmandu": "Nepal", // Legacy spelling alias
-  "Australia/Sydney": "Australia",
-  "Australia/Melbourne": "Australia",
-  "Australia/Perth": "Australia",
-  "Australia/Brisbane": "Australia",
-  "Asia/Kathmandu": "Nepal",
-  "Asia/Kolkata": "India",
-  "America/New_York": "United States",
-  "America/Chicago": "United States",
-  "America/Denver": "United States",
-  "America/Los_Angeles": "United States",
-  "America/Anchorage": "United States",
-  "America/Honolulu": "United States",
-  "Europe/London": "United Kingdom",
-  "Asia/Tokyo": "Japan",
-  "Europe/Berlin": "Germany",
-  "Europe/Paris": "France",
-  "Asia/Shanghai": "China",
-  "Asia/Hong_Kong": "Hong Kong",
-  "Asia/Singapore": "Singapore",
-  "Asia/Dubai": "United Arab Emirates",
-  "America/Toronto": "Canada",
-  "America/Vancouver": "Canada",
-  "America/Sao_Paulo": "Brazil",
-  "America/Buenos_Aires": "Argentina",
-  "Asia/Seoul": "South Korea",
-  "Europe/Amsterdam": "Netherlands",
-  "Pacific/Auckland": "New Zealand",
-  "Asia/Bangkok": "Thailand",
-  "Asia/Manila": "Philippines",
-  "Asia/Jakarta": "Indonesia",
-  "America/Mexico_City": "Mexico",
-  "Europe/Madrid": "Spain",
-  "Europe/Rome": "Italy",
-  "Europe/Vienna": "Austria",
-  "Europe/Stockholm": "Sweden",
-  "Europe/Warsaw": "Poland",
-  "Europe/Moscow": "Russia",
-  "Europe/Istanbul": "Turkey",
-  "Africa/Cairo": "Egypt",
-  "Africa/Johannesburg": "South Africa",
-  "Africa/Lagos": "Nigeria",
-  "Africa/Nairobi": "Kenya",
-  "Pacific/Fiji": "Fiji",
-  "Asia/Dhaka": "Bangladesh",
-  "UTC": "",
-};
 
 export const WorldClockCards = ({ officeCountries = [] }: WorldClockCardsProps) => {
   // Get system timezone from context (read-only, edited from Home page)
@@ -137,17 +53,17 @@ export const WorldClockCards = ({ officeCountries = [] }: WorldClockCardsProps) 
         return [];
       }
     }
-    // Default to office timezones
+    // Default to office timezones using centralized lookup
     const officeTimezones = officeCountries
-      .map(country => countryToTimezone[country])
-      .filter(Boolean)
-      .filter(tz => tz !== userTimezone)
+      .map(country => getPrimaryTimezoneForCountry(country))
+      .filter(tz => tz !== 'UTC' && tz !== userTimezone)
       .slice(0, MAX_CLOCKS - 1);
     return [...new Set(officeTimezones)];
   });
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Update time every second
   useEffect(() => {
@@ -166,8 +82,8 @@ export const WorldClockCards = ({ officeCountries = [] }: WorldClockCardsProps) 
   useEffect(() => {
     if (timezones.length === 0 && officeCountries.length > 0) {
       const officeTimezones = officeCountries
-        .map(country => countryToTimezone[country])
-        .filter(Boolean)
+        .map(country => getPrimaryTimezoneForCountry(country))
+        .filter(tz => tz !== 'UTC')
         .slice(0, MAX_CLOCKS);
       if (officeTimezones.length > 0) {
         setTimezones([...new Set(officeTimezones)]);
@@ -176,10 +92,11 @@ export const WorldClockCards = ({ officeCountries = [] }: WorldClockCardsProps) 
   }, [officeCountries]);
 
   const addTimezone = (tz: string) => {
-    if (timezones.length < MAX_CLOCKS && !timezones.includes(tz)) {
+    if (timezones.length < MAX_CLOCKS && !timezones.includes(tz) && tz !== userTimezone) {
       setTimezones([...timezones, tz]);
     }
     setIsAddOpen(false);
+    setSearchQuery("");
   };
 
   const removeTimezone = (tz: string) => {
@@ -200,17 +117,10 @@ export const WorldClockCards = ({ officeCountries = [] }: WorldClockCardsProps) 
     }
   };
 
-  const getDisplayName = (tz: string) => {
-    const city = tz.split('/').pop()?.replace(/_/g, ' ') || tz;
-    return city;
-  };
-
-  const getFlag = (tz: string) => {
-    const country = timezoneToCountry[tz];
-    return country ? getCountryFlag(country) : "";
-  };
-
-  const availableTimezones = getTimezones().filter(tz => tz !== userTimezone && !timezones.includes(tz));
+  // Get available timezones (filtered by search and excluding already selected)
+  const availableTimezones = searchQuery 
+    ? searchTimezones(searchQuery).filter(tz => tz.timezone !== userTimezone && !timezones.includes(tz.timezone))
+    : TIMEZONE_DATABASE.filter(tz => tz.timezone !== userTimezone && !timezones.includes(tz.timezone));
   
   // Combine user timezone with other timezones for display
   const allTimezones = [userTimezone, ...timezones.filter(tz => tz !== userTimezone)];
@@ -224,7 +134,8 @@ export const WorldClockCards = ({ officeCountries = [] }: WorldClockCardsProps) 
       <div className="flex gap-2 overflow-x-auto pb-1">
         {allTimezones.map((tz, index) => {
           const { time, period, date, seconds } = getTimeInZone(tz);
-          const flag = getFlag(tz);
+          const flag = getTimezoneFlag(tz);
+          const displayName = getTimezoneDisplayName(tz);
           const isUserTimezone = index === 0;
           
           return isUserTimezone ? (
@@ -238,7 +149,7 @@ export const WorldClockCards = ({ officeCountries = [] }: WorldClockCardsProps) 
               <div className="flex items-center gap-1.5 mb-1">
                 {flag && <span className="text-sm">{flag}</span>}
                 <span className="text-[11px] font-medium text-muted-foreground truncate">
-                  {getDisplayName(tz)}
+                  {displayName}
                 </span>
                 <span className="text-[9px] text-primary/70 ml-auto">Default</span>
               </div>
@@ -271,7 +182,7 @@ export const WorldClockCards = ({ officeCountries = [] }: WorldClockCardsProps) 
               <div className="flex items-center gap-1.5 mb-1">
                 {flag && <span className="text-sm">{flag}</span>}
                 <span className="text-[11px] font-medium text-muted-foreground truncate">
-                  {getDisplayName(tz)}
+                  {displayName}
                 </span>
               </div>
               
@@ -295,23 +206,33 @@ export const WorldClockCards = ({ officeCountries = [] }: WorldClockCardsProps) 
                 <Plus className="h-4 w-4 text-muted-foreground" />
               </Card>
             </PopoverTrigger>
-            <PopoverContent className="w-[280px] p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Search timezone..." className="h-9" />
+            <PopoverContent className="w-[320px] p-0" align="start">
+              <Command shouldFilter={false}>
+                <CommandInput 
+                  placeholder="Search by city, country..." 
+                  className="h-9"
+                  value={searchQuery}
+                  onValueChange={setSearchQuery}
+                />
                 <CommandList>
-                  <CommandEmpty>No timezone found.</CommandEmpty>
-                  <CommandGroup className="max-h-[200px] overflow-auto">
-                    {availableTimezones.map((tz) => (
-                      <CommandItem
-                        key={tz}
-                        value={formatTimezoneLabel(tz)}
-                        onSelect={() => addTimezone(tz)}
-                        className="text-xs"
-                      >
-                        <span className="mr-2">{getFlag(tz)}</span>
-                        {formatTimezoneLabel(tz)}
-                      </CommandItem>
-                    ))}
+                  <CommandEmpty>No timezone found. Try searching by country or city.</CommandEmpty>
+                  <CommandGroup className="max-h-[250px] overflow-auto">
+                    {availableTimezones.slice(0, 50).map((tz) => {
+                      const flag = tz.countryCode ? getTimezoneFlag(tz.timezone) : '';
+                      const offset = getTimezoneOffset(tz.timezone);
+                      return (
+                        <CommandItem
+                          key={tz.timezone}
+                          value={tz.timezone}
+                          onSelect={() => addTimezone(tz.timezone)}
+                          className="text-xs"
+                        >
+                          <span className="mr-2 text-sm">{flag}</span>
+                          <span className="flex-1">{tz.city}</span>
+                          <span className="text-muted-foreground ml-2">{offset}</span>
+                        </CommandItem>
+                      );
+                    })}
                   </CommandGroup>
                 </CommandList>
               </Command>

@@ -12,6 +12,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Globe, MapPin } from 'lucide-react';
+import { 
+  getAllTimezones, 
+  formatTimezoneWithFlag, 
+  getTimezoneDisplayName 
+} from '@/constants/timezones';
 
 interface TimezoneContextType {
   timezone: string;
@@ -33,79 +38,9 @@ const getBrowserTimezone = (): string => {
   }
 };
 
-// Get all available timezones
-export const getTimezones = (): string[] => {
-  return [
-    'UTC',
-    'America/New_York',
-    'America/Chicago',
-    'America/Denver',
-    'America/Los_Angeles',
-    'America/Anchorage',
-    'America/Honolulu',
-    'America/Toronto',
-    'America/Vancouver',
-    'America/Mexico_City',
-    'America/Sao_Paulo',
-    'America/Buenos_Aires',
-    'Europe/London',
-    'Europe/Paris',
-    'Europe/Berlin',
-    'Europe/Rome',
-    'Europe/Madrid',
-    'Europe/Amsterdam',
-    'Europe/Brussels',
-    'Europe/Vienna',
-    'Europe/Stockholm',
-    'Europe/Warsaw',
-    'Europe/Moscow',
-    'Europe/Istanbul',
-    'Asia/Dubai',
-    'Asia/Kolkata',
-    'Asia/Kathmandu',
-    'Asia/Dhaka',
-    'Asia/Bangkok',
-    'Asia/Singapore',
-    'Asia/Hong_Kong',
-    'Asia/Shanghai',
-    'Asia/Tokyo',
-    'Asia/Seoul',
-    'Asia/Jakarta',
-    'Asia/Manila',
-    'Australia/Sydney',
-    'Australia/Melbourne',
-    'Australia/Perth',
-    'Australia/Brisbane',
-    'Pacific/Auckland',
-    'Pacific/Fiji',
-    'Africa/Cairo',
-    'Africa/Johannesburg',
-    'Africa/Lagos',
-    'Africa/Nairobi',
-  ].sort();
-};
-
-// Format timezone for display (e.g., "Asia/Kathmandu" -> "Asia/Kathmandu (UTC+5:45)")
-export const formatTimezoneLabel = (tz: string): string => {
-  try {
-    const now = new Date();
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: tz,
-      timeZoneName: 'shortOffset',
-    });
-    const parts = formatter.formatToParts(now);
-    const offsetPart = parts.find((p) => p.type === 'timeZoneName');
-    const offset = offsetPart?.value || '';
-    return `${tz.replace(/_/g, ' ')} (${offset})`;
-  } catch {
-    return tz;
-  }
-};
-
-// Format timezone city name for display
-const formatTimezoneCity = (tz: string): string => {
-  return tz.split('/').pop()?.replace(/_/g, ' ') || tz;
-};
+// Export centralized functions for backwards compatibility
+export const getTimezones = getAllTimezones;
+export const formatTimezoneLabel = formatTimezoneWithFlag;
 
 export const TimezoneProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
@@ -221,12 +156,12 @@ export const TimezoneProvider = ({ children }: { children: ReactNode }) => {
                   <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-muted-foreground" />
                     <span className="text-muted-foreground">Current:</span>
-                    <span className="font-medium text-foreground">{formatTimezoneCity(timezone)}</span>
+                    <span className="font-medium text-foreground">{getTimezoneDisplayName(timezone)}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Globe className="h-4 w-4 text-primary" />
                     <span className="text-muted-foreground">Detected:</span>
-                    <span className="font-medium text-foreground">{detectedTimezone ? formatTimezoneCity(detectedTimezone) : ''}</span>
+                    <span className="font-medium text-foreground">{detectedTimezone ? getTimezoneDisplayName(detectedTimezone) : ''}</span>
                   </div>
                 </div>
               </div>

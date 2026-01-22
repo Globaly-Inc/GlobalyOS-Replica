@@ -1,5 +1,6 @@
 /**
- * Searchable Timezone Selector with grouped regions
+ * Searchable Timezone Selector with grouped regions and country flags
+ * Uses centralized timezone database for consistency across the app
  */
 
 import { useState, useMemo } from 'react';
@@ -15,141 +16,16 @@ import {
 } from '@/components/ui/command';
 import { Check, ChevronsUpDown, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getTimezonesForCountry } from '@/utils/countryTimezones';
-
-interface TimezoneOption {
-  value: string;
-  label: string;
-  offset: string;
-}
-
-interface TimezoneGroup {
-  region: string;
-  timezones: TimezoneOption[];
-}
-
-// Comprehensive timezone list grouped by region
-const TIMEZONE_DATA: Record<string, string[]> = {
-  'Australia & Pacific': [
-    'Australia/Sydney',
-    'Australia/Melbourne',
-    'Australia/Brisbane',
-    'Australia/Perth',
-    'Australia/Adelaide',
-    'Australia/Darwin',
-    'Australia/Hobart',
-    'Pacific/Auckland',
-    'Pacific/Fiji',
-    'Pacific/Guam',
-    'Pacific/Honolulu',
-  ],
-  'Asia': [
-    'Asia/Tokyo',
-    'Asia/Seoul',
-    'Asia/Shanghai',
-    'Asia/Hong_Kong',
-    'Asia/Singapore',
-    'Asia/Kuala_Lumpur',
-    'Asia/Bangkok',
-    'Asia/Jakarta',
-    'Asia/Manila',
-    'Asia/Ho_Chi_Minh',
-    'Asia/Kolkata',
-    'Asia/Mumbai',
-    'Asia/Kathmandu',
-    'Asia/Dhaka',
-    'Asia/Karachi',
-    'Asia/Dubai',
-    'Asia/Riyadh',
-    'Asia/Jerusalem',
-    'Asia/Tehran',
-  ],
-  'Europe': [
-    'Europe/London',
-    'Europe/Dublin',
-    'Europe/Paris',
-    'Europe/Berlin',
-    'Europe/Rome',
-    'Europe/Madrid',
-    'Europe/Amsterdam',
-    'Europe/Brussels',
-    'Europe/Vienna',
-    'Europe/Zurich',
-    'Europe/Stockholm',
-    'Europe/Oslo',
-    'Europe/Copenhagen',
-    'Europe/Helsinki',
-    'Europe/Warsaw',
-    'Europe/Prague',
-    'Europe/Budapest',
-    'Europe/Athens',
-    'Europe/Istanbul',
-    'Europe/Moscow',
-  ],
-  'Americas': [
-    'America/New_York',
-    'America/Chicago',
-    'America/Denver',
-    'America/Los_Angeles',
-    'America/Phoenix',
-    'America/Anchorage',
-    'America/Toronto',
-    'America/Vancouver',
-    'America/Montreal',
-    'America/Mexico_City',
-    'America/Bogota',
-    'America/Lima',
-    'America/Santiago',
-    'America/Sao_Paulo',
-    'America/Buenos_Aires',
-    'America/Caracas',
-  ],
-  'Africa & Middle East': [
-    'Africa/Cairo',
-    'Africa/Johannesburg',
-    'Africa/Lagos',
-    'Africa/Nairobi',
-    'Africa/Casablanca',
-    'Africa/Accra',
-  ],
-  'Other': [
-    'UTC',
-  ],
-};
-
-// Get offset string for a timezone
-function getTimezoneOffset(tz: string): string {
-  try {
-    const now = new Date();
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: tz,
-      timeZoneName: 'shortOffset',
-    });
-    const parts = formatter.formatToParts(now);
-    const offsetPart = parts.find((p) => p.type === 'timeZoneName');
-    return offsetPart?.value || '';
-  } catch {
-    return '';
-  }
-}
-
-// Format timezone for display
-function formatTimezoneCity(tz: string): string {
-  const city = tz.split('/').pop()?.replace(/_/g, ' ') || tz;
-  return city;
-}
-
-// Build timezone options with offsets
-function buildTimezoneOptions(): TimezoneGroup[] {
-  return Object.entries(TIMEZONE_DATA).map(([region, timezones]) => ({
-    region,
-    timezones: timezones.map(tz => ({
-      value: tz,
-      label: formatTimezoneCity(tz),
-      offset: getTimezoneOffset(tz),
-    })),
-  }));
-}
+import {
+  TIMEZONE_DATABASE,
+  getTimezoneOffset,
+  getTimezonesByRegion,
+  getTimezonesForCountry,
+  searchTimezones,
+  type TimezoneOption,
+  type TimezoneGroup,
+} from '@/constants/timezones';
+import { getFlagEmoji } from '@/lib/countries';
 
 interface TimezoneSelectorProps {
   value: string;
@@ -172,53 +48,73 @@ export function TimezoneSelector({
   const [search, setSearch] = useState('');
 
   // Build timezone groups with priority for country-specific timezones
+  const baseGroups = useMemo(() => getTimezonesByRegion(), []);
+
+  // Get groups with optional country priority
   const timezoneGroups = useMemo(() => {
-    const baseGroups = buildTimezoneOptions();
-    
-    // If country code provided, add country-specific group at top
     if (countryCode) {
       const countryTimezones = getTimezonesForCountry(countryCode);
-      if (countryTimezones.length > 0 && countryTimezones[0] !== 'UTC') {
+      if (countryTimezones.length > 0) {
         const countryGroup: TimezoneGroup = {
           region: 'Suggested',
           timezones: countryTimezones.map(tz => ({
-            value: tz,
-            label: formatTimezoneCity(tz),
-            offset: getTimezoneOffset(tz),
+            value: tz.timezone,
+            label: tz.city,
+            offset: getTimezoneOffset(tz.timezone),
+            flag: tz.countryCode ? getFlagEmoji(tz.countryCode) : '',
+            countryCode: tz.countryCode,
           })),
         };
         return [countryGroup, ...baseGroups];
       }
     }
-    
     return baseGroups;
-  }, [countryCode]);
+  }, [countryCode, baseGroups]);
 
-  // Filter timezones based on search
+  // Filter timezones based on search using centralized search function
   const filteredGroups = useMemo(() => {
     if (!search) return timezoneGroups;
     
-    const searchLower = search.toLowerCase();
+    const searchResults = searchTimezones(search);
+    const searchResultSet = new Set(searchResults.map(r => r.timezone));
+    
     return timezoneGroups
       .map(group => ({
         ...group,
-        timezones: group.timezones.filter(tz => 
-          tz.value.toLowerCase().includes(searchLower) ||
-          tz.label.toLowerCase().includes(searchLower) ||
-          tz.offset.toLowerCase().includes(searchLower)
-        ),
+        timezones: group.timezones.filter(tz => searchResultSet.has(tz.value)),
       }))
       .filter(group => group.timezones.length > 0);
   }, [timezoneGroups, search]);
 
-  // Get display value
-  const selectedTimezone = useMemo(() => {
+  // Get selected timezone display info
+  const selectedTimezone = useMemo((): TimezoneOption => {
+    // First check in our groups
     for (const group of timezoneGroups) {
       const found = group.timezones.find(tz => tz.value === value);
       if (found) return found;
     }
-    // Fallback for timezones not in our list
-    return { value, label: formatTimezoneCity(value), offset: getTimezoneOffset(value) };
+    
+    // Fallback: look up in database
+    const dbEntry = TIMEZONE_DATABASE.find(tz => tz.timezone === value);
+    if (dbEntry) {
+      return {
+        value: dbEntry.timezone,
+        label: dbEntry.city,
+        offset: getTimezoneOffset(dbEntry.timezone),
+        flag: dbEntry.countryCode ? getFlagEmoji(dbEntry.countryCode) : '',
+        countryCode: dbEntry.countryCode,
+      };
+    }
+    
+    // Ultimate fallback for unknown timezones
+    const city = value.split('/').pop()?.replace(/_/g, ' ') || value;
+    return {
+      value,
+      label: city,
+      offset: getTimezoneOffset(value),
+      flag: '',
+      countryCode: '',
+    };
   }, [value, timezoneGroups]);
 
   return (
@@ -232,7 +128,11 @@ export function TimezoneSelector({
           className={cn('h-8 justify-between text-sm font-normal', className)}
         >
           <span className="flex items-center gap-1.5 truncate">
-            <Globe className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+            {selectedTimezone.flag ? (
+              <span className="text-sm flex-shrink-0">{selectedTimezone.flag}</span>
+            ) : (
+              <Globe className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+            )}
             <span className="truncate">{selectedTimezone.label}</span>
             {selectedTimezone.offset && (
               <span className="text-xs text-muted-foreground">({selectedTimezone.offset})</span>
@@ -241,15 +141,15 @@ export function TimezoneSelector({
           <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[280px] p-0" align="start">
+      <PopoverContent className="w-[320px] p-0" align="start">
         <Command shouldFilter={false}>
           <CommandInput 
-            placeholder="Search timezone..." 
+            placeholder="Search by city, country, or timezone..." 
             value={search}
             onValueChange={setSearch}
           />
-          <CommandList className="max-h-[280px]">
-            <CommandEmpty>No timezone found.</CommandEmpty>
+          <CommandList className="max-h-[300px]">
+            <CommandEmpty>No timezone found. Try searching by country or city name.</CommandEmpty>
             {filteredGroups.map((group) => (
               <CommandGroup key={group.region} heading={group.region}>
                 {group.timezones.map((tz) => (
@@ -266,13 +166,14 @@ export function TimezoneSelector({
                     <span className="flex items-center gap-2">
                       <Check
                         className={cn(
-                          'h-3.5 w-3.5',
+                          'h-3.5 w-3.5 flex-shrink-0',
                           value === tz.value ? 'opacity-100' : 'opacity-0'
                         )}
                       />
+                      {tz.flag && <span className="text-sm">{tz.flag}</span>}
                       <span>{tz.label}</span>
                     </span>
-                    <span className="text-xs text-muted-foreground">{tz.offset}</span>
+                    <span className="text-xs text-muted-foreground ml-2">{tz.offset}</span>
                   </CommandItem>
                 ))}
               </CommandGroup>
