@@ -29,6 +29,7 @@ import {
   Crown,
   ChevronsUpDown,
   Loader2,
+  AlertCircle,
   // Category icons
   Monitor, Scale, GraduationCap, Plane, Heart, Landmark, 
   Home, ShoppingCart, Factory, Palette, Hotel,
@@ -212,8 +213,9 @@ const Signup = () => {
   const [phone, setPhone] = useState("");
   
   // Email availability check
-  const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
+  const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'error'>('idle');
   const [emailStatusMessage, setEmailStatusMessage] = useState<string>('');
+  const [emailCheckRequestId, setEmailCheckRequestId] = useState<number>(0);
   const [acceptTerms, setAcceptTerms] = useState(false);
 
   // Pre-fill plan from URL if provided
@@ -233,8 +235,8 @@ const Signup = () => {
     });
   }, [navigate]);
 
-  // Check email availability
-  const checkEmailAvailability = useCallback(async (emailToCheck: string) => {
+  // Check email availability using backend function
+  const checkEmailAvailability = useCallback(async (emailToCheck: string, requestId: number) => {
     if (!emailToCheck || !z.string().email().safeParse(emailToCheck).success) {
       setEmailStatus('idle');
       setEmailStatusMessage('');
@@ -244,37 +246,54 @@ const Signup = () => {
     setEmailStatus('checking');
     
     try {
-      const { data: existingOrg } = await supabase
-        .from('organizations')
-        .select('id, approval_status')
-        .eq('owner_email', emailToCheck)
-        .in('approval_status', ['pending', 'approved'])
-        .limit(1)
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke('check-signup-email', {
+        body: { email: emailToCheck.toLowerCase().trim() }
+      });
       
-      if (existingOrg) {
+      // Race condition protection: only apply if this is still the latest request
+      if (requestId !== emailCheckRequestId) return;
+      
+      if (error || data?.error) {
+        console.error('Email check error:', error || data?.error);
+        setEmailStatus('error');
+        setEmailStatusMessage('Could not verify email. Please try again.');
+        return;
+      }
+      
+      if (!data.available) {
         setEmailStatus('taken');
-        if (existingOrg.approval_status === 'pending') {
-          setEmailStatusMessage('This email already has a pending application. Please wait for approval or use a different email.');
-        } else {
-          setEmailStatusMessage('An organization with this email already exists. Please sign in instead.');
+        switch (data.reason) {
+          case 'pending_application':
+            setEmailStatusMessage('This email already has a pending application.');
+            break;
+          case 'account_exists':
+          case 'organization_exists':
+          default:
+            setEmailStatusMessage('This email is already in use.');
+            break;
         }
       } else {
         setEmailStatus('available');
         setEmailStatusMessage('');
       }
     } catch (error) {
-      // On error, allow form submission (server will validate again)
-      setEmailStatus('available');
-      setEmailStatusMessage('');
+      console.error('Email check exception:', error);
+      // On network error, show error state (fail-closed for security)
+      if (requestId === emailCheckRequestId) {
+        setEmailStatus('error');
+        setEmailStatusMessage('Could not verify email. Please try again.');
+      }
     }
-  }, []);
+  }, [emailCheckRequestId]);
 
   // Debounced email check
   useEffect(() => {
+    const newRequestId = Date.now();
+    setEmailCheckRequestId(newRequestId);
+    
     const timer = setTimeout(() => {
       if (email) {
-        checkEmailAvailability(email);
+        checkEmailAvailability(email, newRequestId);
       } else {
         setEmailStatus('idle');
         setEmailStatusMessage('');
@@ -282,11 +301,11 @@ const Signup = () => {
     }, 500);
     
     return () => clearTimeout(timer);
-  }, [email, checkEmailAvailability]);
+  }, [email]);
 
   const validateStep2 = () => {
-    // Block submission if email is taken
-    if (emailStatus === 'taken') {
+    // Block submission if email is taken, checking, or errored
+    if (emailStatus === 'taken' || emailStatus === 'checking' || emailStatus === 'error') {
       return false;
     }
     
@@ -737,14 +756,15 @@ const Signup = () => {
                           onChange={(e) => {
                             setEmail(e.target.value);
                             // Reset status when user starts typing again
-                            if (emailStatus === 'taken') {
+                            if (emailStatus === 'taken' || emailStatus === 'error') {
                               setEmailStatus('idle');
                               setEmailStatusMessage('');
                             }
                           }}
                           disabled={emailStatus === 'taken'}
                           className={cn(
-                            emailStatus === 'taken' && 'border-destructive bg-destructive/10 text-muted-foreground pr-10'
+                            emailStatus === 'taken' && 'border-destructive bg-destructive/10 text-muted-foreground pr-10',
+                            emailStatus === 'error' && 'border-warning bg-warning/10 pr-10'
                           )}
                         />
                         {emailStatus === 'checking' && (
@@ -752,31 +772,41 @@ const Signup = () => {
                             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                           </div>
                         )}
+                        {emailStatus === 'taken' && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <AlertCircle className="h-4 w-4 text-destructive" />
+                          </div>
+                        )}
+                        {emailStatus === 'error' && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <AlertCircle className="h-4 w-4 text-warning" />
+                          </div>
+                        )}
                       </div>
                       {emailStatus === 'taken' && emailStatusMessage && (
                         <div className="space-y-1">
-                          <p className="text-sm text-destructive">{emailStatusMessage}</p>
-                          <div className="flex items-center gap-2">
-                            <Button 
-                              variant="link" 
-                              size="sm" 
-                              className="h-auto p-0 text-xs"
-                              onClick={() => {
-                                setEmail('');
-                                setEmailStatus('idle');
-                                setEmailStatusMessage('');
-                              }}
-                            >
-                              Use a different email
-                            </Button>
-                            <span className="text-xs text-muted-foreground">or</span>
-                            <Link to="/auth" className="text-xs text-primary hover:underline">
-                              Sign in instead
-                            </Link>
-                          </div>
+                          <p className="text-sm text-destructive">
+                            {emailStatusMessage} Please use a different email, <Link to="/auth" className="underline hover:text-destructive/80">sign in</Link>, or contact{' '}
+                            <a href="mailto:support@globalyos.com" className="underline hover:text-destructive/80">support@globalyos.com</a>.
+                          </p>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-7 text-xs"
+                            onClick={() => {
+                              setEmail('');
+                              setEmailStatus('idle');
+                              setEmailStatusMessage('');
+                            }}
+                          >
+                            Use a different email
+                          </Button>
                         </div>
                       )}
-                      {errors.email && emailStatus !== 'taken' && (
+                      {emailStatus === 'error' && emailStatusMessage && (
+                        <p className="text-sm text-warning">{emailStatusMessage}</p>
+                      )}
+                      {errors.email && emailStatus !== 'taken' && emailStatus !== 'error' && (
                         <p className="text-sm text-destructive">{errors.email}</p>
                       )}
                     </div>
