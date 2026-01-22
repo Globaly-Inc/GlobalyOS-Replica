@@ -10,9 +10,10 @@ import {
 
 interface DailyHoroscopeProps {
   dateOfBirth: string | null;
+  variant?: 'default' | 'hero';
 }
 
-export function DailyHoroscope({ dateOfBirth }: DailyHoroscopeProps) {
+export function DailyHoroscope({ dateOfBirth, variant = 'default' }: DailyHoroscopeProps) {
   const [zodiac, setZodiac] = useState<ZodiacSign | null>(null);
   const [horoscope, setHoroscope] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -59,6 +60,37 @@ export function DailyHoroscope({ dateOfBirth }: DailyHoroscopeProps) {
 
   if (!dateOfBirth || !zodiac) {
     return null;
+  }
+
+  // Hero variant - larger, standalone display for hero banner
+  if (variant === 'hero') {
+    return (
+      <div className="text-right max-w-md">
+        <div className="flex items-center justify-end gap-3">
+          <span className="text-3xl">{zodiac.symbol}</span>
+          <div>
+            <p className="text-lg font-medium text-white flex items-center gap-1">
+              {zodiac.sign}
+              <Sparkles className="h-4 w-4 text-yellow-300" />
+            </p>
+            <p className="text-xs text-white/70">{zodiac.dateRange} • {zodiac.element}</p>
+          </div>
+        </div>
+        <div className="mt-3 text-sm text-white/80 leading-relaxed text-right">
+          {loading ? (
+            <span className="flex items-center justify-end gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading...
+            </span>
+          ) : error ? (
+            <span className="italic">{error}</span>
+          ) : horoscope ? (
+            <p className="line-clamp-3">{horoscope}</p>
+          ) : (
+            <span className="italic">No horoscope available</span>
+          )}
+        </div>
+      </div>
+    );
   }
 
   return (
