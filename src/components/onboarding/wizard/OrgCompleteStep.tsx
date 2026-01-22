@@ -39,6 +39,7 @@ interface OrgCompleteStepProps {
   employeeId?: string;
   ownerProfile?: OwnerProfile;
   organizationId: string;
+  orgSlug?: string;
   onFinish: () => void;
   onBack: () => void;
   isCompleting: boolean;
@@ -52,6 +53,7 @@ export function OrgCompleteStep({
   employeeId,
   ownerProfile,
   organizationId,
+  orgSlug,
   onFinish, 
   onBack, 
   isCompleting 
@@ -77,6 +79,7 @@ export function OrgCompleteStep({
         offices={offices}
         employeeId={employeeId}
         ownerProfile={ownerProfile}
+        orgSlug={orgSlug}
         onComplete={onFinish}
       />
     );

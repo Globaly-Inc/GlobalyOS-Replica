@@ -22,6 +22,13 @@ interface Position {
   selected?: boolean;
 }
 
+interface PositionTemplate {
+  name: string;
+  department_name: string;
+  description: string | null;
+  responsibilities: string[] | null;
+}
+
 interface DepartmentsRolesData {
   departments: string[];
   positions: Position[];
@@ -74,6 +81,9 @@ export function DepartmentsRolesStep({
   
   // Track template source
   const [templateSource, setTemplateSource] = useState<string | null>(null);
+  
+  // Store position details from templates (with descriptions)
+  const [positionTemplateDetails, setPositionTemplateDetails] = useState<Map<string, PositionTemplate>>(new Map());
 
   // Fetch templates on mount or detect industry change
   useEffect(() => {
@@ -106,6 +116,15 @@ export function DepartmentsRolesStep({
         // Reset custom tracking for fresh templates
         setCustomDepartments(new Set());
         setCustomPositions(new Set());
+        
+        // Store position details with descriptions for later use
+        if (data.positionDetails) {
+          const detailsMap = new Map<string, PositionTemplate>();
+          (data.positionDetails as PositionTemplate[]).forEach(pd => {
+            detailsMap.set(pd.name, pd);
+          });
+          setPositionTemplateDetails(detailsMap);
+        }
         
         if (data.source === 'template') {
           toast({
@@ -361,14 +380,20 @@ export function DepartmentsRolesStep({
         console.error('Failed to clear existing positions:', deleteError);
       }
 
-      // Insert the user-selected positions
+      // Insert the user-selected positions with template descriptions if available
       for (const position of finalPositions) {
+        const templateData = positionTemplateDetails.get(position.name);
         const { error } = await supabase
           .from('positions')
           .insert({
             organization_id: organizationId,
             name: position.name,
             department: position.department,
+            // Copy description and responsibilities from templates
+            description: templateData?.description || null,
+            responsibilities: templateData?.responsibilities || null,
+            // Mark as AI-generated if we have template data
+            ai_generated_at: templateData?.description ? new Date().toISOString() : null,
           })
           .select()
           .maybeSingle();

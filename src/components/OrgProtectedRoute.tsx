@@ -5,13 +5,17 @@
  * Enforces mandatory onboarding before accessing dashboard
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Navigate, useParams, useLocation } from 'react-router-dom';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useAuth } from '@/hooks/useAuth';
 import { Layout } from './Layout';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+
+interface LocationState {
+  justCompletedOrgOnboarding?: boolean;
+}
 
 interface OrgProtectedRouteProps {
   children: React.ReactNode;
@@ -26,7 +30,23 @@ export const OrgProtectedRoute = ({
   const { session, loading: authLoading } = useAuth();
   const { orgCode } = useParams<{ orgCode: string }>();
   const location = useLocation();
+  const locationState = location.state as LocationState | null;
   const { currentOrg, organizations, loading: orgLoading, switchOrganization } = useOrganization();
+  
+  // Track "just completed" state to prevent redirect flickering
+  const justCompletedRef = useRef(false);
+  
+  // Handle "just completed onboarding" state from navigation
+  useEffect(() => {
+    if (locationState?.justCompletedOrgOnboarding) {
+      justCompletedRef.current = true;
+      // Clear flag after queries have had time to update
+      const timer = setTimeout(() => {
+        justCompletedRef.current = false;
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [locationState?.justCompletedOrgOnboarding]);
 
   // Check onboarding status for the current organization
   const { data: onboardingStatus, isLoading: onboardingLoading } = useQuery({
@@ -172,9 +192,11 @@ export const OrgProtectedRoute = ({
   // STEP 2: Only check employee onboarding AFTER org onboarding is complete
   // This prevents the redirect loop between org and employee onboarding
   // Applies to ALL employees who haven't completed onboarding
+  // Skip check if we just completed org onboarding (prevents flickering)
   if (
     !isDemoOrg &&
     !isEmployeeOnboardingRoute &&
+    !justCompletedRef.current &&
     onboardingStatus?.org_onboarding_completed === true &&
     employeeOnboardingStatus?.employee_onboarding_completed === false
   ) {
