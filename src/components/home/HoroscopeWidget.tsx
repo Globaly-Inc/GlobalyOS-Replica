@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Briefcase, Heart, Zap, Coins, Loader2, Sparkles } from 'lucide-react';
+import { Briefcase, Heart, Zap, Coins, Loader2, Sparkles, RefreshCw } from 'lucide-react';
 import { useHoroscope } from '@/hooks/useHoroscope';
 import { OrgLink } from '@/components/OrgLink';
 import { HoroscopeAspect, HoroscopeAspectKey } from '@/types/horoscope';
@@ -27,18 +27,17 @@ const ASPECT_COLORS: Record<HoroscopeAspectKey, string> = {
 const formatLastUpdated = (dateStr?: string) => {
   if (!dateStr) return '';
   const date = new Date(dateStr);
-  const today = new Date();
   
-  // If same day, show "Updated today"
-  if (date.toDateString() === today.toDateString()) {
-    return 'Updated today';
-  }
-  
-  // Otherwise show date
-  return `Updated ${date.toLocaleDateString('en-AU', { 
+  // Always show full date and time: "12 Feb 2025 14:25"
+  return date.toLocaleDateString('en-AU', { 
     day: 'numeric', 
-    month: 'short' 
-  })}`;
+    month: 'short',
+    year: 'numeric'
+  }) + ' ' + date.toLocaleTimeString('en-AU', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
 };
 
 export function HoroscopeWidget({ dateOfBirth }: HoroscopeWidgetProps) {
@@ -114,7 +113,8 @@ export function HoroscopeWidget({ dateOfBirth }: HoroscopeWidgetProps) {
             
             {/* Row 4: Last updated */}
             {horoscope?.createdAt && (
-              <p className="text-[10px] text-white/50 mt-1">
+              <p className="text-[10px] text-white/50 mt-1 flex items-center gap-1">
+                <RefreshCw className="h-2.5 w-2.5" />
                 {formatLastUpdated(horoscope.createdAt)}
               </p>
             )}
