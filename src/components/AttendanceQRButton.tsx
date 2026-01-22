@@ -18,6 +18,7 @@ interface Office {
   name: string;
   city: string | null;
   country: string | null;
+  address: string | null;
 }
 
 export const AttendanceQRButton = () => {
@@ -27,14 +28,14 @@ export const AttendanceQRButton = () => {
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>("");
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  // Fetch offices
+  // Fetch offices with address field
   const { data: offices } = useQuery({
     queryKey: ["offices", currentOrg?.id],
     queryFn: async () => {
       if (!currentOrg?.id) return [];
       const { data, error } = await supabase
         .from("offices")
-        .select("id, name, city, country")
+        .select("id, name, city, country, address")
         .eq("organization_id", currentOrg.id)
         .order("name");
       
@@ -155,13 +156,50 @@ export const AttendanceQRButton = () => {
   const handleDownload = async () => {
     if (!qrCodeDataUrl || !selectedOffice) return;
     
-    const officeName = offices?.find(o => o.id === selectedOffice)?.name || "Office";
+    const office = offices?.find(o => o.id === selectedOffice);
+    const officeName = office?.name || "Office";
+    
+    // Fallback: fetch fresh org data if logo_url is null in state
+    let orgLogoUrl = currentOrg?.logo_url || null;
+    let orgPhone: string | null = null;
+    let orgEmail: string | null = null;
+    let orgWebsite: string | null = null;
+    
+    if (!orgLogoUrl && currentOrg?.id) {
+      const { data: freshOrg } = await supabase
+        .from('organizations')
+        .select('logo_url, business_phone, business_email, website')
+        .eq('id', currentOrg.id)
+        .single();
+      
+      orgLogoUrl = freshOrg?.logo_url || null;
+      orgPhone = freshOrg?.business_phone || null;
+      orgEmail = freshOrg?.business_email || null;
+      orgWebsite = freshOrg?.website || null;
+    } else if (currentOrg?.id) {
+      // Fetch contact info even if we have logo
+      const { data: freshOrg } = await supabase
+        .from('organizations')
+        .select('business_phone, business_email, website')
+        .eq('id', currentOrg.id)
+        .single();
+      
+      orgPhone = freshOrg?.business_phone || null;
+      orgEmail = freshOrg?.business_email || null;
+      orgWebsite = freshOrg?.website || null;
+    }
     
     await generateOfficeQRPDF({
       officeName,
       qrCodeDataUrl,
       orgName: currentOrg?.name || '',
-      orgLogoUrl: currentOrg?.logo_url || null,
+      orgLogoUrl,
+      officeAddress: office?.address || null,
+      officeCity: office?.city || null,
+      officeCountry: office?.country || null,
+      orgPhone,
+      orgEmail,
+      orgWebsite,
     });
   };
 
