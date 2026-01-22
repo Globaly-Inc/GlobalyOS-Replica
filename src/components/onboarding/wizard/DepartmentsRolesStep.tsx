@@ -199,6 +199,15 @@ export function DepartmentsRolesStep({
           selected: true 
         }));
         setPositions(prev => [...prev, ...newPositions]);
+        
+        // Track AI-generated positions for custom department as custom
+        // so they're marked 'added' in learning data
+        setCustomPositions(prev => {
+          const updated = new Set(prev);
+          data.positions.forEach((p: Position) => updated.add(p.name));
+          return updated;
+        });
+        
         toast({
           title: 'Positions added',
           description: `Added ${newPositions.length} positions for ${dept}`,
