@@ -8542,6 +8542,87 @@ export type Database = {
         }
         Relationships: []
       }
+      template_holiday_generations: {
+        Row: {
+          country_code: string
+          generated_at: string | null
+          generated_by: string | null
+          id: string
+          notes: string | null
+          status: string | null
+          year: number
+        }
+        Insert: {
+          country_code: string
+          generated_at?: string | null
+          generated_by?: string | null
+          id?: string
+          notes?: string | null
+          status?: string | null
+          year: number
+        }
+        Update: {
+          country_code?: string
+          generated_at?: string | null
+          generated_by?: string | null
+          id?: string
+          notes?: string | null
+          status?: string | null
+          year?: number
+        }
+        Relationships: []
+      }
+      template_holidays: {
+        Row: {
+          country_code: string
+          country_name: string
+          created_at: string | null
+          day: number | null
+          id: string
+          is_active: boolean | null
+          is_movable: boolean | null
+          month: number
+          movable_rule: string | null
+          sort_order: number | null
+          title: string
+          title_local: string | null
+          updated_at: string | null
+          year: number | null
+        }
+        Insert: {
+          country_code: string
+          country_name: string
+          created_at?: string | null
+          day?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_movable?: boolean | null
+          month: number
+          movable_rule?: string | null
+          sort_order?: number | null
+          title: string
+          title_local?: string | null
+          updated_at?: string | null
+          year?: number | null
+        }
+        Update: {
+          country_code?: string
+          country_name?: string
+          created_at?: string | null
+          day?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_movable?: boolean | null
+          month?: number
+          movable_rule?: string | null
+          sort_order?: number | null
+          title?: string
+          title_local?: string | null
+          updated_at?: string | null
+          year?: number | null
+        }
+        Relationships: []
+      }
       template_positions: {
         Row: {
           business_category: string

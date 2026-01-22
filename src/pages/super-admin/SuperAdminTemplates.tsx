@@ -13,6 +13,7 @@ import { TemplateDepartmentEditor } from "@/components/super-admin/templates/Tem
 import { TemplatePositionEditor } from "@/components/super-admin/templates/TemplatePositionEditor";
 import { TemplateLearningPanel } from "@/components/super-admin/templates/TemplateLearningPanel";
 import { AITemplateTools } from "@/components/super-admin/templates/AITemplateTools";
+import { TemplateHolidaysTab } from "@/components/super-admin/templates/TemplateHolidaysTab";
 import { BUSINESS_CATEGORIES } from "@/constants/businessCategories";
 import { 
   Building2, 
@@ -20,7 +21,8 @@ import {
   Lightbulb,
   Search,
   Loader2,
-  LayoutTemplate
+  LayoutTemplate,
+  Calendar
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -255,6 +257,10 @@ export default function SuperAdminTemplates() {
                   </Badge>
                 )}
               </TabsTrigger>
+              <TabsTrigger value="holidays" className="gap-2">
+                <Calendar className="h-4 w-4" />
+                Holidays
+              </TabsTrigger>
             </TabsList>
 
             <div className="flex items-center gap-2">
@@ -338,6 +344,11 @@ export default function SuperAdminTemplates() {
               learningRecords={learningRecords}
               isLoading={loadingLearning}
             />
+          </TabsContent>
+
+          {/* Holidays Tab */}
+          <TabsContent value="holidays" className="mt-4">
+            <TemplateHolidaysTab />
           </TabsContent>
         </Tabs>
       </div>
