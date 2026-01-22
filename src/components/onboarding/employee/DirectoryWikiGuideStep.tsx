@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ArrowRight, ArrowLeft, Users, Network, BookOpen, Search, FolderOpen, Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 
@@ -47,7 +48,8 @@ interface DirectoryWikiGuideStepProps {
 export function DirectoryWikiGuideStep({ onContinue, onBack, isNavigating = false }: DirectoryWikiGuideStepProps) {
   const { currentOrg } = useOrganization();
 
-  const { data: teamMembers = [] } = useQuery({
+  // Fetch active employees from employee_directory
+  const { data: activeEmployees = [] } = useQuery({
     queryKey: ['onboarding-team-preview', currentOrg?.id],
     queryFn: async () => {
       if (!currentOrg?.id) return [];
@@ -65,6 +67,41 @@ export function DirectoryWikiGuideStep({ onContinue, onBack, isNavigating = fals
     enabled: !!currentOrg?.id,
     staleTime: 5 * 60 * 1000,
   });
+
+  // Fetch pending team members from org_onboarding_data
+  const { data: pendingMembers = [] } = useQuery({
+    queryKey: ['onboarding-pending-team', currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [];
+      
+      const { data } = await supabase
+        .from('org_onboarding_data')
+        .select('team_members')
+        .eq('organization_id', currentOrg.id)
+        .maybeSingle();
+      
+      if (!data?.team_members) return [];
+      
+      // Map to TeamMember format
+      return (data.team_members as { full_name?: string; avatar_url?: string; position?: string; department?: string }[])
+        .slice(0, 2)
+        .map((m, i) => ({
+          id: `pending-${i}`,
+          full_name: m.full_name || '',
+          avatar_url: m.avatar_url || null,
+          position: m.position || '',
+          department: m.department || '',
+        })) as TeamMember[];
+    },
+    enabled: !!currentOrg?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Combine active + pending, limit to 2
+  const teamMembers = useMemo(() => {
+    const combined = [...activeEmployees, ...pendingMembers];
+    return combined.slice(0, 2);
+  }, [activeEmployees, pendingMembers]);
 
   return (
     <Card className="border-0 shadow-lg">
