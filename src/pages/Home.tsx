@@ -525,8 +525,9 @@ const Home = () => {
           TimeIcon = Sun;
         }
         return <div className="relative overflow-hidden rounded-xl p-6 shadow-lg animate-fade-in" style={{
-          background: 'linear-gradient(135deg, hsl(270 60% 25%) 0%, hsl(280 70% 40%) 35%, hsl(290 80% 50%) 65%, hsl(300 85% 55%) 100%)',
-          animation: 'fade-in 0.3s ease-out'
+          background: 'linear-gradient(270deg, hsl(270 60% 25%), hsl(280 70% 40%), hsl(290 80% 50%), hsl(300 85% 55%), hsl(270 60% 25%))',
+          backgroundSize: '400% 400%',
+          animation: 'fade-in 0.3s ease-out, gradient-shift 8s ease-in-out infinite'
         }}>
               {/* Grain overlay - enhanced */}
               <div 
