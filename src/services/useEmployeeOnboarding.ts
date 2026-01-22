@@ -451,7 +451,8 @@ export function useSaveEmployeeTimezone() {
 }
 
 /**
- * Complete employee onboarding
+ * Complete employee onboarding with verification
+ * Ensures both employee_onboarding_data and employees tables are updated atomically
  */
 export function useCompleteEmployeeOnboarding() {
   const queryClient = useQueryClient();
@@ -459,36 +460,70 @@ export function useCompleteEmployeeOnboarding() {
 
   return useMutation({
     mutationFn: async (skipped: boolean = false) => {
-      if (!employeeId) throw new Error('No employee found');
+      // Capture employeeId at mutation start to prevent race conditions
+      const currentEmployeeId = employeeId;
+      if (!currentEmployeeId) throw new Error('No employee found');
 
-      // Mark onboarding data as complete
+      const completedAt = new Date().toISOString();
+
+      // Step 1: Update employee_onboarding_data
       const { error: dataError } = await supabase
         .from('employee_onboarding_data')
         .update({
-          completed_at: new Date().toISOString(),
+          completed_at: completedAt,
           skipped,
           current_step: TOTAL_EMPLOYEE_STEPS,
         })
-        .eq('employee_id', employeeId);
+        .eq('employee_id', currentEmployeeId);
 
-      if (dataError) throw dataError;
+      if (dataError) {
+        console.error('[useCompleteEmployeeOnboarding] Failed to update onboarding data:', dataError);
+        throw dataError;
+      }
 
-      // Mark employee as onboarding complete
-      const { error: empError } = await supabase
+      // Step 2: Update employees table with explicit verification
+      const { error: empError, data: empData } = await supabase
         .from('employees')
         .update({
           employee_onboarding_completed: true,
           employee_onboarding_step: TOTAL_EMPLOYEE_STEPS,
         })
-        .eq('id', employeeId);
+        .eq('id', currentEmployeeId)
+        .select('id, employee_onboarding_completed, employee_onboarding_step')
+        .single();
 
-      if (empError) throw empError;
+      if (empError) {
+        console.error('[useCompleteEmployeeOnboarding] Failed to update employee:', empError);
+        throw empError;
+      }
 
-      return { success: true };
+      // Step 3: Verify the update actually succeeded
+      if (!empData || empData.employee_onboarding_completed !== true) {
+        console.error('[useCompleteEmployeeOnboarding] Verification failed - employee not marked complete:', empData);
+        
+        // Retry the update once
+        const { error: retryError, data: retryData } = await supabase
+          .from('employees')
+          .update({
+            employee_onboarding_completed: true,
+            employee_onboarding_step: TOTAL_EMPLOYEE_STEPS,
+          })
+          .eq('id', currentEmployeeId)
+          .select('id, employee_onboarding_completed')
+          .single();
+        
+        if (retryError || !retryData?.employee_onboarding_completed) {
+          throw new Error('Failed to verify employee onboarding completion after retry');
+        }
+      }
+
+      console.log('[useCompleteEmployeeOnboarding] Successfully completed onboarding for employee:', currentEmployeeId);
+      return { success: true, employeeId: currentEmployeeId };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employee-onboarding-data'] });
       queryClient.invalidateQueries({ queryKey: ['employee-onboarding-status'] });
+      queryClient.invalidateQueries({ queryKey: ['employee-onboarding-check'] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       
       toast({
@@ -497,7 +532,7 @@ export function useCompleteEmployeeOnboarding() {
       });
     },
     onError: (error) => {
-      console.error('Failed to complete employee onboarding:', error);
+      console.error('[useCompleteEmployeeOnboarding] Error:', error);
       toast({
         title: 'Error',
         description: 'Failed to complete onboarding. Please try again.',

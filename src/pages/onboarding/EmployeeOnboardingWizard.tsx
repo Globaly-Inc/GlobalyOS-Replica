@@ -188,11 +188,44 @@ export default function EmployeeOnboardingWizard() {
   }, [employeeId, currentOrg?.id, dataLoading, onboardingData]);
 
   // Redirect to dashboard if onboarding is already completed
+  // Verify employee table is also marked complete to prevent redirect loops
   useEffect(() => {
-    if (onboardingData?.completed_at && currentOrg?.slug) {
-      navigate(`/org/${currentOrg.slug}`);
-    }
-  }, [onboardingData?.completed_at, currentOrg?.slug, navigate]);
+    const verifyAndRedirect = async () => {
+      if (!onboardingData?.completed_at || !currentOrg?.slug || !employeeId) return;
+      
+      // Check if employee table is also marked complete
+      const { data } = await supabase
+        .from('employees')
+        .select('employee_onboarding_completed')
+        .eq('id', employeeId)
+        .single();
+      
+      if (data?.employee_onboarding_completed === true) {
+        // Both tables are in sync, safe to redirect
+        navigate(`/org/${currentOrg.slug}`, {
+          replace: true,
+          state: { justCompletedEmployeeOnboarding: true }
+        });
+      } else {
+        // DB inconsistency detected - fix it before redirecting
+        console.warn('[EmployeeOnboardingWizard] Fixing inconsistent employee_onboarding_completed flag');
+        await supabase
+          .from('employees')
+          .update({
+            employee_onboarding_completed: true,
+            employee_onboarding_step: totalSteps,
+          })
+          .eq('id', employeeId);
+        
+        navigate(`/org/${currentOrg.slug}`, {
+          replace: true,
+          state: { justCompletedEmployeeOnboarding: true }
+        });
+      }
+    };
+    
+    verifyAndRedirect();
+  }, [onboardingData?.completed_at, currentOrg?.slug, navigate, employeeId, totalSteps]);
 
   // Sync UI step from DB only on initial load or when not navigating
   // This prevents the UI from jumping during in-flight mutations
@@ -216,7 +249,10 @@ export default function EmployeeOnboardingWizard() {
       // Final step: complete onboarding
       if (currentStep >= totalSteps) {
         await completeOnboarding.mutateAsync(false);
-        navigate(`/org/${currentOrg?.slug}`);
+        navigate(`/org/${currentOrg?.slug}`, {
+          replace: true,
+          state: { justCompletedEmployeeOnboarding: true }
+        });
         return;
       }
 
