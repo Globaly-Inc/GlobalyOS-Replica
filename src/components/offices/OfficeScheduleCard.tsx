@@ -5,10 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Clock, Globe, Users, Save, Loader2 } from 'lucide-react';
+import { Clock, Globe, Users, Save, Loader2, CalendarDays } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 import { toast } from 'sonner';
+import { YearStartPicker } from '@/components/ui/year-start-picker';
 import type { Office, OfficeSchedule } from '@/pages/ManageOffices';
 
 const TIMEZONES = [
@@ -27,9 +28,10 @@ const TIMEZONES = [
 
 interface OfficeScheduleCardProps {
   office: Office;
+  onOfficeUpdated?: (office: Partial<Office>) => void;
 }
 
-export const OfficeScheduleCard = ({ office }: OfficeScheduleCardProps) => {
+export const OfficeScheduleCard = ({ office, onOfficeUpdated }: OfficeScheduleCardProps) => {
   const { currentOrg } = useOrganization();
   const [schedule, setSchedule] = useState<OfficeSchedule | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,6 +39,8 @@ export const OfficeScheduleCard = ({ office }: OfficeScheduleCardProps) => {
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
   const [applying, setApplying] = useState(false);
   const [employeesWithoutSchedule, setEmployeesWithoutSchedule] = useState(0);
+  const [leaveYearStart, setLeaveYearStart] = useState({ month: 1, day: 1 });
+  const [savingLeaveYear, setSavingLeaveYear] = useState(false);
 
   const [formData, setFormData] = useState({
     work_start_time: '09:00',
@@ -50,7 +54,47 @@ export const OfficeScheduleCard = ({ office }: OfficeScheduleCardProps) => {
   useEffect(() => {
     loadSchedule();
     loadEmployeesWithoutSchedule();
+    loadLeaveYearStart();
   }, [office.id]);
+
+  const loadLeaveYearStart = async () => {
+    const { data } = await supabase
+      .from('offices')
+      .select('leave_year_start_month, leave_year_start_day')
+      .eq('id', office.id)
+      .single();
+    
+    if (data) {
+      setLeaveYearStart({
+        month: data.leave_year_start_month || 1,
+        day: data.leave_year_start_day || 1,
+      });
+    }
+  };
+
+  const handleLeaveYearChange = async (month: number, day: number) => {
+    setLeaveYearStart({ month, day });
+    setSavingLeaveYear(true);
+    
+    const { error } = await supabase
+      .from('offices')
+      .update({ 
+        leave_year_start_month: month, 
+        leave_year_start_day: day 
+      })
+      .eq('id', office.id);
+    
+    setSavingLeaveYear(false);
+    
+    if (error) {
+      toast.error('Failed to save leave year start');
+      console.error('Error saving leave year start:', error);
+      return;
+    }
+    
+    toast.success('Leave year start updated');
+    onOfficeUpdated?.({ id: office.id, leave_year_start_month: month, leave_year_start_day: day } as Partial<Office>);
+  };
 
   const loadSchedule = async () => {
     setLoading(true);
@@ -285,7 +329,7 @@ export const OfficeScheduleCard = ({ office }: OfficeScheduleCardProps) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>Late Threshold (min)</Label>
               <Input
@@ -313,6 +357,18 @@ export const OfficeScheduleCard = ({ office }: OfficeScheduleCardProps) => {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1">
+                <CalendarDays className="h-3 w-3" />
+                Leave Year Starts
+              </Label>
+              <YearStartPicker
+                month={leaveYearStart.month}
+                day={leaveYearStart.day}
+                onChange={handleLeaveYearChange}
+                disabled={savingLeaveYear}
+              />
             </div>
             <div className="space-y-2">
               <Label className="text-muted-foreground">Break Duration</Label>

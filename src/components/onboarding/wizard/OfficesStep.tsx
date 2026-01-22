@@ -329,6 +329,12 @@ export function OfficesStep({
     ));
   };
 
+  const updateOfficeMultiple = (index: number, updates: Partial<Office>) => {
+    setOffices(offices.map((office, i) => 
+      i === index ? { ...office, ...updates } : office
+    ));
+  };
+
   const updateDaySchedule = (
     index: number, 
     dayKey: string, 
@@ -911,8 +917,10 @@ export function OfficesStep({
                                         month={office.leave_year_start_month || 1}
                                         day={office.leave_year_start_day || 1}
                                         onChange={(month, day) => {
-                                          updateOffice(index, 'leave_year_start_month', month);
-                                          updateOffice(index, 'leave_year_start_day', day);
+                                          updateOfficeMultiple(index, {
+                                            leave_year_start_month: month,
+                                            leave_year_start_day: day,
+                                          });
                                         }}
                                         disabled={isLoading}
                                       />
