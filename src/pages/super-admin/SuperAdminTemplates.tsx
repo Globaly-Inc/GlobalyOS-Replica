@@ -100,7 +100,7 @@ export default function SuperAdminTemplates() {
     },
   });
 
-  // Fetch pending learning records
+  // Fetch pending learning records - only custom additions (action: 'added')
   const { data: learningRecords = [], isLoading: loadingLearning } = useQuery({
     queryKey: ["template-learning"],
     queryFn: async () => {
@@ -108,6 +108,7 @@ export default function SuperAdminTemplates() {
         .from("org_structure_learning")
         .select("*")
         .eq("added_to_templates", false)
+        .eq("action", "added")
         .is("processed_at", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
