@@ -72,6 +72,7 @@ interface Office {
 
 interface OrganizationInfo {
   name?: string;
+  logo_url?: string;
   business_address?: string;
   business_address_components?: {
     country?: string;
@@ -435,19 +436,27 @@ export function OfficesStep({
         margin: 2 
       });
       
-      // Get org info for PDF
-      const { data: org } = await supabase
-        .from('organizations')
-        .select('name, logo_url')
-        .eq('id', organizationId)
-        .single();
+      // Get org info for PDF - use onboarding data first, fallback to organizations table
+      let orgName = organizationInfo?.name || '';
+      let orgLogoUrl = organizationInfo?.logo_url || null;
+      
+      // If no logo in onboarding data, try the organizations table (for non-onboarding usage)
+      if (!orgLogoUrl) {
+        const { data: org } = await supabase
+          .from('organizations')
+          .select('name, logo_url')
+          .eq('id', organizationId)
+          .single();
+        orgName = org?.name || orgName;
+        orgLogoUrl = org?.logo_url || null;
+      }
       
       // Generate and download PDF
       await generateOfficeQRPDF({
         officeName: office.name,
         qrCodeDataUrl: qrDataUrl,
-        orgName: org?.name || '',
-        orgLogoUrl: org?.logo_url || null,
+        orgName,
+        orgLogoUrl,
       });
     } catch (error) {
       console.error('Error downloading QR:', error);
