@@ -466,16 +466,32 @@ export function OfficesStep({
       // Get org info for PDF - use onboarding data first, fallback to organizations table
       let orgName = organizationInfo?.name || '';
       let orgLogoUrl = organizationInfo?.logo_url || null;
+      let orgPhone: string | null = null;
+      let orgEmail: string | null = null;
+      let orgWebsite: string | null = null;
       
       // If no logo in onboarding data, try the organizations table (for non-onboarding usage)
       if (!orgLogoUrl) {
         const { data: org } = await supabase
           .from('organizations')
-          .select('name, logo_url')
+          .select('name, logo_url, business_phone, business_email, website')
           .eq('id', organizationId)
           .single();
         orgName = org?.name || orgName;
         orgLogoUrl = org?.logo_url || null;
+        orgPhone = org?.business_phone || null;
+        orgEmail = org?.business_email || null;
+        orgWebsite = org?.website || null;
+      } else {
+        // Fetch contact info even if we have logo
+        const { data: org } = await supabase
+          .from('organizations')
+          .select('business_phone, business_email, website')
+          .eq('id', organizationId)
+          .single();
+        orgPhone = org?.business_phone || null;
+        orgEmail = org?.business_email || null;
+        orgWebsite = org?.website || null;
       }
       
       // Generate and download PDF
@@ -484,6 +500,12 @@ export function OfficesStep({
         qrCodeDataUrl: qrDataUrl,
         orgName,
         orgLogoUrl,
+        officeAddress: office.address || null,
+        officeCity: office.address_components?.city || null,
+        officeCountry: office.address_components?.country || null,
+        orgPhone,
+        orgEmail,
+        orgWebsite,
       });
     } catch (error) {
       console.error('Error downloading QR:', error);

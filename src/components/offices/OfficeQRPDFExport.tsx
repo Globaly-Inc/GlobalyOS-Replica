@@ -10,6 +10,14 @@ interface OfficeQRPDFExportProps {
   qrCodeDataUrl: string;
   orgName: string;
   orgLogoUrl: string | null;
+  // Office details
+  officeAddress?: string | null;
+  officeCity?: string | null;
+  officeCountry?: string | null;
+  // Organization contact
+  orgPhone?: string | null;
+  orgEmail?: string | null;
+  orgWebsite?: string | null;
 }
 
 /**
@@ -37,6 +45,12 @@ export const generateOfficeQRPDF = async ({
   qrCodeDataUrl,
   orgName,
   orgLogoUrl,
+  officeAddress,
+  officeCity,
+  officeCountry,
+  orgPhone,
+  orgEmail,
+  orgWebsite,
 }: OfficeQRPDFExportProps): Promise<void> => {
   // Convert logo URL to base64 data URL if provided
   let logoDataUrl: string | null = null;
@@ -52,6 +66,18 @@ export const generateOfficeQRPDF = async ({
 
   const currentDate = format(new Date(), 'd MMMM yyyy');
   const orgInitial = orgName?.charAt(0)?.toUpperCase() || 'O';
+
+  // Build office address line
+  const addressParts = [officeAddress, officeCity, officeCountry].filter(Boolean);
+  const fullAddress = addressParts.length > 0 ? addressParts.join(', ') : null;
+
+  // Build contact line
+  const contactParts = [
+    orgPhone,
+    orgEmail,
+    orgWebsite?.replace(/^https?:\/\//, ''),
+  ].filter(Boolean);
+  const contactLine = contactParts.length > 0 ? contactParts.join(' • ') : null;
 
   const html = `
     <!DOCTYPE html>
@@ -78,7 +104,7 @@ export const generateOfficeQRPDF = async ({
           display: flex;
           flex-direction: column;
           align-items: center;
-          padding: 40mm 20mm;
+          padding: 35mm 20mm;
         }
         .container {
           display: flex;
@@ -87,25 +113,25 @@ export const generateOfficeQRPDF = async ({
           justify-content: center;
           text-align: center;
           width: 100%;
-          max-width: 150mm;
+          max-width: 160mm;
         }
         .logo-container {
-          margin-bottom: 24px;
+          margin-bottom: 28px;
         }
         .logo {
-          max-height: 60px;
-          max-width: 180px;
+          max-height: 80px;
+          max-width: 240px;
           object-fit: contain;
         }
         .logo-fallback {
-          width: 60px;
-          height: 60px;
+          width: 80px;
+          height: 80px;
           background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-          border-radius: 12px;
+          border-radius: 14px;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 28px;
+          font-size: 36px;
           font-weight: bold;
           color: white;
         }
@@ -113,37 +139,46 @@ export const generateOfficeQRPDF = async ({
           width: 100%;
           height: 2px;
           background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
-          margin: 20px 0;
+          margin: 24px 0;
         }
         .office-name {
-          font-size: 28pt;
+          font-size: 36pt;
           font-weight: 700;
           color: #0f172a;
           margin-bottom: 8px;
           line-height: 1.2;
         }
         .subtitle {
-          font-size: 14pt;
+          font-size: 18pt;
           color: #64748b;
-          margin-bottom: 32px;
+          margin-bottom: 12px;
+        }
+        .office-details {
+          margin-bottom: 28px;
+        }
+        .office-address {
+          font-size: 13pt;
+          color: #64748b;
+          max-width: 320px;
+          line-height: 1.4;
         }
         .qr-container {
           background: white;
-          padding: 16px;
-          border-radius: 16px;
+          padding: 24px;
+          border-radius: 20px;
           box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
           border: 2px solid #e2e8f0;
-          margin-bottom: 32px;
+          margin-bottom: 36px;
         }
         .qr-code {
-          width: 180px;
-          height: 180px;
+          width: 260px;
+          height: 260px;
         }
         .instructions {
-          font-size: 13pt;
+          font-size: 16pt;
           color: #334155;
           line-height: 1.6;
-          max-width: 280px;
+          max-width: 380px;
         }
         .instructions strong {
           color: #3b82f6;
@@ -151,18 +186,18 @@ export const generateOfficeQRPDF = async ({
         .geofence-badge {
           display: inline-flex;
           align-items: center;
-          gap: 6px;
+          gap: 8px;
           background: #dcfce7;
           color: #16a34a;
-          padding: 8px 16px;
-          border-radius: 20px;
-          font-size: 11pt;
+          padding: 10px 20px;
+          border-radius: 24px;
+          font-size: 14pt;
           font-weight: 500;
-          margin-top: 24px;
+          margin-top: 28px;
         }
         .geofence-icon {
-          width: 16px;
-          height: 16px;
+          width: 20px;
+          height: 20px;
         }
         .footer {
           position: fixed;
@@ -172,18 +207,29 @@ export const generateOfficeQRPDF = async ({
           text-align: center;
         }
         .footer-divider {
-          width: 150mm;
+          width: 160mm;
           height: 1px;
           background: #e2e8f0;
-          margin: 0 auto 16px;
+          margin: 0 auto 18px;
         }
-        .footer-text {
+        .footer-org {
+          font-size: 14pt;
+          font-weight: 600;
+          color: #334155;
+          margin-bottom: 6px;
+        }
+        .footer-contact {
+          font-size: 11pt;
+          color: #64748b;
+          margin-bottom: 10px;
+        }
+        .footer-date {
           font-size: 10pt;
           color: #94a3b8;
         }
         @media print {
           body { 
-            padding: 40mm 20mm;
+            padding: 35mm 20mm;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
@@ -204,6 +250,12 @@ export const generateOfficeQRPDF = async ({
         <h1 class="office-name">${officeName}</h1>
         <p class="subtitle">Check-In Station</p>
         
+        ${fullAddress ? `
+          <div class="office-details">
+            <p class="office-address">${fullAddress}</p>
+          </div>
+        ` : ''}
+        
         <div class="qr-container">
           <img src="${qrCodeDataUrl}" class="qr-code" alt="QR Code" />
         </div>
@@ -223,7 +275,9 @@ export const generateOfficeQRPDF = async ({
       
       <div class="footer">
         <div class="footer-divider"></div>
-        <p class="footer-text">${orgName} • Generated on ${currentDate}</p>
+        <p class="footer-org">${orgName}</p>
+        ${contactLine ? `<p class="footer-contact">${contactLine}</p>` : ''}
+        <p class="footer-date">Generated on ${currentDate}</p>
       </div>
     </body>
     </html>

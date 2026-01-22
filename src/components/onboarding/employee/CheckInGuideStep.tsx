@@ -22,10 +22,15 @@ interface CheckInGuideStepProps {
     id?: string; 
     name: string; 
     city?: string | null;
+    address?: string | null;
+    country?: string | null;
   }>;
   organizationId?: string;
   orgName?: string;
   orgLogoUrl?: string | null;
+  orgPhone?: string | null;
+  orgEmail?: string | null;
+  orgWebsite?: string | null;
   employeeId?: string;
 }
 
@@ -37,6 +42,9 @@ export function CheckInGuideStep({
   organizationId,
   orgName,
   orgLogoUrl,
+  orgPhone,
+  orgEmail,
+  orgWebsite,
   employeeId,
 }: CheckInGuideStepProps) {
   const [selectedOffice, setSelectedOffice] = useState<string>('');
@@ -125,12 +133,51 @@ export function CheckInGuideStep({
 
   const handleDownload = async () => {
     if (!qrCodeDataUrl || !selectedOffice) return;
-    const officeName = savedOffices.find(o => o.id === selectedOffice)?.name || 'Office';
+    
+    const office = savedOffices.find(o => o.id === selectedOffice);
+    const officeName = office?.name || 'Office';
+    
+    // Fallback: fetch fresh org data if no logo in props
+    let logoUrl = orgLogoUrl;
+    let phone = orgPhone || null;
+    let email = orgEmail || null;
+    let website = orgWebsite || null;
+    
+    if (!logoUrl && organizationId) {
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('logo_url, business_phone, business_email, website')
+        .eq('id', organizationId)
+        .single();
+      
+      logoUrl = org?.logo_url || null;
+      phone = org?.business_phone || phone;
+      email = org?.business_email || email;
+      website = org?.website || website;
+    } else if (organizationId && (!phone || !email || !website)) {
+      // Fetch contact info even if we have logo
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('business_phone, business_email, website')
+        .eq('id', organizationId)
+        .single();
+      
+      phone = org?.business_phone || phone;
+      email = org?.business_email || email;
+      website = org?.website || website;
+    }
+    
     await generateOfficeQRPDF({
       officeName,
       qrCodeDataUrl,
       orgName: orgName || '',
-      orgLogoUrl: orgLogoUrl || null,
+      orgLogoUrl: logoUrl || null,
+      officeAddress: office?.address || null,
+      officeCity: office?.city || null,
+      officeCountry: office?.country || null,
+      orgPhone: phone,
+      orgEmail: email,
+      orgWebsite: website,
     });
   };
 
