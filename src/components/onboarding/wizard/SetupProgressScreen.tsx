@@ -230,7 +230,7 @@ export function SetupProgressScreen({
         const firstName = nameParts[0] || '';
         const lastName = nameParts.slice(1).join(' ') || '';
 
-        await supabase.functions.invoke('invite-team-member', {
+        const { data, error } = await supabase.functions.invoke('invite-team-member', {
           body: {
             email: member.email,
             fullName: member.full_name,
@@ -246,6 +246,27 @@ export function SetupProgressScreen({
             avatarUrl: member.avatar_url || null,
           },
         });
+        
+        // Handle expected responses gracefully
+        if (error) {
+          // 409 with USER_EXISTS is expected - user was already created, skip silently
+          const errorData = typeof error === 'object' && 'context' in error 
+            ? (error as { context?: { body?: string } }).context?.body 
+            : null;
+          
+          if (errorData) {
+            try {
+              const parsed = JSON.parse(errorData);
+              if (parsed.code === 'USER_EXISTS' && parsed.skipped) {
+                console.log(`User ${member.email} already exists, skipping`);
+                continue;
+              }
+            } catch {
+              // Not JSON, continue to log error
+            }
+          }
+          console.error(`Error creating ${member.email}:`, error);
+        }
       } catch (err) {
         console.error(`Error creating ${member.email}:`, err);
       }
