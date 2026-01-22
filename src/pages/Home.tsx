@@ -536,7 +536,7 @@ const Home = () => {
                   backgroundRepeat: 'repeat',
                 }}
               />
-                <div className="relative z-10 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 {/* Left: Greeting, Date/Time, Timezone */}
                 <div className="flex-shrink-0">
                   <h1 className="text-2xl font-semibold text-white drop-shadow-sm">
