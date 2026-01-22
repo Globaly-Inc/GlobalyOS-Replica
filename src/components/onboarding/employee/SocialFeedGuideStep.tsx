@@ -6,7 +6,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowRight, ArrowLeft, Home, Trophy, Heart, MessageSquare, Megaphone, Sparkles, Loader2 } from 'lucide-react';
-import homeFeedPreview from '@/assets/onboarding/home-feed-preview.png';
+import dashboardPreview from '@/assets/dashboard-preview.png';
 
 interface SocialFeedGuideStepProps {
   onContinue: () => void;
@@ -29,7 +29,7 @@ export function SocialFeedGuideStep({ onContinue, onBack, isNavigating = false }
         {/* Home Feed Preview Image */}
         <div className="mt-4">
           <img 
-            src={homeFeedPreview} 
+            src={dashboardPreview} 
             alt="Home feed preview" 
             className="w-full max-w-md mx-auto rounded-xl shadow-lg border border-border/50"
           />
