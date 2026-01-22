@@ -5,7 +5,38 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ArrowRight, ArrowLeft, Users, Network, BookOpen, Search, FolderOpen, Loader2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useOrganization } from '@/hooks/useOrganization';
+
+interface TeamMember {
+  id: string;
+  full_name: string;
+  avatar_url: string | null;
+  position: string;
+  department: string;
+}
+
+const MiniEmployeeCard = ({ employee }: { employee: TeamMember }) => (
+  <div className="flex items-center gap-3 p-3 bg-white/60 dark:bg-blue-950/40 rounded-lg border border-blue-200/50 dark:border-blue-700/50">
+    <Avatar className="h-10 w-10 border-2 border-blue-200 dark:border-blue-700">
+      <AvatarImage src={employee.avatar_url || undefined} />
+      <AvatarFallback className="bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-200 text-sm font-medium">
+        {employee.full_name.split(' ').map(n => n[0]).join('')}
+      </AvatarFallback>
+    </Avatar>
+    <div className="min-w-0 flex-1">
+      <p className="font-medium text-sm text-blue-900 dark:text-blue-100 truncate">
+        {employee.full_name}
+      </p>
+      <p className="text-xs text-blue-600 dark:text-blue-300 truncate">
+        {employee.position} • {employee.department}
+      </p>
+    </div>
+  </div>
+);
 
 interface DirectoryWikiGuideStepProps {
   onContinue: () => void;
@@ -14,6 +45,27 @@ interface DirectoryWikiGuideStepProps {
 }
 
 export function DirectoryWikiGuideStep({ onContinue, onBack, isNavigating = false }: DirectoryWikiGuideStepProps) {
+  const { currentOrg } = useOrganization();
+
+  const { data: teamMembers = [] } = useQuery({
+    queryKey: ['onboarding-team-preview', currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [];
+      
+      const { data } = await supabase
+        .from('employee_directory')
+        .select('id, full_name, avatar_url, position, department')
+        .eq('organization_id', currentOrg.id)
+        .eq('status', 'active')
+        .order('created_at', { ascending: true })
+        .limit(2);
+      
+      return (data || []) as TeamMember[];
+    },
+    enabled: !!currentOrg?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+
   return (
     <Card className="border-0 shadow-lg">
       <CardHeader className="text-center pb-4">
@@ -35,11 +87,25 @@ export function DirectoryWikiGuideStep({ onContinue, onBack, isNavigating = fals
               <div className="h-12 w-12 rounded-xl bg-blue-500 flex items-center justify-center shrink-0">
                 <Users className="h-6 w-6 text-white" />
               </div>
-              <div>
+              <div className="flex-1">
                 <h3 className="font-semibold text-blue-900 dark:text-blue-100">Team Directory</h3>
                 <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
                   Find colleagues by name, department, or role. View profiles and contact details.
                 </p>
+                
+                {/* Team Preview Section */}
+                {teamMembers.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">
+                      Meet your team
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {teamMembers.map((member) => (
+                        <MiniEmployeeCard key={member.id} employee={member} />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
