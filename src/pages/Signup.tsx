@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -215,7 +215,7 @@ const Signup = () => {
   // Email availability check
   const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'error'>('idle');
   const [emailStatusMessage, setEmailStatusMessage] = useState<string>('');
-  const [emailCheckRequestId, setEmailCheckRequestId] = useState<number>(0);
+  const emailCheckRequestIdRef = useRef<number>(0);
   const [acceptTerms, setAcceptTerms] = useState(false);
 
   // Pre-fill plan from URL if provided
@@ -251,7 +251,7 @@ const Signup = () => {
       });
       
       // Race condition protection: only apply if this is still the latest request
-      if (requestId !== emailCheckRequestId) return;
+      if (requestId !== emailCheckRequestIdRef.current) return;
       
       if (error || data?.error) {
         console.error('Email check error:', error || data?.error);
@@ -279,17 +279,17 @@ const Signup = () => {
     } catch (error) {
       console.error('Email check exception:', error);
       // On network error, show error state (fail-closed for security)
-      if (requestId === emailCheckRequestId) {
+      if (requestId === emailCheckRequestIdRef.current) {
         setEmailStatus('error');
         setEmailStatusMessage('Could not verify email. Please try again.');
       }
     }
-  }, [emailCheckRequestId]);
+  }, []);
 
   // Debounced email check
   useEffect(() => {
     const newRequestId = Date.now();
-    setEmailCheckRequestId(newRequestId);
+    emailCheckRequestIdRef.current = newRequestId;
     
     const timer = setTimeout(() => {
       if (email) {
@@ -301,7 +301,7 @@ const Signup = () => {
     }, 500);
     
     return () => clearTimeout(timer);
-  }, [email]);
+  }, [email, checkEmailAvailability]);
 
   const validateStep2 = () => {
     // Block submission if email is taken, checking, or errored
