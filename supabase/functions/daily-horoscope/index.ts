@@ -104,31 +104,31 @@ You MUST respond with valid JSON matching this exact structure:
   "aspects": [
     { 
       "key": "career", 
-      "label": "MUST BE 15-25 WORDS: A detailed motivational headline providing specific guidance. Example: 'Today presents excellent opportunities to collaborate with teammates on innovative projects that could reshape your department direction and showcase your unique talents to leadership.'",
-      "text": "8-12 word action tip"
+      "label": "EXACTLY 12 WORDS: A motivational headline. Example: 'Great opportunities await as you collaborate with teammates on exciting innovative projects.'",
+      "text": "5-8 word action tip"
     },
     { 
       "key": "relationships", 
-      "label": "MUST BE 15-25 WORDS: A detailed motivational headline providing specific guidance for relationships and connections with colleagues, friends, and loved ones.",
-      "text": "8-12 word action tip"
+      "label": "EXACTLY 12 WORDS: A motivational headline for relationships and connections.",
+      "text": "5-8 word action tip"
     },
     { 
       "key": "wellbeing", 
-      "label": "MUST BE 15-25 WORDS: A detailed motivational headline providing specific guidance for health, mental wellness, and work-life balance.",
-      "text": "8-12 word action tip"
+      "label": "EXACTLY 12 WORDS: A motivational headline for health and mental wellness.",
+      "text": "5-8 word action tip"
     },
     { 
       "key": "money", 
-      "label": "MUST BE 15-25 WORDS: A detailed motivational headline providing specific guidance for finances, investments, and prosperity.",
-      "text": "8-12 word action tip"
+      "label": "EXACTLY 12 WORDS: A motivational headline for finances and prosperity.",
+      "text": "5-8 word action tip"
     }
   ],
   "summary_paragraph": "EXACTLY 12 WORDS summarizing the overall vibe for today in one concise sentence."
 }
 
 CRITICAL REQUIREMENTS:
-1. Each "label" MUST be 15-25 words long - count your words carefully!
-2. Each "text" should be 8-12 words
+1. Each "label" MUST be EXACTLY 12 words - count carefully!
+2. Each "text" should be 5-8 words
 3. The "summary_paragraph" MUST be EXACTLY 12 words - no more, no less!
 
 Respond ONLY with the JSON object, no markdown code blocks or additional text.`;
