@@ -134,7 +134,7 @@ export const OfficeDetailView = ({ office, onOfficeUpdated, onOfficeDeleted }: O
       <OfficeOverviewStats officeId={office.id} />
 
       {/* Office Schedule Card */}
-      <OfficeScheduleCard office={office} />
+      <OfficeScheduleCard office={office} onOfficeUpdated={onOfficeUpdated} />
 
       {/* Team Members List */}
       <OfficeTeamList officeId={office.id} officeName={office.name} />
