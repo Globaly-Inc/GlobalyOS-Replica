@@ -1,10 +1,9 @@
 /**
  * Organization Onboarding - Departments & Roles Step
- * AI-powered suggestions for departments and positions based on industry
- * With caching and learning capabilities
+ * Uses curated Super Admin templates with AI-powered suggestions for custom departments only
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, ArrowRight, Sparkles, Plus, Trash2, Loader2, Building2, Users, CheckSquare, Square, RefreshCw } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Sparkles, Plus, Trash2, Loader2, Building2, Users, CheckSquare, Square, RefreshCw, LayoutTemplate } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { expandPositionName } from '@/utils/position-names';
@@ -26,7 +25,7 @@ interface Position {
 interface DepartmentsRolesData {
   departments: string[];
   positions: Position[];
-  industry?: string; // Track what industry was used
+  industry?: string;
 }
 
 interface DepartmentsRolesStepProps {
@@ -49,7 +48,7 @@ export function DepartmentsRolesStep({
   isSaving,
 }: DepartmentsRolesStepProps) {
   const { toast } = useToast();
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [isSuggestingPositions, setIsSuggestingPositions] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [departments, setDepartments] = useState<string[]>(initialData?.departments || []);
@@ -63,9 +62,8 @@ export function DepartmentsRolesStep({
   const [newPosition, setNewPosition] = useState({ name: '', department: '' });
   const [hasFetched, setHasFetched] = useState(!!initialData?.departments?.length);
   
-  // Track which industry was used to generate current suggestions
-  // Use the industry from initial data if available, meaning saved data was for that industry
-  const [suggestedForIndustry, setSuggestedForIndustry] = useState<string | undefined>(
+  // Track which industry was used to fetch current templates
+  const [templateForIndustry, setTemplateForIndustry] = useState<string | undefined>(
     initialData?.industry || (initialData?.departments?.length ? industry : undefined)
   );
   const [showRefreshBanner, setShowRefreshBanner] = useState(false);
@@ -74,27 +72,25 @@ export function DepartmentsRolesStep({
   const [customDepartments, setCustomDepartments] = useState<Set<string>>(new Set());
   const [customPositions, setCustomPositions] = useState<Set<string>>(new Set());
   
-  // Track suggestion source
-  const [suggestionSource, setSuggestionSource] = useState<string | null>(null);
+  // Track template source
+  const [templateSource, setTemplateSource] = useState<string | null>(null);
 
-  // Fetch AI suggestions on mount or detect industry change
+  // Fetch templates on mount or detect industry change
   useEffect(() => {
     if (!hasFetched && industry) {
-      fetchSuggestions();
-    } else if (hasFetched && industry && suggestedForIndustry && industry !== suggestedForIndustry) {
-      // Industry changed after initial fetch - show refresh banner
+      fetchTemplates();
+    } else if (hasFetched && industry && templateForIndustry && industry !== templateForIndustry) {
       setShowRefreshBanner(true);
     }
-  }, [industry, hasFetched, suggestedForIndustry]);
+  }, [industry, hasFetched, templateForIndustry]);
 
-  const fetchSuggestions = async (forceRegenerate = false) => {
-    setIsLoadingSuggestions(true);
+  const fetchTemplates = async () => {
+    setIsLoadingTemplates(true);
     try {
-      const { data, error } = await supabase.functions.invoke('suggest-org-structure', {
+      const { data, error } = await supabase.functions.invoke('get-org-structure-templates', {
         body: { 
           industry: industry || 'General Business', 
-          companySize: companySize || 'small',
-          forceRegenerate
+          companySize: companySize || 'small'
         },
       });
 
@@ -104,26 +100,26 @@ export function DepartmentsRolesStep({
         setDepartments(data.departments);
         setSelectedDepartments(new Set(data.departments));
         setPositions(data.positions.map((p: Position) => ({ ...p, selected: true })));
-        setSuggestedForIndustry(industry); // Track which industry was used
-        setSuggestionSource(data.source || 'ai');
+        setTemplateForIndustry(industry);
+        setTemplateSource(data.source || 'template');
         setHasFetched(true);
-        // Reset custom tracking for fresh suggestions
+        // Reset custom tracking for fresh templates
         setCustomDepartments(new Set());
         setCustomPositions(new Set());
         
-        if (data.source === 'cached') {
+        if (data.source === 'template') {
           toast({
-            title: 'Loaded optimized structure',
-            description: 'Using proven department structure for your industry.',
+            title: 'Loaded curated structure',
+            description: 'Using template departments and positions for your industry.',
           });
         }
       }
     } catch (err) {
-      console.error('Failed to fetch suggestions:', err);
+      console.error('Failed to fetch templates:', err);
       // Fall back to defaults
       const defaultDepts = ['Executive', 'Operations', 'Sales', 'Marketing', 'Finance', 'Human Resources'];
       const defaultPositions = [
-        { name: 'CEO', department: 'Executive', selected: true },
+        { name: 'Chief Executive Officer (CEO)', department: 'Executive', selected: true },
         { name: 'Operations Manager', department: 'Operations', selected: true },
         { name: 'Sales Manager', department: 'Sales', selected: true },
         { name: 'Marketing Manager', department: 'Marketing', selected: true },
@@ -133,22 +129,18 @@ export function DepartmentsRolesStep({
       setDepartments(defaultDepts);
       setSelectedDepartments(new Set(defaultDepts));
       setPositions(defaultPositions);
-      setSuggestedForIndustry(industry); // Track even for defaults
+      setTemplateForIndustry(industry);
+      setTemplateSource('default');
       setHasFetched(true);
     } finally {
-      setIsLoadingSuggestions(false);
+      setIsLoadingTemplates(false);
     }
   };
 
-  const handleRefreshSuggestions = () => {
+  const handleRefreshTemplates = () => {
     setShowRefreshBanner(false);
     setHasFetched(false);
-    fetchSuggestions();
-  };
-
-  const handleRegenerateSuggestions = () => {
-    setShowRefreshBanner(false);
-    fetchSuggestions(true); // Force regenerate with AI
+    fetchTemplates();
   };
 
   const toggleDepartment = (dept: string) => {
@@ -171,13 +163,62 @@ export function DepartmentsRolesStep({
     ));
   };
 
-  const addCustomDepartment = () => {
-    if (newDepartment.trim() && !departments.includes(newDepartment.trim())) {
-      const dept = newDepartment.trim();
-      setDepartments([...departments, dept]);
-      setSelectedDepartments(new Set([...selectedDepartments, dept]));
-      setCustomDepartments(new Set([...customDepartments, dept])); // Track as custom
-      setNewDepartment('');
+  // Add custom department and auto-generate positions with AI
+  const addCustomDepartment = async () => {
+    if (!newDepartment.trim() || departments.includes(newDepartment.trim())) return;
+    
+    const dept = newDepartment.trim();
+    setDepartments([...departments, dept]);
+    setSelectedDepartments(new Set([...selectedDepartments, dept]));
+    setCustomDepartments(new Set([...customDepartments, dept]));
+    setNewDepartment('');
+    
+    // Auto-generate positions for this custom department
+    setIsSuggestingPositions(true);
+    toast({
+      title: 'Generating positions...',
+      description: `Creating role suggestions for ${dept}`,
+    });
+    
+    try {
+      const existingPositionNames = positions.map(p => p.name);
+      const { data, error } = await supabase.functions.invoke('suggest-custom-department-positions', {
+        body: { 
+          departmentName: dept,
+          industry: industry || 'General Business', 
+          companySize: companySize || 'small',
+          existingPositions: existingPositionNames
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.positions && data.positions.length > 0) {
+        const newPositions = data.positions.map((p: Position) => ({ 
+          ...p, 
+          selected: true 
+        }));
+        setPositions(prev => [...prev, ...newPositions]);
+        toast({
+          title: 'Positions added',
+          description: `Added ${newPositions.length} positions for ${dept}`,
+        });
+      }
+    } catch (err) {
+      console.error('Failed to generate positions for custom department:', err);
+      // Add a default position as fallback
+      setPositions(prev => [...prev, { 
+        name: `${dept} Manager`, 
+        department: dept, 
+        selected: true 
+      }]);
+      toast({
+        title: 'Added default position',
+        description: `You can add more positions manually for ${dept}`,
+        variant: 'default',
+      });
+    } finally {
+      setIsSuggestingPositions(false);
     }
   };
 
@@ -189,7 +230,7 @@ export function DepartmentsRolesStep({
         department: newPosition.department, 
         selected: true 
       }]);
-      setCustomPositions(new Set([...customPositions, posName])); // Track as custom
+      setCustomPositions(new Set([...customPositions, posName]));
       setNewPosition({ name: '', department: '' });
     }
   };
@@ -198,6 +239,7 @@ export function DepartmentsRolesStep({
     setPositions(positions.filter((_, i) => i !== index));
   };
 
+  // Suggest more positions for template-based departments from templates, custom from AI
   const suggestMorePositions = async () => {
     if (selectedDepartments.size === 0) {
       toast({
@@ -211,48 +253,61 @@ export function DepartmentsRolesStep({
     setIsSuggestingPositions(true);
     try {
       const existingPositionNames = positions.map(p => p.name);
-      const { data, error } = await supabase.functions.invoke('suggest-positions', {
-        body: { 
-          departments: Array.from(selectedDepartments),
-          existingPositions: existingPositionNames,
-          industry: industry || 'General Business', 
-          companySize: companySize || 'small' 
-        },
-      });
-
-      if (error) throw error;
-
-      if (data?.error) {
-        toast({
-          title: 'Suggestion failed',
-          description: data.error,
-          variant: 'destructive',
+      
+      // Separate custom departments from template departments
+      const customDeptsList = Array.from(selectedDepartments).filter(d => customDepartments.has(d));
+      const templateDeptsList = Array.from(selectedDepartments).filter(d => !customDepartments.has(d));
+      
+      let newPositions: Position[] = [];
+      
+      // For template departments, use the suggest-positions function (which queries templates first)
+      if (templateDeptsList.length > 0) {
+        const { data, error } = await supabase.functions.invoke('suggest-positions', {
+          body: { 
+            departments: templateDeptsList,
+            existingPositions: existingPositionNames,
+            industry: industry || 'General Business', 
+            companySize: companySize || 'small' 
+          },
         });
-        return;
+        
+        if (!error && data?.positions) {
+          newPositions = [...newPositions, ...data.positions.filter(
+            (p: Position) => !existingPositionNames.includes(p.name)
+          ).map((p: Position) => ({ ...p, selected: true }))];
+        }
+      }
+      
+      // For custom departments, use AI generation
+      for (const dept of customDeptsList) {
+        const { data, error } = await supabase.functions.invoke('suggest-custom-department-positions', {
+          body: { 
+            departmentName: dept,
+            industry: industry || 'General Business', 
+            companySize: companySize || 'small',
+            existingPositions: [...existingPositionNames, ...newPositions.map(p => p.name)]
+          },
+        });
+        
+        if (!error && data?.positions) {
+          const filtered = data.positions.filter(
+            (p: Position) => !existingPositionNames.includes(p.name) && 
+                           !newPositions.some(np => np.name === p.name)
+          ).map((p: Position) => ({ ...p, selected: true }));
+          newPositions = [...newPositions, ...filtered];
+        }
       }
 
-      if (data?.positions && data.positions.length > 0) {
-        // Filter out any duplicates and add new positions
-        const newPositions = data.positions.filter(
-          (p: Position) => !existingPositionNames.includes(p.name)
-        ).map((p: Position) => ({ ...p, selected: true }));
-
-        if (newPositions.length > 0) {
-          setPositions([...positions, ...newPositions]);
-          toast({
-            title: 'Positions suggested',
-            description: `Added ${newPositions.length} new position suggestions.`,
-          });
-        } else {
-          toast({
-            title: 'No new positions',
-            description: 'All suggested positions already exist.',
-          });
-        }
+      if (newPositions.length > 0) {
+        setPositions([...positions, ...newPositions]);
+        toast({
+          title: 'Positions suggested',
+          description: `Added ${newPositions.length} new position suggestions.`,
+        });
       } else {
         toast({
-          title: 'No suggestions',
-          description: 'Could not generate additional positions. Try adding custom positions.',
+          title: 'No new positions',
+          description: 'All suggested positions already exist.',
         });
       }
     } catch (err) {
@@ -270,7 +325,6 @@ export function DepartmentsRolesStep({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Prevent double-clicks
     if (isSubmitting || isSaving) return;
 
     const finalDepartments = Array.from(selectedDepartments);
@@ -288,7 +342,7 @@ export function DepartmentsRolesStep({
     setIsSubmitting(true);
 
     try {
-      // First, delete ALL existing positions for this organization (removes pre-seeded defaults)
+      // Delete ALL existing positions for this organization
       const { error: deleteError } = await supabase
         .from('positions')
         .delete()
@@ -298,7 +352,7 @@ export function DepartmentsRolesStep({
         console.error('Failed to clear existing positions:', deleteError);
       }
 
-      // Now insert only the user-selected positions
+      // Insert the user-selected positions
       for (const position of finalPositions) {
         const { error } = await supabase
           .from('positions')
@@ -315,10 +369,10 @@ export function DepartmentsRolesStep({
         }
       }
 
-      // Save learning data for future AI improvements
+      // Save learning data for future template improvements
       if (industry && organizationId) {
         try {
-          const { data: learningResult, error: learningError } = await supabase.functions.invoke('save-org-structure-learning', {
+          const { error: learningError } = await supabase.functions.invoke('save-org-structure-learning', {
             body: {
               businessCategory: industry,
               companySize: companySize || 'small',
@@ -332,8 +386,6 @@ export function DepartmentsRolesStep({
           
           if (learningError) {
             console.error('Learning save error:', learningError);
-          } else {
-            console.log('Learning data saved:', learningResult);
           }
         } catch (err) {
           console.error('Failed to invoke learning function:', err);
@@ -343,7 +395,7 @@ export function DepartmentsRolesStep({
       onSave({
         departments: finalDepartments,
         positions: finalPositions.map(({ name, department }) => ({ name, department })),
-        industry, // Include industry so we know what these were generated for
+        industry,
       });
     } catch (err) {
       console.error('Failed to save positions:', err);
@@ -351,18 +403,18 @@ export function DepartmentsRolesStep({
     }
   };
 
-  if (isLoadingSuggestions) {
+  if (isLoadingTemplates) {
     return (
       <Card className="border-0 shadow-lg">
         <CardContent className="flex flex-col items-center justify-center py-16">
           <div className="relative mb-4">
             <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <Sparkles className="h-8 w-8 text-primary animate-pulse" />
+              <LayoutTemplate className="h-8 w-8 text-primary animate-pulse" />
             </div>
           </div>
-          <h3 className="text-lg font-semibold mb-2">Analyzing Your Industry</h3>
+          <h3 className="text-lg font-semibold mb-2">Loading Templates</h3>
           <p className="text-muted-foreground text-center max-w-sm">
-            Our AI is generating department and role suggestions based on {industry || 'your industry'}...
+            Fetching curated department and role templates for {industry || 'your industry'}...
           </p>
           <Loader2 className="h-6 w-6 animate-spin text-primary mt-4" />
         </CardContent>
@@ -380,53 +432,40 @@ export function DepartmentsRolesStep({
           <CardTitle className="text-xl flex items-center gap-2">
             Departments & Roles
             <Badge variant="secondary" className="text-xs">
-              <Sparkles className="h-3 w-3 mr-1" />
-              {suggestionSource === 'cached' ? 'Optimized' : 'AI Suggested'}
+              <LayoutTemplate className="h-3 w-3 mr-1" />
+              {templateSource === 'template' ? 'Curated' : templateSource === 'default' ? 'Default' : 'Template'}
             </Badge>
           </CardTitle>
         </div>
         <CardDescription>
           Review the suggested structure for your {industry || 'organization'} or customize it
         </CardDescription>
-        {/* Always visible regenerate button */}
-        <div className="mt-3">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleRegenerateSuggestions}
-            disabled={isLoadingSuggestions}
-            className="gap-1.5"
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            Regenerate for {industry || 'industry'}
-          </Button>
-        </div>
       </CardHeader>
 
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Refresh Banner when industry changed */}
           {showRefreshBanner && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-amber-800 text-sm">
-                <Sparkles className="h-4 w-4" />
+            <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-warning-foreground text-sm">
+                <LayoutTemplate className="h-4 w-4" />
                 <span>
-                  Business category changed to <strong>{industry}</strong>. Refresh suggestions?
+                  Business category changed to <strong>{industry}</strong>. Load new templates?
                 </span>
               </div>
               <Button 
                 type="button"
                 size="sm" 
                 variant="outline" 
-                onClick={handleRefreshSuggestions}
+                onClick={handleRefreshTemplates}
                 className="gap-1.5"
               >
                 <RefreshCw className="h-3.5 w-3.5" />
-                Refresh
+                Load Templates
               </Button>
             </div>
           )}
+          
           {/* Departments Section */}
           <div className="space-y-3">
             <Label className="text-base font-semibold flex items-center gap-2">
@@ -457,11 +496,28 @@ export function DepartmentsRolesStep({
                 placeholder="Add custom department..."
                 className="flex-1"
                 onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomDepartment())}
+                disabled={isSuggestingPositions}
               />
-              <Button type="button" variant="outline" size="sm" onClick={addCustomDepartment}>
-                <Plus className="h-4 w-4" />
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                onClick={addCustomDepartment}
+                disabled={isSuggestingPositions || !newDepartment.trim()}
+              >
+                {isSuggestingPositions ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
               </Button>
             </div>
+            {isSuggestingPositions && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Sparkles className="h-3 w-3" />
+                Generating positions for custom department...
+              </p>
+            )}
           </div>
 
           {/* Positions Section */}
@@ -522,7 +578,7 @@ export function DepartmentsRolesStep({
                       ) : (
                         <>
                           <Sparkles className="h-3.5 w-3.5" />
-                          AI Suggest
+                          Suggest More
                         </>
                       )}
                     </Button>
