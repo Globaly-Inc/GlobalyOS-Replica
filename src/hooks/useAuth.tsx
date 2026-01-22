@@ -1,14 +1,28 @@
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
 
-export const useAuth = () => {
+interface AuthContextType {
+  user: User | null;
+  session: Session | null;
+  loading: boolean;
+  signOut: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const validationDoneRef = useRef(false);
 
   // Validate that user still exists in database - if not, sign out
+  // Uses ref to prevent duplicate validation calls
   const validateUserExists = async (userId: string) => {
+    if (validationDoneRef.current) return;
+    validationDoneRef.current = true;
+    
     try {
       const { data } = await supabase
         .from('profiles')
@@ -33,8 +47,8 @@ export const useAuth = () => {
         setUser(session?.user ?? null);
         setLoading(false);
         
-        // Validate user still exists when session is present
-        if (session?.user) {
+        // Only validate on actual sign-in events to prevent redundant calls
+        if (event === 'SIGNED_IN' && session?.user) {
           setTimeout(() => {
             validateUserExists(session.user.id);
           }, 0);
@@ -48,8 +62,8 @@ export const useAuth = () => {
       setUser(session?.user ?? null);
       setLoading(false);
       
-      // Validate user still exists
-      if (session?.user) {
+      // Only validate if not already done by auth state change
+      if (session?.user && !validationDoneRef.current) {
         validateUserExists(session.user.id);
       }
     });
@@ -58,8 +72,22 @@ export const useAuth = () => {
   }, []);
 
   const signOut = async () => {
+    // Reset validation flag on sign out so next sign in can validate
+    validationDoneRef.current = false;
     await supabase.auth.signOut();
   };
 
-  return { user, session, loading, signOut };
+  return (
+    <AuthContext.Provider value={{ user, session, loading, signOut }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
 };
