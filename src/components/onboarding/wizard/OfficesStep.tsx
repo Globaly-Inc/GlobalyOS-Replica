@@ -9,7 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { AddressAutocomplete, AddressComponents } from '@/components/ui/address-autocomplete';
+import { StructuredAddressInput, type AddressValue, EMPTY_ADDRESS } from '@/components/ui/structured-address-input';
+import { getCountryNameFromCode } from '@/lib/countries';
 import { 
   DaySchedulesMap, 
   DEFAULT_WEEKDAY_SCHEDULES,
@@ -58,6 +59,7 @@ interface Office {
     lat?: number;
     lng?: number;
   };
+  address_value?: AddressValue; // Structured address state for input
   // Per-office feature toggles
   attendance_enabled?: boolean;
   leave_enabled?: boolean;
@@ -383,23 +385,48 @@ export function OfficesStep({
     updateOffice(index, 'day_schedules', newSchedules);
   };
 
-  const handleAddressChange = (index: number, address: string, components?: AddressComponents) => {
+  // Helper to extract AddressValue from existing office data
+  const extractAddressValue = (office: Office): AddressValue => {
+    const components = office.address_components;
+    if (office.address_value) return office.address_value;
+    if (!components) return EMPTY_ADDRESS;
+    
+    return {
+      country: components.country_code || '',
+      street: office.address || '',
+      city: components.city || '',
+      state: '',
+      postcode: components.postal_code || '',
+      lat: components.lat,
+      lng: components.lng,
+    };
+  };
+
+  const handleAddressValueChange = (index: number, addressValue: AddressValue) => {
     setOffices(offices.map((office, i) => {
       if (i !== index) return office;
-      const countryCode = components?.country_code;
-      return { 
-        ...office, 
-        address,
-        address_components: components ? {
-          country: components.country,
-          country_code: components.country_code,
-          city: components.locality,
-          postal_code: components.postal_code,
-          lat: components.lat,
-          lng: components.lng,
-        } : office.address_components,
-        // Auto-update timezone when country changes
-        timezone: countryCode ? getTimezoneForCountry(countryCode) : office.timezone,
+      
+      // Build display address from structured value
+      const displayAddress = [addressValue.street, addressValue.city, addressValue.postcode]
+        .filter(Boolean).join(', ');
+      
+      // Auto-update timezone when country changes
+      const countryCode = addressValue.country;
+      const newTimezone = countryCode ? getTimezoneForCountry(countryCode) : office.timezone;
+      
+      return {
+        ...office,
+        address: displayAddress,
+        address_value: addressValue,
+        address_components: {
+          country: countryCode ? getCountryNameFromCode(countryCode) : undefined,
+          country_code: countryCode,
+          city: addressValue.city,
+          postal_code: addressValue.postcode,
+          lat: addressValue.lat,
+          lng: addressValue.lng,
+        },
+        timezone: newTimezone,
       };
     }));
   };
@@ -718,15 +745,17 @@ export function OfficesStep({
                           />
                         </div>
 
-                        {/* Location - Equal width */}
-                        <div className="flex-1 min-w-0">
+                        {/* Location - Country + Address */}
+                        <div className="flex-[2] min-w-0">
                           <Label className="text-xs text-muted-foreground mb-1.5 block">Location</Label>
-                          <AddressAutocomplete
-                            value={office.address}
-                            onChange={(address, components) => handleAddressChange(index, address, components)}
-                            placeholder="Search address..."
+                          <StructuredAddressInput
+                            value={extractAddressValue(office)}
+                            onChange={(addressValue) => handleAddressValueChange(index, addressValue)}
                             disabled={isLoading}
-                            className="h-9"
+                            compact
+                            allowBusinesses
+                            singleRow
+                            addressLabel="Address"
                           />
                         </div>
 
