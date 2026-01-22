@@ -2162,6 +2162,7 @@ export type Database = {
           horoscope_date: string
           id: string
           provider: string | null
+          source_text: string | null
           summary_paragraph: string | null
           title: string | null
           zodiac_sign: string
@@ -2173,6 +2174,7 @@ export type Database = {
           horoscope_date?: string
           id?: string
           provider?: string | null
+          source_text?: string | null
           summary_paragraph?: string | null
           title?: string | null
           zodiac_sign: string
@@ -2184,6 +2186,7 @@ export type Database = {
           horoscope_date?: string
           id?: string
           provider?: string | null
+          source_text?: string | null
           summary_paragraph?: string | null
           title?: string | null
           zodiac_sign?: string
