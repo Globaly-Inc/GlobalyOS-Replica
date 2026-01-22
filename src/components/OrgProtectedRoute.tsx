@@ -116,7 +116,11 @@ export const OrgProtectedRoute = ({
     }
   }, [authLoading, orgLoading, session, currentOrg?.id, organizations, switchOrganization]);
 
-  if (authLoading || orgLoading || onboardingLoading || employeeOnboardingLoading) {
+  // Wait for auth first, then org, then only wait for onboarding queries if we have valid org
+  const isAuthOrOrgLoading = authLoading || orgLoading;
+  const isOnboardingQueriesLoading = currentOrg?.id && (onboardingLoading || employeeOnboardingLoading);
+  
+  if (isAuthOrOrgLoading || isOnboardingQueriesLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
