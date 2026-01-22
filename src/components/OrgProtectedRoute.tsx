@@ -61,7 +61,7 @@ export const OrgProtectedRoute = ({
       return data;
     },
     enabled: !!currentOrg?.id,
-    staleTime: 0, // Always refetch to get latest onboarding status
+    staleTime: 30 * 1000, // Cache for 30 seconds - onboarding status rarely changes mid-session
   });
 
   // Check employee onboarding status for all employees
@@ -78,7 +78,7 @@ export const OrgProtectedRoute = ({
       return data;
     },
     enabled: !!session?.user?.id && !!currentOrg?.id,
-    staleTime: 0,
+    staleTime: 30 * 1000, // Cache for 30 seconds - onboarding status rarely changes mid-session
   });
 
   // Handle organization switching when URL orgCode differs from current org's slug

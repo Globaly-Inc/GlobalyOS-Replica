@@ -5,6 +5,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { OrganizationProvider } from '@/hooks/useOrganization';
+import { AuthProvider } from '@/hooks/useAuth';
 import { FeatureFlagsProvider } from '@/hooks/useFeatureFlags';
 import { TimezoneProvider } from '@/hooks/useTimezone';
 import { useServiceWorkerUpdate } from '@/hooks/useServiceWorkerUpdate';
@@ -113,7 +114,16 @@ const SuperAdminErrorLogs = lazy(() => import('./pages/super-admin/SuperAdminErr
 const SuperAdminErrorLogDetail = lazy(() => import('./pages/super-admin/SuperAdminErrorLogDetail'));
 const SuperAdminTemplates = lazy(() => import('./pages/super-admin/SuperAdminTemplates'));
 const SuperAdminProtectedRoute = lazy(() => import('./components/super-admin/SuperAdminProtectedRoute'));
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60 * 1000, // 1 minute - data considered fresh
+      gcTime: 5 * 60 * 1000, // 5 minutes in cache
+      retry: 1, // Only retry once on failure
+      refetchOnWindowFocus: false, // Don't refetch when tab gains focus
+    },
+  },
+});
 const PageLoader = () => <div className="min-h-screen flex items-center justify-center bg-background">
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
   </div>;
@@ -127,9 +137,10 @@ const App = () => <QueryClientProvider client={queryClient}>
       <Sonner />
       <BrowserRouter>
         <RouteTracker />
-        <TimezoneProvider>
-          <OrganizationProvider>
-            <FeatureFlagsProvider>
+        <AuthProvider>
+          <TimezoneProvider>
+            <OrganizationProvider>
+              <FeatureFlagsProvider>
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 {/* Public website routes */}
@@ -284,6 +295,7 @@ const App = () => <QueryClientProvider client={queryClient}>
             </FeatureFlagsProvider>
           </OrganizationProvider>
         </TimezoneProvider>
+      </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>;
