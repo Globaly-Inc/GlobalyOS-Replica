@@ -228,25 +228,25 @@ function interceptFetch(): void {
           response.status === 409 &&
           (responseBody?.code === 'USER_EXISTS' || responseBody?.skipped === true);
 
-          // Suppress logging for expected OTP verification failures (user entered wrong code,
-          // captcha required, account not found, etc.). These are normal user flows and should
-          // not be treated as system errors.
-          const isExpectedOtpFailure =
-            functionName === 'verify-otp' &&
-            response.status === 400 &&
-            (
-              responseBody?.captchaRequired === true ||
-              responseBody?.accountNotFound === true ||
-              (typeof responseBody?.error === 'string' && (
-                responseBody.error.toLowerCase().includes('invalid code') ||
-                responseBody.error.toLowerCase().includes('security verification') ||
-                responseBody.error.toLowerCase().includes('no pending verification code') ||
-                responseBody.error.toLowerCase().includes('no account found') ||
-                responseBody.error.toLowerCase().includes('code has expired')
-              ))
-            );
+        // Suppress logging for expected OTP verification failures (user entered wrong code,
+        // captcha required, account not found, etc.). These are normal user flows and should
+        // not be treated as system errors.
+        const isExpectedOtpFailure =
+          functionName === 'verify-otp' &&
+          response.status === 400 &&
+          (
+            responseBody?.captchaRequired === true ||
+            responseBody?.accountNotFound === true ||
+            (typeof responseBody?.error === 'string' && (
+              responseBody.error.toLowerCase().includes('invalid code') ||
+              responseBody.error.toLowerCase().includes('security verification') ||
+              responseBody.error.toLowerCase().includes('no pending verification code') ||
+              responseBody.error.toLowerCase().includes('no account found') ||
+              responseBody.error.toLowerCase().includes('code has expired')
+            ))
+          );
 
-          if (isExpectedInviteDuplicate || isExpectedOtpFailure) {
+        if (isExpectedInviteDuplicate || isExpectedOtpFailure) {
           return response;
         }
 
