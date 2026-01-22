@@ -9,7 +9,6 @@ interface UseHoroscopeResult {
   isLoading: boolean;
   error: string | null;
   hasDateOfBirth: boolean;
-  refresh: () => Promise<void>;
 }
 
 export function useHoroscope(dateOfBirth: string | null): UseHoroscopeResult {
@@ -33,13 +32,13 @@ export function useHoroscope(dateOfBirth: string | null): UseHoroscopeResult {
     }
   }, [dateOfBirth]);
 
-  const fetchHoroscope = async (sign: ZodiacSign, forceRefresh = false) => {
+  const fetchHoroscope = async (sign: ZodiacSign) => {
     setIsLoading(true);
     setError(null);
     
     try {
       const { data, error: fnError } = await supabase.functions.invoke<HoroscopeApiResponse>('daily-horoscope', {
-        body: { zodiacSign: sign.sign, forceRefresh }
+        body: { zodiacSign: sign.sign }
       });
 
       if (fnError) {
@@ -59,7 +58,8 @@ export function useHoroscope(dateOfBirth: string | null): UseHoroscopeResult {
           title: data.title,
           aspects: data.aspects,
           summaryParagraph: data.summaryParagraph,
-          legacyContent: data.horoscope
+          legacyContent: data.horoscope,
+          createdAt: data.createdAt
         });
       } else if (data?.horoscope) {
         // Fallback for legacy format (plain text only)
@@ -70,7 +70,8 @@ export function useHoroscope(dateOfBirth: string | null): UseHoroscopeResult {
           element: sign.element,
           date: new Date().toISOString().split('T')[0],
           aspects: [],
-          summaryParagraph: data.horoscope
+          summaryParagraph: data.horoscope,
+          createdAt: data.createdAt
         });
       } else if (data?.error) {
         setError(data.error);
@@ -85,18 +86,11 @@ export function useHoroscope(dateOfBirth: string | null): UseHoroscopeResult {
     }
   };
 
-  const refresh = async () => {
-    if (zodiac) {
-      await fetchHoroscope(zodiac, true);
-    }
-  };
-
   return {
     zodiac,
     horoscope,
     isLoading,
     error,
-    hasDateOfBirth: !!dateOfBirth,
-    refresh
+    hasDateOfBirth: !!dateOfBirth
   };
 }
