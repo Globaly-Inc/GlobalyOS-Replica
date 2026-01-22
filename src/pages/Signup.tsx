@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,7 @@ import {
   Shield,
   Crown,
   ChevronsUpDown,
+  Loader2,
   // Category icons
   Monitor, Scale, GraduationCap, Plane, Heart, Landmark, 
   Home, ShoppingCart, Factory, Palette, Hotel,
@@ -209,6 +210,10 @@ const Signup = () => {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  
+  // Email availability check
+  const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
+  const [emailStatusMessage, setEmailStatusMessage] = useState<string>('');
   const [acceptTerms, setAcceptTerms] = useState(false);
 
   // Pre-fill plan from URL if provided
@@ -228,7 +233,63 @@ const Signup = () => {
     });
   }, [navigate]);
 
+  // Check email availability
+  const checkEmailAvailability = useCallback(async (emailToCheck: string) => {
+    if (!emailToCheck || !z.string().email().safeParse(emailToCheck).success) {
+      setEmailStatus('idle');
+      setEmailStatusMessage('');
+      return;
+    }
+    
+    setEmailStatus('checking');
+    
+    try {
+      const { data: existingOrg } = await supabase
+        .from('organizations')
+        .select('id, approval_status')
+        .eq('owner_email', emailToCheck)
+        .in('approval_status', ['pending', 'approved'])
+        .limit(1)
+        .maybeSingle();
+      
+      if (existingOrg) {
+        setEmailStatus('taken');
+        if (existingOrg.approval_status === 'pending') {
+          setEmailStatusMessage('This email already has a pending application. Please wait for approval or use a different email.');
+        } else {
+          setEmailStatusMessage('An organization with this email already exists. Please sign in instead.');
+        }
+      } else {
+        setEmailStatus('available');
+        setEmailStatusMessage('');
+      }
+    } catch (error) {
+      // On error, allow form submission (server will validate again)
+      setEmailStatus('available');
+      setEmailStatusMessage('');
+    }
+  }, []);
+
+  // Debounced email check
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (email) {
+        checkEmailAvailability(email);
+      } else {
+        setEmailStatus('idle');
+        setEmailStatusMessage('');
+      }
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [email, checkEmailAvailability]);
+
   const validateStep2 = () => {
+    // Block submission if email is taken
+    if (emailStatus === 'taken') {
+      return false;
+    }
+    
     try {
       businessAndUserSchema.parse({ 
         organizationName, 
@@ -242,7 +303,6 @@ const Signup = () => {
         acceptTerms 
       });
       setErrors({});
-      return true;
       return true;
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -668,14 +728,55 @@ const Signup = () => {
 
                     <div className="space-y-2">
                       <Label htmlFor="email">Work Email *</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="john@acme.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                      />
-                      {errors.email && (
+                      <div className="relative">
+                        <Input
+                          id="email"
+                          type="email"
+                          placeholder="john@acme.com"
+                          value={email}
+                          onChange={(e) => {
+                            setEmail(e.target.value);
+                            // Reset status when user starts typing again
+                            if (emailStatus === 'taken') {
+                              setEmailStatus('idle');
+                              setEmailStatusMessage('');
+                            }
+                          }}
+                          disabled={emailStatus === 'taken'}
+                          className={cn(
+                            emailStatus === 'taken' && 'border-destructive bg-destructive/10 text-muted-foreground pr-10'
+                          )}
+                        />
+                        {emailStatus === 'checking' && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                          </div>
+                        )}
+                      </div>
+                      {emailStatus === 'taken' && emailStatusMessage && (
+                        <div className="space-y-1">
+                          <p className="text-sm text-destructive">{emailStatusMessage}</p>
+                          <div className="flex items-center gap-2">
+                            <Button 
+                              variant="link" 
+                              size="sm" 
+                              className="h-auto p-0 text-xs"
+                              onClick={() => {
+                                setEmail('');
+                                setEmailStatus('idle');
+                                setEmailStatusMessage('');
+                              }}
+                            >
+                              Use a different email
+                            </Button>
+                            <span className="text-xs text-muted-foreground">or</span>
+                            <Link to="/auth" className="text-xs text-primary hover:underline">
+                              Sign in instead
+                            </Link>
+                          </div>
+                        </div>
+                      )}
+                      {errors.email && emailStatus !== 'taken' && (
                         <p className="text-sm text-destructive">{errors.email}</p>
                       )}
                     </div>
