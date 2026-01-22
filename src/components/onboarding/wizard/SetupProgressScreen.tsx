@@ -32,6 +32,7 @@ interface TeamMember {
   department?: string;
   role?: string;
   office_id?: string;
+  avatar_url?: string;
 }
 
 interface OwnerProfile {
@@ -225,6 +226,7 @@ export function SetupProgressScreen({
             organizationId,
             employmentType: 'employee',
             skipEmail: true,
+            avatarUrl: member.avatar_url || null,
           },
         });
       } catch (err) {
