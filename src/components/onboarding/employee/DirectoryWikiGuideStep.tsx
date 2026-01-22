@@ -116,6 +116,18 @@ export function DirectoryWikiGuideStep({ onContinue, onBack, isNavigating = fals
       </CardHeader>
 
       <CardContent className="space-y-6">
+        {/* Quick tips */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex-1 flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+            <span className="text-sm text-muted-foreground">Use search to find anything quickly</span>
+          </div>
+          <div className="flex-1 flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+            <FolderOpen className="h-4 w-4 text-muted-foreground shrink-0" />
+            <span className="text-sm text-muted-foreground">Wiki pages are organized in folders</span>
+          </div>
+        </div>
+
         {/* Three main features */}
         <div className="grid gap-4">
           {/* Team Directory */}
@@ -175,18 +187,6 @@ export function DirectoryWikiGuideStep({ onContinue, onBack, isNavigating = fals
                 </p>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Quick tips */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex-1 flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-            <span className="text-sm text-muted-foreground">Use search to find anything quickly</span>
-          </div>
-          <div className="flex-1 flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-            <FolderOpen className="h-4 w-4 text-muted-foreground shrink-0" />
-            <span className="text-sm text-muted-foreground">Wiki pages are organized in folders</span>
           </div>
         </div>
 
