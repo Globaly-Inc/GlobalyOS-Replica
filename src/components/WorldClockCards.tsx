@@ -130,7 +130,7 @@ export const WorldClockCards = ({ officeCountries = [] }: WorldClockCardsProps) 
   }
 
   return (
-    <div className="px-4 lg:px-6 pb-4">
+    <div className="hidden md:block px-4 lg:px-6 pb-4">
       <div className="flex gap-2 overflow-x-auto py-1">
         {allTimezones.map((tz, index) => {
           const { time, period, date, seconds } = getTimeInZone(tz);
