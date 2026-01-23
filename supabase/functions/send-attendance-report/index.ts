@@ -667,7 +667,7 @@ Write 2-3 sentences as if speaking directly to this employee about THEIR OWN att
 
       try {
         const emailResult = await resend.emails.send({
-          from: `GlobalyOS <onboarding@resend.dev>`,
+          from: 'GlobalyOS <hello@globalyos.com>',
           to: [profile.email],
           subject: `${periodLabel} Attendance Report - ${dateRangeText}`,
           html: emailHtml,
@@ -740,7 +740,7 @@ Write 2-3 sentences as if speaking directly to this employee about THEIR OWN att
 
       try {
         const emailResult = await resend.emails.send({
-          from: `GlobalyOS <onboarding@resend.dev>`,
+          from: 'GlobalyOS <hello@globalyos.com>',
           to: [profile.email],
           subject: `Your ${periodLabel} Attendance Summary - ${dateRangeText}`,
           html: emailHtml,

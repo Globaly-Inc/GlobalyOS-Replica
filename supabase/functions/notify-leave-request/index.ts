@@ -269,7 +269,7 @@ serve(async (req: Request) => {
 
       try {
         const response = await resend.emails.send({
-          from: "GlobalyHub People <hello@globalyhub.com>",
+          from: "GlobalyOS <hello@globalyos.com>",
           to: [recipient.email],
           subject: `Leave Request: ${employee_name} - ${getLeaveTypeLabel(leave_type)}`,
           html: htmlContent,

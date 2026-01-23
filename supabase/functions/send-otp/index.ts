@@ -184,7 +184,7 @@ serve(async (req) => {
 
     // Send email with OTP
     const { error: emailError } = await resend.emails.send({
-      from: 'GlobalyOS <hello@globalyhub.com>',
+      from: 'GlobalyOS <hello@globalyos.com>',
       to: [email],
       subject: `Your GlobalyOS verification code: ${otpCode}`,
       html: `
