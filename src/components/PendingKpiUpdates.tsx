@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Target, Clock, Bell, Eye, AlarmClockOff } from 'lucide-react';
 import { usePendingKpiUpdates, useSnoozeKpiReminder, useAddKpiUpdate } from '@/services/useKpiUpdates';
+import { useKpiRealtime } from '@/services/useKpiRealtime';
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import type { KpiStatus } from '@/types';
 
@@ -36,6 +37,9 @@ const statusColors: Record<KpiStatus, string> = {
 };
 
 export const PendingKpiUpdates = () => {
+  // Enable realtime updates for KPI reminders
+  useKpiRealtime();
+  
   const { data: pendingUpdates, isLoading } = usePendingKpiUpdates();
   const snoozeReminder = useSnoozeKpiReminder();
   const addUpdate = useAddKpiUpdate();

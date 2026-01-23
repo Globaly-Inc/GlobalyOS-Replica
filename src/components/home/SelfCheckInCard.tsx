@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useCheckInStatus } from "@/services/useAttendance";
+import { useAttendanceRealtime } from "@/services/useAttendanceRealtime";
 import { RemoteCheckInDialog } from "@/components/dialogs/RemoteCheckInDialog";
 import { format, differenceInMinutes } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
@@ -24,6 +25,9 @@ interface EmployeeSchedule {
 type HalfDayType = 'full' | 'first_half' | 'second_half' | null;
 
 export const SelfCheckInCard = () => {
+  // Enable realtime updates for attendance
+  useAttendanceRealtime();
+  
   const { user } = useAuth();
   const { currentOrg } = useOrganization();
   const { data: checkInStatus, isLoading: statusLoading } = useCheckInStatus();
