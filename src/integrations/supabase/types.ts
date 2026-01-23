@@ -4661,6 +4661,7 @@ export type Database = {
           employee_id: string
           id: string
           leave_type_id: string
+          office_leave_type_id: string | null
           organization_id: string | null
           updated_at: string
           year: number
@@ -4671,6 +4672,7 @@ export type Database = {
           employee_id: string
           id?: string
           leave_type_id: string
+          office_leave_type_id?: string | null
           organization_id?: string | null
           updated_at?: string
           year?: number
@@ -4681,6 +4683,7 @@ export type Database = {
           employee_id?: string
           id?: string
           leave_type_id?: string
+          office_leave_type_id?: string | null
           organization_id?: string | null
           updated_at?: string
           year?: number
@@ -4705,6 +4708,13 @@ export type Database = {
             columns: ["leave_type_id"]
             isOneToOne: false
             referencedRelation: "leave_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_type_balances_office_leave_type_id_fkey"
+            columns: ["office_leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "office_leave_types"
             referencedColumns: ["id"]
           },
           {
@@ -4961,6 +4971,78 @@ export type Database = {
           },
         ]
       }
+      office_leave_types: {
+        Row: {
+          applies_to_employment_types: string[] | null
+          applies_to_gender: string | null
+          carry_forward_mode: string | null
+          category: string
+          created_at: string | null
+          default_days: number | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          is_system: boolean | null
+          max_negative_days: number | null
+          min_days_advance: number | null
+          name: string
+          office_id: string
+          organization_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          applies_to_employment_types?: string[] | null
+          applies_to_gender?: string | null
+          carry_forward_mode?: string | null
+          category?: string
+          created_at?: string | null
+          default_days?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_system?: boolean | null
+          max_negative_days?: number | null
+          min_days_advance?: number | null
+          name: string
+          office_id: string
+          organization_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          applies_to_employment_types?: string[] | null
+          applies_to_gender?: string | null
+          carry_forward_mode?: string | null
+          category?: string
+          created_at?: string | null
+          default_days?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_system?: boolean | null
+          max_negative_days?: number | null
+          min_days_advance?: number | null
+          name?: string
+          office_id?: string
+          organization_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_leave_types_office_id_fkey"
+            columns: ["office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_leave_types_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       office_qr_codes: {
         Row: {
           code: string
@@ -5101,6 +5183,7 @@ export type Database = {
           google_maps_url: string | null
           id: string
           latitude: number | null
+          leave_enabled: boolean | null
           leave_year_start_day: number | null
           leave_year_start_month: number | null
           longitude: number | null
@@ -5119,6 +5202,7 @@ export type Database = {
           google_maps_url?: string | null
           id?: string
           latitude?: number | null
+          leave_enabled?: boolean | null
           leave_year_start_day?: number | null
           leave_year_start_month?: number | null
           longitude?: number | null
@@ -5137,6 +5221,7 @@ export type Database = {
           google_maps_url?: string | null
           id?: string
           latitude?: number | null
+          leave_enabled?: boolean | null
           leave_year_start_day?: number | null
           leave_year_start_month?: number | null
           longitude?: number | null
@@ -8557,6 +8642,42 @@ export type Database = {
         }
         Relationships: []
       }
+      template_employment_types: {
+        Row: {
+          country_code: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          label: string
+          name: string
+          sort_order: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          country_code?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          label: string
+          name: string
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          country_code?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          label?: string
+          name?: string
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       template_holiday_generations: {
         Row: {
           country_code: string
@@ -8635,6 +8756,60 @@ export type Database = {
           title_local?: string | null
           updated_at?: string | null
           year?: number | null
+        }
+        Relationships: []
+      }
+      template_leave_types: {
+        Row: {
+          applies_to_employment_types: string[] | null
+          applies_to_gender: string | null
+          carry_forward_mode: string | null
+          category: string
+          country_code: string | null
+          created_at: string | null
+          default_days: number | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          max_negative_days: number | null
+          min_days_advance: number | null
+          name: string
+          sort_order: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          applies_to_employment_types?: string[] | null
+          applies_to_gender?: string | null
+          carry_forward_mode?: string | null
+          category?: string
+          country_code?: string | null
+          created_at?: string | null
+          default_days?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_negative_days?: number | null
+          min_days_advance?: number | null
+          name: string
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          applies_to_employment_types?: string[] | null
+          applies_to_gender?: string | null
+          carry_forward_mode?: string | null
+          category?: string
+          country_code?: string | null
+          created_at?: string | null
+          default_days?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_negative_days?: number | null
+          min_days_advance?: number | null
+          name?: string
+          sort_order?: number | null
+          updated_at?: string | null
         }
         Relationships: []
       }

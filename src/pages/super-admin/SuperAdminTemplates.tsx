@@ -14,6 +14,8 @@ import { TemplatePositionEditor } from "@/components/super-admin/templates/Templ
 import { TemplateLearningPanel } from "@/components/super-admin/templates/TemplateLearningPanel";
 import { AITemplateTools } from "@/components/super-admin/templates/AITemplateTools";
 import { TemplateHolidaysTab } from "@/components/super-admin/templates/TemplateHolidaysTab";
+import { TemplateLeaveTypesTab } from "@/components/super-admin/templates/TemplateLeaveTypesTab";
+import { TemplateEmploymentTypesTab } from "@/components/super-admin/templates/TemplateEmploymentTypesTab";
 import { BUSINESS_CATEGORIES } from "@/constants/businessCategories";
 import { 
   Building2, 
@@ -22,7 +24,9 @@ import {
   Search,
   Loader2,
   LayoutTemplate,
-  Calendar
+  Calendar,
+  CalendarDays,
+  UserCheck
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -261,6 +265,14 @@ export default function SuperAdminTemplates() {
                 <Calendar className="h-4 w-4" />
                 Holidays
               </TabsTrigger>
+              <TabsTrigger value="leave-types" className="gap-2">
+                <CalendarDays className="h-4 w-4" />
+                Leave Types
+              </TabsTrigger>
+              <TabsTrigger value="employment-types" className="gap-2">
+                <UserCheck className="h-4 w-4" />
+                Employment Types
+              </TabsTrigger>
             </TabsList>
 
             <div className="flex items-center gap-2">
@@ -349,6 +361,16 @@ export default function SuperAdminTemplates() {
           {/* Holidays Tab */}
           <TabsContent value="holidays" className="mt-4">
             <TemplateHolidaysTab />
+          </TabsContent>
+
+          {/* Leave Types Tab */}
+          <TabsContent value="leave-types" className="mt-4">
+            <TemplateLeaveTypesTab />
+          </TabsContent>
+
+          {/* Employment Types Tab */}
+          <TabsContent value="employment-types" className="mt-4">
+            <TemplateEmploymentTypesTab />
           </TabsContent>
         </Tabs>
       </div>
