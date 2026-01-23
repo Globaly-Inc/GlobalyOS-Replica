@@ -178,7 +178,7 @@ const CalendarPage = () => {
   const monthEnd = endOfMonth(currentDate);
 
   // Fetch current user's employee with office
-  const { data: currentEmployee } = useQuery({
+  const { data: currentEmployee, isLoading: employeeLoading } = useQuery({
     queryKey: ["current-employee-office", user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
@@ -315,9 +315,15 @@ const CalendarPage = () => {
         officeIds: eventOffices.filter(eo => eo.calendar_event_id === event.id).map(eo => eo.office_id),
       }));
 
-      // If user has no office or is admin/HR, show all events
-      if (!currentEmployee?.office_id || isAdmin || isHR) {
+      // If admin/HR, show all events
+      if (isAdmin || isHR) {
         return eventsWithOffices;
+      }
+
+      // For regular members, filter by their office
+      // If employee data not available yet, return empty to avoid caching wrong results
+      if (!currentEmployee?.office_id) {
+        return [];
       }
 
       // Filter events: show if applies_to_all_offices OR user's office is in the list
@@ -327,7 +333,7 @@ const CalendarPage = () => {
       });
     },
     staleTime: 60 * 1000, // 1 minute
-    enabled: !!currentOrg?.id && !roleLoading,
+    enabled: !!currentOrg?.id && !roleLoading && !employeeLoading,
   });
 
   // Fetch performance reviews
