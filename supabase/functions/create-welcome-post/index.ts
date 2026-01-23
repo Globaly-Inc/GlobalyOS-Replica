@@ -157,14 +157,22 @@ function generateWelcomeContent(orgName: string, industry: string, enabledFeatur
   // Build features list based on enabled features
   const featuresList = buildFeaturesList(enabledFeatures);
 
-  return `<p>🎉 <strong>Exciting News: ${orgName} is Now on GlobalyOS!</strong></p>
+return `<p>🎉 <strong>Exciting News: ${orgName} is Now on GlobalyOS!</strong></p>
+
+<p></p>
 
 <p>We've started using GlobalyOS as our new Business Operating System. This modern platform will help ${industryLabel} like us streamline our operations and achieve greater success.</p>
+
+<p></p>
 
 <p><strong>What this means for our team:</strong></p>
 ${featuresList}
 
+<p></p>
+
 <p>Welcome aboard, everyone! If you have any questions or need help getting started, reach out to <a href="mailto:support@globalyos.com">support@globalyos.com</a>.</p>
+
+<p></p>
 
 <p>Let's make great things happen together! 🚀</p>`;
 }
