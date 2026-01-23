@@ -322,6 +322,8 @@ export default function OrgOnboardingWizard() {
             ownerProfile={onboardingData?.owner_profile}
             organizationId={currentOrg?.id || ''}
             orgSlug={currentOrg?.slug}
+            industry={onboardingData?.organization_info?.industry}
+            enabledFeatures={onboardingData?.enabled_features}
             onFinish={() => handleNext()}
             onBack={handleBack}
             isCompleting={completeOnboarding.isPending}
