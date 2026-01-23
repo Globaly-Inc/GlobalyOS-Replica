@@ -7,9 +7,23 @@ import { EditableField } from '@/components/EditableField';
 import { OfficeScheduleCard } from './OfficeScheduleCard';
 import { OfficeOverviewStats } from './OfficeOverviewStats';
 import { OfficeTeamList } from './OfficeTeamList';
+import { OfficeLeaveSettings } from '@/components/settings/OfficeLeaveSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import type { Office } from '@/pages/ManageOffices';
+import { useOrganization } from '@/hooks/useOrganization';
+
+export interface Office {
+  id: string;
+  name: string;
+  address: string | null;
+  city: string | null;
+  country: string | null;
+  organization_id: string;
+  employee_count: number;
+  leave_year_start_month?: number;
+  leave_year_start_day?: number;
+  leave_enabled?: boolean;
+}
 
 interface OfficeDetailViewProps {
   office: Office;
@@ -19,6 +33,7 @@ interface OfficeDetailViewProps {
 
 export const OfficeDetailView = ({ office, onOfficeUpdated, onOfficeDeleted }: OfficeDetailViewProps) => {
   const [deleting, setDeleting] = useState(false);
+  const { currentOrg } = useOrganization();
 
   const handleUpdateField = async (field: keyof Office, value: string) => {
     const { error } = await supabase
@@ -135,6 +150,15 @@ export const OfficeDetailView = ({ office, onOfficeUpdated, onOfficeDeleted }: O
 
       {/* Office Schedule Card */}
       <OfficeScheduleCard office={office} onOfficeUpdated={onOfficeUpdated} />
+
+      {/* Leave Settings */}
+      {currentOrg?.id && (
+        <OfficeLeaveSettings
+          office={office}
+          organizationId={currentOrg.id}
+          onOfficeUpdated={onOfficeUpdated}
+        />
+      )}
 
       {/* Team Members List */}
       <OfficeTeamList officeId={office.id} officeName={office.name} />
