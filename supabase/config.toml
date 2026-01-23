@@ -248,3 +248,6 @@ verify_jwt = false
 
 [functions.check-signup-email]
 verify_jwt = false
+
+[functions.create-welcome-post]
+verify_jwt = false

@@ -50,6 +50,8 @@ interface SetupProgressScreenProps {
   employeeId?: string;
   ownerProfile?: OwnerProfile;
   orgSlug?: string;
+  industry?: string;
+  enabledFeatures?: string[];
   onComplete: () => void;
 }
 
@@ -62,6 +64,8 @@ export function SetupProgressScreen({
   employeeId,
   ownerProfile,
   orgSlug,
+  industry,
+  enabledFeatures = [],
   onComplete,
 }: SetupProgressScreenProps) {
   const navigate = useNavigate();
@@ -370,6 +374,36 @@ export function SetupProgressScreen({
     }
   }, [organizationId, teamMembers]);
 
+  // Post welcome announcement to team feed
+  const postWelcomeMessage = useCallback(async () => {
+    if (!resolvedEmployeeId || !organizationId) {
+      console.log('[SetupProgressScreen] Skipping welcome post - missing employee or org ID');
+      return;
+    }
+
+    try {
+      console.log('[SetupProgressScreen] Posting welcome announcement for:', orgName);
+      const { error } = await supabase.functions.invoke('create-welcome-post', {
+        body: {
+          organizationId,
+          employeeId: resolvedEmployeeId,
+          orgName,
+          industry: industry || 'business',
+          enabledFeatures,
+        },
+      });
+      
+      if (error) {
+        console.error('[SetupProgressScreen] Failed to post welcome message:', error);
+      } else {
+        console.log('[SetupProgressScreen] Welcome post created successfully');
+      }
+    } catch (err) {
+      // Non-blocking - don't fail onboarding if post fails
+      console.error('[SetupProgressScreen] Error posting welcome message:', err);
+    }
+  }, [organizationId, resolvedEmployeeId, orgName, industry, enabledFeatures]);
+
   // Define tasks dynamically
   const tasks: SetupTask[] = [
     { id: 'org', label: 'Finalizing organization settings' },
@@ -386,6 +420,7 @@ export function SetupProgressScreen({
     ...(teamMembersCount > 0 ? [{ id: 'accounts', label: `Creating ${teamMembersCount} team account${teamMembersCount > 1 ? 's' : ''}`, action: createTeamMembers }] : []),
     ...(hasAnyMembersWithOffice ? [{ id: 'schedules', label: 'Assigning work schedules', action: setupEmployeeSchedules }] : []),
     ...(teamMembersCount > 0 ? [{ id: 'invites', label: `Sending ${teamMembersCount} invitation${teamMembersCount > 1 ? 's' : ''}`, action: sendInvitations }] : []),
+    { id: 'welcome', label: 'Posting welcome announcement', action: postWelcomeMessage },
     { id: 'dashboard', label: 'Preparing your dashboard' },
   ];
 
