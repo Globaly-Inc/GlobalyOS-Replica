@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CalendarIcon, Plus, Search, UserPlus } from "lucide-react";
+import { CalendarIcon, Search, UserPlus } from "lucide-react";
 import { format, differenceInCalendarDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,12 +17,7 @@ import { toast } from "sonner";
 import { showErrorToast } from "@/lib/errorUtils";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-
-interface LeaveType {
-  id: string;
-  name: string;
-  category: string;
-}
+import { useEmployeeLeaveTypesQuery } from "@/hooks/useEmployeeLeaveTypesQuery";
 
 interface AddLeaveForEmployeeDialogProps {
   employeeId?: string;
@@ -42,7 +37,6 @@ export const AddLeaveForEmployeeDialog = ({
   const { currentOrg } = useOrganization();
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
-  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [employeeId, setEmployeeId] = useState<string>(initialEmployeeId || "");
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [leaveTypeId, setLeaveTypeId] = useState<string>("");
@@ -51,6 +45,9 @@ export const AddLeaveForEmployeeDialog = ({
   const [halfDayType, setHalfDayType] = useState<string>("full");
   const [reason, setReason] = useState<string>("");
   const [status, setStatus] = useState<string>("approved");
+
+  // Use office-aware leave types query - refetch when employee changes
+  const { data: leaveTypes = [], refetch: refetchLeaveTypes } = useEmployeeLeaveTypesQuery(employeeId || initialEmployeeId);
 
   // Fetch employees when no initial employee provided
   const { data: employees = [] } = useQuery({
@@ -84,8 +81,7 @@ export const AddLeaveForEmployeeDialog = ({
   const displayName = initialEmployeeName || (selectedEmployee?.profiles as any)?.full_name || "";
 
   useEffect(() => {
-    if (open && currentOrg) {
-      loadLeaveTypes();
+    if (open) {
       // Reset form
       setEmployeeId(initialEmployeeId || "");
       setEmployeeSearch("");
@@ -96,7 +92,16 @@ export const AddLeaveForEmployeeDialog = ({
       setReason("");
       setStatus("approved");
     }
-  }, [open, currentOrg?.id, initialEmployeeId]);
+  }, [open, initialEmployeeId]);
+
+  // Refetch leave types when employee changes
+  useEffect(() => {
+    if (employeeId && open) {
+      refetchLeaveTypes();
+      // Reset leave type selection when employee changes
+      setLeaveTypeId("");
+    }
+  }, [employeeId, open, refetchLeaveTypes]);
 
   // Force end_date to match start_date for half-day leaves
   useEffect(() => {
@@ -104,20 +109,6 @@ export const AddLeaveForEmployeeDialog = ({
       setEndDate(startDate);
     }
   }, [halfDayType, startDate]);
-
-  const loadLeaveTypes = async () => {
-    if (!currentOrg) return;
-    const { data, error } = await supabase
-      .from("leave_types")
-      .select("id, name, category")
-      .eq("organization_id", currentOrg.id)
-      .eq("is_active", true)
-      .order("name");
-
-    if (!error && data) {
-      setLeaveTypes(data);
-    }
-  };
 
   const calculateDays = () => {
     if (!startDate || !endDate) return 0;
