@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Bug, Lightbulb, LifeBuoy } from 'lucide-react';
+import { Bug, Lightbulb } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,7 +14,6 @@ import { cn } from '@/lib/utils';
 type TabType = 'bugs' | 'features' | null;
 
 export const UserHelpRequests = () => {
-  const navigate = useNavigate();
   const { data: requests = [], isLoading } = useUserSupportRequests();
   const [activeTab, setActiveTab] = useState<TabType>(null);
   const [selectedRequest, setSelectedRequest] = useState<SupportRequest | null>(null);
@@ -46,15 +44,12 @@ export const UserHelpRequests = () => {
   if (isLoading) {
     return (
       <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <LifeBuoy className="h-5 w-5 text-primary" />
-            <h3 className="text-lg font-semibold text-foreground">GlobalyOS Help</h3>
+            <div className="h-8 bg-muted rounded-full w-20 animate-pulse" />
+            <div className="h-8 bg-muted rounded-full w-24 animate-pulse" />
           </div>
-        </div>
-        <div className="animate-pulse space-y-3">
-          <div className="h-8 bg-muted rounded-full w-48" />
-          <div className="h-24 bg-muted rounded-lg" />
+          <div className="h-7 bg-muted rounded w-16 animate-pulse" />
         </div>
       </Card>
     );
@@ -63,16 +58,42 @@ export const UserHelpRequests = () => {
   return (
     <>
       <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
+        {/* Header with tabs and Get Help button */}
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <LifeBuoy className="h-5 w-5 text-primary" />
-            <h3 
-              className="text-lg font-semibold text-foreground cursor-pointer hover:text-primary transition-colors"
-              onClick={() => navigate('/support')}
+            <button
+              onClick={() => handleTabClick('bugs')}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+                activeTab === 'bugs'
+                  ? "bg-destructive/10 text-destructive"
+                  : "bg-muted hover:bg-muted/80 text-muted-foreground"
+              )}
             >
-              GlobalyOS Help
-            </h3>
+              <Bug className="h-3.5 w-3.5" />
+              Bugs
+              <Badge variant="secondary" className="h-4 text-[10px] px-1.5 ml-0.5">
+                {bugs.length}
+              </Badge>
+            </button>
+
+            <button
+              onClick={() => handleTabClick('features')}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+                activeTab === 'features'
+                  ? "bg-primary/10 text-primary"
+                  : "bg-muted hover:bg-muted/80 text-muted-foreground"
+              )}
+            >
+              <Lightbulb className="h-3.5 w-3.5" />
+              Features
+              <Badge variant="secondary" className="h-4 text-[10px] px-1.5 ml-0.5">
+                {features.length}
+              </Badge>
+            </button>
           </div>
+
           <Button
             variant="outline"
             size="sm"
@@ -81,42 +102,6 @@ export const UserHelpRequests = () => {
           >
             Get Help
           </Button>
-        </div>
-
-        {/* Tab Buttons */}
-        <div className="flex gap-2 mb-3">
-          <button
-            onClick={() => handleTabClick('bugs')}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
-              activeTab === 'bugs'
-                ? "bg-destructive/10 text-destructive"
-                : "bg-muted hover:bg-muted/80 text-muted-foreground"
-            )}
-          >
-            <Bug className="h-3.5 w-3.5" />
-            Bugs
-            <Badge variant="secondary" className="h-4 text-[10px] px-1.5 ml-0.5">
-              {bugs.length}
-            </Badge>
-          </button>
-
-          <button
-            onClick={() => handleTabClick('features')}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
-              activeTab === 'features'
-                ? "bg-primary/10 text-primary"
-                : "bg-muted hover:bg-muted/80 text-muted-foreground"
-            )}
-          >
-            <Lightbulb className="h-3.5 w-3.5" />
-            Features
-            <Badge variant="secondary" className="h-4 text-[10px] px-1.5 ml-0.5">
-              {features.length}
-            </Badge>
-          </button>
-
         </div>
 
         {/* Cards Carousel - only show when a tab is selected and has content */}
