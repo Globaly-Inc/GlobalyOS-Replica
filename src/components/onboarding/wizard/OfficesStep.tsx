@@ -47,6 +47,13 @@ import { getTimezoneForCountry } from '@/utils/countryTimezones';
 import { getFlagEmoji } from '@/lib/countries';
 import type { Json } from '@/integrations/supabase/types';
 
+interface OfficeLeaveTypeConfig {
+  name: string;
+  category: 'paid' | 'unpaid';
+  default_days: number;
+  is_enabled: boolean;
+}
+
 interface Office {
   id?: string;
   name: string;
@@ -67,9 +74,10 @@ interface Office {
   timezone?: string;
   day_schedules?: DaySchedulesMap;
   public_holidays_enabled?: boolean;
-  // Leave settings
+  // Leave settings (per-office)
   leave_year_start_month?: number;
   leave_year_start_day?: number;
+  leave_types?: OfficeLeaveTypeConfig[]; // Per-office leave types
 }
 
 interface OrganizationInfo {
@@ -247,10 +255,15 @@ export function OfficesStep({
   const hasAttendance = enabledFeatures.includes('attendance');
   const hasLeave = enabledFeatures.includes('leave');
 
-  // Leave types configuration state
-  const [leaveTypesConfig, setLeaveTypesConfig] = useState<LeaveTypeConfig[]>(
-    initialLeaveTypesConfig || getDefaultLeaveTypesConfig()
-  );
+  // Get default leave types config for a new office
+  const getDefaultOfficeLeaveTypes = (): OfficeLeaveTypeConfig[] => {
+    return getDefaultLeaveTypesConfig().map(lt => ({
+      name: lt.name,
+      category: lt.category,
+      default_days: lt.default_days,
+      is_enabled: lt.is_enabled,
+    }));
+  };
 
   // Initialize offices with defaults
   const getInitialOffices = (): Office[] => {
@@ -268,6 +281,7 @@ export function OfficesStep({
         public_holidays_enabled: o.public_holidays_enabled ?? true,
         leave_year_start_month: o.leave_year_start_month || 1,
         leave_year_start_day: o.leave_year_start_day || 1,
+        leave_types: o.leave_types || getDefaultOfficeLeaveTypes(),
       }));
     }
     
@@ -293,6 +307,7 @@ export function OfficesStep({
       public_holidays_enabled: true,
       leave_year_start_month: 1,
       leave_year_start_day: 1,
+      leave_types: getDefaultOfficeLeaveTypes(),
     }];
   };
 
@@ -317,6 +332,7 @@ export function OfficesStep({
       public_holidays_enabled: true,
       leave_year_start_month: 1,
       leave_year_start_day: 1,
+      leave_types: getDefaultOfficeLeaveTypes(),
     }]);
     setExpandedOffice(`office-${newIndex}`);
   };
@@ -636,7 +652,8 @@ export function OfficesStep({
         description: `${insertedOffices.length} office${insertedOffices.length > 1 ? 's' : ''} saved successfully.`,
       });
 
-      onSave(insertedOffices, hasLeave ? leaveTypesConfig : undefined);
+      // Pass offices with per-office leave types
+      onSave(insertedOffices, undefined);
     } catch (err) {
       console.error('Failed to persist offices:', err);
       toast({
@@ -1094,10 +1111,23 @@ export function OfficesStep({
                               {office.leave_enabled && (
                                 <>
 
-                              {/* Leave Types Customizer */}
+                              {/* Leave Types Customizer - Per Office */}
                               <LeaveTypesCustomizer
-                                value={leaveTypesConfig}
-                                onChange={setLeaveTypesConfig}
+                                value={(office.leave_types || []).map(lt => ({
+                                  name: lt.name,
+                                  category: lt.category,
+                                  default_days: lt.default_days,
+                                  is_enabled: lt.is_enabled,
+                                  is_custom: false,
+                                }))}
+                                onChange={(config) => {
+                                  updateOffice(index, 'leave_types', config.map(lt => ({
+                                    name: lt.name,
+                                    category: lt.category,
+                                    default_days: lt.default_days,
+                                    is_enabled: lt.is_enabled,
+                                  })));
+                                }}
                                 disabled={isLoading}
                               />
                               </>
