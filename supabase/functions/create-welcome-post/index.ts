@@ -192,7 +192,9 @@ function getIndustryLabel(industry: string): string {
     'education_consultancy': 'education consultancies',
   };
 
-  return industryMap[industry?.toLowerCase()] || 'businesses';
+  // Normalize: lowercase and replace spaces with underscores
+  const normalizedIndustry = industry?.toLowerCase().replace(/\s+/g, '_');
+  return industryMap[normalizedIndustry] || 'businesses';
 }
 
 function buildFeaturesList(enabledFeatures: string[]): string {
