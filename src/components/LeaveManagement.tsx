@@ -46,10 +46,35 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
   // Subscribe to real-time balance updates
   useLeaveBalanceRealtime(employeeId);
 
-  // Fetch leave balances directly from leave_type_balances (the authoritative source)
+  // Fetch leave balances - office-aware (use office_leave_types via office_leave_type_id)
   const { data: balances = [], refetch: refetchBalances } = useQuery({
     queryKey: ["leave-type-balances-profile", employeeId, currentYear],
     queryFn: async () => {
+      // First try office_leave_types (new structure)
+      const { data: officeBalances, error: officeError } = await supabase
+        .from("leave_type_balances")
+        .select(`
+          balance,
+          office_leave_type:office_leave_types(
+            name,
+            category
+          )
+        `)
+        .eq("employee_id", employeeId)
+        .eq("year", currentYear)
+        .not("office_leave_type_id", "is", null);
+
+      if (!officeError && officeBalances && officeBalances.length > 0) {
+        return officeBalances
+          .filter((item: any) => item.office_leave_type)
+          .map((item: any) => ({
+            leave_type_name: item.office_leave_type.name,
+            category: item.office_leave_type.category,
+            balance: item.balance,
+          })) as LeaveBalance[];
+      }
+
+      // Fallback to legacy leave_types
       const { data, error } = await supabase
         .from("leave_type_balances")
         .select(`
@@ -76,6 +101,31 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
   const { data: previousYearBalances = [] } = useQuery({
     queryKey: ["leave-type-balances-profile", employeeId, previousYear],
     queryFn: async () => {
+      // First try office_leave_types
+      const { data: officeBalances, error: officeError } = await supabase
+        .from("leave_type_balances")
+        .select(`
+          balance,
+          office_leave_type:office_leave_types(
+            name,
+            category
+          )
+        `)
+        .eq("employee_id", employeeId)
+        .eq("year", previousYear)
+        .not("office_leave_type_id", "is", null);
+
+      if (!officeError && officeBalances && officeBalances.length > 0) {
+        return officeBalances
+          .filter((item: any) => item.office_leave_type)
+          .map((item: any) => ({
+            leave_type_name: item.office_leave_type.name,
+            category: item.office_leave_type.category,
+            balance: item.balance,
+          })) as LeaveBalance[];
+      }
+
+      // Fallback to legacy leave_types
       const { data, error } = await supabase
         .from("leave_type_balances")
         .select(`

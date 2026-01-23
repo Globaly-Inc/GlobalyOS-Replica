@@ -94,11 +94,44 @@ const Leave = () => {
   // Subscribe to real-time balance updates
   useLeaveBalanceRealtime(employee?.id);
 
-  // Fetch leave balances
+  // Fetch leave balances - office-aware (use office_leave_types via office_leave_type_id)
   const { data: balances = [], isLoading: balancesLoading } = useQuery({
     queryKey: ["leave-type-balances", employee?.id, currentYear],
     queryFn: async () => {
       if (!employee?.id) return [];
+      
+      // First try to get balances with office_leave_type_id (new structure)
+      const { data: officeBalances, error: officeError } = await supabase
+        .from("leave_type_balances")
+        .select(`
+          id,
+          balance,
+          office_leave_type:office_leave_types(
+            id,
+            name,
+            category
+          )
+        `)
+        .eq("employee_id", employee.id)
+        .eq("year", currentYear)
+        .not("office_leave_type_id", "is", null);
+
+      if (!officeError && officeBalances && officeBalances.length > 0) {
+        // Map office_leave_types to the expected shape
+        return officeBalances
+          .filter((b: any) => b.office_leave_type)
+          .map((b: any) => ({
+            id: b.id,
+            balance: b.balance,
+            leave_type: {
+              id: b.office_leave_type.id,
+              name: b.office_leave_type.name,
+              category: b.office_leave_type.category,
+            },
+          })) as LeaveTypeBalance[];
+      }
+
+      // Fallback to legacy leave_types for backward compatibility
       const { data, error } = await supabase
         .from("leave_type_balances")
         .select(`
