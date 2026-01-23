@@ -13,12 +13,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useOrganization } from "@/hooks/useOrganization";
-
-interface LeaveType {
-  id: string;
-  name: string;
-  category: string;
-}
+import { useEmployeeLeaveTypesQuery } from "@/hooks/useEmployeeLeaveTypesQuery";
 
 interface AddLeaveBalanceDialogProps {
   employeeId: string;
@@ -35,28 +30,17 @@ export const AddLeaveBalanceDialog = ({
   const [amount, setAmount] = useState<string>("");
   const [reason, setReason] = useState<string>("");
   const [effectiveDate, setEffectiveDate] = useState<Date>(new Date());
-  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const { currentOrg } = useOrganization();
 
+  // Use office-aware leave types query
+  const { data: leaveTypes = [], refetch: refetchLeaveTypes } = useEmployeeLeaveTypesQuery(employeeId);
+
   useEffect(() => {
-    if (open && currentOrg) {
-      loadLeaveTypes();
+    if (open) {
+      refetchLeaveTypes();
       setEffectiveDate(new Date());
     }
-  }, [open, currentOrg?.id]);
-
-  const loadLeaveTypes = async () => {
-    if (!currentOrg) return;
-    const { data, error } = await supabase
-      .from("leave_types")
-      .select("id, name, category")
-      .eq("organization_id", currentOrg.id)
-      .eq("is_active", true)
-      .order("name");
-    if (!error && data) {
-      setLeaveTypes(data);
-    }
-  };
+  }, [open, refetchLeaveTypes]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useEmployeeLeaveTypesQuery } from "@/hooks/useEmployeeLeaveTypesQuery";
 
 interface LeaveRequest {
   id: string;
@@ -23,12 +24,7 @@ interface LeaveRequest {
   half_day_type: string;
   reason: string | null;
   status: string;
-}
-
-interface LeaveType {
-  id: string;
-  name: string;
-  category: string;
+  employee_id?: string;
 }
 
 interface EditLeaveRequestDialogProps {
@@ -48,7 +44,6 @@ export const EditLeaveRequestDialog = ({
 }: EditLeaveRequestDialogProps) => {
   const { currentOrg } = useOrganization();
   const [loading, setLoading] = useState(false);
-  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [leaveTypeId, setLeaveTypeId] = useState<string>("");
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
@@ -57,11 +52,17 @@ export const EditLeaveRequestDialog = ({
   const [status, setStatus] = useState<string>("pending");
   const [originalStatus, setOriginalStatus] = useState<string>("pending");
 
+  // Use the employee ID from request or prop
+  const targetEmployeeId = request?.employee_id || employeeId;
+  
+  // Use office-aware leave types query
+  const { data: leaveTypes = [], refetch: refetchLeaveTypes } = useEmployeeLeaveTypesQuery(targetEmployeeId);
+
   useEffect(() => {
     if (open && currentOrg) {
-      loadLeaveTypes();
+      refetchLeaveTypes();
     }
-  }, [open, currentOrg?.id]);
+  }, [open, currentOrg?.id, refetchLeaveTypes]);
 
   useEffect(() => {
     if (request && open && leaveTypes.length > 0) {
@@ -76,20 +77,6 @@ export const EditLeaveRequestDialog = ({
       setOriginalStatus(request.status);
     }
   }, [request, open, leaveTypes]);
-
-  const loadLeaveTypes = async () => {
-    if (!currentOrg) return;
-    const { data, error } = await supabase
-      .from("leave_types")
-      .select("id, name, category")
-      .eq("organization_id", currentOrg.id)
-      .eq("is_active", true)
-      .order("name");
-
-    if (!error && data) {
-      setLeaveTypes(data);
-    }
-  };
 
   const calculateDays = () => {
     if (!startDate || !endDate) return 0;

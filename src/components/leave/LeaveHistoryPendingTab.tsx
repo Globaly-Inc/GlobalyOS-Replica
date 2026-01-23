@@ -151,17 +151,47 @@ export const LeaveHistoryPendingTab = ({
     checkDirectReports();
   }, [currentEmployee?.id, currentOrg?.id]);
 
-  // Fetch leave types map for balance calculation
-  const fetchLeaveTypesMap = async (): Promise<Map<string, { id: string; name: string; max_negative_days: number }>> => {
+  // Fetch leave types map for balance calculation - office-aware
+  const fetchLeaveTypesMap = async (employeeId?: string): Promise<Map<string, { id: string; name: string; max_negative_days: number }>> => {
     if (!currentOrg) return new Map();
-    
+
+    let officeId: string | null = null;
+
+    // Get employee's office if provided
+    if (employeeId) {
+      const { data: emp } = await supabase
+        .from("employees")
+        .select("office_id")
+        .eq("id", employeeId)
+        .maybeSingle();
+      officeId = emp?.office_id || null;
+    }
+
+    const map = new Map();
+
+    // Try office_leave_types first
+    if (officeId) {
+      const { data: officeTypes } = await supabase
+        .from("office_leave_types")
+        .select("id, name, max_negative_days")
+        .eq("office_id", officeId)
+        .eq("is_active", true);
+
+      if (officeTypes && officeTypes.length > 0) {
+        officeTypes.forEach(lt => {
+          map.set(lt.name.toLowerCase(), lt);
+        });
+        return map;
+      }
+    }
+
+    // Fallback to legacy leave_types
     const { data: leaveTypes } = await supabase
       .from("leave_types")
       .select("id, name, max_negative_days")
       .eq("organization_id", currentOrg.id)
       .eq("is_active", true);
 
-    const map = new Map();
     (leaveTypes || []).forEach(lt => {
       map.set(lt.name.toLowerCase(), lt);
     });
@@ -453,12 +483,36 @@ export const LeaveHistoryPendingTab = ({
     };
 
     if (approved && newLeaveType && newLeaveType !== leaveRequest.leave_type) {
-      const { data: newLeaveTypeData } = await supabase
-        .from("leave_types")
-        .select("id")
-        .eq("organization_id", currentOrg?.id)
-        .ilike("name", newLeaveType)
+      // Try office_leave_types first based on employee's office
+      const { data: empOffice } = await supabase
+        .from("employees")
+        .select("office_id")
+        .eq("id", leaveRequest.employee.id)
         .maybeSingle();
+
+      let newLeaveTypeData = null;
+
+      if (empOffice?.office_id) {
+        const { data: officeType } = await supabase
+          .from("office_leave_types")
+          .select("id")
+          .eq("office_id", empOffice.office_id)
+          .ilike("name", newLeaveType)
+          .eq("is_active", true)
+          .maybeSingle();
+        newLeaveTypeData = officeType;
+      }
+
+      // Fallback to legacy leave_types
+      if (!newLeaveTypeData) {
+        const { data: legacyType } = await supabase
+          .from("leave_types")
+          .select("id")
+          .eq("organization_id", currentOrg?.id)
+          .ilike("name", newLeaveType)
+          .maybeSingle();
+        newLeaveTypeData = legacyType;
+      }
       
       if (newLeaveTypeData) {
         updateData.leave_type = newLeaveType;
