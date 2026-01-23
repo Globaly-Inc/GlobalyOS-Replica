@@ -1,6 +1,9 @@
 /**
  * Leave management domain service hooks
  * Handles all leave-related data fetching and mutations
+ * 
+ * NOTE: For office-aware leave types, use useEmployeeLeaveTypes from useOfficeLeaveBalances.ts
+ * This file provides org-level fallback and legacy support
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -17,7 +20,8 @@ import type {
   HalfDayType,
 } from '@/types';
 
-// Fetch leave types for organization
+// Fetch leave types for organization (legacy org-level)
+// For office-aware types, use useEmployeeLeaveTypes from useOfficeLeaveBalances.ts
 export const useLeaveTypes = (activeOnly = true) => {
   const { currentOrg } = useOrganization();
 
@@ -43,6 +47,39 @@ export const useLeaveTypes = (activeOnly = true) => {
     },
     staleTime: 5 * 60 * 1000, // 5 minutes - leave types rarely change
     enabled: !!currentOrg?.id,
+  });
+};
+
+/**
+ * Fetch office-specific leave types
+ * This queries office_leave_types table for per-office configuration
+ */
+export const useOfficeLeaveTypesQuery = (officeId: string | undefined, activeOnly = true) => {
+  const { currentOrg } = useOrganization();
+
+  return useQuery({
+    queryKey: ['office-leave-types', officeId, currentOrg?.id, activeOnly],
+    queryFn: async () => {
+      if (!officeId || !currentOrg?.id) return [];
+
+      let query = supabase
+        .from('office_leave_types')
+        .select('*')
+        .eq('office_id', officeId)
+        .eq('organization_id', currentOrg.id)
+        .order('name');
+
+      if (activeOnly) {
+        query = query.eq('is_active', true);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: !!officeId && !!currentOrg?.id,
   });
 };
 
@@ -276,23 +313,86 @@ export const useUpdateLeaveStatus = () => {
   });
 };
 
-// Cancel leave request
+// Cancel leave request with balance reversal for approved requests
 export const useCancelLeaveRequest = () => {
   const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
 
   return useMutation({
     mutationFn: async (requestId: string) => {
+      // First, fetch the leave request to check if it was approved
+      const { data: request, error: fetchError } = await supabase
+        .from('leave_requests')
+        .select('id, employee_id, leave_type, leave_type_id, days_count, status, organization_id')
+        .eq('id', requestId)
+        .single();
+
+      if (fetchError) throw fetchError;
+      if (!request) throw new Error('Leave request not found');
+
+      // If the request was approved, we need to restore the balance
+      if (request.status === 'approved' && currentEmployee?.id) {
+        const currentYear = new Date().getFullYear();
+
+        // Get the leave type ID (try office leave type first, then org level)
+        const leaveTypeId = request.leave_type_id;
+        
+        if (leaveTypeId) {
+          // Get current balance
+          const { data: balanceData } = await supabase
+            .from('leave_type_balances')
+            .select('id, balance')
+            .eq('employee_id', request.employee_id)
+            .eq('year', currentYear)
+            .or(`leave_type_id.eq.${leaveTypeId},office_leave_type_id.eq.${leaveTypeId}`)
+            .maybeSingle();
+
+          if (balanceData) {
+            const previousBalance = balanceData.balance;
+            const newBalance = previousBalance + request.days_count;
+
+            // Create reversal log entry
+            await supabase.from('leave_balance_logs').insert({
+              employee_id: request.employee_id,
+              organization_id: request.organization_id,
+              leave_type: request.leave_type,
+              leave_type_id: leaveTypeId,
+              change_amount: request.days_count,
+              previous_balance: previousBalance,
+              new_balance: newBalance,
+              reason: 'Leave request cancelled - balance restored',
+              created_by: currentEmployee.id,
+              effective_date: new Date().toISOString().split('T')[0],
+              action: 'leave_cancelled',
+            });
+
+            // Update the balance
+            await supabase
+              .from('leave_type_balances')
+              .update({ balance: newBalance })
+              .eq('id', balanceData.id);
+          }
+        }
+      }
+
+      // Delete the leave request
       const { error } = await supabase
         .from('leave_requests')
         .delete()
         .eq('id', requestId);
 
       if (error) throw error;
+
+      return { wasApproved: request.status === 'approved' };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pending-leave-approvals'] });
-      toast.success('Leave request cancelled');
+      queryClient.invalidateQueries({ queryKey: ['leave-balances'] });
+      queryClient.invalidateQueries({ queryKey: ['employee-leave-types'] });
+      queryClient.invalidateQueries({ queryKey: ['leave-type-balances'] });
+      toast.success(result.wasApproved ? 'Leave request cancelled and balance restored' : 'Leave request cancelled');
     },
     onError: (error) => {
       const message = getErrorMessage(error, 'Failed to cancel leave request');
