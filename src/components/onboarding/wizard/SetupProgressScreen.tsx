@@ -33,6 +33,7 @@ interface TeamMember {
   department?: string;
   role?: string;
   office_id?: string;
+  manager_id?: string;
   avatar_url?: string;
 }
 
@@ -69,6 +70,7 @@ export function SetupProgressScreen({
   const [currentTask, setCurrentTask] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [resolvedEmployeeId, setResolvedEmployeeId] = useState<string | null>(employeeId || null);
+  const [ownerEmployeeId, setOwnerEmployeeId] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [confetti, setConfetti] = useState<{ id: number; x: number; delay: number; color: string; size: number; isCircle: boolean }[]>([]);
@@ -105,16 +107,12 @@ export function SetupProgressScreen({
   ];
   const hasAnyMembersWithOffice = allMembersWithOffice.length > 0;
 
-  // Fetch employee ID if not provided as prop
+  // Fetch employee ID if not provided as prop + fetch owner employee ID for manager resolution
   useEffect(() => {
-    if (resolvedEmployeeId) {
-      setIsReady(true);
-      return;
-    }
     if (!user?.id || !organizationId) return;
 
-    const fetchEmployeeId = async () => {
-      console.log('Fetching employee ID for user:', user.id);
+    const fetchEmployeeIds = async () => {
+      console.log('[SetupProgressScreen] Fetching employee ID for user:', user.id);
       const { data, error } = await supabase
         .from('employees')
         .select('id')
@@ -123,17 +121,21 @@ export function SetupProgressScreen({
         .single();
       
       if (error) {
-        console.error('Failed to fetch employee ID:', error);
+        console.error('[SetupProgressScreen] Failed to fetch employee ID:', error);
       }
       
       if (data?.id) {
-        console.log('Resolved employee ID:', data.id);
-        setResolvedEmployeeId(data.id);
+        console.log('[SetupProgressScreen] Resolved employee/owner ID:', data.id);
+        if (!resolvedEmployeeId) {
+          setResolvedEmployeeId(data.id);
+        }
+        // The current user IS the owner during org onboarding
+        setOwnerEmployeeId(data.id);
       }
       setIsReady(true);
     };
     
-    fetchEmployeeId();
+    fetchEmployeeIds();
   }, [user?.id, organizationId, resolvedEmployeeId, employeeId]);
 
   // Setup public holidays for offices with retry logic
@@ -220,15 +222,43 @@ export function SetupProgressScreen({
     }
   }, [organizationId]);
 
-  // Create team member accounts
+  // Create team member accounts with manager resolution
   const createTeamMembers = useCallback(async () => {
-    if (teamMembers.length === 0) return;
+    if (teamMembers.length === 0) {
+      console.log('[SetupProgressScreen] No team members to create');
+      return;
+    }
 
-    for (const member of teamMembers) {
+    console.log('[SetupProgressScreen] Creating', teamMembers.length, 'team members');
+    
+    // Track newly created employee IDs by member index for member-to-member manager references
+    const createdEmployeeIds: Record<number, string> = {};
+    const pendingManagerUpdates: { employeeId: string; managerIndex: number }[] = [];
+    
+    // PASS 1: Create all employees
+    for (let index = 0; index < teamMembers.length; index++) {
+      const member = teamMembers[index];
       try {
         const nameParts = (member.full_name || '').trim().split(' ');
         const firstName = nameParts[0] || '';
         const lastName = nameParts.slice(1).join(' ') || '';
+
+        // Resolve manager_id for "owner" reference in first pass
+        let resolvedManagerId: string | null = null;
+        if (member.manager_id === 'owner' && ownerEmployeeId) {
+          resolvedManagerId = ownerEmployeeId;
+          console.log(`[SetupProgressScreen] Resolved manager "owner" to ${ownerEmployeeId} for ${member.email}`);
+        }
+        // Member-to-member references are handled in pass 2
+
+        console.log('[SetupProgressScreen] Creating team member:', member.email, {
+          position: member.position,
+          department: member.department,
+          role: member.role,
+          office_id: member.office_id,
+          manager_id: member.manager_id,
+          resolvedManagerId,
+        });
 
         const { data, error } = await supabase.functions.invoke('invite-team-member', {
           body: {
@@ -240,6 +270,7 @@ export function SetupProgressScreen({
             department: member.department || 'General',
             role: member.role || 'member',
             officeId: member.office_id || null,
+            managerId: resolvedManagerId,
             organizationId,
             employmentType: 'employee',
             skipEmail: true,
@@ -258,20 +289,64 @@ export function SetupProgressScreen({
             try {
               const parsed = JSON.parse(errorData);
               if (parsed.code === 'USER_EXISTS' && parsed.skipped) {
-                console.log(`User ${member.email} already exists, skipping`);
+                console.log(`[SetupProgressScreen] User ${member.email} already exists, skipping`);
                 continue;
               }
             } catch {
               // Not JSON, continue to log error
             }
           }
-          console.error(`Error creating ${member.email}:`, error);
+          console.error(`[SetupProgressScreen] Error creating ${member.email}:`, error);
+        } else if (data?.userId) {
+          console.log(`[SetupProgressScreen] Successfully created ${member.email}`, data);
+          
+          // Store created employee ID for member-to-member resolution
+          const { data: emp } = await supabase
+            .from('employees')
+            .select('id')
+            .eq('user_id', data.userId)
+            .single();
+          
+          if (emp?.id) {
+            createdEmployeeIds[index] = emp.id;
+            
+            // Track if this member needs a member-to-member manager update
+            if (member.manager_id?.startsWith('member-')) {
+              const managerIndex = parseInt(member.manager_id.replace('member-', ''), 10);
+              pendingManagerUpdates.push({ employeeId: emp.id, managerIndex });
+            }
+          }
         }
       } catch (err) {
-        console.error(`Error creating ${member.email}:`, err);
+        console.error(`[SetupProgressScreen] Exception creating ${member.email}:`, err);
       }
     }
-  }, [organizationId, teamMembers]);
+    
+    // PASS 2: Update member-to-member manager references
+    if (pendingManagerUpdates.length > 0) {
+      console.log('[SetupProgressScreen] Updating member-to-member manager references:', pendingManagerUpdates.length);
+      
+      for (const { employeeId, managerIndex } of pendingManagerUpdates) {
+        const managerEmployeeId = createdEmployeeIds[managerIndex];
+        if (managerEmployeeId) {
+          const { error: updateError } = await supabase
+            .from('employees')
+            .update({ manager_id: managerEmployeeId })
+            .eq('id', employeeId);
+          
+          if (updateError) {
+            console.error(`[SetupProgressScreen] Failed to update manager for ${employeeId}:`, updateError);
+          } else {
+            console.log(`[SetupProgressScreen] Set manager ${managerEmployeeId} for employee ${employeeId}`);
+          }
+        } else {
+          console.warn(`[SetupProgressScreen] Manager at index ${managerIndex} not found for employee ${employeeId}`);
+        }
+      }
+    }
+    
+    console.log('[SetupProgressScreen] Team member creation complete');
+  }, [organizationId, teamMembers, ownerEmployeeId]);
 
   // Send invitation emails
   const sendInvitations = useCallback(async () => {
