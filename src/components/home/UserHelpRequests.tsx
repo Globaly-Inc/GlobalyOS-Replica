@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Bug, Lightbulb } from 'lucide-react';
+import { Bug, Lightbulb, LifeBuoy } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -100,6 +100,7 @@ export const UserHelpRequests = () => {
             className="h-7 text-xs gap-1"
             onClick={() => setHelpDialogOpen(true)}
           >
+            <LifeBuoy className="h-3.5 w-3.5" />
             Get Help
           </Button>
         </div>
