@@ -122,7 +122,7 @@ async function sendWelcomeEmail(
         'Authorization': `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: 'GlobalyOS <hello@globalyhub.com>',
+        from: 'GlobalyOS <hello@globalyos.com>',
         to: [email],
         subject: '🎉 Welcome to GlobalyOS - Your Account is Ready!',
         html: emailHtml,

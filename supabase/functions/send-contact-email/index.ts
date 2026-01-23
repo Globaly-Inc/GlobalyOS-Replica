@@ -50,7 +50,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send notification email to the team
     const teamEmailResponse = await resend.emails.send({
-      from: "GlobalyOS Contact <onboarding@resend.dev>",
+      from: "GlobalyOS <hello@globalyos.com>",
       to: ["hello@globalyos.com"], // Replace with actual team email
       reply_to: email,
       subject: `[Contact Form] ${subjectLabel} from ${name}`,
@@ -95,7 +95,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send confirmation email to the user
     const userEmailResponse = await resend.emails.send({
-      from: "GlobalyOS <onboarding@resend.dev>",
+      from: "GlobalyOS <hello@globalyos.com>",
       to: [email],
       subject: "We received your message - GlobalyOS",
       html: `
