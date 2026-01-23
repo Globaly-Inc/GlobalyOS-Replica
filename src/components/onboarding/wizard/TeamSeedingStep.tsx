@@ -510,9 +510,39 @@ export function TeamSeedingStep({
             {members.map((member, index) => {
               const filteredDepartments = getFilteredDepartments(index);
               const filteredPositions = getFilteredPositions(index, member.department || '');
-              const availableManagers = managerOptions.filter(
-                (opt) => opt.id !== `member-${index}` // Exclude self from manager list
-              );
+          // Filter available managers to prevent circular references
+          // Exclude self and anyone who has selected this member as their manager
+          const availableManagers = managerOptions.filter((opt) => {
+            // Exclude self
+            if (opt.id === `member-${index}`) return false;
+            
+            // Owner is always valid
+            if (opt.id === 'owner') return true;
+            
+            // Check if selecting this manager would create a cycle
+            if (opt.id.startsWith('member-')) {
+              const potentialManagerIndex = parseInt(opt.id.replace('member-', ''), 10);
+              const potentialManager = members[potentialManagerIndex];
+              
+              // If this potential manager has current member as their manager, it's a cycle
+              if (potentialManager?.manager_id === `member-${index}`) return false;
+              
+              // Check deeper cycles (A -> B -> C -> A)
+              // Walk up the chain of the potential manager to see if we reach current member
+              let checkId = potentialManager?.manager_id;
+              let depth = 0;
+              const maxDepth = 50;
+              
+              while (checkId && checkId.startsWith('member-') && depth < maxDepth) {
+                if (checkId === `member-${index}`) return false; // Cycle detected
+                const checkIndex = parseInt(checkId.replace('member-', ''), 10);
+                checkId = members[checkIndex]?.manager_id;
+                depth++;
+              }
+            }
+            
+            return true;
+          });
               const departmentSearch = departmentSearches[index] || '';
               const positionSearch = positionSearches[index] || '';
               const showAddDepartment = departmentSearch && !filteredDepartments.some(
