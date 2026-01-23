@@ -506,22 +506,6 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                   variant="outline" 
                   size="icon"
                   className="h-10 w-10"
-                  onClick={() => setPostDialogOpen(true)}
-                  disabled={!userProfile?.employeeId}
-                >
-                  <SquarePen className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>New Post</p>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="icon"
-                  className="h-10 w-10"
                   onClick={() => setLeaveDialogOpen(true)}
                   disabled={!userProfile?.employeeId}
                 >
