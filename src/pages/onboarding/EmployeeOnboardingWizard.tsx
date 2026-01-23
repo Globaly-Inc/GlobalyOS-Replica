@@ -327,22 +327,28 @@ export default function EmployeeOnboardingWizard() {
   }
 
   const handleProfileSave = async (data: ProfileFormData) => {
-    await saveProfile.mutateAsync({
-      avatar_url: data.avatar_url,
-      personal_email: data.personal_email,
-      phone: data.phone,
-      date_of_birth: data.date_of_birth,
-      gender: data.gender,
-      street: data.street,
-      city: data.city,
-      state: data.state,
-      postcode: data.postcode,
-      country: data.country,
-      emergency_contact_name: data.emergency_contact_name,
-      emergency_contact_relationship: data.emergency_contact_relationship,
-      emergency_contact_phone: data.emergency_contact_phone,
-      linkedin_url: data.linkedin_url,
-    });
+    try {
+      await saveProfile.mutateAsync({
+        avatar_url: data.avatar_url,
+        personal_email: data.personal_email,
+        phone: data.phone,
+        date_of_birth: data.date_of_birth,
+        gender: data.gender,
+        street: data.street,
+        city: data.city,
+        state: data.state,
+        postcode: data.postcode,
+        country: data.country,
+        emergency_contact_name: data.emergency_contact_name,
+        emergency_contact_relationship: data.emergency_contact_relationship,
+        emergency_contact_phone: data.emergency_contact_phone,
+        linkedin_url: data.linkedin_url,
+      });
+    } catch (error) {
+      console.error('[EmployeeOnboardingWizard] Failed to save profile:', error);
+      // Don't block the user - continue to save in onboarding data
+      // The sync trigger will attempt to copy data on completion
+    }
     
     await handleNext({
       personal_info: {
