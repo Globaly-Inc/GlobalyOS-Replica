@@ -408,7 +408,7 @@ export const InlinePostComposer = ({
           ) : (
             <>
               {/* Post Type Pills - Horizontal scroll on mobile */}
-              <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+              <div className="flex gap-1.5 overflow-x-auto py-1.5 -mx-1 px-1 scrollbar-hide">
                 {postTypes.map(({ type, icon: Icon, label, color }) => (
                   <button
                     key={type}

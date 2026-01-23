@@ -174,7 +174,7 @@ const GlobalChatSearch = ({ onSelectResult, onStartDM }: GlobalChatSearchProps) 
           <Icon className={cn("h-3.5 w-3.5", config.iconClass)} />
           {config.label}
         </div>
-        <div className="space-y-1 px-2">
+        <div className="space-y-1 px-2 py-1">
           {results.map((result, idx) => {
             const globalIndex = flatResults.findIndex((r) => r.id === result.id);
             const isSelected = globalIndex === selectedIndex;
