@@ -2193,6 +2193,73 @@ export type Database = {
         }
         Relationships: []
       }
+      email_delivery_log: {
+        Row: {
+          created_at: string | null
+          email_type: string
+          employee_id: string | null
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          organization_id: string
+          recipient_email: string
+          resend_id: string | null
+          sent_at: string | null
+          status: string | null
+          template_name: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email_type: string
+          employee_id?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          organization_id: string
+          recipient_email: string
+          resend_id?: string | null
+          sent_at?: string | null
+          status?: string | null
+          template_name?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email_type?: string
+          employee_id?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          organization_id?: string
+          recipient_email?: string
+          resend_id?: string | null
+          sent_at?: string | null
+          status?: string | null
+          template_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_delivery_log_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_delivery_log_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_delivery_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_bank_accounts: {
         Row: {
           account_name: string

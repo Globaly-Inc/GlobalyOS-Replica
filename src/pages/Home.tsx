@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Trophy, Heart, MessageSquare, Megaphone, Calendar, Palmtree, Cake, Award, Sun, Sunrise, Moon, CalendarDays, SquarePen, CalendarPlus, Cloud, CloudRain, CloudSnow, CloudSun, Wind, Filter, Crown, Users, Sparkles, Globe } from "lucide-react";
 import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { InlinePostComposer } from "@/components/feed/InlinePostComposer";
 import { UnifiedFeed } from "@/components/feed/UnifiedFeed";
@@ -50,6 +51,7 @@ const HoroscopeWidget = lazy(() => import("@/components/home/HoroscopeWidget").t
 const MyWorkflowTasks = lazy(() => import("@/components/home/MyWorkflowTasks").then(m => ({ default: m.MyWorkflowTasks })));
 import { WeatherDisplay } from "@/components/home/WeatherDisplay";
 import { HeroWorldClocks } from "@/components/home/HeroWorldClocks";
+import { EmployeeSpotlightTour } from "@/components/tour/EmployeeSpotlightTour";
 import { cn } from "@/lib/utils";
 
 type HeroWidget = 'weather' | 'horoscope' | 'worldtime';
@@ -130,8 +132,10 @@ const getEventTypeLabel = (eventType: string) =>
   eventType.charAt(0).toUpperCase() + eventType.slice(1);
 
 const Home = () => {
+  const location = useLocation();
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [timezonePopoverOpen, setTimezonePopoverOpen] = useState(false);
+  const [runEmployeeTour, setRunEmployeeTour] = useState(false);
   const { timezone, setTimezone } = useTimezone();
   const {
     feedFilter, setFeedFilter,
