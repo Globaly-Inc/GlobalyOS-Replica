@@ -5,12 +5,12 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ArrowRight, ArrowLeft, Smartphone, CheckCircle2, Wifi, Bell, MapPin, PartyPopper } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Smartphone, CheckCircle2, Wifi, Bell, MapPin, PartyPopper, Compass } from 'lucide-react';
 
 interface MobileAppComingSoonStepProps {
   employeeName: string;
   orgName: string;
-  onFinish: () => void;
+  onFinish: (startTour: boolean) => void;
   onBack?: () => void;
   isCompleting: boolean;
 }
@@ -122,7 +122,16 @@ export function MobileAppComingSoonStep({
             </Button>
           )}
           <Button 
-            onClick={onFinish} 
+            variant="outline"
+            onClick={() => onFinish(true)}
+            disabled={isCompleting}
+            className="h-14 px-5"
+          >
+            <Compass className="mr-2 h-4 w-4" />
+            Take a Tour
+          </Button>
+          <Button 
+            onClick={() => onFinish(false)} 
             disabled={isCompleting}
             className="flex-1 h-14 text-lg font-semibold shadow-lg hover:shadow-xl transition-all" 
             size="lg"

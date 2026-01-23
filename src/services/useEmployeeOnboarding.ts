@@ -518,6 +518,16 @@ export function useCompleteEmployeeOnboarding() {
       }
 
       console.log('[useCompleteEmployeeOnboarding] Successfully completed onboarding for employee:', currentEmployeeId);
+      
+      // Trigger notification emails (fire-and-forget, don't block completion)
+      supabase.functions.invoke('send-onboarding-complete-email', {
+        body: { employeeId: currentEmployeeId }
+      }).catch(err => console.error('Failed to send completion email:', err));
+
+      supabase.functions.invoke('notify-team-onboarding-complete', {
+        body: { employeeId: currentEmployeeId }
+      }).catch(err => console.error('Failed to notify team:', err));
+
       return { success: true, employeeId: currentEmployeeId };
     },
     onSuccess: () => {

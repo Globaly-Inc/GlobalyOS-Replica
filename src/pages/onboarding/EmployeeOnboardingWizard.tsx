@@ -238,7 +238,7 @@ export default function EmployeeOnboardingWizard() {
   }, [onboardingData?.current_step, isNavigating, totalSteps]);
 
   // Navigate to next step with explicit step targeting (prevents race conditions)
-  const handleNext = useCallback(async (stepData?: Record<string, unknown>) => {
+  const handleNext = useCallback(async (stepData?: Record<string, unknown>, startTour: boolean = false) => {
     // Synchronous lock check - prevents double-click issues
     if (navLockRef.current || isNavigating || isBusy) return;
     
@@ -251,7 +251,10 @@ export default function EmployeeOnboardingWizard() {
         await completeOnboarding.mutateAsync(false);
         navigate(`/org/${currentOrg?.slug}`, {
           replace: true,
-          state: { justCompletedEmployeeOnboarding: true }
+          state: { 
+            justCompletedEmployeeOnboarding: true,
+            startEmployeeTour: startTour
+          }
         });
         return;
       }
@@ -460,7 +463,7 @@ export default function EmployeeOnboardingWizard() {
           <MobileAppComingSoonStep
             employeeName={firstName}
             orgName={currentOrg?.name || 'the team'}
-            onFinish={() => handleNext()}
+            onFinish={(startTour: boolean) => handleNext(undefined, startTour)}
             onBack={handleBack}
             isCompleting={isBusy}
           />
