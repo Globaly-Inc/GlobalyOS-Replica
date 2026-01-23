@@ -1,15 +1,15 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Users, CreditCard, Briefcase, Sparkles, Target, ClipboardCheck } from "lucide-react";
+import { Building2, CreditCard, Briefcase, Sparkles, Target, ClipboardCheck } from "lucide-react";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import { PageHeader } from "@/components/PageHeader";
-import { FieldsSettings } from "@/components/FieldsSettings";
 import { AIKnowledgeSettings } from "@/components/AIKnowledgeSettings";
 import BillingSettings from "@/components/BillingSettings";
 import { ProjectsSettings } from "@/components/settings/ProjectsSettings";
 import { KpiGenerationSettings } from "@/components/settings/KpiGenerationSettings";
 import { WorkflowsSettings } from "@/components/workflows/WorkflowsSettings";
 import { OrganizationSettings } from "@/components/settings/OrganizationSettings";
+import { OfficesStructureSettings } from "@/components/settings/OfficesStructureSettings";
 
 const Settings = () => {
   const { currentOrg, orgRole } = useOrganization();
@@ -30,9 +30,9 @@ const Settings = () => {
             <Building2 className="h-4 w-4" />
             Organization
           </TabsTrigger>
-          <TabsTrigger value="hr-team" className="gap-2 tour-offices-manage tour-settings-menu">
-            <Users className="h-4 w-4" />
-            HR & Team
+          <TabsTrigger value="offices-structure" className="gap-2 tour-offices-manage tour-settings-menu">
+            <Building2 className="h-4 w-4" />
+            Offices & Structure
           </TabsTrigger>
           <TabsTrigger value="projects" className="gap-2">
             <Briefcase className="h-4 w-4" />
@@ -64,8 +64,8 @@ const Settings = () => {
           <OrganizationSettings isOwner={isOwner} />
         </TabsContent>
 
-        <TabsContent value="hr-team" className="space-y-6">
-          <FieldsSettings />
+        <TabsContent value="offices-structure" className="space-y-6">
+          <OfficesStructureSettings />
         </TabsContent>
 
         <TabsContent value="projects" className="space-y-6">
