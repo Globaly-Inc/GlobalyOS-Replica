@@ -54,6 +54,43 @@ interface LogEntry {
 }
 
 /**
+ * Calculate prorated balance for mid-year hires
+ * Based on remaining days in the leave year from hire date
+ */
+const calculateProratedBalance = (
+  defaultDays: number,
+  hireDate: Date | null,
+  leaveYearStart: Date,
+  leaveYearEnd: Date
+): number => {
+  if (!hireDate || hireDate <= leaveYearStart) return defaultDays;
+  if (hireDate >= leaveYearEnd) return 0;
+
+  const totalDaysInYear = Math.ceil(
+    (leaveYearEnd.getTime() - leaveYearStart.getTime()) / (1000 * 60 * 60 * 24)
+  );
+  const daysRemaining = Math.ceil(
+    (leaveYearEnd.getTime() - hireDate.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  return Math.round((defaultDays * daysRemaining / totalDaysInYear) * 10) / 10;
+};
+
+/**
+ * Get leave year dates based on office settings
+ */
+const getLeaveYearDates = (
+  year: number,
+  startMonth: number = 1,
+  startDay: number = 1
+): { start: Date; end: Date } => {
+  const start = new Date(year, startMonth - 1, startDay);
+  const end = new Date(year + 1, startMonth - 1, startDay);
+  end.setDate(end.getDate() - 1); // Last day of leave year
+  return { start, end };
+};
+
+/**
  * Initialize leave balances for a specific year for all active employees
  * OFFICE-AWARE: Uses office_leave_types table
  */
@@ -267,15 +304,30 @@ export const useInitializeEmployeeBalances = () => {
 
       const year = new Date().getFullYear();
 
-      // Get employee with office info
+      // Get employee with office info and hire date
       const { data: employee, error: empError } = await supabase
         .from("employees")
-        .select("id, office_id, gender, employment_type")
+        .select("id, office_id, gender, employment_type, join_date")
         .eq("id", employeeId)
         .single();
 
       if (empError || !employee) throw new Error("Employee not found");
       if (!employee.office_id) return 0; // No office = no office leave types
+
+      // Get office settings for leave year
+      const { data: office } = await supabase
+        .from("offices")
+        .select("leave_year_start_month, leave_year_start_day")
+        .eq("id", employee.office_id)
+        .single();
+
+      const leaveYearDates = getLeaveYearDates(
+        year,
+        office?.leave_year_start_month || 1,
+        office?.leave_year_start_day || 1
+      );
+
+      const hireDate = employee.join_date ? new Date(employee.join_date) : null;
 
       // Get office leave types
       const { data: officeLeaveTypes, error: oltError } = await supabase
@@ -319,7 +371,15 @@ export const useInitializeEmployeeBalances = () => {
         const empTypes = leaveType.applies_to_employment_types as string[] | null;
         if (empTypes && empTypes.length > 0 && employee.employment_type && !empTypes.includes(employee.employment_type)) continue;
 
+        // Calculate prorated balance for mid-year hires
         const defaultDays = leaveType.default_days || 0;
+        const proratedDays = calculateProratedBalance(
+          defaultDays,
+          hireDate,
+          leaveYearDates.start,
+          leaveYearDates.end
+        );
+        const isProratedNote = proratedDays !== defaultDays ? ' (prorated)' : '';
 
         logsToInsert.push({
           employee_id: employeeId,
@@ -327,10 +387,10 @@ export const useInitializeEmployeeBalances = () => {
           leave_type: leaveType.name,
           leave_type_id: leaveType.id,
           office_leave_type_id: leaveType.id,
-          change_amount: defaultDays,
+          change_amount: proratedDays,
           previous_balance: 0,
-          new_balance: defaultDays,
-          reason: `${year} annual allocation`,
+          new_balance: proratedDays,
+          reason: `${year} annual allocation${isProratedNote}`,
           created_by: creatorId,
           effective_date: `${year}-01-01`,
           action: "year_allocation",
