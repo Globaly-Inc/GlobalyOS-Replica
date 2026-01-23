@@ -746,7 +746,7 @@ const Signup = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="email">Work Email *</Label>
+                      <Label htmlFor="email">Work Email (username for login with OTP) *</Label>
                       <div className="relative">
                         <Input
                           id="email"
