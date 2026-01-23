@@ -8,6 +8,8 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { useCheckInStatus } from "@/services/useAttendance";
 import { useAttendanceRealtime } from "@/services/useAttendanceRealtime";
 import { RemoteCheckInDialog } from "@/components/dialogs/RemoteCheckInDialog";
+import { QRScannerDialog } from "@/components/dialogs/QRScannerDialog";
+import { useEmployeeWorkLocation, useHasApprovedWfhToday } from "@/services/useWfh";
 import { format, differenceInMinutes } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { getTimezoneAbbreviation } from "@/utils/timezone";
@@ -37,9 +39,18 @@ export const SelfCheckInCard = () => {
   const [isOnLeave, setIsOnLeave] = useState(false);
   const [halfDayType, setHalfDayType] = useState<HalfDayType>(null);
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);
+  const [showQRScanner, setShowQRScanner] = useState(false);
   const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [scheduleStarted, setScheduleStarted] = useState(false);
   const [orgTimezone, setOrgTimezone] = useState<string>('Asia/Kathmandu');
+
+  // Work location hooks for smart check-in
+  const { data: workLocation } = useEmployeeWorkLocation(employeeId || undefined);
+  const { data: hasApprovedWfhToday } = useHasApprovedWfhToday(employeeId || undefined);
+
+  // Determine which check-in method to use (same logic as top bar)
+  const shouldUseRemoteCheckIn = workLocation === 'hybrid' || workLocation === 'remote' || 
+    (workLocation === 'office' && hasApprovedWfhToday);
 
   // Check if schedule has started based on work days and half-day leave
   useEffect(() => {
@@ -262,7 +273,13 @@ export const SelfCheckInCard = () => {
                 </div>
               </div>
               <Button
-                onClick={() => setShowCheckInDialog(true)}
+                onClick={() => {
+                  if (shouldUseRemoteCheckIn) {
+                    setShowCheckInDialog(true);
+                  } else {
+                    setShowQRScanner(true);
+                  }
+                }}
                 className="mt-3 bg-amber-600 hover:bg-amber-700 text-white"
                 size="sm"
               >
@@ -276,6 +293,11 @@ export const SelfCheckInCard = () => {
       <RemoteCheckInDialog
         open={showCheckInDialog}
         onOpenChange={setShowCheckInDialog}
+      />
+
+      <QRScannerDialog
+        open={showQRScanner}
+        onOpenChange={setShowQRScanner}
       />
     </>
   );
