@@ -11,6 +11,7 @@ import { toast } from "sonner";
 
 interface LeaveManagementProps {
   employeeId: string;
+  canManageBalance?: boolean;
 }
 
 interface HourBalance {
@@ -36,7 +37,7 @@ const getLeaveTypeIcon = (leaveType: string) => {
   return <Briefcase className="h-3.5 w-3.5" />;
 };
 
-export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
+export const LeaveManagement = ({ employeeId, canManageBalance = false }: LeaveManagementProps) => {
   const currentYear = new Date().getFullYear();
   const previousYear = currentYear - 1;
   const [initializing, setInitializing] = useState(false);
@@ -260,19 +261,25 @@ export const LeaveManagement = ({ employeeId }: LeaveManagementProps) => {
               </div>
             )}
             
-            <Button 
-              size="sm" 
-              onClick={handleInitialize}
-              disabled={initializing}
-              className="gap-1.5"
-            >
-              {initializing ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="h-3.5 w-3.5" />
-              )}
-              Initialize {currentYear} Balances
-            </Button>
+            {canManageBalance ? (
+              <Button 
+                size="sm" 
+                onClick={handleInitialize}
+                disabled={initializing}
+                className="gap-1.5"
+              >
+                {initializing ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5" />
+                )}
+                Initialize {currentYear} Balances
+              </Button>
+            ) : (
+              <p className="text-sm text-muted-foreground mt-3">
+                Your leave balances for {currentYear} are yet to be updated by HR, Admin, or Owner.
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
