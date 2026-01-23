@@ -1268,7 +1268,7 @@ const TeamMemberProfile = () => {
                   </div>
                 </div>
                 <div className="p-4">
-                  <LeaveManagement employeeId={id!} />
+                  <LeaveManagement employeeId={id!} canManageBalance={canManageLeave} />
                 </div>
               </Card>}
 
