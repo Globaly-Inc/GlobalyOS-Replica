@@ -74,13 +74,57 @@ export const ApproveLeaveDialog = ({
     ? new Date(request.start_date).getFullYear() 
     : new Date().getFullYear();
 
-  // Fetch employee's leave balances
+  // Fetch employee's leave balances (office-aware with legacy fallback)
   const { data: balances = [], isLoading: balancesLoading } = useQuery({
     queryKey: ["employee-leave-balances-for-approval", request?.employee?.id, currentOrg?.id, requestYear],
     queryFn: async () => {
       if (!request?.employee?.id || !currentOrg?.id) return [];
       
-      // Get all leave types for the org
+      // Get employee's office
+      const { data: employee } = await supabase
+        .from("employees")
+        .select("office_id")
+        .eq("id", request.employee.id)
+        .single();
+
+      const results: LeaveBalance[] = [];
+
+      // Try office_leave_types first (new model)
+      if (employee?.office_id) {
+        const { data: officeLeaveTypes } = await supabase
+          .from("office_leave_types")
+          .select("id, name, max_negative_days")
+          .eq("office_id", employee.office_id)
+          .eq("is_active", true);
+
+        if (officeLeaveTypes && officeLeaveTypes.length > 0) {
+          // Get balances with office_leave_type_id
+          const { data: balanceData } = await supabase
+            .from("leave_type_balances")
+            .select("office_leave_type_id, balance")
+            .eq("employee_id", request.employee.id)
+            .eq("year", requestYear)
+            .not("office_leave_type_id", "is", null);
+
+          const balanceMap = new Map(
+            balanceData?.map(b => [b.office_leave_type_id, b.balance]) || []
+          );
+
+          for (const lt of officeLeaveTypes) {
+            results.push({
+              leaveTypeId: lt.id,
+              leaveTypeName: lt.name,
+              currentBalance: balanceMap.get(lt.id) || 0,
+              maxNegative: lt.max_negative_days || 0,
+              availableBalance: (balanceMap.get(lt.id) || 0) + (lt.max_negative_days || 0),
+            });
+          }
+
+          if (results.length > 0) return results;
+        }
+      }
+
+      // Fallback to legacy leave_types
       const { data: leaveTypes } = await supabase
         .from("leave_types")
         .select("id, name, max_negative_days")
@@ -89,7 +133,6 @@ export const ApproveLeaveDialog = ({
 
       if (!leaveTypes) return [];
 
-      // Get balances for this employee using request year
       const { data: balanceData } = await supabase
         .from("leave_type_balances")
         .select("leave_type_id, balance")
