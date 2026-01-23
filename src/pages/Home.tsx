@@ -615,7 +615,7 @@ const Home = () => {
                 </div>
                 
                 {/* Right: Widget Content + Vertical Toggle */}
-                <div className="flex items-center gap-2">
+                <div className="hidden md:flex items-center gap-2">
                   {/* Widget Content Area with transition */}
                   <div className="flex-1 md:min-w-[280px] lg:min-w-[380px]">
                     <div 
