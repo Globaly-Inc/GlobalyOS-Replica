@@ -258,15 +258,12 @@ export const SelfCheckInCard = () => {
                 You Haven't Checked In Today
               </h3>
               <div className="mt-2 space-y-1">
-                <div className="flex items-center gap-1.5 text-sm text-amber-700 dark:text-amber-300">
-                  <Clock className="h-3.5 w-3.5" />
-                  <span>Expected: {formatTime(getEffectiveStartTime())}</span>
-                  {lateDuration && (
-                    <span className="text-amber-600 dark:text-amber-400 font-medium">
-                      ({lateDuration})
-                    </span>
-                  )}
-                </div>
+                {lateDuration && (
+                  <div className="flex items-center gap-1.5 text-sm text-amber-600 dark:text-amber-400 font-medium">
+                    <Clock className="h-3.5 w-3.5" />
+                    <span>{lateDuration}</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-1.5 text-sm text-amber-700 dark:text-amber-300">
                   <MapPin className="h-3.5 w-3.5" />
                   <span className="capitalize">{schedule.work_location}</span>
