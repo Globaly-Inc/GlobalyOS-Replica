@@ -59,7 +59,10 @@ export const UserHelpRequests = () => {
     <>
       <Card className="p-6">
         {/* Header with tabs and Get Help button */}
-        <div className="flex items-center justify-between mb-3">
+        <div className={cn(
+          "flex items-center justify-between",
+          activeTab && activeRequests.length > 0 && "mb-3"
+        )}>
           <div className="flex items-center gap-2">
             <button
               onClick={() => handleTabClick('bugs')}
@@ -127,13 +130,6 @@ export const UserHelpRequests = () => {
               </CarouselContent>
             </Carousel>
           </div>
-        )}
-
-        {/* Helper text only when no requests exist at all */}
-        {requests.length === 0 && !activeTab && (
-          <p className="text-xs text-muted-foreground text-center py-2">
-            Use the "Get Help" button to report bugs or suggest features.
-          </p>
         )}
       </Card>
 
