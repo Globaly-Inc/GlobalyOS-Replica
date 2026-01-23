@@ -32,6 +32,7 @@ interface Organization {
 interface Employee {
   id: string;
   user_id: string;
+  office_id: string | null;
 }
 
 interface Profile {
@@ -93,6 +94,76 @@ function formatTimeInTimezone(utcDateString: string, timezone: string): string {
   }
 }
 
+/**
+ * Get or create office-specific Day In Lieu leave type
+ * Now uses office_leave_types table instead of leave_types
+ */
+async function getOrCreateOfficeDIL(
+  supabase: any,
+  officeId: string,
+  orgId: string
+): Promise<{ id: string } | null> {
+  // Check if DIL exists for this office
+  let { data: dilLeaveType } = await supabase
+    .from('office_leave_types')
+    .select('id')
+    .eq('office_id', officeId)
+    .eq('name', 'Day In Lieu')
+    .eq('is_system', true)
+    .single();
+
+  if (dilLeaveType) {
+    return dilLeaveType;
+  }
+
+  // Create office-specific DIL
+  const { data: newType, error: typeError } = await supabase
+    .from('office_leave_types')
+    .insert({
+      office_id: officeId,
+      organization_id: orgId,
+      name: 'Day In Lieu',
+      category: 'paid',
+      description: 'Compensatory time off earned from working overtime',
+      default_days: 0,
+      is_system: true,
+      is_active: true,
+      min_days_advance: 0,
+      max_negative_days: 0,
+      applies_to_gender: 'all',
+      carry_forward_mode: 'positive_only',
+    })
+    .select('id')
+    .single();
+
+  if (typeError) {
+    console.error(`Error creating DIL leave type for office ${officeId}:`, typeError);
+    return null;
+  }
+
+  return newType;
+}
+
+/**
+ * Get office-specific leave type for deduction
+ * Searches in office_leave_types table
+ */
+async function getOfficeLeaveType(
+  supabase: any,
+  officeId: string,
+  typeName: string
+): Promise<{ id: string; name: string } | null> {
+  const { data: leaveType } = await supabase
+    .from('office_leave_types')
+    .select('id, name')
+    .eq('office_id', officeId)
+    .eq('name', typeName)
+    .eq('is_active', true)
+    .single();
+
+  return leaveType;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -110,7 +181,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const targetDate = body.date || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     
-    console.log(`Processing attendance adjustments for date: ${targetDate}`);
+    console.log(`Processing attendance adjustments for date: ${targetDate} (office-aware)`);
 
     // Get all organizations with their settings (only those with feature enabled)
     const { data: organizations, error: orgError } = await supabase
@@ -128,10 +199,16 @@ Deno.serve(async (req) => {
     for (const org of organizations as Organization[]) {
       console.log(`Processing organization: ${org.id} (timezone: ${org.timezone || 'not set'})`);
       
-      // Get attendance records for the target date
+      // Get attendance records for the target date with employee office info
       const { data: attendanceRecords, error: attError } = await supabase
         .from('attendance_records')
-        .select('*')
+        .select(`
+          *,
+          employee:employees!attendance_records_employee_id_fkey(
+            id,
+            office_id
+          )
+        `)
         .eq('organization_id', org.id)
         .eq('date', targetDate)
         .not('check_out_time', 'is', null);
@@ -147,19 +224,26 @@ Deno.serve(async (req) => {
       }
 
       // Group records by employee and sum their work hours
-      const employeeWorkHours: Record<string, { totalMinutes: number; records: AttendanceRecord[] }> = {};
+      const employeeWorkHours: Record<string, { 
+        totalMinutes: number; 
+        records: AttendanceRecord[];
+        officeId: string | null;
+      }> = {};
       
-      for (const record of attendanceRecords as AttendanceRecord[]) {
-        if (!employeeWorkHours[record.employee_id]) {
-          employeeWorkHours[record.employee_id] = { totalMinutes: 0, records: [] };
+      for (const record of attendanceRecords as any[]) {
+        const employeeId = record.employee_id;
+        const officeId = record.employee?.office_id || null;
+        
+        if (!employeeWorkHours[employeeId]) {
+          employeeWorkHours[employeeId] = { totalMinutes: 0, records: [], officeId };
         }
         
         if (record.check_in_time && record.check_out_time) {
           const checkIn = new Date(record.check_in_time);
           const checkOut = new Date(record.check_out_time);
           const workedMinutes = Math.round((checkOut.getTime() - checkIn.getTime()) / 60000);
-          employeeWorkHours[record.employee_id].totalMinutes += workedMinutes;
-          employeeWorkHours[record.employee_id].records.push(record);
+          employeeWorkHours[employeeId].totalMinutes += workedMinutes;
+          employeeWorkHours[employeeId].records.push(record);
         }
       }
 
@@ -168,6 +252,13 @@ Deno.serve(async (req) => {
 
       // Process each employee
       for (const [employeeId, data] of Object.entries(employeeWorkHours)) {
+        const officeId = data.officeId;
+        
+        if (!officeId) {
+          console.log(`Employee ${employeeId} has no office assigned, skipping DIL processing`);
+          continue;
+        }
+
         // Get employee's timezone for proper schedule comparison
         const employeeTimezone = await getEmployeeTimezone(supabase, employeeId, org.timezone);
         
@@ -182,18 +273,16 @@ Deno.serve(async (req) => {
         
         if (scheduleData) {
           // Calculate expected work hours from schedule
-          // Schedule times are in local time, so we compare directly
           const [startH, startM] = scheduleData.work_start_time.split(':').map(Number);
           const [endH, endM] = scheduleData.work_end_time.split(':').map(Number);
           expectedMinutes = (endH * 60 + endM) - (startH * 60 + startM);
         }
 
         // For overtime/undertime calculation, we use actual worked minutes
-        // which is already timezone-agnostic (duration between check-in and check-out)
         const workedMinutes = data.totalMinutes;
         const difference = workedMinutes - expectedMinutes;
 
-        console.log(`Employee ${employeeId}: worked ${workedMinutes}min, expected ${expectedMinutes}min, diff ${difference}min (tz: ${employeeTimezone})`);
+        console.log(`Employee ${employeeId} (office: ${officeId}): worked ${workedMinutes}min, expected ${expectedMinutes}min, diff ${difference}min`);
 
         if (Math.abs(difference) < 5) {
           // Less than 5 minutes difference, ignore
@@ -249,36 +338,12 @@ Deno.serve(async (req) => {
             const daysToAdd = Math.floor(newOvertimeMinutes / expectedMinutes);
             const remainingMinutes = newOvertimeMinutes % expectedMinutes;
 
-            // Get or create Day In Lieu leave type
-            let { data: dilLeaveType } = await supabase
-              .from('leave_types')
-              .select('id')
-              .eq('organization_id', org.id)
-              .eq('name', 'Day In Lieu')
-              .eq('is_system', true)
-              .single();
+            // Get or create office-specific Day In Lieu leave type
+            const dilLeaveType = await getOrCreateOfficeDIL(supabase, officeId, org.id);
 
             if (!dilLeaveType) {
-              const { data: newType, error: typeError } = await supabase
-                .from('leave_types')
-                .insert({
-                  organization_id: org.id,
-                  name: 'Day In Lieu',
-                  category: 'paid',
-                  description: 'Compensatory time off earned from working overtime',
-                  default_days: 0,
-                  is_system: true,
-                  applies_to_all_offices: true,
-                  is_active: true
-                })
-                .select('id')
-                .single();
-
-              if (typeError) {
-                console.error(`Error creating DIL leave type:`, typeError);
-                continue;
-              }
-              dilLeaveType = newType;
+              console.error(`Failed to get/create DIL for office ${officeId}`);
+              continue;
             }
 
             // Check cap on DIL days
@@ -288,7 +353,7 @@ Deno.serve(async (req) => {
                 .from('leave_type_balances')
                 .select('balance')
                 .eq('employee_id', employeeId)
-                .eq('leave_type_id', dilLeaveType.id)
+                .eq('office_leave_type_id', dilLeaveType.id)
                 .eq('year', currentYear)
                 .single();
 
@@ -300,12 +365,12 @@ Deno.serve(async (req) => {
             }
 
             if (actualDaysToAdd > 0) {
-              // Update leave balance
+              // Update leave balance (using office_leave_type_id)
               const { data: existingBalance } = await supabase
                 .from('leave_type_balances')
                 .select('id, balance')
                 .eq('employee_id', employeeId)
-                .eq('leave_type_id', dilLeaveType.id)
+                .eq('office_leave_type_id', dilLeaveType.id)
                 .eq('year', currentYear)
                 .single();
 
@@ -319,7 +384,7 @@ Deno.serve(async (req) => {
                   .from('leave_type_balances')
                   .insert({
                     employee_id: employeeId,
-                    leave_type_id: dilLeaveType.id,
+                    office_leave_type_id: dilLeaveType.id,
                     organization_id: org.id,
                     balance: actualDaysToAdd,
                     year: currentYear
@@ -337,7 +402,7 @@ Deno.serve(async (req) => {
                   days_adjusted: actualDaysToAdd,
                   minutes_converted: actualDaysToAdd * expectedMinutes,
                   attendance_date: targetDate,
-                  notes: `Auto-credited ${actualDaysToAdd} day(s) in lieu for accumulated overtime (${expectedMinutes} min/day)`
+                  notes: `Auto-credited ${actualDaysToAdd} day(s) in lieu for accumulated overtime (${expectedMinutes} min/day) - Office: ${officeId}`
                 });
 
               // Update remaining overtime minutes
@@ -350,7 +415,7 @@ Deno.serve(async (req) => {
                 .eq('id', hourBalance.id);
 
               adjustmentCount++;
-              console.log(`Employee ${employeeId}: Credited ${actualDaysToAdd} DIL day(s)`);
+              console.log(`Employee ${employeeId}: Credited ${actualDaysToAdd} DIL day(s) to office ${officeId}`);
             }
           }
         } else {
@@ -374,21 +439,15 @@ Deno.serve(async (req) => {
             const remainingMinutes = newUndertimeMinutes % expectedMinutes;
 
             let deducted = 0;
-            let deductFromType: { id: string; name: string } | null = null;
 
-            // Priority: Day In Lieu first, then Annual Leave
+            // Priority: Day In Lieu first, then Annual Leave, then Sick Leave
             const leaveTypePriority = ['Day In Lieu', 'Annual Leave', 'Sick Leave'];
 
             for (const typeName of leaveTypePriority) {
               if (deducted >= daysToDeduct) break;
 
-              const { data: leaveType } = await supabase
-                .from('leave_types')
-                .select('id, name')
-                .eq('organization_id', org.id)
-                .eq('name', typeName)
-                .eq('is_active', true)
-                .single();
+              // Get office-specific leave type
+              const leaveType = await getOfficeLeaveType(supabase, officeId, typeName);
 
               if (!leaveType) continue;
 
@@ -396,7 +455,7 @@ Deno.serve(async (req) => {
                 .from('leave_type_balances')
                 .select('id, balance')
                 .eq('employee_id', employeeId)
-                .eq('leave_type_id', leaveType.id)
+                .eq('office_leave_type_id', leaveType.id)
                 .eq('year', currentYear)
                 .single();
 
@@ -420,12 +479,11 @@ Deno.serve(async (req) => {
                   days_adjusted: -canDeduct,
                   minutes_converted: canDeduct * expectedMinutes,
                   attendance_date: targetDate,
-                  notes: `Auto-deducted ${canDeduct} day(s) from ${typeName} for accumulated undertime (${expectedMinutes} min/day)`
+                  notes: `Auto-deducted ${canDeduct} day(s) from ${typeName} for accumulated undertime (${expectedMinutes} min/day) - Office: ${officeId}`
                 });
 
               deducted += canDeduct;
-              deductFromType = leaveType;
-              console.log(`Employee ${employeeId}: Deducted ${canDeduct} day(s) from ${typeName}`);
+              console.log(`Employee ${employeeId}: Deducted ${canDeduct} day(s) from ${typeName} (office: ${officeId})`);
             }
 
             if (deducted > 0) {

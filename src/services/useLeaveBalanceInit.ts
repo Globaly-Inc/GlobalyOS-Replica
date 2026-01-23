@@ -1,6 +1,8 @@
 /**
  * Service for initializing yearly leave balances with carry forward logic
  * Uses the 3-transaction audit model: year_allocation, carry_forward_out, carry_forward_in
+ * 
+ * OFFICE-AWARE: Uses office_leave_types table for per-office leave configurations
  */
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -40,6 +42,7 @@ interface LogEntry {
   organization_id: string;
   leave_type: string;
   leave_type_id: string;
+  office_leave_type_id?: string;
   change_amount: number;
   previous_balance: number;
   new_balance: number;
@@ -52,8 +55,7 @@ interface LogEntry {
 
 /**
  * Initialize leave balances for a specific year for all active employees
- * - Credits default_days for each leave type (year_allocation)
- * - Carries forward previous year balance with separate logs (carry_forward_out, carry_forward_in)
+ * OFFICE-AWARE: Uses office_leave_types table
  */
 export const useInitializeYearBalances = () => {
   const { currentOrg } = useOrganization();
@@ -71,72 +73,16 @@ export const useInitializeYearBalances = () => {
         errors: [],
       };
 
-      // 1. Get all active employees
-      const { data: employees, error: empError } = await supabase
-        .from("employees")
-        .select("id, office_id, gender, employment_type")
-        .eq("organization_id", currentOrg.id)
-        .eq("status", "active");
+      // 1. Get all offices with leave settings
+      const { data: offices, error: officesError } = await supabase
+        .from("offices")
+        .select("id, name, leave_enabled, leave_year_start_month, leave_year_start_day")
+        .eq("organization_id", currentOrg.id);
 
-      if (empError) throw empError;
-      if (!employees?.length) {
-        return result;
-      }
+      if (officesError) throw officesError;
+      if (!offices?.length) return result;
 
-      // 2. Get all active leave types with carry_forward_mode setting
-      const { data: leaveTypes, error: ltError } = await supabase
-        .from("leave_types")
-        .select("id, name, default_days, applies_to_all_offices, applies_to_gender, applies_to_employment_types, carry_forward_mode")
-        .eq("organization_id", currentOrg.id)
-        .eq("is_active", true);
-
-      if (ltError) throw ltError;
-      if (!leaveTypes?.length) {
-        return result;
-      }
-
-      // 3. Get all existing balances for the target year (to skip)
-      const { data: existingBalances } = await supabase
-        .from("leave_type_balances")
-        .select("employee_id, leave_type_id")
-        .eq("organization_id", currentOrg.id)
-        .eq("year", year);
-
-      const existingKey = (empId: string, ltId: string) => `${empId}-${ltId}`;
-      const existingSet = new Set(
-        existingBalances?.map((b) => existingKey(b.employee_id, b.leave_type_id)) || []
-      );
-
-      // 4. Get previous year balances for carry forward
-      const { data: prevBalances } = await supabase
-        .from("leave_type_balances")
-        .select("employee_id, leave_type_id, balance")
-        .eq("organization_id", currentOrg.id)
-        .eq("year", previousYear);
-
-      const prevBalanceMap = new Map<string, number>();
-      prevBalances?.forEach((b) => {
-        prevBalanceMap.set(existingKey(b.employee_id, b.leave_type_id), b.balance);
-      });
-
-      // 5. Get leave type office mappings
-      const { data: officeMappings } = await supabase
-        .from("leave_type_offices")
-        .select("leave_type_id, office_id");
-
-      const officeMappingsByType = new Map<string, Set<string>>();
-      officeMappings?.forEach((m) => {
-        if (!officeMappingsByType.has(m.leave_type_id)) {
-          officeMappingsByType.set(m.leave_type_id, new Set());
-        }
-        officeMappingsByType.get(m.leave_type_id)!.add(m.office_id);
-      });
-
-      // 6. Process each employee - LOG ONLY (trigger handles balances)
-
-      const logsToInsert: LogEntry[] = [];
-
-      // Get current user's employee ID for logging
+      // 2. Get current user's employee ID for logging
       const { data: { user } } = await supabase.auth.getUser();
       let creatorEmployeeId: string | null = null;
 
@@ -151,123 +97,141 @@ export const useInitializeYearBalances = () => {
         creatorEmployeeId = creatorEmployee?.id || null;
       }
 
-      for (const employee of employees) {
-        result.employeesProcessed++;
+      if (!creatorEmployeeId) throw new Error("No authenticated employee found");
 
-        for (const leaveType of leaveTypes) {
-          // Check if balance already exists
-          if (existingSet.has(existingKey(employee.id, leaveType.id))) {
-            continue;
+      const logsToInsert: LogEntry[] = [];
+      const leaveYearStartStr = `${year}-01-01`;
+
+      // 3. Process each office
+      for (const office of offices) {
+        if (office.leave_enabled === false) continue;
+
+        // Get active employees in this office
+        const { data: employees, error: empError } = await supabase
+          .from("employees")
+          .select("id, office_id, gender, employment_type")
+          .eq("organization_id", currentOrg.id)
+          .eq("office_id", office.id)
+          .eq("status", "active");
+
+        if (empError) {
+          result.errors.push(`Office ${office.name}: ${empError.message}`);
+          continue;
+        }
+
+        if (!employees?.length) continue;
+
+        // Get office leave types
+        const { data: officeLeaveTypes, error: oltError } = await supabase
+          .from("office_leave_types")
+          .select("id, name, default_days, applies_to_gender, applies_to_employment_types, carry_forward_mode")
+          .eq("office_id", office.id)
+          .eq("is_active", true);
+
+        if (oltError) {
+          result.errors.push(`Office ${office.name}: ${oltError.message}`);
+          continue;
+        }
+
+        if (!officeLeaveTypes?.length) continue;
+
+        // Get existing balances for this office
+        const { data: existingBalances } = await supabase
+          .from("leave_type_balances")
+          .select("employee_id, office_leave_type_id")
+          .eq("organization_id", currentOrg.id)
+          .eq("year", year)
+          .in("employee_id", employees.map((e: any) => e.id));
+
+        const existingKey = (empId: string, oltId: string) => `${empId}-${oltId}`;
+        const existingSet = new Set(
+          existingBalances?.filter((b: any) => b.office_leave_type_id).map((b: any) => 
+            existingKey(b.employee_id, b.office_leave_type_id)
+          ) || []
+        );
+
+        // Get previous year balances
+        const { data: prevBalances } = await supabase
+          .from("leave_type_balances")
+          .select("employee_id, office_leave_type_id, balance")
+          .eq("organization_id", currentOrg.id)
+          .eq("year", previousYear)
+          .in("employee_id", employees.map((e: any) => e.id));
+
+        const prevBalanceMap = new Map<string, number>();
+        prevBalances?.forEach((b: any) => {
+          if (b.office_leave_type_id) {
+            prevBalanceMap.set(existingKey(b.employee_id, b.office_leave_type_id), b.balance);
           }
+        });
 
-          // Check if leave type applies to this employee
-          // Gender check
-          const genderRestriction = leaveType.applies_to_gender || 'all';
-          if (genderRestriction !== 'all' && employee.gender !== genderRestriction) {
-            continue;
-          }
+        // Process each employee
+        for (const employee of employees) {
+          result.employeesProcessed++;
 
-          // Employment type check - only check if employee has a type set
-          const empTypes = leaveType.applies_to_employment_types;
-          if (empTypes && empTypes.length > 0 && employee.employment_type && !empTypes.includes(employee.employment_type)) {
-            continue;
-          }
+          for (const leaveType of officeLeaveTypes) {
+            if (existingSet.has(existingKey((employee as any).id, leaveType.id))) continue;
 
-          // Office check
-          if (!leaveType.applies_to_all_offices && employee.office_id) {
-            const officeSet = officeMappingsByType.get(leaveType.id);
-            if (!officeSet || !officeSet.has(employee.office_id)) {
-              continue;
+            const genderRestriction = leaveType.applies_to_gender || 'all';
+            if (genderRestriction !== 'all' && (employee as any).gender !== genderRestriction) continue;
+
+            const empTypes = leaveType.applies_to_employment_types as string[] | null;
+            if (empTypes && empTypes.length > 0 && (employee as any).employment_type && !empTypes.includes((employee as any).employment_type)) continue;
+
+            const defaultDays = leaveType.default_days || 0;
+
+            // Calculate carry forward
+            let carriedForward = 0;
+            const carryMode = leaveType.carry_forward_mode || 'none';
+            const prevBalance = prevBalanceMap.get(existingKey((employee as any).id, leaveType.id));
+            
+            if (carryMode !== 'none' && prevBalance !== undefined) {
+              carriedForward = getCarriedForwardAmount(carryMode, prevBalance);
+              if (carriedForward !== 0) result.balancesCarriedForward++;
             }
-          }
 
-          // Calculate new balance
-          const defaultDays = leaveType.default_days || 0;
-          let carriedForward = 0;
-
-          // Check for carry forward based on mode
-          const carryMode = leaveType.carry_forward_mode || 'none';
-          const prevBalance = prevBalanceMap.get(existingKey(employee.id, leaveType.id));
-          
-          if (carryMode !== 'none' && prevBalance !== undefined) {
-            carriedForward = getCarriedForwardAmount(carryMode, prevBalance);
-            if (carriedForward !== 0) {
-              result.balancesCarriedForward++;
-            }
-          }
-
-          const newBalance = defaultDays + carriedForward;
-
-          // Balance creation is handled by the sync_balance_from_log trigger
-          // when we insert logs below - no direct balance insert needed
-
-          // Create audit trail logs (3-transaction model)
-          if (creatorEmployeeId) {
-            // Log 1: Year allocation (default days)
             logsToInsert.push({
-              employee_id: employee.id,
+              employee_id: (employee as any).id,
               organization_id: currentOrg.id,
               leave_type: leaveType.name,
               leave_type_id: leaveType.id,
+              office_leave_type_id: leaveType.id,
               change_amount: defaultDays,
               previous_balance: 0,
               new_balance: defaultDays,
               reason: `${year} annual allocation`,
               created_by: creatorEmployeeId,
-              effective_date: `${year}-01-01`,
+              effective_date: leaveYearStartStr,
               action: "year_allocation",
               year: year,
             });
 
-            // Log 2 & 3: Carry forward (if applicable)
             if (carriedForward !== 0 && prevBalance !== undefined) {
-              // carry_forward_out: Deduction from previous year
               logsToInsert.push({
-                employee_id: employee.id,
+                employee_id: (employee as any).id,
                 organization_id: currentOrg.id,
                 leave_type: leaveType.name,
                 leave_type_id: leaveType.id,
-                change_amount: -carriedForward,
-                previous_balance: prevBalance,
-                new_balance: prevBalance - carriedForward,
-                reason: `Carried forward to ${year}`,
-                created_by: creatorEmployeeId,
-                effective_date: `${year}-01-01`,
-                action: "carry_forward_out",
-                year: previousYear,
-              });
-
-              // carry_forward_in: Addition to new year
-              logsToInsert.push({
-                employee_id: employee.id,
-                organization_id: currentOrg.id,
-                leave_type: leaveType.name,
-                leave_type_id: leaveType.id,
+                office_leave_type_id: leaveType.id,
                 change_amount: carriedForward,
                 previous_balance: defaultDays,
                 new_balance: defaultDays + carriedForward,
                 reason: `Carried from ${previousYear}`,
                 created_by: creatorEmployeeId,
-                effective_date: `${year}-01-01`,
+                effective_date: leaveYearStartStr,
                 action: "carry_forward_in",
                 year: year,
               });
             }
-          }
 
-          result.balancesCreated++;
+            result.balancesCreated++;
+          }
         }
       }
 
-      // 7. Batch insert logs - trigger will create balances automatically
       if (logsToInsert.length > 0) {
-        const { error: logError } = await supabase
-          .from("leave_balance_logs")
-          .insert(logsToInsert);
-
-        if (logError) {
-          result.errors.push(`Failed to insert logs: ${logError.message}`);
-        }
+        const { error: logError } = await supabase.from("leave_balance_logs").insert(logsToInsert);
+        if (logError) result.errors.push(`Failed to insert logs: ${logError.message}`);
       }
 
       return result;
@@ -275,16 +239,13 @@ export const useInitializeYearBalances = () => {
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["leave-type-balances"] });
       queryClient.invalidateQueries({ queryKey: ["leave-balance-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-leave-types"] });
       
       if (result.errors.length > 0) {
         toast.error(`Initialization completed with errors: ${result.errors.join(", ")}`);
       } else {
-        toast.success(
-          `Initialized ${result.balancesCreated} balances for ${result.employeesProcessed} employees` +
-            (result.balancesCarriedForward > 0
-              ? ` (${result.balancesCarriedForward} carried forward)`
-              : "")
-        );
+        const carryMsg = result.balancesCarriedForward > 0 ? `, ${result.balancesCarriedForward} carried forward` : "";
+        toast.success(`Initialized ${result.balancesCreated} balances for ${result.employeesProcessed} employees${carryMsg}`);
       }
     },
     onError: (error: Error) => {
@@ -294,259 +255,7 @@ export const useInitializeYearBalances = () => {
 };
 
 /**
- * Initialize leave balances for a specific set of employees for a given year
- * Used by the selective initialization dialog
- */
-export const useInitializeSelectedEmployeesBalances = () => {
-  const { currentOrg } = useOrganization();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({
-      employeeIds,
-      year,
-    }: {
-      employeeIds: string[];
-      year: number;
-    }): Promise<InitResult> => {
-      if (!currentOrg?.id) throw new Error("No organization");
-      if (!employeeIds.length) throw new Error("No employees selected");
-
-      const previousYear = year - 1;
-      const result: InitResult = {
-        employeesProcessed: 0,
-        balancesCreated: 0,
-        balancesCarriedForward: 0,
-        errors: [],
-      };
-
-      // 1. Get selected employees with their attributes
-      const { data: employees, error: empError } = await supabase
-        .from("employees")
-        .select("id, office_id, gender, employment_type")
-        .eq("organization_id", currentOrg.id)
-        .in("id", employeeIds)
-        .eq("status", "active");
-
-      if (empError) throw empError;
-      if (!employees?.length) {
-        return result;
-      }
-
-      // 2. Get all active leave types
-      const { data: leaveTypes, error: ltError } = await supabase
-        .from("leave_types")
-        .select("id, name, default_days, applies_to_all_offices, applies_to_gender, applies_to_employment_types, carry_forward_mode")
-        .eq("organization_id", currentOrg.id)
-        .eq("is_active", true);
-
-      if (ltError) throw ltError;
-      if (!leaveTypes?.length) {
-        return result;
-      }
-
-      // 3. Get existing balances for target year (to skip)
-      const { data: existingBalances } = await supabase
-        .from("leave_type_balances")
-        .select("employee_id, leave_type_id")
-        .eq("organization_id", currentOrg.id)
-        .eq("year", year)
-        .in("employee_id", employeeIds);
-
-      const existingKey = (empId: string, ltId: string) => `${empId}-${ltId}`;
-      const existingSet = new Set(
-        existingBalances?.map((b) => existingKey(b.employee_id, b.leave_type_id)) || []
-      );
-
-      // 4. Get previous year balances for carry forward
-      const { data: prevBalances } = await supabase
-        .from("leave_type_balances")
-        .select("employee_id, leave_type_id, balance")
-        .eq("organization_id", currentOrg.id)
-        .eq("year", previousYear)
-        .in("employee_id", employeeIds);
-
-      const prevBalanceMap = new Map<string, number>();
-      prevBalances?.forEach((b) => {
-        prevBalanceMap.set(existingKey(b.employee_id, b.leave_type_id), b.balance);
-      });
-
-      // 5. Get leave type office mappings
-      const { data: officeMappings } = await supabase
-        .from("leave_type_offices")
-        .select("leave_type_id, office_id");
-
-      const officeMappingsByType = new Map<string, Set<string>>();
-      officeMappings?.forEach((m) => {
-        if (!officeMappingsByType.has(m.leave_type_id)) {
-          officeMappingsByType.set(m.leave_type_id, new Set());
-        }
-        officeMappingsByType.get(m.leave_type_id)!.add(m.office_id);
-      });
-
-      // 6. Get current user's employee ID for logging
-      const { data: { user } } = await supabase.auth.getUser();
-      let creatorEmployeeId: string | null = null;
-
-      if (user?.id) {
-        const { data: creatorEmployee } = await supabase
-          .from("employees")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("organization_id", currentOrg.id)
-          .single();
-        
-        creatorEmployeeId = creatorEmployee?.id || null;
-      }
-
-      // 7. Process each employee - LOG ONLY (trigger handles balances)
-
-      const logsToInsert: LogEntry[] = [];
-
-      for (const employee of employees) {
-        result.employeesProcessed++;
-
-        for (const leaveType of leaveTypes) {
-          // Skip if balance already exists
-          if (existingSet.has(existingKey(employee.id, leaveType.id))) {
-            continue;
-          }
-
-          // Check eligibility - Gender
-          const genderRestriction = leaveType.applies_to_gender || 'all';
-          if (genderRestriction !== 'all' && employee.gender !== genderRestriction) {
-            continue;
-          }
-
-          // Check eligibility - Employment type
-          const empTypes = leaveType.applies_to_employment_types;
-          if (empTypes && empTypes.length > 0 && employee.employment_type && !empTypes.includes(employee.employment_type)) {
-            continue;
-          }
-
-          // Check eligibility - Office
-          if (!leaveType.applies_to_all_offices && employee.office_id) {
-            const officeSet = officeMappingsByType.get(leaveType.id);
-            if (!officeSet || !officeSet.has(employee.office_id)) {
-              continue;
-            }
-          }
-
-          // Calculate new balance
-          const defaultDays = leaveType.default_days || 0;
-          let carriedForward = 0;
-
-          const carryMode = leaveType.carry_forward_mode || 'none';
-          const prevBalance = prevBalanceMap.get(existingKey(employee.id, leaveType.id));
-          
-          if (carryMode !== 'none' && prevBalance !== undefined) {
-            carriedForward = getCarriedForwardAmount(carryMode, prevBalance);
-            if (carriedForward !== 0) {
-              result.balancesCarriedForward++;
-            }
-          }
-
-          const newBalance = defaultDays + carriedForward;
-
-          // Balance creation is handled by the sync_balance_from_log trigger
-          // when we insert logs below - no direct balance insert needed
-
-          // Create audit trail logs (3-transaction model)
-          if (creatorEmployeeId) {
-            // Log 1: Year allocation (default days)
-            logsToInsert.push({
-              employee_id: employee.id,
-              organization_id: currentOrg.id,
-              leave_type: leaveType.name,
-              leave_type_id: leaveType.id,
-              change_amount: defaultDays,
-              previous_balance: 0,
-              new_balance: defaultDays,
-              reason: `${year} annual allocation`,
-              created_by: creatorEmployeeId,
-              effective_date: `${year}-01-01`,
-              action: "year_allocation",
-              year: year,
-            });
-
-            // Log 2 & 3: Carry forward (if applicable)
-            if (carriedForward !== 0 && prevBalance !== undefined) {
-              // carry_forward_out: Deduction from previous year
-              logsToInsert.push({
-                employee_id: employee.id,
-                organization_id: currentOrg.id,
-                leave_type: leaveType.name,
-                leave_type_id: leaveType.id,
-                change_amount: -carriedForward,
-                previous_balance: prevBalance,
-                new_balance: prevBalance - carriedForward,
-                reason: `Carried forward to ${year}`,
-                created_by: creatorEmployeeId,
-                effective_date: `${year}-01-01`,
-                action: "carry_forward_out",
-                year: previousYear,
-              });
-
-              // carry_forward_in: Addition to new year
-              logsToInsert.push({
-                employee_id: employee.id,
-                organization_id: currentOrg.id,
-                leave_type: leaveType.name,
-                leave_type_id: leaveType.id,
-                change_amount: carriedForward,
-                previous_balance: defaultDays,
-                new_balance: defaultDays + carriedForward,
-                reason: `Carried from ${previousYear}`,
-                created_by: creatorEmployeeId,
-                effective_date: `${year}-01-01`,
-                action: "carry_forward_in",
-                year: year,
-              });
-            }
-          }
-
-          result.balancesCreated++;
-        }
-      }
-
-      // 8. Batch insert logs - trigger will create balances automatically
-      if (logsToInsert.length > 0) {
-        const { error: logError } = await supabase
-          .from("leave_balance_logs")
-          .insert(logsToInsert);
-
-        if (logError) {
-          result.errors.push(`Failed to insert logs: ${logError.message}`);
-        }
-      }
-
-      return result;
-    },
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["leave-type-balances"] });
-      queryClient.invalidateQueries({ queryKey: ["leave-balance-logs"] });
-      queryClient.invalidateQueries({ queryKey: ["missing-leave-balances"] });
-      
-      if (result.errors.length > 0) {
-        toast.error(`Initialization completed with errors: ${result.errors.join(", ")}`);
-      } else {
-        toast.success(
-          `Initialized ${result.balancesCreated} balances for ${result.employeesProcessed} employees` +
-            (result.balancesCarriedForward > 0
-              ? ` (${result.balancesCarriedForward} carried forward)`
-              : "")
-        );
-      }
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || "Failed to initialize balances");
-    },
-  });
-};
-
-/**
- * Initialize balances for a single employee for the current year (auto-fallback)
- * Called when an employee views their leave page or tries to apply for leave
+ * Initialize leave balances for a single employee for the current year
  */
 export const useInitializeEmployeeBalances = () => {
   const { currentOrg } = useOrganization();
@@ -556,171 +265,212 @@ export const useInitializeEmployeeBalances = () => {
     mutationFn: async (employeeId: string): Promise<number> => {
       if (!currentOrg?.id) throw new Error("No organization");
 
-      const currentYear = new Date().getFullYear();
-      const previousYear = currentYear - 1;
-      let balancesCreated = 0;
+      const year = new Date().getFullYear();
 
-      // Get employee data
+      // Get employee with office info
       const { data: employee, error: empError } = await supabase
         .from("employees")
         .select("id, office_id, gender, employment_type")
         .eq("id", employeeId)
+        .single();
+
+      if (empError || !employee) throw new Error("Employee not found");
+      if (!employee.office_id) return 0; // No office = no office leave types
+
+      // Get office leave types
+      const { data: officeLeaveTypes, error: oltError } = await supabase
+        .from("office_leave_types")
+        .select("id, name, default_days, applies_to_gender, applies_to_employment_types")
+        .eq("office_id", employee.office_id)
+        .eq("is_active", true);
+
+      if (oltError) throw oltError;
+      if (!officeLeaveTypes?.length) return 0;
+
+      // Get existing balances
+      const { data: existingBalances } = await supabase
+        .from("leave_type_balances")
+        .select("office_leave_type_id")
+        .eq("employee_id", employeeId)
+        .eq("year", year);
+
+      const existingSet = new Set(
+        existingBalances?.filter((b: any) => b.office_leave_type_id).map((b: any) => b.office_leave_type_id) || []
+      );
+
+      // Get current user for logging
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: creatorEmployee } = await supabase
+        .from("employees")
+        .select("id")
+        .eq("user_id", user?.id || "")
         .eq("organization_id", currentOrg.id)
         .single();
 
-      if (empError || !employee) return 0;
+      const creatorId = creatorEmployee?.id || employeeId;
+      const logsToInsert: LogEntry[] = [];
 
-      // Get active leave types
-      const { data: leaveTypes, error: ltError } = await supabase
-        .from("leave_types")
-        .select("id, name, default_days, applies_to_all_offices, applies_to_gender, applies_to_employment_types, carry_forward_mode")
-        .eq("organization_id", currentOrg.id)
-        .eq("is_active", true);
-
-      if (ltError || !leaveTypes?.length) return 0;
-
-      // Get existing balances for current year
-      const { data: existingBalances } = await supabase
-        .from("leave_type_balances")
-        .select("leave_type_id")
-        .eq("employee_id", employeeId)
-        .eq("year", currentYear);
-
-      const existingSet = new Set(existingBalances?.map((b) => b.leave_type_id) || []);
-
-      // Get previous year balances
-      const { data: prevBalances } = await supabase
-        .from("leave_type_balances")
-        .select("leave_type_id, balance")
-        .eq("employee_id", employeeId)
-        .eq("year", previousYear);
-
-      const prevBalanceMap = new Map<string, number>(
-        prevBalances?.map((b) => [b.leave_type_id, b.balance]) || []
-      );
-
-      // Get office mappings
-      const { data: officeMappings } = await supabase
-        .from("leave_type_offices")
-        .select("leave_type_id, office_id");
-
-      const officeMappingsByType = new Map<string, Set<string>>();
-      officeMappings?.forEach((m) => {
-        if (!officeMappingsByType.has(m.leave_type_id)) {
-          officeMappingsByType.set(m.leave_type_id, new Set());
-        }
-        officeMappingsByType.get(m.leave_type_id)!.add(m.office_id);
-      });
-
-      // Get current user's employee ID for logging
-      const { data: { user } } = await supabase.auth.getUser();
-      let creatorEmployeeId: string | null = null;
-
-      if (user?.id) {
-        const { data: creatorEmployee } = await supabase
-          .from("employees")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("organization_id", currentOrg.id)
-          .single();
-        
-        creatorEmployeeId = creatorEmployee?.id || null;
-      }
-
-      for (const leaveType of leaveTypes) {
+      for (const leaveType of officeLeaveTypes) {
         if (existingSet.has(leaveType.id)) continue;
 
-        // Check eligibility
         const genderRestriction = leaveType.applies_to_gender || 'all';
         if (genderRestriction !== 'all' && employee.gender !== genderRestriction) continue;
 
-        // Employment type check - only check if employee has a type set
-        const empTypes = leaveType.applies_to_employment_types;
+        const empTypes = leaveType.applies_to_employment_types as string[] | null;
         if (empTypes && empTypes.length > 0 && employee.employment_type && !empTypes.includes(employee.employment_type)) continue;
 
-        if (!leaveType.applies_to_all_offices && employee.office_id) {
-          const officeSet = officeMappingsByType.get(leaveType.id);
-          if (!officeSet || !officeSet.has(employee.office_id)) continue;
-        }
-
-        // Calculate balance
         const defaultDays = leaveType.default_days || 0;
-        let carriedForward = 0;
 
-        const carryMode = leaveType.carry_forward_mode || 'none';
-        const prevBalance = prevBalanceMap.get(leaveType.id);
-        
-        if (carryMode !== 'none' && prevBalance !== undefined) {
-          carriedForward = getCarriedForwardAmount(carryMode, prevBalance);
-        }
+        logsToInsert.push({
+          employee_id: employeeId,
+          organization_id: currentOrg.id,
+          leave_type: leaveType.name,
+          leave_type_id: leaveType.id,
+          office_leave_type_id: leaveType.id,
+          change_amount: defaultDays,
+          previous_balance: 0,
+          new_balance: defaultDays,
+          reason: `${year} annual allocation`,
+          created_by: creatorId,
+          effective_date: `${year}-01-01`,
+          action: "year_allocation",
+          year: year,
+        });
+      }
 
-        // Log-only approach: trigger handles balance creation
-        // Insert logs and let the sync_balance_from_log trigger create the balance
-        if (creatorEmployeeId) {
-          // Log 1: Year allocation (default days)
-          const { error: logError } = await supabase.from("leave_balance_logs").insert({
-            employee_id: employeeId,
-            organization_id: currentOrg.id,
-            leave_type: leaveType.name,
-            leave_type_id: leaveType.id,
-            change_amount: defaultDays,
-            previous_balance: 0,
-            new_balance: defaultDays,
-            reason: `${currentYear} annual allocation (auto)`,
-            created_by: creatorEmployeeId,
-            effective_date: `${currentYear}-01-01`,
-            action: "year_allocation",
-            year: currentYear,
-          });
+      if (logsToInsert.length > 0) {
+        const { error: logError } = await supabase.from("leave_balance_logs").insert(logsToInsert);
+        if (logError) throw logError;
+      }
 
-          if (!logError) {
-            balancesCreated++;
+      return logsToInsert.length;
+    },
+    onSuccess: (_count, employeeId) => {
+      queryClient.invalidateQueries({ queryKey: ["leave-type-balances", employeeId] });
+      queryClient.invalidateQueries({ queryKey: ["leave-type-balances-profile", employeeId] });
+      queryClient.invalidateQueries({ queryKey: ["employee-leave-types", employeeId] });
+    },
+    onError: (error: Error) => {
+      console.error("Failed to initialize employee balances:", error);
+    },
+  });
+};
 
-            // Log 2 & 3: Carry forward (if applicable)
-            if (carriedForward !== 0 && prevBalance !== undefined) {
-              // carry_forward_out: Deduction from previous year
-              await supabase.from("leave_balance_logs").insert({
-                employee_id: employeeId,
-                organization_id: currentOrg.id,
-                leave_type: leaveType.name,
-                leave_type_id: leaveType.id,
-                change_amount: -carriedForward,
-                previous_balance: prevBalance,
-                new_balance: prevBalance - carriedForward,
-                reason: `Carried forward to ${currentYear}`,
-                created_by: creatorEmployeeId,
-                effective_date: `${currentYear}-01-01`,
-                action: "carry_forward_out",
-                year: previousYear,
-              });
+/**
+ * Initialize leave balances for selected employees
+ */
+export const useInitializeSelectedEmployeesBalances = () => {
+  const { currentOrg } = useOrganization();
+  const queryClient = useQueryClient();
 
-              // carry_forward_in: Addition to new year
-              await supabase.from("leave_balance_logs").insert({
-                employee_id: employeeId,
-                organization_id: currentOrg.id,
-                leave_type: leaveType.name,
-                leave_type_id: leaveType.id,
-                change_amount: carriedForward,
-                previous_balance: defaultDays,
-                new_balance: defaultDays + carriedForward,
-                reason: `Carried from ${previousYear}`,
-                created_by: creatorEmployeeId,
-                effective_date: `${currentYear}-01-01`,
-                action: "carry_forward_in",
-                year: currentYear,
-              });
-            }
+  return useMutation({
+    mutationFn: async ({ employeeIds, year }: { employeeIds: string[]; year: number }): Promise<InitResult> => {
+      if (!currentOrg?.id) throw new Error("No organization");
+      if (!employeeIds.length) throw new Error("No employees selected");
+
+      const result: InitResult = { employeesProcessed: 0, balancesCreated: 0, balancesCarriedForward: 0, errors: [] };
+
+      const { data: employees, error: empError } = await supabase
+        .from("employees")
+        .select("id, office_id, gender, employment_type")
+        .eq("organization_id", currentOrg.id)
+        .in("id", employeeIds)
+        .eq("status", "active");
+
+      if (empError) throw empError;
+      if (!employees?.length) return result;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: creatorEmployee } = await supabase
+        .from("employees")
+        .select("id")
+        .eq("user_id", user?.id || "")
+        .eq("organization_id", currentOrg.id)
+        .single();
+
+      if (!creatorEmployee?.id) throw new Error("No authenticated employee");
+
+      const logsToInsert: LogEntry[] = [];
+
+      // Group by office
+      const employeesByOffice = new Map<string, any[]>();
+      for (const emp of employees) {
+        if (!emp.office_id) continue;
+        if (!employeesByOffice.has(emp.office_id)) employeesByOffice.set(emp.office_id, []);
+        employeesByOffice.get(emp.office_id)!.push(emp);
+      }
+
+      for (const [officeId, officeEmployees] of employeesByOffice) {
+        const { data: officeLeaveTypes } = await supabase
+          .from("office_leave_types")
+          .select("id, name, default_days, applies_to_gender, applies_to_employment_types")
+          .eq("office_id", officeId)
+          .eq("is_active", true);
+
+        if (!officeLeaveTypes?.length) continue;
+
+        const { data: existingBalances } = await supabase
+          .from("leave_type_balances")
+          .select("employee_id, office_leave_type_id")
+          .eq("organization_id", currentOrg.id)
+          .eq("year", year)
+          .in("employee_id", officeEmployees.map((e: any) => e.id));
+
+        const existingKey = (empId: string, oltId: string) => `${empId}-${oltId}`;
+        const existingSet = new Set(
+          existingBalances?.filter((b: any) => b.office_leave_type_id).map((b: any) => existingKey(b.employee_id, b.office_leave_type_id)) || []
+        );
+
+        for (const employee of officeEmployees) {
+          result.employeesProcessed++;
+          for (const leaveType of officeLeaveTypes) {
+            if (existingSet.has(existingKey(employee.id, leaveType.id))) continue;
+            const genderRestriction = leaveType.applies_to_gender || 'all';
+            if (genderRestriction !== 'all' && employee.gender !== genderRestriction) continue;
+            const empTypes = leaveType.applies_to_employment_types as string[] | null;
+            if (empTypes && empTypes.length > 0 && employee.employment_type && !empTypes.includes(employee.employment_type)) continue;
+
+            logsToInsert.push({
+              employee_id: employee.id,
+              organization_id: currentOrg.id,
+              leave_type: leaveType.name,
+              leave_type_id: leaveType.id,
+              office_leave_type_id: leaveType.id,
+              change_amount: leaveType.default_days || 0,
+              previous_balance: 0,
+              new_balance: leaveType.default_days || 0,
+              reason: `${year} annual allocation`,
+              created_by: creatorEmployee.id,
+              effective_date: `${year}-01-01`,
+              action: "year_allocation",
+              year: year,
+            });
+            result.balancesCreated++;
           }
         }
       }
 
-      return balancesCreated;
-    },
-    onSuccess: (count) => {
-      if (count > 0) {
-        queryClient.invalidateQueries({ queryKey: ["leave-type-balances"] });
-        queryClient.invalidateQueries({ queryKey: ["leave-types-for-employee"] });
+      if (logsToInsert.length > 0) {
+        const { error: logError } = await supabase.from("leave_balance_logs").insert(logsToInsert);
+        if (logError) result.errors.push(`Failed to insert logs: ${logError.message}`);
       }
+
+      return result;
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["leave-type-balances"] });
+      queryClient.invalidateQueries({ queryKey: ["leave-balance-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-leave-types"] });
+      queryClient.invalidateQueries({ queryKey: ["missing-leave-balances"] });
+
+      if (result.errors.length > 0) {
+        toast.error(`Completed with errors: ${result.errors.join(", ")}`);
+      } else {
+        toast.success(`Initialized ${result.balancesCreated} balances for ${result.employeesProcessed} employees`);
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to initialize selected employees");
     },
   });
 };
