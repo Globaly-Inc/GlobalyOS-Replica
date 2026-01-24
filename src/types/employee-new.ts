@@ -90,6 +90,30 @@ export interface EmployeeDirectoryItem {
   } | null;
 }
 
+// Department (single source of truth)
+export interface Department {
+  id: string;
+  organization_id: string;
+  name: string;
+  description: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// Position (linked to department)
+export interface Position {
+  id: string;
+  organization_id: string;
+  name: string;
+  department: string | null;
+  department_id: string | null;
+  description: string | null;
+  responsibilities: string[] | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // Position history
 export interface PositionHistory {
   id: string;

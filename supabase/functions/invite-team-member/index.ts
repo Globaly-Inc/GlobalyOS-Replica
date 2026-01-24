@@ -255,6 +255,58 @@ serve(async (req: Request) => {
     const userId = authData.user.id;
     console.log('Created auth user:', userId);
 
+    // Look up department_id from departments table
+    let departmentId: string | null = null;
+    const { data: deptData } = await supabase
+      .from('departments')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .eq('name', department.trim())
+      .single();
+    
+    if (deptData) {
+      departmentId = deptData.id;
+    } else {
+      // Create department if it doesn't exist
+      const { data: newDept } = await supabase
+        .from('departments')
+        .insert({ organization_id: organizationId, name: department.trim() })
+        .select('id')
+        .single();
+      if (newDept) {
+        departmentId = newDept.id;
+      }
+    }
+
+    // Look up position_id from positions table
+    let positionId: string | null = null;
+    const { data: posData } = await supabase
+      .from('positions')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .eq('name', position.trim())
+      .eq('department', department.trim())
+      .single();
+    
+    if (posData) {
+      positionId = posData.id;
+    } else {
+      // Create position if it doesn't exist
+      const { data: newPos } = await supabase
+        .from('positions')
+        .insert({ 
+          organization_id: organizationId, 
+          name: position.trim(), 
+          department: department.trim(),
+          department_id: departmentId 
+        })
+        .select('id')
+        .single();
+      if (newPos) {
+        positionId = newPos.id;
+      }
+    }
+
     // Create employee record with active status
     const effectiveJoinDate = joinDate || new Date().toISOString().split('T')[0];
     const { data: employeeData, error: employeeError } = await supabase
@@ -264,6 +316,8 @@ serve(async (req: Request) => {
         organization_id: organizationId,
         position: position.trim(),
         department: department.trim(),
+        department_id: departmentId,
+        position_id: positionId,
         status: 'active',
         join_date: effectiveJoinDate,
         date_of_birth: dateOfBirth || null,
@@ -336,15 +390,6 @@ serve(async (req: Request) => {
         .from('profiles')
         .update({ avatar_url: avatarUrl })
         .eq('id', userId);
-    }
-
-    // Save position to positions table for future use (ignore if already exists)
-    const { error: positionError } = await supabase
-      .from('positions')
-      .upsert({ name: position.trim(), department: department.trim(), organization_id: organizationId }, { onConflict: 'name' });
-    
-    if (positionError) {
-      console.log('Position save note:', positionError.message);
     }
 
     // Add organization membership

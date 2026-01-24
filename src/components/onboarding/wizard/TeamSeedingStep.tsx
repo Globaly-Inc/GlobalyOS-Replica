@@ -276,6 +276,16 @@ export function TeamSeedingStep({
       setLocalDepartments(prev => [...prev, trimmedName]);
     }
 
+    // Insert into departments table
+    try {
+      await supabase.from('departments').insert({
+        organization_id: organizationId,
+        name: trimmedName,
+      });
+    } catch (error) {
+      console.error('Failed to save department to database:', error);
+    }
+
     // Update member's department
     updateMember(memberIndex, 'department', trimmedName);
 
@@ -298,12 +308,28 @@ export function TeamSeedingStep({
       setLocalPositions(prev => [...prev, newPos]);
     }
 
+    // Get department_id from departments table
+    let departmentId: string | null = null;
+    try {
+      const { data: deptData } = await supabase
+        .from('departments')
+        .select('id')
+        .eq('organization_id', organizationId)
+        .eq('name', department)
+        .single();
+      
+      departmentId = deptData?.id || null;
+    } catch (error) {
+      console.error('Failed to get department id:', error);
+    }
+
     // Insert into positions table for this org
     try {
       await supabase.from('positions').insert({
         organization_id: organizationId,
         name: trimmedName,
         department: department,
+        department_id: departmentId,
       });
     } catch (error) {
       console.error('Failed to save position to database:', error);

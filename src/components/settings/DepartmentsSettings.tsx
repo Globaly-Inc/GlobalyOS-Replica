@@ -36,7 +36,9 @@ import { toast } from "sonner";
 import { useOrganization } from "@/hooks/useOrganization";
 
 interface Department {
+  id: string;
   name: string;
+  description: string | null;
   count: number;
 }
 
@@ -48,12 +50,12 @@ export const DepartmentsSettings = () => {
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingDepartment, setEditingDepartment] = useState<string | null>(null);
+  const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
   const [departmentName, setDepartmentName] = useState("");
-  const [originalDepartmentName, setOriginalDepartmentName] = useState("");
+  const [departmentDescription, setDepartmentDescription] = useState("");
 
   // Delete confirmation state
-  const [deleteDepartmentName, setDeleteDepartmentName] = useState<string | null>(null);
+  const [deleteDepartment, setDeleteDepartment] = useState<Department | null>(null);
 
   useEffect(() => {
     if (currentOrg) {
@@ -65,40 +67,39 @@ export const DepartmentsSettings = () => {
     if (!currentOrg) return;
     setLoading(true);
     try {
-      // Get unique departments from positions
-      const { data: positionsData } = await supabase
-        .from("positions")
-        .select("department")
-        .eq("organization_id", currentOrg.id);
-
-      const positionDepts = new Set<string>();
-      positionsData?.forEach((pos) => {
-        if (pos.department) {
-          positionDepts.add(pos.department);
-        }
-      });
-
-      // Load departments from employees table for employee counts
-      const { data: employeesData } = await supabase
-        .from("employees")
-        .select("department")
+      // Load departments from the departments table (single source of truth)
+      const { data: departmentsData, error: deptError } = await supabase
+        .from("departments")
+        .select("id, name, description")
         .eq("organization_id", currentOrg.id)
-        .eq("status", "active");
+        .order("name");
+
+      if (deptError) throw deptError;
+
+      // Get employee counts per department using department_id
+      const { data: employeeCounts, error: countError } = await supabase
+        .from("employees")
+        .select("department_id")
+        .eq("organization_id", currentOrg.id)
+        .eq("status", "active")
+        .not("department_id", "is", null);
+
+      if (countError) throw countError;
 
       // Count employees per department
       const deptCounts: Record<string, number> = {};
-      employeesData?.forEach((emp) => {
-        if (emp.department) {
-          deptCounts[emp.department] = (deptCounts[emp.department] || 0) + 1;
+      employeeCounts?.forEach((emp) => {
+        if (emp.department_id) {
+          deptCounts[emp.department_id] = (deptCounts[emp.department_id] || 0) + 1;
         }
       });
 
-      // Merge: all departments from positions + any additional from employees
-      const allDepts = new Set([...positionDepts, ...Object.keys(deptCounts)]);
-
-      const deptList: Department[] = Array.from(allDepts)
-        .map((name) => ({ name, count: deptCounts[name] || 0 }))
-        .sort((a, b) => a.name.localeCompare(b.name));
+      const deptList: Department[] = (departmentsData || []).map((dept) => ({
+        id: dept.id,
+        name: dept.name,
+        description: dept.description,
+        count: deptCounts[dept.id] || 0,
+      }));
 
       setDepartments(deptList);
     } catch (error: any) {
@@ -113,38 +114,60 @@ export const DepartmentsSettings = () => {
     setSaving(true);
     try {
       if (editingDepartment) {
-        // Update all employees with this department name
+        // Update existing department
         const { error } = await supabase
-          .from("employees")
-          .update({ department: departmentName.trim() })
-          .eq("organization_id", currentOrg.id)
-          .eq("department", originalDepartmentName);
+          .from("departments")
+          .update({ 
+            name: departmentName.trim(),
+            description: departmentDescription.trim() || null
+          })
+          .eq("id", editingDepartment.id);
 
         if (error) throw error;
 
-        // Also update positions with this department
-        await supabase
-          .from("positions")
-          .update({ department: departmentName.trim() })
-          .eq("organization_id", currentOrg.id)
-          .eq("department", originalDepartmentName);
+        // Also update legacy text fields in employees and positions for backward compatibility
+        await Promise.all([
+          supabase
+            .from("employees")
+            .update({ department: departmentName.trim() })
+            .eq("department_id", editingDepartment.id),
+          supabase
+            .from("positions")
+            .update({ department: departmentName.trim() })
+            .eq("department_id", editingDepartment.id),
+          supabase
+            .from("position_history")
+            .update({ department: departmentName.trim() })
+            .eq("organization_id", currentOrg.id)
+            .eq("department", editingDepartment.name)
+        ]);
 
-        // Update position_history as well
-        await supabase
-          .from("position_history")
-          .update({ department: departmentName.trim() })
-          .eq("organization_id", currentOrg.id)
-          .eq("department", originalDepartmentName);
-
-        toast.success("Department renamed");
+        toast.success("Department updated");
       } else {
-        toast.success("Department created. It will appear when employees are assigned to it.");
+        // Create new department
+        const { error } = await supabase
+          .from("departments")
+          .insert({
+            organization_id: currentOrg.id,
+            name: departmentName.trim(),
+            description: departmentDescription.trim() || null
+          });
+
+        if (error) {
+          if (error.code === '23505') {
+            toast.error("A department with this name already exists");
+            return;
+          }
+          throw error;
+        }
+
+        toast.success("Department created");
       }
 
       setDialogOpen(false);
       setEditingDepartment(null);
       setDepartmentName("");
-      setOriginalDepartmentName("");
+      setDepartmentDescription("");
       loadData();
     } catch (error: any) {
       toast.error("Error saving department: " + error.message);
@@ -154,19 +177,31 @@ export const DepartmentsSettings = () => {
   };
 
   const handleDeleteDepartment = async () => {
-    if (!deleteDepartmentName || !currentOrg) return;
+    if (!deleteDepartment || !currentOrg) return;
     setSaving(true);
     try {
-      // Set department to null for all employees with this department
-      const { error } = await supabase
+      // Clear department_id from employees
+      await supabase
         .from("employees")
-        .update({ department: "" })
-        .eq("organization_id", currentOrg.id)
-        .eq("department", deleteDepartmentName);
+        .update({ department_id: null, department: "" })
+        .eq("department_id", deleteDepartment.id);
+
+      // Clear department_id from positions
+      await supabase
+        .from("positions")
+        .update({ department_id: null, department: "" })
+        .eq("department_id", deleteDepartment.id);
+
+      // Delete the department
+      const { error } = await supabase
+        .from("departments")
+        .delete()
+        .eq("id", deleteDepartment.id);
 
       if (error) throw error;
-      toast.success("Department removed from all employees");
-      setDeleteDepartmentName(null);
+      
+      toast.success("Department deleted");
+      setDeleteDepartment(null);
       loadData();
     } catch (error: any) {
       toast.error("Error deleting department: " + error.message);
@@ -176,16 +211,16 @@ export const DepartmentsSettings = () => {
   };
 
   const openEditDepartment = (department: Department) => {
-    setEditingDepartment(department.name);
-    setOriginalDepartmentName(department.name);
+    setEditingDepartment(department);
     setDepartmentName(department.name);
+    setDepartmentDescription(department.description || "");
     setDialogOpen(true);
   };
 
   const openNewDepartment = () => {
     setEditingDepartment(null);
     setDepartmentName("");
-    setOriginalDepartmentName("");
+    setDepartmentDescription("");
     setDialogOpen(true);
   };
 
@@ -222,7 +257,7 @@ export const DepartmentsSettings = () => {
             <div className="text-center py-8 text-muted-foreground">
               <Building className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No departments yet</p>
-              <p className="text-sm">Add a department or assign employees to departments</p>
+              <p className="text-sm">Add a department to get started</p>
             </div>
           ) : (
             <Table>
@@ -235,8 +270,15 @@ export const DepartmentsSettings = () => {
               </TableHeader>
               <TableBody>
                 {departments.map((dept) => (
-                  <TableRow key={dept.name}>
-                    <TableCell className="font-medium">{dept.name}</TableCell>
+                  <TableRow key={dept.id}>
+                    <TableCell>
+                      <div>
+                        <span className="font-medium">{dept.name}</span>
+                        {dept.description && (
+                          <p className="text-sm text-muted-foreground">{dept.description}</p>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <Badge variant="secondary" className="gap-1">
                         <Users className="h-3 w-3" />
@@ -255,7 +297,7 @@ export const DepartmentsSettings = () => {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => setDeleteDepartmentName(dept.name)}
+                          onClick={() => setDeleteDepartment(dept)}
                           className="text-destructive hover:text-destructive"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -279,7 +321,7 @@ export const DepartmentsSettings = () => {
             </DialogTitle>
             <DialogDescription>
               {editingDepartment
-                ? "Rename this department. All employees and positions will be updated."
+                ? "Update this department. All employees and positions will be updated."
                 : "Add a new department to your organization."}
             </DialogDescription>
           </DialogHeader>
@@ -291,6 +333,15 @@ export const DepartmentsSettings = () => {
                 value={departmentName}
                 onChange={(e) => setDepartmentName(e.target.value)}
                 placeholder="e.g., Engineering, Marketing, Sales"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="departmentDescription">Description (Optional)</Label>
+              <Input
+                id="departmentDescription"
+                value={departmentDescription}
+                onChange={(e) => setDepartmentDescription(e.target.value)}
+                placeholder="Brief description of this department"
               />
             </div>
           </div>
@@ -308,14 +359,14 @@ export const DepartmentsSettings = () => {
 
       {/* Delete Confirmation */}
       <AlertDialog
-        open={!!deleteDepartmentName}
-        onOpenChange={() => setDeleteDepartmentName(null)}
+        open={!!deleteDepartment}
+        onOpenChange={() => setDeleteDepartment(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Department</AlertDialogTitle>
             <AlertDialogDescription>
-              This will remove "{deleteDepartmentName}" from all employees. This action cannot be undone.
+              This will remove "{deleteDepartment?.name}" and unassign all employees from this department. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
