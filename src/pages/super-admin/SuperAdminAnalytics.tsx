@@ -2,20 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
   Loader2, 
   Building2, 
@@ -33,7 +20,6 @@ import {
   Target,
   Minus,
   LucideIcon,
-  CalendarIcon,
   FolderOpen,
   GraduationCap,
   FileCheck,
@@ -44,6 +30,7 @@ import {
   History,
   Bell,
   SmilePlus,
+  ChevronDown,
 } from "lucide-react";
 import {
   BarChart,
@@ -58,11 +45,12 @@ import {
 } from "recharts";
 import SuperAdminLayout from "@/components/super-admin/SuperAdminLayout";
 import SuperAdminPageHeader from "@/components/super-admin/SuperAdminPageHeader";
+import AnalyticsFilters, { DatePreset, ViewMode } from "@/components/super-admin/AnalyticsFilters";
+import EngagementMetrics from "@/components/super-admin/EngagementMetrics";
+import ActivityHeatmap from "@/components/super-admin/ActivityHeatmap";
+import ChurnRiskCard from "@/components/super-admin/ChurnRiskCard";
 import { format, subDays, subMonths, startOfDay, endOfDay, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
-
-type ViewMode = 'days' | 'week' | 'month';
-type DatePreset = 'last7' | 'last30' | 'last90' | 'last6months' | 'last12months' | 'custom';
 
 interface FeatureItem {
   name: string;
@@ -88,41 +76,50 @@ interface AnalyticsData {
   activities: { created_at: string }[];
 }
 
-const DATE_PRESETS: { value: DatePreset; label: string }[] = [
-  { value: 'last7', label: 'Last 7 days' },
-  { value: 'last30', label: 'Last 30 days' },
-  { value: 'last90', label: 'Last 90 days' },
-  { value: 'last6months', label: 'Last 6 months' },
-  { value: 'last12months', label: 'Last 12 months' },
-  { value: 'custom', label: 'Custom range' },
-];
+const MODULE_LABELS = {
+  team: 'Team & Social',
+  hr: 'HR & People',
+  wiki: 'Wiki & Knowledge',
+  organization: 'Organization',
+};
 
 const SuperAdminAnalytics = () => {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // Chart filter states
+  // Filter states
+  const [selectedOrgs, setSelectedOrgs] = useState<string[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('days');
-  const [datePreset, setDatePreset] = useState<DatePreset>('last7');
+  const [datePreset, setDatePreset] = useState<DatePreset>('last30');
   const [customStartDate, setCustomStartDate] = useState<Date | undefined>(subDays(new Date(), 30));
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>(new Date());
+  
+  // Section states
   const [showCumulative, setShowCumulative] = useState(false);
   const [showActivitiesCumulative, setShowActivitiesCumulative] = useState(false);
+  const [openModules, setOpenModules] = useState<string[]>(['team', 'hr', 'wiki', 'organization']);
 
   useEffect(() => {
     fetchAnalytics();
-  }, []);
+  }, [selectedOrgs, selectedUsers]);
 
   const fetchAnalytics = async () => {
     try {
+      setLoading(true);
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
       const oneWeekAgoISO = oneWeekAgo.toISOString();
 
+      // Build org filter
+      const orgFilter = selectedOrgs.length > 0 ? selectedOrgs : null;
+
       // Get organization stats
-      const { data: orgs } = await supabase
-        .from('organizations')
-        .select('id, plan, created_at');
+      let orgsQuery = supabase.from('organizations').select('id, plan, created_at');
+      if (orgFilter) {
+        orgsQuery = orgsQuery.in('id', orgFilter);
+      }
+      const { data: orgs } = await orgsQuery;
 
       // Get user stats with created_at for growth calculation
       const { data: profiles } = await supabase
@@ -130,9 +127,20 @@ const SuperAdminAnalytics = () => {
         .select('id, created_at');
 
       // Get active employees
-      const { data: employees } = await supabase
-        .from('employees')
-        .select('id, status');
+      let employeesQuery = supabase.from('employees').select('id, status, organization_id');
+      if (orgFilter) {
+        employeesQuery = employeesQuery.in('organization_id', orgFilter);
+      }
+      const { data: employees } = await employeesQuery;
+
+      // Build queries with optional org filter
+      const buildQuery = (table: string) => {
+        let query = (supabase.from(table as any) as any).select('created_at');
+        if (orgFilter) {
+          query = query.in('organization_id', orgFilter);
+        }
+        return query;
+      };
 
       // Fetch activities for chart (all feature tables)
       const [
@@ -153,22 +161,22 @@ const SuperAdminAnalytics = () => {
         { data: positionHistoryData },
         { data: projectsData },
       ] = await Promise.all([
-        supabase.from('updates').select('created_at'),
-        supabase.from('kudos').select('created_at'),
-        supabase.from('attendance_records').select('created_at'),
-        supabase.from('leave_requests').select('created_at'),
-        supabase.from('wiki_pages').select('created_at'),
-        supabase.from('wiki_folders').select('created_at'),
-        supabase.from('learning_development').select('created_at'),
-        supabase.from('performance_reviews').select('created_at'),
-        supabase.from('achievements').select('created_at'),
-        supabase.from('calendar_events').select('created_at'),
-        supabase.from('kpis').select('created_at'),
-        supabase.from('employee_documents').select('created_at'),
-        supabase.from('notifications').select('created_at'),
-        supabase.from('feed_reactions').select('created_at'),
-        supabase.from('position_history').select('created_at'),
-        supabase.from('projects').select('created_at'),
+        buildQuery('updates'),
+        buildQuery('kudos'),
+        buildQuery('attendance_records'),
+        buildQuery('leave_requests'),
+        buildQuery('wiki_pages'),
+        buildQuery('wiki_folders'),
+        buildQuery('learning_development'),
+        buildQuery('performance_reviews'),
+        buildQuery('achievements'),
+        buildQuery('calendar_events'),
+        buildQuery('kpis'),
+        buildQuery('employee_documents'),
+        buildQuery('notifications'),
+        buildQuery('feed_reactions'),
+        buildQuery('position_history'),
+        buildQuery('projects'),
       ]);
       
       const allActivities = [
@@ -190,11 +198,14 @@ const SuperAdminAnalytics = () => {
         ...(projectsData || []),
       ];
 
-      // Helper function to get counts - using any to bypass strict table typing
+      // Helper function to get counts with optional org filter
       const getCount = async (table: string, filter?: { column: string; value: string }) => {
         let query = (supabase.from(table as any) as any).select('*', { count: 'exact', head: true });
         if (filter) {
           query = query.eq(filter.column, filter.value);
+        }
+        if (orgFilter && table !== 'offices') {
+          query = query.in('organization_id', orgFilter);
         }
         const { count } = await query;
         return count || 0;
@@ -205,26 +216,25 @@ const SuperAdminAnalytics = () => {
         if (filter) {
           query = query.eq(filter.column, filter.value);
         }
+        if (orgFilter && table !== 'offices') {
+          query = query.in('organization_id', orgFilter);
+        }
         const { count } = await query;
         return count || 0;
       };
 
       // Fetch all feature counts in parallel
       const [
-        // Wiki module
         wikiPagesCount, wikiPagesLastWeek,
         wikiFoldersCount, wikiFoldersLastWeek,
-        // Team/Social module
         winsCount, winsLastWeek,
         announcementsCount, announcementsLastWeek,
         kudosCount, kudosLastWeek,
-        // HR module
         leaveCount, leaveLastWeek,
         attendanceCount, attendanceLastWeek,
         learningCount, learningLastWeek,
         reviewsCount, reviewsLastWeek,
         positionHistoryCount, positionHistoryLastWeek,
-        // Organization module
         calendarCount, calendarLastWeek,
         kpiCount, kpiLastWeek,
         achievementsCount, achievementsLastWeek,
@@ -234,20 +244,16 @@ const SuperAdminAnalytics = () => {
         notificationsCount, notificationsLastWeek,
         reactionsCount, reactionsLastWeek,
       ] = await Promise.all([
-        // Wiki module
         getCount('wiki_pages'), getLastWeekCount('wiki_pages'),
         getCount('wiki_folders'), getLastWeekCount('wiki_folders'),
-        // Team/Social module
         getCount('updates', { column: 'type', value: 'win' }), getLastWeekCount('updates', { column: 'type', value: 'win' }),
         getCount('updates', { column: 'type', value: 'announcement' }), getLastWeekCount('updates', { column: 'type', value: 'announcement' }),
         getCount('kudos'), getLastWeekCount('kudos'),
-        // HR module
         getCount('leave_requests'), getLastWeekCount('leave_requests'),
         getCount('attendance_records'), getLastWeekCount('attendance_records'),
         getCount('learning_development'), getLastWeekCount('learning_development'),
         getCount('performance_reviews'), getLastWeekCount('performance_reviews'),
         getCount('position_history'), getLastWeekCount('position_history'),
-        // Organization module
         getCount('calendar_events'), getLastWeekCount('calendar_events'),
         getCount('kpis'), getLastWeekCount('kpis'),
         getCount('achievements'), getLastWeekCount('achievements'),
@@ -267,20 +273,16 @@ const SuperAdminAnalytics = () => {
         totalUsers: profiles?.length || 0,
         activeUsers: activeEmployees,
         featureUsage: [
-          // Wiki module
           { name: 'Wiki Pages', count: wikiPagesCount, lastWeekCount: wikiPagesLastWeek, icon: BookOpen, module: 'wiki' },
           { name: 'Wiki Folders', count: wikiFoldersCount, lastWeekCount: wikiFoldersLastWeek, icon: FolderOpen, module: 'wiki' },
-          // Team/Social module
           { name: 'Wins', count: winsCount, lastWeekCount: winsLastWeek, icon: Trophy, module: 'team' },
           { name: 'Announcements', count: announcementsCount, lastWeekCount: announcementsLastWeek, icon: Megaphone, module: 'team' },
           { name: 'Kudos', count: kudosCount, lastWeekCount: kudosLastWeek, icon: Heart, module: 'team' },
-          // HR module
           { name: 'Leave Requests', count: leaveCount, lastWeekCount: leaveLastWeek, icon: Clock, module: 'hr' },
           { name: 'Attendance', count: attendanceCount, lastWeekCount: attendanceLastWeek, icon: ClipboardCheck, module: 'hr' },
           { name: 'Learning & Dev', count: learningCount, lastWeekCount: learningLastWeek, icon: GraduationCap, module: 'hr' },
           { name: 'Reviews', count: reviewsCount, lastWeekCount: reviewsLastWeek, icon: FileCheck, module: 'hr' },
           { name: 'Position Changes', count: positionHistoryCount, lastWeekCount: positionHistoryLastWeek, icon: History, module: 'hr' },
-          // Organization module
           { name: 'Calendar Events', count: calendarCount, lastWeekCount: calendarLastWeek, icon: CalendarDays, module: 'organization' },
           { name: 'KPIs', count: kpiCount, lastWeekCount: kpiLastWeek, icon: Target, module: 'organization' },
           { name: 'Achievements', count: achievementsCount, lastWeekCount: achievementsLastWeek, icon: Award, module: 'organization' },
@@ -336,7 +338,7 @@ const SuperAdminAnalytics = () => {
 
   // Calculate growth data based on view mode and date range
   const growthData = useMemo(() => {
-    if (!data) return { orgGrowth: [], userGrowth: [] };
+    if (!data) return { orgGrowth: [], userGrowth: [], activityGrowth: [] };
 
     const { start, end } = dateRange;
     let intervals: Date[];
@@ -360,95 +362,63 @@ const SuperAdminAnalytics = () => {
         labelFormat = 'd MMM';
     }
 
-    const orgGrowth: GrowthDataPoint[] = intervals.map((intervalDate) => {
-      let intervalStart: Date;
-      let intervalEnd: Date;
+    const getIntervalBounds = (intervalDate: Date) => {
       switch (viewMode) {
         case 'week':
-          intervalStart = startOfWeek(intervalDate, { weekStartsOn: 1 });
-          intervalEnd = endOfWeek(intervalDate, { weekStartsOn: 1 });
-          break;
+          return {
+            start: startOfWeek(intervalDate, { weekStartsOn: 1 }),
+            end: endOfWeek(intervalDate, { weekStartsOn: 1 }),
+          };
         case 'month':
-          intervalStart = startOfMonth(intervalDate);
-          intervalEnd = endOfMonth(intervalDate);
-          break;
+          return {
+            start: startOfMonth(intervalDate),
+            end: endOfMonth(intervalDate),
+          };
         default:
-          intervalStart = startOfDay(intervalDate);
-          intervalEnd = endOfDay(intervalDate);
+          return {
+            start: startOfDay(intervalDate),
+            end: endOfDay(intervalDate),
+          };
       }
-      
-      // Count orgs created WITHIN this interval (incremental, not cumulative)
+    };
+
+    const orgGrowth: GrowthDataPoint[] = intervals.map((intervalDate) => {
+      const { start: intervalStart, end: intervalEnd } = getIntervalBounds(intervalDate);
       const count = data.orgs.filter(org => {
         const createdAt = new Date(org.created_at);
         return createdAt >= intervalStart && createdAt <= intervalEnd;
       }).length;
-
-      return {
-        label: format(intervalDate, labelFormat),
-        count,
-      };
+      return { label: format(intervalDate, labelFormat), count };
     });
 
     const userGrowth: GrowthDataPoint[] = intervals.map((intervalDate) => {
-      let intervalStart: Date;
-      let intervalEnd: Date;
-      switch (viewMode) {
-        case 'week':
-          intervalStart = startOfWeek(intervalDate, { weekStartsOn: 1 });
-          intervalEnd = endOfWeek(intervalDate, { weekStartsOn: 1 });
-          break;
-        case 'month':
-          intervalStart = startOfMonth(intervalDate);
-          intervalEnd = endOfMonth(intervalDate);
-          break;
-        default:
-          intervalStart = startOfDay(intervalDate);
-          intervalEnd = endOfDay(intervalDate);
-      }
-      
-      // Count users created WITHIN this interval (incremental, not cumulative)
+      const { start: intervalStart, end: intervalEnd } = getIntervalBounds(intervalDate);
       const count = data.users.filter(user => {
         const createdAt = new Date(user.created_at);
         return createdAt >= intervalStart && createdAt <= intervalEnd;
       }).length;
-
-      return {
-        label: format(intervalDate, labelFormat),
-        count,
-      };
+      return { label: format(intervalDate, labelFormat), count };
     });
 
     const activityGrowth: GrowthDataPoint[] = intervals.map((intervalDate) => {
-      let intervalStart: Date;
-      let intervalEnd: Date;
-      switch (viewMode) {
-        case 'week':
-          intervalStart = startOfWeek(intervalDate, { weekStartsOn: 1 });
-          intervalEnd = endOfWeek(intervalDate, { weekStartsOn: 1 });
-          break;
-        case 'month':
-          intervalStart = startOfMonth(intervalDate);
-          intervalEnd = endOfMonth(intervalDate);
-          break;
-        default:
-          intervalStart = startOfDay(intervalDate);
-          intervalEnd = endOfDay(intervalDate);
-      }
-      
-      // Count activities created WITHIN this interval (incremental, not cumulative)
+      const { start: intervalStart, end: intervalEnd } = getIntervalBounds(intervalDate);
       const count = data.activities.filter(activity => {
         const createdAt = new Date(activity.created_at);
         return createdAt >= intervalStart && createdAt <= intervalEnd;
       }).length;
-
-      return {
-        label: format(intervalDate, labelFormat),
-        count,
-      };
+      return { label: format(intervalDate, labelFormat), count };
     });
 
     return { orgGrowth, userGrowth, activityGrowth };
   }, [data, viewMode, dateRange]);
+
+  const toggleModule = (module: string) => {
+    setOpenModules(prev => 
+      prev.includes(module) 
+        ? prev.filter(m => m !== module)
+        : [...prev, module]
+    );
+  };
 
   if (loading) {
     return (
@@ -465,52 +435,52 @@ const SuperAdminAnalytics = () => {
       <div className="space-y-6">
         <SuperAdminPageHeader 
           title="Analytics" 
-          description="Platform-wide usage statistics and trends" 
+          description="Platform-wide usage statistics, engagement metrics, and product insights" 
         />
 
-        <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="feature-usage">Feature Usage</TabsTrigger>
-          </TabsList>
+        {/* Filters */}
+        <AnalyticsFilters
+          selectedOrgs={selectedOrgs}
+          onOrgsChange={setSelectedOrgs}
+          selectedUsers={selectedUsers}
+          onUsersChange={setSelectedUsers}
+          datePreset={datePreset}
+          onDatePresetChange={setDatePreset}
+          customStartDate={customStartDate}
+          onCustomStartDateChange={setCustomStartDate}
+          customEndDate={customEndDate}
+          onCustomEndDateChange={setCustomEndDate}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+        />
 
-          <TabsContent value="overview" className="space-y-6">
+        {/* Summary Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Active Organisations
-              </CardTitle>
+              <CardTitle className="text-sm font-medium">Active Organisations</CardTitle>
               <Building2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{data?.activeOrgs}</div>
-              <p className="text-xs text-muted-foreground">
-                of {data?.totalOrgs} total
-              </p>
+              <p className="text-xs text-muted-foreground">of {data?.totalOrgs} total</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Active Users
-              </CardTitle>
+              <CardTitle className="text-sm font-medium">Active Users</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{data?.activeUsers}</div>
-              <p className="text-xs text-muted-foreground">
-                of {data?.totalUsers} registered
-              </p>
+              <p className="text-xs text-muted-foreground">of {data?.totalUsers} registered</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Most Used Feature
-              </CardTitle>
+              <CardTitle className="text-sm font-medium">Most Used Feature</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -525,104 +495,33 @@ const SuperAdminAnalytics = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Activity
-              </CardTitle>
+              <CardTitle className="text-sm font-medium">Total Activity</CardTitle>
               <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
                 {data?.featureUsage.reduce((sum, f) => sum + f.count, 0) || 0}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Total records across features
-              </p>
+              <p className="text-xs text-muted-foreground">Total records across features</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Chart Filters */}
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground">View by:</span>
-            <div className="flex rounded-lg border border-border overflow-hidden">
-              {(['days', 'week', 'month'] as ViewMode[]).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => setViewMode(mode)}
-                  className={cn(
-                    "px-3 py-1.5 text-sm font-medium transition-colors",
-                    viewMode === mode
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-background text-muted-foreground hover:bg-muted"
-                  )}
-                >
-                  {mode.charAt(0).toUpperCase() + mode.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
+        {/* User Engagement Metrics */}
+        <EngagementMetrics
+          selectedOrgs={selectedOrgs}
+          selectedUsers={selectedUsers}
+          dateRange={dateRange}
+        />
 
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground">Period:</span>
-            <Select value={datePreset} onValueChange={(v) => setDatePreset(v as DatePreset)}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {DATE_PRESETS.map((preset) => (
-                  <SelectItem key={preset.value} value={preset.value}>
-                    {preset.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        {/* Activity Heatmap */}
+        <ActivityHeatmap
+          selectedOrgs={selectedOrgs}
+          selectedUsers={selectedUsers}
+          dateRange={dateRange}
+        />
 
-          {datePreset === 'custom' && (
-            <div className="flex items-center gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <CalendarIcon className="h-4 w-4" />
-                    {customStartDate ? format(customStartDate, 'dd MMM yyyy') : 'Start date'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={customStartDate}
-                    onSelect={setCustomStartDate}
-                    disabled={(date) => date > new Date()}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
-              <span className="text-muted-foreground">to</span>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <CalendarIcon className="h-4 w-4" />
-                    {customEndDate ? format(customEndDate, 'dd MMM yyyy') : 'End date'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={customEndDate}
-                    onSelect={setCustomEndDate}
-                    disabled={(date) => date > new Date() || (customStartDate && date < customStartDate)}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-          )}
-        </div>
-
-        {/* Charts */}
+        {/* Growth Charts */}
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
             <CardHeader>
@@ -639,10 +538,7 @@ const SuperAdminAnalytics = () => {
                       tick={{ fill: 'hsl(var(--muted-foreground))' }}
                       interval={viewMode === 'days' && growthData.orgGrowth.length > 15 ? Math.floor(growthData.orgGrowth.length / 10) : 0}
                     />
-                    <YAxis 
-                      className="text-xs"
-                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                    />
+                    <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                     <Tooltip 
                       contentStyle={{ 
                         backgroundColor: 'hsl(var(--card))',
@@ -650,11 +546,7 @@ const SuperAdminAnalytics = () => {
                         borderRadius: '8px',
                       }}
                     />
-                    <Bar 
-                      dataKey="count" 
-                      fill="hsl(var(--primary))" 
-                      radius={[4, 4, 0, 0]}
-                    />
+                    <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -696,10 +588,7 @@ const SuperAdminAnalytics = () => {
                       tick={{ fill: 'hsl(var(--muted-foreground))' }}
                       interval={viewMode === 'days' && growthData.userGrowth.length > 15 ? Math.floor(growthData.userGrowth.length / 10) : 0}
                     />
-                    <YAxis 
-                      className="text-xs"
-                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                    />
+                    <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                     <Tooltip 
                       contentStyle={{ 
                         backgroundColor: 'hsl(var(--card))',
@@ -710,11 +599,10 @@ const SuperAdminAnalytics = () => {
                     <Line 
                       type="monotone"
                       dataKey="count" 
-                      stroke="#10b981"
+                      stroke="hsl(142 76% 36%)"
                       strokeWidth={2}
-                      dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
-                      connectNulls
-                      activeDot={{ r: 6, fill: '#10b981' }}
+                      dot={{ fill: 'hsl(142 76% 36%)', strokeWidth: 2, r: 4 }}
+                      activeDot={{ r: 6, fill: 'hsl(142 76% 36%)' }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -722,86 +610,95 @@ const SuperAdminAnalytics = () => {
             </CardContent>
           </Card>
         </div>
-          </TabsContent>
 
-          <TabsContent value="feature-usage" className="space-y-6">
-            {/* Activities Chart - Full Width */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Activities</CardTitle>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Cumulative</span>
+        {/* Activities Chart - Full Width */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Activities Over Time</CardTitle>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Cumulative</span>
+              <Button
+                variant={showActivitiesCumulative ? "default" : "outline"}
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => setShowActivitiesCumulative(!showActivitiesCumulative)}
+              >
+                {showActivitiesCumulative ? "On" : "Off"}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={showActivitiesCumulative 
+                  ? (() => {
+                      let cumulative = 0;
+                      return growthData.activityGrowth.map(item => {
+                        cumulative += item.count;
+                        return { label: item.label, count: cumulative };
+                      });
+                    })()
+                  : growthData.activityGrowth
+                }>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis 
+                    dataKey="label" 
+                    className="text-xs"
+                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    interval={viewMode === 'days' && growthData.activityGrowth.length > 15 ? Math.floor(growthData.activityGrowth.length / 10) : 0}
+                  />
+                  <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                  />
+                  <Line 
+                    type="monotone"
+                    dataKey="count" 
+                    stroke="hsl(280 65% 60%)"
+                    strokeWidth={2}
+                    dot={{ fill: 'hsl(280 65% 60%)', strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, fill: 'hsl(280 65% 60%)' }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Churn Risk Card */}
+        <ChurnRiskCard />
+
+        {/* Feature Usage by Module - Collapsible */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold text-foreground">Feature Usage by Module</h2>
+          
+          {(['team', 'hr', 'wiki', 'organization'] as const).map((module) => {
+            const moduleFeatures = data?.featureUsage.filter(f => f.module === module) || [];
+            if (moduleFeatures.length === 0) return null;
+            
+            return (
+              <Collapsible
+                key={module}
+                open={openModules.includes(module)}
+                onOpenChange={() => toggleModule(module)}
+              >
+                <CollapsibleTrigger asChild>
                   <Button
-                    variant={showActivitiesCumulative ? "default" : "outline"}
-                    size="sm"
-                    className="h-7 px-2 text-xs"
-                    onClick={() => setShowActivitiesCumulative(!showActivitiesCumulative)}
+                    variant="ghost"
+                    className="w-full justify-between p-4 h-auto border border-border rounded-lg hover:bg-muted/50"
                   >
-                    {showActivitiesCumulative ? "On" : "Off"}
+                    <span className="text-lg font-semibold">{MODULE_LABELS[module]}</span>
+                    <ChevronDown className={cn(
+                      "h-5 w-5 transition-transform",
+                      openModules.includes(module) && "rotate-180"
+                    )} />
                   </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={showActivitiesCumulative 
-                      ? (() => {
-                          let cumulative = 0;
-                          return growthData.activityGrowth.map(item => {
-                            cumulative += item.count;
-                            return { label: item.label, count: cumulative };
-                          });
-                        })()
-                      : growthData.activityGrowth
-                    }>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis 
-                        dataKey="label" 
-                        className="text-xs"
-                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                        interval={viewMode === 'days' && growthData.activityGrowth.length > 15 ? Math.floor(growthData.activityGrowth.length / 10) : 0}
-                      />
-                      <YAxis 
-                        className="text-xs"
-                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                      />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'hsl(var(--card))',
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px',
-                        }}
-                      />
-                      <Line 
-                        type="monotone"
-                        dataKey="count" 
-                        stroke="#8b5cf6"
-                        strokeWidth={2}
-                        dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 4 }}
-                        connectNulls
-                        activeDot={{ r: 6, fill: '#8b5cf6' }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Feature Usage Cards - Grouped by Module */}
-            {(['team', 'hr', 'wiki', 'organization'] as const).map((module) => {
-              const moduleLabels = {
-                team: 'Team & Social',
-                hr: 'HR & People',
-                wiki: 'Wiki & Knowledge',
-                organization: 'Organization',
-              };
-              const moduleFeatures = data?.featureUsage.filter(f => f.module === module) || [];
-              
-              if (moduleFeatures.length === 0) return null;
-              
-              return (
-                <div key={module}>
-                  <h3 className="text-lg font-semibold text-foreground mb-4">{moduleLabels[module]}</h3>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-4">
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                     {moduleFeatures.map((feature) => {
                       const IconComponent = feature.icon;
@@ -815,9 +712,7 @@ const SuperAdminAnalytics = () => {
                       return (
                         <Card key={feature.name}>
                           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">
-                              {feature.name}
-                            </CardTitle>
+                            <CardTitle className="text-sm font-medium">{feature.name}</CardTitle>
                             <IconComponent className="h-4 w-4 text-muted-foreground" />
                           </CardHeader>
                           <CardContent>
@@ -842,11 +737,11 @@ const SuperAdminAnalytics = () => {
                       );
                     })}
                   </div>
-                </div>
-              );
-            })}
-          </TabsContent>
-        </Tabs>
+                </CollapsibleContent>
+              </Collapsible>
+            );
+          })}
+        </div>
       </div>
     </SuperAdminLayout>
   );
