@@ -467,23 +467,6 @@ export const GlobalAskAI = ({ organizationId, isMobileFullscreen, onClose }: Glo
   // Desktop sheet mode
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <SheetTrigger asChild>
-            <Button 
-              variant="outline" 
-              size="icon"
-              className="h-10 w-10"
-              disabled={!organizationId}
-            >
-              <Sparkles className="h-4 w-4 text-ai" />
-            </Button>
-          </SheetTrigger>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>Ask AI</p>
-        </TooltipContent>
-      </Tooltip>
       <SheetContent className="w-full sm:max-w-md flex flex-col">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
