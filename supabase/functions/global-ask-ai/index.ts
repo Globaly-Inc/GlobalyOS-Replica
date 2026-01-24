@@ -80,6 +80,44 @@ function detectQueryType(question: string): "internal" | "general" {
   return internalKeywords.some(kw => lowerQuestion.includes(kw)) ? "internal" : "general";
 }
 
+// Helper function to log usage for deterministic queries
+async function logUsage(supabase: any, params: {
+  organizationId: string;
+  userId: string;
+  employeeId: string;
+  conversationId?: string;
+  queryType: string;
+  promptLength: number;
+  responseLength: number;
+  latencyMs: number;
+}) {
+  try {
+    await supabase.from("ai_usage_logs").insert({
+      organization_id: params.organizationId,
+      user_id: params.userId,
+      employee_id: params.employeeId,
+      conversation_id: params.conversationId || null,
+      model: "deterministic",
+      query_type: params.queryType,
+      prompt_length: params.promptLength,
+      response_length: params.responseLength,
+      prompt_tokens: 0,
+      completion_tokens: 0,
+      total_tokens: 0,
+      estimated_cost: 0,
+      latency_ms: params.latencyMs,
+    });
+
+    await supabase.rpc('record_usage', {
+      _organization_id: params.organizationId,
+      _feature: 'ai_queries',
+      _quantity: 1
+    });
+  } catch (e) {
+    console.error("Error logging usage:", e);
+  }
+}
+
 serve(async (req) => {
   const startTime = Date.now();
   
@@ -173,16 +211,34 @@ serve(async (req) => {
       });
     }
 
-    // Get current employee and their role
-    const { data: currentEmployee } = await supabase
+    // Get current employee - separate queries to avoid inner join failures
+    const { data: employeeData, error: empError } = await supabase
       .from("employees")
-      .select(`
-        id, position, department, manager_id, office_id, start_date, status,
-        profiles!inner(full_name, avatar_url, email)
-      `)
+      .select("id, position, department, manager_id, office_id, start_date, status, user_id")
       .eq("user_id", user.id)
       .eq("organization_id", organizationId)
       .maybeSingle();
+
+    // Get profile separately if employee exists
+    let profileData = null;
+    if (employeeData) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, avatar_url, email")
+        .eq("id", user.id)
+        .single();
+      profileData = profile;
+    }
+
+    // Combine into expected structure
+    const currentEmployee = employeeData ? {
+      ...employeeData,
+      profiles: profileData
+    } : null;
+
+    if (empError) {
+      console.error("Employee lookup error:", empError.message);
+    }
 
     // Get user's role in the organization
     const { data: userRole } = await supabase
@@ -353,14 +409,14 @@ serve(async (req) => {
           deterministicAnswer = `Hi ${userName}! Here are your leave balances for ${balanceYear}:\n\n`;
           
           if (paidLeaves.length > 0) {
-            deterministicAnswer += "**Paid Leave:**\n";
+            deterministicAnswer += "**Paid Leave:**\n\n";
             paidLeaves.forEach(l => {
               deterministicAnswer += `• ${l.name}: **${l.balance} days** remaining\n`;
             });
           }
           
           if (unpaidLeaves.length > 0) {
-            deterministicAnswer += "\n**Unpaid Leave:**\n";
+            deterministicAnswer += "\n\n**Unpaid Leave:**\n\n";
             unpaidLeaves.forEach(l => {
               deterministicAnswer += `• ${l.name}: **${l.balance} days** remaining\n`;
             });
@@ -377,13 +433,16 @@ serve(async (req) => {
             .limit(5);
           
           if (pendingLeaves && pendingLeaves.length > 0) {
-            deterministicAnswer += "\n**Upcoming/Pending Leaves:**\n";
+            deterministicAnswer += "\n\n**Upcoming/Pending Leaves:**\n\n";
             pendingLeaves.forEach(l => {
               deterministicAnswer += `• ${l.leave_type}: ${l.start_date} to ${l.end_date} (${l.days_count} days, ${l.status})\n`;
             });
           }
+          
+          deterministicAnswer += "\n\nIf you have any questions about your leave, feel free to ask!";
         } else {
-          deterministicAnswer = `Hi ${userName}! I couldn't find any leave balances configured for you for ${currentYear}. This could mean:\n\n`;
+          deterministicAnswer = `Hi ${userName}! I couldn't find any leave balances configured for you for ${currentYear}.\n\n`;
+          deterministicAnswer += "This could mean:\n\n";
           deterministicAnswer += "• Your leave entitlements haven't been set up yet\n";
           deterministicAnswer += "• Your office doesn't have leave types configured\n\n";
           deterministicAnswer += "Please contact your HR administrator to set up your leave entitlements.";
@@ -1314,41 +1373,3 @@ Be helpful, accurate, and concise.`;
     });
   }
 });
-
-// Helper function to log usage for deterministic queries
-async function logUsage(supabase: any, params: {
-  organizationId: string;
-  userId: string;
-  employeeId: string;
-  conversationId?: string;
-  queryType: string;
-  promptLength: number;
-  responseLength: number;
-  latencyMs: number;
-}) {
-  try {
-    await supabase.from("ai_usage_logs").insert({
-      organization_id: params.organizationId,
-      user_id: params.userId,
-      employee_id: params.employeeId,
-      conversation_id: params.conversationId || null,
-      model: "deterministic",
-      query_type: params.queryType,
-      prompt_length: params.promptLength,
-      response_length: params.responseLength,
-      prompt_tokens: 0,
-      completion_tokens: 0,
-      total_tokens: 0,
-      estimated_cost: 0,
-      latency_ms: params.latencyMs,
-    });
-
-    await supabase.rpc('record_usage', {
-      _organization_id: params.organizationId,
-      _feature: 'ai_queries',
-      _quantity: 1
-    });
-  } catch (e) {
-    console.error("Error logging usage:", e);
-  }
-}

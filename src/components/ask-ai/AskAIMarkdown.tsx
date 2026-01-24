@@ -39,17 +39,20 @@ export const AskAIMarkdown = ({ content, className }: AskAIMarkdownProps) => {
         "prose-h2:text-lg prose-h2:mt-6 prose-h2:mb-3",
         "prose-h3:text-base prose-h3:mt-5 prose-h3:mb-2",
         "prose-h4:text-sm prose-h4:mt-4 prose-h4:mb-2",
-        // Paragraphs - generous spacing for readability
-        "prose-p:my-4 prose-p:leading-relaxed prose-p:text-foreground",
+        // Paragraphs - extra spacing between paragraphs for better readability
+        "prose-p:my-5 prose-p:leading-7 prose-p:text-foreground",
         // Make first paragraph have no top margin
         "[&>p:first-child]:mt-0",
-        // Lists - clean spacing
-        "prose-ul:my-4 prose-ol:my-4",
+        // Extra spacing between sections
+        "[&_p+p]:mt-6",
+        "[&_ul+p]:mt-6 [&_ol+p]:mt-6 [&_blockquote+p]:mt-6",
+        // Lists - clean spacing with extra gap after
+        "prose-ul:my-5 prose-ol:my-5",
         "prose-ul:pl-5 prose-ol:pl-5",
-        "prose-li:my-1.5 prose-li:leading-relaxed",
+        "prose-li:my-2 prose-li:leading-7",
         "prose-li:marker:text-muted-foreground",
         // Nested list spacing
-        "[&_ul_ul]:my-2 [&_ol_ol]:my-2",
+        "[&_ul_ul]:my-3 [&_ol_ol]:my-3",
         // Code - inline and blocks
         "prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono",
         "prose-code:before:content-none prose-code:after:content-none",
