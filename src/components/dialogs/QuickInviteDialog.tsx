@@ -4,21 +4,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { UserPlus, Check, CalendarIcon, Plus, Loader2, Camera, ChevronsUpDown, X, Users } from "lucide-react";
+import { UserPlus, Check, Plus, Loader2, Camera, ChevronsUpDown, X, Crown } from "lucide-react";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useEmploymentTypes } from "@/hooks/useEmploymentTypes";
 import { format } from "date-fns";
 import { ImageCropper } from "@/components/ui/image-cropper";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface QuickInviteDialogProps {
   open: boolean;
@@ -47,10 +45,10 @@ interface PositionData {
 }
 
 const ROLE_OPTIONS = [
-  { value: 'admin', label: 'Admin', description: 'Full access to all settings and team management' },
-  { value: 'hr', label: 'HR', description: 'Manage employee records, leave, and attendance' },
-  { value: 'manager', label: 'Manager', description: 'Team oversight and performance reviews' },
-  { value: 'member', label: 'Member', description: 'Standard employee access' },
+  { value: 'admin', label: 'Admin', description: 'Full access to all settings' },
+  { value: 'hr', label: 'HR', description: 'Manage employee records' },
+  { value: 'manager', label: 'Manager', description: 'Team oversight' },
+  { value: 'member', label: 'Member', description: 'Standard access' },
 ];
 
 const quickInviteSchema = z.object({
@@ -59,7 +57,6 @@ const quickInviteSchema = z.object({
   officeId: z.string().min(1, "Please select an office"),
   department: z.string().trim().min(2, "Department is required").max(100),
   position: z.string().trim().min(2, "Position is required").max(100),
-  joinDate: z.string().optional(),
   employmentType: z.string().min(1, "Please select employment type"),
   role: z.enum(['admin', 'hr', 'manager', 'member']),
   managerId: z.string().optional(),
@@ -80,18 +77,14 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
   const [positions, setPositions] = useState<PositionData[]>([]);
   const [offices, setOffices] = useState<Office[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [ownerInfo, setOwnerInfo] = useState<{ id: string; name: string } | null>(null);
   const { data: employmentTypes = [], isLoading: loadingEmploymentTypes } = useEmploymentTypes(true);
   
   // Combobox state
   const [departmentOpen, setDepartmentOpen] = useState(false);
   const [positionOpen, setPositionOpen] = useState(false);
-  const [managerOpen, setManagerOpen] = useState(false);
   const [departmentSearch, setDepartmentSearch] = useState("");
   const [positionSearch, setPositionSearch] = useState("");
-  const [managerSearch, setManagerSearch] = useState("");
-  
-  // Date picker state
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
   
   // Avatar state
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -106,7 +99,6 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
     officeId: "",
     department: "",
     position: "",
-    joinDate: "",
     employmentType: "",
     role: "member",
     managerId: "",
@@ -119,6 +111,7 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
       loadPositions();
       loadOffices();
       loadTeamMembers();
+      loadOwnerInfo();
     }
   }, [open, currentOrg?.id]);
 
@@ -142,7 +135,6 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
       officeId: "",
       department: "",
       position: "",
-      joinDate: "",
       employmentType: "",
       role: "member",
       managerId: "",
@@ -154,7 +146,6 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
     setAvatarPreview(null);
     setDepartmentSearch("");
     setPositionSearch("");
-    setManagerSearch("");
   };
 
   const loadDepartments = async () => {
@@ -188,6 +179,29 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
     }
   };
 
+  const loadOwnerInfo = async () => {
+    if (!currentOrg) return;
+    const { data } = await supabase
+      .from('organization_members')
+      .select('user_id')
+      .eq('organization_id', currentOrg.id)
+      .eq('role', 'owner')
+      .single();
+    if (data?.user_id) {
+      // Get profile and employee ID for the owner
+      const [profileRes, empRes] = await Promise.all([
+        supabase.from('profiles').select('full_name').eq('id', data.user_id).single(),
+        supabase.from('employees').select('id').eq('organization_id', currentOrg.id).eq('user_id', data.user_id).single()
+      ]);
+      if (empRes.data && profileRes.data) {
+        setOwnerInfo({ 
+          id: empRes.data.id, 
+          name: profileRes.data.full_name
+        });
+      }
+    }
+  };
+
   const handleChange = useCallback((field: keyof QuickInviteFormData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setErrors(prev => {
@@ -200,7 +214,7 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
   // Handle department change - clear position when department changes
   const handleDepartmentChange = (value: string) => {
     handleChange('department', value);
-    handleChange('position', ''); // Clear position when department changes
+    handleChange('position', '');
     setPositionSearch('');
   };
 
@@ -242,7 +256,6 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
     
     const trimmedName = name.trim();
     
-    // Save to positions table
     if (currentOrg) {
       try {
         const { data: newPos } = await supabase
@@ -259,7 +272,6 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
           setPositions(prev => [...prev, newPos]);
         }
         
-        // Record for AI learning
         await supabase.functions.invoke('save-org-structure-learning', {
           body: {
             organizationId: currentOrg.id,
@@ -285,6 +297,12 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
   const filteredPositions = formData.department
     ? positions.filter(p => !p.department || p.department === formData.department)
     : positions;
+
+  // Build manager options (owner + team members)
+  const managerOptions = [
+    ...(ownerInfo ? [{ id: ownerInfo.id, name: ownerInfo.name, isOwner: true }] : []),
+    ...teamMembers.map(m => ({ id: m.id, name: m.profiles.full_name, isOwner: false })),
+  ];
 
   // Avatar handling
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -361,7 +379,6 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
         }
       }
       
-      // Split name into first/last for the API
       const nameParts = validated.fullName.trim().split(' ');
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || nameParts[0] || '';
@@ -375,14 +392,13 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
         officeId: validated.officeId,
         department: validated.department,
         position: validated.position,
-        joinDate: validated.joinDate || format(new Date(), 'yyyy-MM-dd'),
+        joinDate: format(new Date(), 'yyyy-MM-dd'),
         employmentType: validated.employmentType,
         role: validated.role,
         organizationId: currentOrg?.id,
         isNewHire: validated.isNewHire,
         managerId: validated.managerId || '',
         avatarUrl,
-        // Optional fields with defaults
         phone: '',
         dateOfBirth: '',
         street: '',
@@ -403,7 +419,6 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
         return;
       }
 
-      // Check if user already exists (graceful skip)
       const responseData = data as { skipped?: boolean; code?: string } | null;
       if (responseData?.skipped && responseData?.code === 'USER_EXISTS') {
         toast({ 
@@ -453,54 +468,47 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5" />
             Invite Team Member
           </DialogTitle>
           <DialogDescription>
-            Invite a new team member with full profile setup. They'll receive an email to complete onboarding.
+            Add a new team member to your organization. They'll receive an email invitation.
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 pr-4 -mr-4">
-          <div className="space-y-6 py-4 pr-4">
-            {/* Row 1: Avatar + Existing/New Hire Toggle */}
-            <div className="flex items-start gap-6">
+        <div className="space-y-4 py-2">
+          {/* Card-style form matching onboarding */}
+          <div className="border rounded-lg p-4 bg-card">
+            {/* Header Row: Avatar + Toggle */}
+            <div className="flex items-center gap-4 mb-4">
               {/* Avatar Upload */}
-              <div className="flex flex-col items-center gap-2">
-                <div className="relative">
-                  <Avatar className="h-20 w-20 border-2 border-dashed border-muted-foreground/25">
-                    {avatarPreview ? (
-                      <AvatarImage src={avatarPreview} />
-                    ) : (
-                      <AvatarFallback className="bg-muted text-muted-foreground">
-                        <Camera className="h-6 w-6" />
-                      </AvatarFallback>
-                    )}
-                  </Avatar>
-                  {avatarPreview && (
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon"
-                      className="absolute -top-1 -right-1 h-5 w-5 rounded-full"
-                      onClick={removeAvatar}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  )}
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs"
+              <div className="relative">
+                <Avatar 
+                  className="h-14 w-14 border-2 border-dashed border-muted-foreground/25 cursor-pointer"
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  Upload Photo
-                </Button>
+                  {avatarPreview ? (
+                    <AvatarImage src={avatarPreview} />
+                  ) : (
+                    <AvatarFallback className="bg-muted text-muted-foreground">
+                      <Camera className="h-5 w-5" />
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+                {avatarPreview && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute -top-1 -right-1 h-5 w-5 rounded-full"
+                    onClick={(e) => { e.stopPropagation(); removeAvatar(); }}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -511,69 +519,51 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
               </div>
 
               {/* Existing/New Hire Toggle */}
-              <div className="flex-1 space-y-3">
-                <Label>Employee Type</Label>
-                <RadioGroup
-                  value={formData.isNewHire ? "new" : "existing"}
-                  onValueChange={(value) => handleChange('isNewHire', value === "new")}
-                  className="flex gap-4"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="existing" id="existing" />
-                    <Label htmlFor="existing" className="font-normal cursor-pointer">
-                      Existing Team
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="new" id="new" />
-                    <Label htmlFor="new" className="font-normal cursor-pointer">
-                      New Hire
-                    </Label>
-                  </div>
-                </RadioGroup>
-                <p className="text-xs text-muted-foreground">
-                  {formData.isNewHire 
-                    ? "This person is a new hire joining the company" 
-                    : "This person is already part of the team"}
-                </p>
-              </div>
+              <RadioGroup
+                value={formData.isNewHire ? "new_hire" : "existing"}
+                onValueChange={(value) => handleChange('isNewHire', value === "new_hire")}
+                className="flex items-center gap-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="existing" id="existing" />
+                  <Label htmlFor="existing" className="text-sm font-normal cursor-pointer">
+                    Existing Team
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="new_hire" id="new_hire" />
+                  <Label htmlFor="new_hire" className="text-sm font-normal cursor-pointer">
+                    New Hire
+                  </Label>
+                </div>
+              </RadioGroup>
             </div>
 
-            {/* Row 2: Full Name, Work Email */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name <span className="text-destructive">*</span></Label>
+            {/* Row 1: Name, Email, Office, Manager */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1.5 block">Employee Full Name *</Label>
                 <Input
-                  id="fullName"
-                  placeholder="John Doe"
                   value={formData.fullName}
                   onChange={(e) => handleChange('fullName', e.target.value)}
-                  className={cn(errors.fullName && "border-destructive")}
+                  placeholder="Full name"
+                  className={cn("h-9", errors.fullName && "border-destructive")}
                 />
-                {errors.fullName && <p className="text-xs text-destructive">{errors.fullName}</p>}
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">Work Email <span className="text-destructive">*</span></Label>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1.5 block">Work Email (username for login with OTP) *</Label>
                 <Input
-                  id="email"
                   type="email"
-                  placeholder="john@company.com"
                   value={formData.email}
                   onChange={(e) => handleChange('email', e.target.value)}
-                  className={cn(errors.email && "border-destructive")}
+                  placeholder="email@company.com"
+                  className={cn("h-9", errors.email && "border-destructive")}
                 />
-                {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
               </div>
-            </div>
-
-            {/* Row 3: Office, Manager */}
-            <div className="grid grid-cols-2 gap-4">
-              {/* Office */}
-              <div className="space-y-2">
-                <Label>Office <span className="text-destructive">*</span></Label>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1.5 block">Office *</Label>
                 <Select value={formData.officeId} onValueChange={(value) => handleChange('officeId', value)}>
-                  <SelectTrigger className={cn(errors.officeId && "border-destructive")}>
+                  <SelectTrigger className={cn("h-9", errors.officeId && "border-destructive")}>
                     <SelectValue placeholder="Select office" />
                   </SelectTrigger>
                   <SelectContent>
@@ -582,123 +572,65 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.officeId && <p className="text-xs text-destructive">{errors.officeId}</p>}
               </div>
-
-              {/* Manager */}
-              <div className="space-y-2">
-                <Label>Reports To</Label>
-                <Popover open={managerOpen} onOpenChange={setManagerOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={managerOpen}
-                      className="w-full justify-between font-normal"
-                    >
-                      {formData.managerId ? (
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1.5 block">Manager *</Label>
+                <Select 
+                  value={formData.managerId || ''} 
+                  onValueChange={(value) => handleChange('managerId', value)}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Select manager" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {managerOptions.map((mgr) => (
+                      <SelectItem key={mgr.id} value={mgr.id}>
                         <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4 text-muted-foreground" />
-                          {teamMembers.find(m => m.id === formData.managerId)?.profiles.full_name || 'Select manager'}
+                          <span>{mgr.name}</span>
+                          {mgr.isOwner && <Crown className="h-3 w-3 text-amber-500" />}
                         </div>
-                      ) : (
-                        <span className="text-muted-foreground">Select manager</span>
-                      )}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[300px] p-0" align="start">
-                    <Command>
-                      <CommandInput 
-                        placeholder="Search team members..." 
-                        value={managerSearch}
-                        onValueChange={setManagerSearch}
-                      />
-                      <CommandList>
-                        <CommandEmpty>No team member found.</CommandEmpty>
-                        <CommandGroup>
-                          <CommandItem
-                            value="none"
-                            onSelect={() => {
-                              handleChange('managerId', '');
-                              setManagerOpen(false);
-                            }}
-                          >
-                            <span className="text-muted-foreground">No manager</span>
-                          </CommandItem>
-                          {teamMembers.map((member) => (
-                            <CommandItem
-                              key={member.id}
-                              value={member.profiles.full_name}
-                              onSelect={() => {
-                                handleChange('managerId', member.id);
-                                setManagerOpen(false);
-                              }}
-                            >
-                              <div className="flex items-center gap-2">
-                                <Avatar className="h-6 w-6">
-                                  <AvatarImage src={member.profiles.avatar_url || undefined} />
-                                  <AvatarFallback className="text-xs">
-                                    {getInitials(member.profiles.full_name)}
-                                  </AvatarFallback>
-                                </Avatar>
-                                {member.profiles.full_name}
-                              </div>
-                              {formData.managerId === member.id && (
-                                <Check className="ml-auto h-4 w-4" />
-                              )}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
-            {/* Row 4: Department, Position (searchable comboboxes) */}
-            <div className="grid grid-cols-2 gap-4">
-              {/* Department */}
-              <div className="space-y-2">
-                <Label>Department <span className="text-destructive">*</span></Label>
+            {/* Row 2: Department, Position, Type, Role */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              {/* Department - Searchable Combobox */}
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1.5 block">Department *</Label>
                 <Popover open={departmentOpen} onOpenChange={setDepartmentOpen}>
                   <PopoverTrigger asChild>
                     <Button
+                      type="button"
                       variant="outline"
                       role="combobox"
                       aria-expanded={departmentOpen}
                       className={cn(
-                        "w-full justify-between font-normal",
+                        "w-full h-9 justify-between font-normal",
                         errors.department && "border-destructive"
                       )}
                     >
-                      {formData.department || <span className="text-muted-foreground">Select department</span>}
+                      <span className="truncate">
+                        {formData.department || 'Select department...'}
+                      </span>
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[300px] p-0" align="start">
-                    <Command>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <Command shouldFilter={false}>
                       <CommandInput 
-                        placeholder="Search or add department..." 
+                        placeholder="Search or add new..." 
                         value={departmentSearch}
                         onValueChange={setDepartmentSearch}
                       />
-                      <CommandList>
-                        <CommandEmpty>
-                          {departmentSearch.trim().length >= 2 ? (
-                            <Button
-                              variant="ghost"
-                              className="w-full justify-start text-primary"
-                              onClick={() => handleAddNewDepartment(departmentSearch)}
-                            >
-                              <Plus className="mr-2 h-4 w-4" />
-                              Add "{departmentSearch.trim()}"
-                            </Button>
-                          ) : (
-                            "Type to search or add new"
-                          )}
-                        </CommandEmpty>
+                      <CommandList className="max-h-[200px]">
+                        {departments.filter(d => d.toLowerCase().includes(departmentSearch.toLowerCase())).length === 0 && 
+                         departmentSearch.trim().length < 2 && (
+                          <CommandEmpty>No departments found.</CommandEmpty>
+                        )}
                         <CommandGroup>
                           {departments
                             .filter(d => d.toLowerCase().includes(departmentSearch.toLowerCase()))
@@ -712,10 +644,8 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
                                   setDepartmentSearch("");
                                 }}
                               >
+                                <Check className={cn('mr-2 h-4 w-4', formData.department === dept ? 'opacity-100' : 'opacity-0')} />
                                 {dept}
-                                {formData.department === dept && (
-                                  <Check className="ml-auto h-4 w-4" />
-                                )}
                               </CommandItem>
                             ))}
                           {departmentSearch.trim().length >= 2 && 
@@ -726,7 +656,7 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
                               className="text-primary"
                             >
                               <Plus className="mr-2 h-4 w-4" />
-                              Add "{departmentSearch.trim()}"
+                              Add "{departmentSearch}"
                             </CommandItem>
                           )}
                         </CommandGroup>
@@ -734,55 +664,48 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
                     </Command>
                   </PopoverContent>
                 </Popover>
-                {errors.department && <p className="text-xs text-destructive">{errors.department}</p>}
               </div>
 
-              {/* Position */}
-              <div className="space-y-2">
-                <Label>Position <span className="text-destructive">*</span></Label>
+              {/* Position - Searchable Combobox */}
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1.5 block">Position *</Label>
                 <Popover open={positionOpen} onOpenChange={setPositionOpen}>
                   <PopoverTrigger asChild>
                     <Button
+                      type="button"
                       variant="outline"
                       role="combobox"
                       aria-expanded={positionOpen}
                       className={cn(
-                        "w-full justify-between font-normal",
+                        "w-full h-9 justify-between font-normal",
                         errors.position && "border-destructive"
                       )}
+                      disabled={!formData.department}
                     >
-                      {formData.position || <span className="text-muted-foreground">Select position</span>}
+                      <span className="truncate">
+                        {formData.position || (formData.department ? 'Select position...' : 'Select department first')}
+                      </span>
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[300px] p-0" align="start">
-                    <Command>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <Command shouldFilter={false}>
                       <CommandInput 
-                        placeholder="Search or add position..." 
+                        placeholder="Search or add new..." 
                         value={positionSearch}
                         onValueChange={setPositionSearch}
                       />
-                      <CommandList>
-                        <CommandEmpty>
-                          {positionSearch.trim().length >= 2 ? (
-                            <Button
-                              variant="ghost"
-                              className="w-full justify-start text-primary"
-                              onClick={() => handleAddNewPosition(positionSearch)}
-                            >
-                              <Plus className="mr-2 h-4 w-4" />
-                              Add "{positionSearch.trim()}"
-                            </Button>
-                          ) : (
-                            "Type to search or add new"
-                          )}
-                        </CommandEmpty>
+                      <CommandList className="max-h-[200px]">
+                        {filteredPositions.filter(p => p.name.toLowerCase().includes(positionSearch.toLowerCase())).length === 0 && 
+                         positionSearch.trim().length < 2 && (
+                          <CommandEmpty>No positions found for this department.</CommandEmpty>
+                        )}
                         <CommandGroup>
                           {filteredPositions
                             .filter(p => p.name.toLowerCase().includes(positionSearch.toLowerCase()))
-                            .map((pos) => (
+                            .map((pos, idx) => (
                               <CommandItem
-                                key={pos.id}
+                                key={`${pos.id}-${idx}`}
                                 value={pos.name}
                                 onSelect={() => {
                                   handleChange('position', pos.name);
@@ -790,10 +713,8 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
                                   setPositionSearch("");
                                 }}
                               >
+                                <Check className={cn('mr-2 h-4 w-4', formData.position === pos.name ? 'opacity-100' : 'opacity-0')} />
                                 {pos.name}
-                                {formData.position === pos.name && (
-                                  <Check className="ml-auto h-4 w-4" />
-                                )}
                               </CommandItem>
                             ))}
                           {positionSearch.trim().length >= 2 && 
@@ -804,7 +725,7 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
                               className="text-primary"
                             >
                               <Plus className="mr-2 h-4 w-4" />
-                              Add "{positionSearch.trim()}"
+                              Add "{positionSearch}"
                             </CommandItem>
                           )}
                         </CommandGroup>
@@ -812,22 +733,18 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
                     </Command>
                   </PopoverContent>
                 </Popover>
-                {errors.position && <p className="text-xs text-destructive">{errors.position}</p>}
               </div>
-            </div>
 
-            {/* Row 5: Employment Type, Role */}
-            <div className="grid grid-cols-2 gap-4">
               {/* Employment Type */}
-              <div className="space-y-2">
-                <Label>Employment Type <span className="text-destructive">*</span></Label>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1.5 block">Type *</Label>
                 <Select 
                   value={formData.employmentType} 
                   onValueChange={(value) => handleChange('employmentType', value)}
                   disabled={loadingEmploymentTypes}
                 >
-                  <SelectTrigger className={cn(errors.employmentType && "border-destructive")}>
-                    <SelectValue placeholder={loadingEmploymentTypes ? "Loading..." : "Select type"} />
+                  <SelectTrigger className={cn("h-9", errors.employmentType && "border-destructive")}>
+                    <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
                     {employmentTypes.map((type) => (
@@ -835,68 +752,34 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.employmentType && <p className="text-xs text-destructive">{errors.employmentType}</p>}
               </div>
 
               {/* Role */}
-              <div className="space-y-2">
-                <Label>System Role <span className="text-destructive">*</span></Label>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1.5 block">Role *</Label>
                 <Select 
                   value={formData.role} 
                   onValueChange={(value) => handleChange('role', value)}
                 >
-                  <SelectTrigger>
-                    <SelectValue />
+                  <SelectTrigger className="h-9">
+                    <SelectValue>
+                      {ROLE_OPTIONS.find(r => r.value === formData.role)?.label}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {ROLE_OPTIONS.map((role) => (
                       <SelectItem key={role.value} value={role.value}>
-                        <div className="flex flex-col">
-                          <span>{role.label}</span>
-                          <span className="text-xs text-muted-foreground">{role.description}</span>
-                        </div>
+                        {role.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
-
-            {/* Row 6: Join Date (optional) */}
-            <div className="space-y-2">
-              <Label>Join Date <span className="text-muted-foreground text-xs">(optional)</span></Label>
-              <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !formData.joinDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.joinDate ? format(new Date(formData.joinDate), "PPP") : "Select date (defaults to today)"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={formData.joinDate ? new Date(formData.joinDate) : undefined}
-                    onSelect={(date) => {
-                      if (date) {
-                        handleChange('joinDate', format(date, 'yyyy-MM-dd'));
-                        setDatePickerOpen(false);
-                      }
-                    }}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
           </div>
-        </ScrollArea>
+        </div>
 
-        <DialogFooter className="pt-4 border-t">
+        <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancel
           </Button>
