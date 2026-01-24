@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Plus, Search, Pin, MoreHorizontal, Pencil, Trash2, Archive, ChevronLeft, Sparkles } from "lucide-react";
+import { Plus, Search, Pin, MoreHorizontal, Pencil, Trash2, Archive, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -35,8 +35,6 @@ interface AskAISidebarProps {
   activeId: string | null;
   onSelect: (id: string | null) => void;
   onNewChat: () => void;
-  collapsed?: boolean;
-  onToggle?: () => void;
   isMobile?: boolean;
 }
 
@@ -89,8 +87,6 @@ export const AskAISidebar = ({
   activeId,
   onSelect,
   onNewChat,
-  collapsed,
-  onToggle,
   isMobile,
 }: AskAISidebarProps) => {
   const [search, setSearch] = useState("");
@@ -176,23 +172,6 @@ export const AskAISidebar = ({
     );
   };
 
-  if (collapsed) {
-    return (
-      <div className="w-12 border-r bg-sidebar flex flex-col items-center py-4 gap-2">
-        <Button
-          size="icon"
-          variant="ghost"
-          onClick={onToggle}
-          className="mb-2"
-        >
-          <Sparkles className="h-5 w-5 text-ai" />
-        </Button>
-        <Button size="icon" variant="outline" onClick={onNewChat}>
-          <Plus className="h-4 w-4" />
-        </Button>
-      </div>
-    );
-  }
 
   return (
     <>
@@ -209,11 +188,6 @@ export const AskAISidebar = ({
               <Sparkles className="h-5 w-5 text-ai" />
               <span className="font-semibold">Ask AI</span>
             </div>
-            {!isMobile && onToggle && (
-              <Button size="icon" variant="ghost" onClick={onToggle}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-            )}
           </div>
           <Button onClick={onNewChat} className="w-full gap-2" size="sm">
             <Plus className="h-4 w-4" />

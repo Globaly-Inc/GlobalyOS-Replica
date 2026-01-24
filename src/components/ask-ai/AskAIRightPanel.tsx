@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { 
-  X, 
   Sparkles, 
   Pin, 
   MessageSquare, 
@@ -29,7 +28,6 @@ interface AskAIRightPanelProps {
   conversation: AIConversation & { is_shared?: boolean; visibility?: string };
   messages: AIMessage[];
   pinnedMessages: AIMessage[];
-  onClose: () => void;
   onUnpinMessage?: (messageId: string) => void;
   className?: string;
 }
@@ -38,7 +36,6 @@ export const AskAIRightPanel = ({
   conversation, 
   messages, 
   pinnedMessages,
-  onClose,
   onUnpinMessage,
   className 
 }: AskAIRightPanelProps) => {
@@ -95,19 +92,14 @@ export const AskAIRightPanel = ({
       className
     )}>
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5">
-            <Sparkles className="h-4 w-4 text-primary" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-sm">Conversation Info</h3>
-            <p className="text-xs text-muted-foreground">Details & pinned items</p>
-          </div>
+      <div className="flex items-center gap-2 p-4 border-b">
+        <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5">
+          <Sparkles className="h-4 w-4 text-primary" />
         </div>
-        <Button size="icon" variant="ghost" onClick={onClose} className="h-8 w-8">
-          <X className="h-4 w-4" />
-        </Button>
+        <div>
+          <h3 className="font-semibold text-sm">Conversation Info</h3>
+          <p className="text-xs text-muted-foreground">Details & pinned items</p>
+        </div>
       </div>
       
       <ScrollArea className="flex-1">
@@ -211,7 +203,7 @@ export const AskAIRightPanel = ({
                           className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
                           onClick={() => onUnpinMessage(msg.id)}
                         >
-                          <X className="h-3 w-3" />
+                          <Pin className="h-3 w-3" />
                         </Button>
                       )}
                     </div>
