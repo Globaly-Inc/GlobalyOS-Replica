@@ -23,7 +23,7 @@ const AskAI = () => {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(
     searchParams.get("c") || null
   );
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  
   const [isCreatingWithMessage, setIsCreatingWithMessage] = useState(false);
   const [showMobileSidebar, setShowMobileSidebar] = useState(!searchParams.get("c"));
 
@@ -113,7 +113,7 @@ const AskAI = () => {
 
   return (
     <div className="flex h-[calc(100vh-8rem)] overflow-hidden">
-      <AskAISidebar activeId={activeConversationId} onSelect={handleSelectConversation} onNewChat={handleNewChat} collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
+      <AskAISidebar activeId={activeConversationId} onSelect={handleSelectConversation} onNewChat={handleNewChat} />
       <div className="flex-1 min-w-0 flex flex-col">
         {activeConversation ? (
           <AskAIConversation conversation={activeConversation} />

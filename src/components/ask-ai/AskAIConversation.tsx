@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { ArrowLeft, Loader2, Sparkles, RefreshCw, PanelRight } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAIMessages, useAddMessage, useRenameConversation, AIConversation, AIMessage } from "@/services/useAIConversations";
@@ -52,7 +52,7 @@ export const AskAIConversation = ({
   const [visibility, setVisibility] = useState<"private" | "team" | "specific">(
     conversation.visibility || "private"
   );
-  const [showRightPanel, setShowRightPanel] = useState(!isMobile);
+  
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
@@ -344,17 +344,6 @@ export const AskAIConversation = ({
           <RefreshCw className={cn("h-4 w-4", messagesLoading && "animate-spin")} />
         </Button>
         
-        {/* Right Panel Toggle */}
-        {!isMobile && (
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => setShowRightPanel(!showRightPanel)}
-            className={cn(showRightPanel && "bg-muted")}
-          >
-            <PanelRight className="h-4 w-4" />
-          </Button>
-        )}
       </div>
 
       {/* Main content area - two columns */}
@@ -425,13 +414,12 @@ export const AskAIConversation = ({
           </div>
         </div>
 
-        {/* Right panel */}
-        {showRightPanel && !isMobile && (
+        {/* Right panel - always visible on desktop */}
+        {!isMobile && (
           <AskAIRightPanel
             conversation={conversation}
             messages={messages as (AIMessage & { is_pinned?: boolean })[]}
             pinnedMessages={pinnedMessages as (AIMessage & { is_pinned?: boolean })[]}
-            onClose={() => setShowRightPanel(false)}
             onUnpinMessage={(messageId) => handlePinMessage(messageId, false)}
           />
         )}
