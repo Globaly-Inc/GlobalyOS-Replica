@@ -168,21 +168,17 @@ export const useEmployeeLeaveTypes = (
         return true;
       });
 
-      // Fetch balances for this employee
+      // Fetch balances for this employee - use only office_leave_type_id
       const { data: balances } = await supabase
         .from('leave_type_balances')
-        .select('leave_type_id, office_leave_type_id, balance')
+        .select('office_leave_type_id, balance')
         .eq('employee_id', employeeId)
-        .eq('year', currentYear);
+        .eq('year', currentYear)
+        .not('office_leave_type_id', 'is', null);
 
-      // Create balance maps for both legacy and new leave type IDs
-      const balanceByLeaveTypeId = new Map<string, number>();
+      // Create balance map using office_leave_type_id
       const balanceByOfficeLeaveTypeId = new Map<string, number>();
-
       balances?.forEach((b) => {
-        if (b.leave_type_id) {
-          balanceByLeaveTypeId.set(b.leave_type_id, b.balance);
-        }
         if (b.office_leave_type_id) {
           balanceByOfficeLeaveTypeId.set(b.office_leave_type_id, b.balance);
         }
@@ -190,8 +186,7 @@ export const useEmployeeLeaveTypes = (
 
       // Combine types with balances
       const typesWithBalance: LeaveTypeWithBalance[] = filteredTypes.map((type) => {
-        // Try office_leave_type_id first, then fall back to leave_type_id
-        const currentBalance = balanceByOfficeLeaveTypeId.get(type.id) ?? balanceByLeaveTypeId.get(type.id) ?? 0;
+        const currentBalance = balanceByOfficeLeaveTypeId.get(type.id) ?? 0;
         const maxNegative = type.max_negative_days || 0;
         const availableBalance = currentBalance + maxNegative;
         const isExhausted = availableBalance <= 0;
@@ -295,7 +290,7 @@ export const useInitializeEmployeeOfficeBalances = () => {
         employee_id: employeeId,
         organization_id: currentOrg.id,
         leave_type: type.name,
-        leave_type_id: type.id, // Using office_leave_type.id here
+        office_leave_type_id: type.id,
         change_amount: type.default_days,
         previous_balance: 0,
         new_balance: type.default_days,

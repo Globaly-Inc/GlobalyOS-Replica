@@ -48,7 +48,7 @@ export interface AttendanceLeaveAdjustment {
   id: string;
   employee_id: string;
   organization_id: string;
-  leave_type_id: string;
+  office_leave_type_id: string;
   adjustment_type: 'overtime_credit' | 'undertime_deduction';
   days_adjusted: number;
   minutes_converted: number;

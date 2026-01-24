@@ -41,8 +41,7 @@ interface LogEntry {
   employee_id: string;
   organization_id: string;
   leave_type: string;
-  leave_type_id: string;
-  office_leave_type_id?: string;
+  office_leave_type_id: string;
   change_amount: number;
   previous_balance: number;
   new_balance: number;
@@ -231,7 +230,6 @@ export const useInitializeYearBalances = () => {
               employee_id: (employee as any).id,
               organization_id: currentOrg.id,
               leave_type: leaveType.name,
-              leave_type_id: leaveType.id,
               office_leave_type_id: leaveType.id,
               change_amount: defaultDays,
               previous_balance: 0,
@@ -248,7 +246,6 @@ export const useInitializeYearBalances = () => {
                 employee_id: (employee as any).id,
                 organization_id: currentOrg.id,
                 leave_type: leaveType.name,
-                leave_type_id: leaveType.id,
                 office_leave_type_id: leaveType.id,
                 change_amount: carriedForward,
                 previous_balance: defaultDays,
@@ -385,7 +382,6 @@ export const useInitializeEmployeeBalances = () => {
           employee_id: employeeId,
           organization_id: currentOrg.id,
           leave_type: leaveType.name,
-          leave_type_id: leaveType.id,
           office_leave_type_id: leaveType.id,
           change_amount: proratedDays,
           previous_balance: 0,
@@ -494,7 +490,6 @@ export const useInitializeSelectedEmployeesBalances = () => {
               employee_id: employee.id,
               organization_id: currentOrg.id,
               leave_type: leaveType.name,
-              leave_type_id: leaveType.id,
               office_leave_type_id: leaveType.id,
               change_amount: leaveType.default_days || 0,
               previous_balance: 0,
