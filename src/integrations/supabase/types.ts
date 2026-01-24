@@ -342,11 +342,14 @@ export type Database = {
       }
       ai_knowledge_settings: {
         Row: {
+          allowed_models: string[] | null
           announcements_enabled: boolean
           attendance_enabled: boolean
           calendar_enabled: boolean
           chat_enabled: boolean
           created_at: string | null
+          default_model: string | null
+          general_ai_enabled: boolean | null
           id: string
           kpis_enabled: boolean
           leave_enabled: boolean
@@ -357,11 +360,14 @@ export type Database = {
           wiki_enabled: boolean
         }
         Insert: {
+          allowed_models?: string[] | null
           announcements_enabled?: boolean
           attendance_enabled?: boolean
           calendar_enabled?: boolean
           chat_enabled?: boolean
           created_at?: string | null
+          default_model?: string | null
+          general_ai_enabled?: boolean | null
           id?: string
           kpis_enabled?: boolean
           leave_enabled?: boolean
@@ -372,11 +378,14 @@ export type Database = {
           wiki_enabled?: boolean
         }
         Update: {
+          allowed_models?: string[] | null
           announcements_enabled?: boolean
           attendance_enabled?: boolean
           calendar_enabled?: boolean
           chat_enabled?: boolean
           created_at?: string | null
+          default_model?: string | null
+          general_ai_enabled?: boolean | null
           id?: string
           kpis_enabled?: boolean
           leave_enabled?: boolean
@@ -454,6 +463,92 @@ export type Database = {
             columns: ["sender_employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_usage_logs: {
+        Row: {
+          completion_tokens: number | null
+          conversation_id: string | null
+          created_at: string | null
+          employee_id: string | null
+          estimated_cost: number | null
+          id: string
+          latency_ms: number | null
+          metadata: Json | null
+          model: string
+          organization_id: string
+          prompt_length: number | null
+          prompt_tokens: number | null
+          query_type: string
+          response_length: number | null
+          total_tokens: number | null
+          user_id: string
+        }
+        Insert: {
+          completion_tokens?: number | null
+          conversation_id?: string | null
+          created_at?: string | null
+          employee_id?: string | null
+          estimated_cost?: number | null
+          id?: string
+          latency_ms?: number | null
+          metadata?: Json | null
+          model?: string
+          organization_id: string
+          prompt_length?: number | null
+          prompt_tokens?: number | null
+          query_type?: string
+          response_length?: number | null
+          total_tokens?: number | null
+          user_id: string
+        }
+        Update: {
+          completion_tokens?: number | null
+          conversation_id?: string | null
+          created_at?: string | null
+          employee_id?: string | null
+          estimated_cost?: number | null
+          id?: string
+          latency_ms?: number | null
+          metadata?: Json | null
+          model?: string
+          organization_id?: string
+          prompt_length?: number | null
+          prompt_tokens?: number | null
+          query_type?: string
+          response_length?: number | null
+          total_tokens?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_logs_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -11676,6 +11771,28 @@ export type Database = {
       }
     }
     Views: {
+      ai_usage_monthly_summary: {
+        Row: {
+          avg_latency_ms: number | null
+          general_queries: number | null
+          internal_queries: number | null
+          model_distribution: Json | null
+          month: string | null
+          organization_id: string | null
+          total_cost: number | null
+          total_queries: number | null
+          total_tokens: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_summary: {
         Row: {
           absent_days: number | null
