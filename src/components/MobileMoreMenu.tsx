@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   X, User, Users, Clock, Palmtree, Calendar, BookOpen, 
-  Settings, LogOut, BarChart3, ChevronRight, Moon, Sun 
+  Settings, LogOut, BarChart3, ChevronRight, Moon, Sun, Sparkles 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +33,7 @@ interface MenuItem {
   action?: () => void;
   adminOnly?: boolean;
   hrOnly?: boolean;
+  featureFlag?: string;
 }
 
 export const MobileMoreMenu = ({ open, onOpenChange, userProfile }: MobileMoreMenuProps) => {
@@ -39,6 +41,7 @@ export const MobileMoreMenu = ({ open, onOpenChange, userProfile }: MobileMoreMe
   const { signOut } = useAuth();
   const { navigateOrg } = useOrgNavigation();
   const { isAdmin, isHR } = useUserRole();
+  const { isEnabled } = useFeatureFlags();
   const { theme, setTheme } = useTheme();
 
   const handleSignOut = async () => {
@@ -63,6 +66,7 @@ export const MobileMoreMenu = ({ open, onOpenChange, userProfile }: MobileMoreMe
     { icon: Palmtree, label: "Leave History", href: "/leave-history" },
     { icon: Clock, label: "Attendance History", href: "/attendance-history" },
     { icon: BookOpen, label: "Wiki", href: "/wiki" },
+    { icon: Sparkles, label: "Ask AI", href: "/ask-ai", featureFlag: "ask-ai" },
   ];
 
   const adminItems: MenuItem[] = [
@@ -124,13 +128,18 @@ export const MobileMoreMenu = ({ open, onOpenChange, userProfile }: MobileMoreMe
         {/* Menu Items */}
         <div className="flex-1 overflow-y-auto px-4 py-4">
           <div className="space-y-1">
-            {menuItems.map((item) => (
+            {menuItems
+              .filter(item => !item.featureFlag || isEnabled(item.featureFlag as any))
+              .map((item) => (
               <button
                 key={item.label}
                 onClick={() => handleMenuClick(item)}
-                className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-left hover:bg-muted/50 active:bg-muted transition-colors"
+                className={cn(
+                  "flex items-center gap-3 w-full px-4 py-3 rounded-xl text-left hover:bg-muted/50 active:bg-muted transition-colors",
+                  item.featureFlag === "ask-ai" && "text-ai"
+                )}
               >
-                <item.icon className="h-5 w-5 text-muted-foreground" />
+                <item.icon className={cn("h-5 w-5", item.featureFlag === "ask-ai" ? "text-ai" : "text-muted-foreground")} />
                 <span className="font-medium">{item.label}</span>
               </button>
             ))}
