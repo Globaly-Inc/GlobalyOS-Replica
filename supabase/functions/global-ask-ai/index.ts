@@ -143,6 +143,49 @@ serve(async (req) => {
 
     const role = userRole?.role || "member";
 
+    // ========================================
+    // ORGANIZATION BUSINESS CONTEXT
+    // ========================================
+    const { data: organization } = await supabase
+      .from("organizations")
+      .select(`
+        name,
+        legal_business_name,
+        industry,
+        company_size,
+        country,
+        timezone
+      `)
+      .eq("id", organizationId)
+      .single();
+
+    // Fetch distinct departments from employees
+    const { data: departmentsData } = await supabase
+      .from("employees")
+      .select("department")
+      .eq("organization_id", organizationId)
+      .eq("status", "active")
+      .not("department", "is", null);
+
+    const uniqueDepartments = [...new Set(departmentsData?.map(d => d.department).filter(Boolean) || [])];
+
+    // Fetch distinct positions/roles
+    const { data: positionsData } = await supabase
+      .from("employees")
+      .select("position")
+      .eq("organization_id", organizationId)
+      .eq("status", "active")
+      .not("position", "is", null);
+
+    const uniquePositions = [...new Set(positionsData?.map(p => p.position).filter(Boolean) || [])].slice(0, 15);
+
+    // Build business context string
+    const businessCategory = organization?.industry || "Not specified";
+    const companySize = organization?.company_size || "Not specified";
+    const companyName = organization?.legal_business_name || organization?.name || "the organization";
+    const companyCountry = organization?.country || "Not specified";
+    const companyTimezone = organization?.timezone || "Not specified";
+
     // Fetch AI knowledge settings
     const { data: aiSettings } = await supabase
       .from("ai_knowledge_settings")
@@ -172,7 +215,7 @@ serve(async (req) => {
 
     // Detect query type
     const queryType = detectQueryType(question);
-    
+
     // ========================================
     // PERSONAL DATA CONTEXT (Always available to self)
     // ========================================
@@ -466,6 +509,21 @@ Act as a helpful, knowledgeable AI assistant and provide comprehensive answers. 
 - NEVER expose data from other organizations
 - If organization knowledge doesn't contain the answer, say so clearly
 - For general queries, don't include internal org data in responses
+
+## ORGANIZATION BUSINESS CONTEXT:
+- Company Name: ${companyName}
+- Business Category: ${businessCategory}
+- Company Size: ${companySize}
+- Country: ${companyCountry}
+- Timezone: ${companyTimezone}
+- Departments: ${uniqueDepartments.length > 0 ? uniqueDepartments.join(", ") : "Not defined"}
+- Key Roles/Positions: ${uniquePositions.length > 0 ? uniquePositions.join(", ") : "Not defined"}
+
+When answering questions:
+1. Consider the "${businessCategory}" business category context when providing advice or examples
+2. Use terminology appropriate to a ${companySize} company in the ${businessCategory} sector
+3. Reference relevant departments or roles when applicable
+4. If discussing policies or procedures, frame them appropriately for this business type
 
 ## CURRENT USER CONTEXT:
 Name: ${userName}
