@@ -259,12 +259,12 @@ export const ManageLeaveTypesDialog = ({
           .from("leave_balance_logs")
           .select("id", { count: "exact", head: true })
           .eq("employee_id", employeeId)
-          .eq("leave_type_id", leaveType.leave_type_id),
+          .eq("office_leave_type_id", leaveType.leave_type_id),
         supabase
           .from("leave_requests")
           .select("id", { count: "exact", head: true })
           .eq("employee_id", employeeId)
-          .eq("leave_type_id", leaveType.leave_type_id),
+          .eq("office_leave_type_id", leaveType.leave_type_id),
       ]);
 
       setDeleteConfirmation({
@@ -292,19 +292,19 @@ export const ManageLeaveTypesDialog = ({
         .from("leave_balance_logs")
         .delete()
         .eq("employee_id", employeeId)
-        .eq("leave_type_id", leaveTypeId);
+        .eq("office_leave_type_id", leaveTypeId);
 
       await supabase
         .from("leave_requests")
         .delete()
         .eq("employee_id", employeeId)
-        .eq("leave_type_id", leaveTypeId);
+        .eq("office_leave_type_id", leaveTypeId);
 
       await supabase
         .from("leave_type_balances")
         .delete()
         .eq("employee_id", employeeId)
-        .eq("leave_type_id", leaveTypeId);
+        .eq("office_leave_type_id", leaveTypeId);
 
       const totalDeleted = deleteConfirmation.logCount + deleteConfirmation.requestCount;
       toast.success(
