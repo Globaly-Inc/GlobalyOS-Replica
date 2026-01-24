@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { ArrowLeft, Loader2, Sparkles, RefreshCw } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAIMessages, useAddMessage, useRenameConversation, AIConversation, AIMessage } from "@/services/useAIConversations";
@@ -52,6 +52,8 @@ export const AskAIConversation = ({
   const [visibility, setVisibility] = useState<"private" | "team" | "specific">(
     conversation.visibility || "private"
   );
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -259,10 +261,20 @@ export const AskAIConversation = ({
   };
 
   // Combine messages and notes for timeline display
-  const timelineItems = [
+  const timelineItems = useMemo(() => [
     ...messages.map((m) => ({ type: "message" as const, data: m, timestamp: m.created_at })),
     ...internalNotes.map((n) => ({ type: "note" as const, data: n, timestamp: n.created_at })),
-  ].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  ].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()), [messages, internalNotes]);
+
+  // Filter timeline items based on search query
+  const filteredTimelineItems = useMemo(() => {
+    if (!searchQuery.trim()) return timelineItems;
+    
+    const query = searchQuery.toLowerCase();
+    return timelineItems.filter((item) => {
+      return item.data.content.toLowerCase().includes(query);
+    });
+  }, [timelineItems, searchQuery]);
 
   // Get pinned messages for right panel
   const pinnedMessages = useMemo(() => 
@@ -338,13 +350,44 @@ export const AskAIConversation = ({
         <Button
           size="icon"
           variant="ghost"
-          onClick={() => refetch()}
-          disabled={messagesLoading}
+          onClick={() => setShowSearch(!showSearch)}
+          className={cn(showSearch && "bg-muted")}
         >
-          <RefreshCw className={cn("h-4 w-4", messagesLoading && "animate-spin")} />
+          <Search className="h-4 w-4" />
         </Button>
         
       </div>
+
+      {/* Search bar */}
+      {showSearch && (
+        <div className="px-4 py-2 border-b bg-muted/30">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search in conversation..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 h-8 pr-8"
+              autoFocus
+            />
+            {searchQuery && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+                onClick={() => setSearchQuery("")}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+          {searchQuery && (
+            <p className="text-xs text-muted-foreground mt-1">
+              {filteredTimelineItems.length} result{filteredTimelineItems.length !== 1 ? 's' : ''} found
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Main content area - two columns */}
       <div className="flex flex-1 overflow-hidden">
@@ -357,6 +400,12 @@ export const AskAIConversation = ({
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
+              ) : filteredTimelineItems.length === 0 && searchQuery ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Search className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                  <p className="text-sm">No results found</p>
+                  <p className="text-xs mt-1">Try a different search term</p>
+                </div>
               ) : timelineItems.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <Sparkles className="h-12 w-12 mx-auto mb-4 opacity-20 text-ai" />
@@ -364,7 +413,7 @@ export const AskAIConversation = ({
                   <p className="text-xs mt-1">Ask anything about your organization</p>
                 </div>
               ) : (
-                timelineItems.map((item) => (
+                filteredTimelineItems.map((item) => (
                   <div key={`${item.type}-${item.data.id}`}>
                     {item.type === "message" ? (
                       <AskAIMessageBubble
