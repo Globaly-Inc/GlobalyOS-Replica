@@ -86,9 +86,13 @@ const AnalyticsFilters = ({
       fetchUsersForOrg(selectedOrgs[0]);
     } else {
       setUsers([]);
-      onUsersChange([]);
+      // Only clear parent state if users are currently selected to prevent infinite loops
+      if (selectedUsers.length > 0) {
+        onUsersChange([]);
+      }
     }
-  }, [selectedOrgs]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedOrgs.join(',')]);
 
   const fetchOrganizations = async () => {
     try {
