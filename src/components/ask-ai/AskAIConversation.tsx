@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect } from "react";
-import { ArrowLeft, Loader2, Sparkles, RefreshCw, Users } from "lucide-react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { ArrowLeft, Loader2, Sparkles, RefreshCw, PanelRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useAIMessages, useAddMessage, useRenameConversation, AIConversation } from "@/services/useAIConversations";
+import { useAIMessages, useAddMessage, useRenameConversation, AIConversation, AIMessage } from "@/services/useAIConversations";
 import { useAIParticipants, useAIInternalNotes, useAddInternalNote } from "@/services/useAISharing";
 import { AskAIMessageBubble } from "./AskAIMessageBubble";
 import { AskAIInput } from "./AskAIInput";
@@ -10,13 +10,15 @@ import { AskAIFollowUpSuggestions } from "./AskAIFollowUpSuggestions";
 import { AskAIShareDialog } from "./AskAIShareDialog";
 import { AskAIParticipants } from "./AskAIParticipants";
 import { AskAIInternalNote, InternalNote } from "./AskAIInternalNote";
+import { AskAITypingIndicator, ProcessingPhase } from "./AskAITypingIndicator";
+import { AskAIRightPanel } from "./AskAIRightPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface AskAIConversationProps {
   conversation: AIConversation & {
@@ -42,6 +44,7 @@ export const AskAIConversation = ({
   const renameConversation = useRenameConversation();
   
   const [isGenerating, setIsGenerating] = useState(false);
+  const [processingPhase, setProcessingPhase] = useState<ProcessingPhase>("analyzing");
   const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(conversation.title);
@@ -49,8 +52,10 @@ export const AskAIConversation = ({
   const [visibility, setVisibility] = useState<"private" | "team" | "specific">(
     conversation.visibility || "private"
   );
+  const [showRightPanel, setShowRightPanel] = useState(!isMobile);
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
   // Fetch current employee for author tracking
   const { data: currentEmployee } = useQuery({
@@ -112,6 +117,7 @@ export const AskAIConversation = ({
     if (!currentOrg?.id) return;
 
     setIsGenerating(true);
+    setProcessingPhase("analyzing");
 
     try {
       // Add user message (skip if regenerating)
@@ -122,6 +128,11 @@ export const AskAIConversation = ({
           content,
         });
       }
+
+      // Progress through phases
+      setTimeout(() => setProcessingPhase("fetching_context"), 800);
+      setTimeout(() => setProcessingPhase("searching_wiki"), 1500);
+      setTimeout(() => setProcessingPhase("generating"), 2500);
 
       // Build conversation history (exclude last AI message if regenerating)
       let history = messages.map((m) => ({
@@ -228,16 +239,43 @@ export const AskAIConversation = ({
     setVisibility(newVisibility);
   };
 
+  // Pin message mutation
+  const pinMessageMutation = useMutation({
+    mutationFn: async ({ messageId, isPinned }: { messageId: string; isPinned: boolean }) => {
+      const { error } = await supabase
+        .from("ai_messages")
+        .update({ is_pinned: isPinned })
+        .eq("id", messageId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      refetch();
+      toast.success("Message updated");
+    },
+  });
+
+  const handlePinMessage = (messageId: string, isPinned: boolean) => {
+    pinMessageMutation.mutate({ messageId, isPinned });
+  };
+
   // Combine messages and notes for timeline display
   const timelineItems = [
     ...messages.map((m) => ({ type: "message" as const, data: m, timestamp: m.created_at })),
     ...internalNotes.map((n) => ({ type: "note" as const, data: n, timestamp: n.created_at })),
   ].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
+  // Get pinned messages for right panel
+  const pinnedMessages = useMemo(() => 
+    messages.filter((m) => (m as AIMessage & { is_pinned?: boolean }).is_pinned),
+    [messages]
+  );
+
   // Get the last AI message for follow-up suggestions
   const lastAIMessage = messages.filter(m => m.role === "assistant").pop();
 
   const ownerProfile = currentEmployee?.profiles as { full_name: string; avatar_url: string | null } | undefined;
+  const userAvatarUrl = ownerProfile?.avatar_url || undefined;
+  const userName = ownerProfile?.full_name || "You";
 
   return (
     <div className="flex flex-col h-full">
@@ -305,76 +343,98 @@ export const AskAIConversation = ({
         >
           <RefreshCw className={cn("h-4 w-4", messagesLoading && "animate-spin")} />
         </Button>
+        
+        {/* Right Panel Toggle */}
+        {!isMobile && (
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => setShowRightPanel(!showRightPanel)}
+            className={cn(showRightPanel && "bg-muted")}
+          >
+            <PanelRight className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
-      {/* Messages */}
-      <ScrollArea className="flex-1" ref={scrollRef}>
-        <div className="p-4 space-y-6 max-w-3xl mx-auto">
-          {messagesLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : timelineItems.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Sparkles className="h-12 w-12 mx-auto mb-4 opacity-20 text-ai" />
-              <p className="text-sm">Start the conversation</p>
-              <p className="text-xs mt-1">Ask anything about your organization</p>
-            </div>
-          ) : (
-            timelineItems.map((item, index) => (
-              <div key={`${item.type}-${item.data.id}`} className="group">
-                {item.type === "message" ? (
-                  <AskAIMessageBubble
-                    message={item.data}
-                    onRegenerate={item.data.role === "assistant" ? () => handleRegenerate(
-                      messages.findIndex((m) => m.id === item.data.id)
-                    ) : undefined}
-                    isRegenerating={regeneratingIndex === messages.findIndex((m) => m.id === item.data.id)}
-                  />
-                ) : (
-                  <AskAIInternalNote note={item.data as InternalNote} />
-                )}
-              </div>
-            ))
-          )}
+      {/* Main content area - two columns */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left column - messages */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Messages */}
+          <ScrollArea className="flex-1" ref={scrollRef}>
+            <div className="p-4 space-y-1">
+              {messagesLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : timelineItems.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Sparkles className="h-12 w-12 mx-auto mb-4 opacity-20 text-ai" />
+                  <p className="text-sm">Start the conversation</p>
+                  <p className="text-xs mt-1">Ask anything about your organization</p>
+                </div>
+              ) : (
+                timelineItems.map((item) => (
+                  <div key={`${item.type}-${item.data.id}`}>
+                    {item.type === "message" ? (
+                      <AskAIMessageBubble
+                        message={item.data as AIMessage & { is_pinned?: boolean }}
+                        userName={userName}
+                        userAvatarUrl={userAvatarUrl}
+                        onRegenerate={item.data.role === "assistant" ? () => handleRegenerate(
+                          messages.findIndex((m) => m.id === item.data.id)
+                        ) : undefined}
+                        onPinMessage={item.data.role === "assistant" ? handlePinMessage : undefined}
+                        isRegenerating={regeneratingIndex === messages.findIndex((m) => m.id === item.data.id)}
+                      />
+                    ) : (
+                      <AskAIInternalNote note={item.data as InternalNote} />
+                    )}
+                  </div>
+                ))
+              )}
 
-          {isGenerating && (
-            <div className="flex gap-3">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-ai/20 to-ai/5">
-                <Sparkles className="h-4 w-4 text-ai" />
-              </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Thinking...
-              </div>
-            </div>
-          )}
+              {isGenerating && (
+                <AskAITypingIndicator phase={processingPhase} />
+              )}
 
-          {/* Follow-up suggestions */}
-          {!isGenerating && messages && messages.length > 0 && (
-            <AskAIFollowUpSuggestions
-              messages={messages}
-              onSelect={handleSend}
-              disabled={isGenerating}
-              className="mt-4"
+              {/* Follow-up suggestions */}
+              {!isGenerating && messages && messages.length > 0 && (
+                <AskAIFollowUpSuggestions
+                  messages={messages}
+                  onSelect={handleSend}
+                  disabled={isGenerating}
+                  className="mt-4"
+                />
+              )}
+
+              <div ref={bottomRef} />
+            </div>
+          </ScrollArea>
+
+          {/* Input */}
+          <div className="p-4 border-t bg-background/80 backdrop-blur-sm">
+            <AskAIInput
+              onSend={handleSend}
+              onAddNote={handleAddNote}
+              isLoading={isGenerating}
+              disabled={!currentOrg?.id}
+              showNoteMode={isShared || participants.length > 0}
             />
-          )}
-
-          <div ref={bottomRef} />
+          </div>
         </div>
-      </ScrollArea>
 
-      {/* Input */}
-      <div className="p-4 border-t bg-background/80 backdrop-blur-sm">
-        <div className="max-w-3xl mx-auto">
-          <AskAIInput
-            onSend={handleSend}
-            onAddNote={handleAddNote}
-            isLoading={isGenerating}
-            disabled={!currentOrg?.id}
-            showNoteMode={isShared || participants.length > 0}
+        {/* Right panel */}
+        {showRightPanel && !isMobile && (
+          <AskAIRightPanel
+            conversation={conversation}
+            messages={messages as (AIMessage & { is_pinned?: boolean })[]}
+            pinnedMessages={pinnedMessages as (AIMessage & { is_pinned?: boolean })[]}
+            onClose={() => setShowRightPanel(false)}
+            onUnpinMessage={(messageId) => handlePinMessage(messageId, false)}
           />
-        </div>
+        )}
       </div>
     </div>
   );
