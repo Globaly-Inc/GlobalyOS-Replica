@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import {
   Users,
   Calendar,
@@ -128,6 +129,8 @@ export const AskAIEmptyState = ({
   isLoading,
 }: AskAIEmptyStateProps) => {
   const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+  const firstName = currentEmployee?.profiles?.full_name?.split(' ')[0] || '';
   const { displayText } = useTypewriter({
     words: typewriterPhrases,
     typingSpeed: 80,
@@ -157,7 +160,7 @@ export const AskAIEmptyState = ({
         </div>
       </div>
 
-      <h1 className="text-2xl font-bold text-center mb-2">Hi! I'm your AI assistant</h1>
+      <h1 className="text-2xl font-bold text-center mb-2">Hi{firstName ? ` ${firstName}` : ''}! I'm your AI assistant</h1>
       <p className="text-muted-foreground text-center mb-1">
         Ask me <span className="text-foreground font-medium">{displayText}</span>
         <span className="animate-pulse">|</span>
