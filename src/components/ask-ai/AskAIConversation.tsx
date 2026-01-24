@@ -351,9 +351,9 @@ export const AskAIConversation = ({
           )}
 
           {/* Follow-up suggestions */}
-          {!isGenerating && lastAIMessage && (
+          {!isGenerating && messages && messages.length > 0 && (
             <AskAIFollowUpSuggestions
-              lastMessage={lastAIMessage.content}
+              messages={messages}
               onSelect={handleSend}
               disabled={isGenerating}
               className="mt-4"

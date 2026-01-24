@@ -411,6 +411,7 @@ export type Database = {
           conversation_id: string
           created_at: string | null
           id: string
+          is_pinned: boolean
           metadata: Json | null
           organization_id: string
           role: string
@@ -421,6 +422,7 @@ export type Database = {
           conversation_id: string
           created_at?: string | null
           id?: string
+          is_pinned?: boolean
           metadata?: Json | null
           organization_id: string
           role: string
@@ -431,6 +433,7 @@ export type Database = {
           conversation_id?: string
           created_at?: string | null
           id?: string
+          is_pinned?: boolean
           metadata?: Json | null
           organization_id?: string
           role?: string
