@@ -1,29 +1,31 @@
-import { useState } from "react";
-import { Check, Copy, Sparkles, User } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { formatRelativeTime } from "@/lib/utils";
+import { User, Sparkles, ExternalLink } from "lucide-react";
+import { cn, formatRelativeTime } from "@/lib/utils";
 import { AIMessage } from "@/services/useAIConversations";
+import { AskAIMarkdown } from "./AskAIMarkdown";
+import { AskAIMessageActions } from "./AskAIMessageActions";
+import { Badge } from "@/components/ui/badge";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 interface AskAIMessageBubbleProps {
   message: AIMessage;
   userName?: string;
+  onRegenerate?: () => void;
+  isRegenerating?: boolean;
 }
 
-export const AskAIMessageBubble = ({ message, userName }: AskAIMessageBubbleProps) => {
-  const [copied, setCopied] = useState(false);
+export const AskAIMessageBubble = ({
+  message,
+  userName = "You",
+  onRegenerate,
+  isRegenerating,
+}: AskAIMessageBubbleProps) => {
   const isUser = message.role === "user";
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(message.content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const sources = message.metadata?.sources;
 
   return (
     <div
       className={cn(
-        "flex gap-3 group",
+        "flex gap-3",
         isUser ? "flex-row-reverse" : "flex-row"
       )}
     >
@@ -43,72 +45,60 @@ export const AskAIMessageBubble = ({ message, userName }: AskAIMessageBubbleProp
         )}
       </div>
 
-      {/* Message Content */}
-      <div
-        className={cn(
-          "flex flex-col max-w-[80%] min-w-0",
-          isUser ? "items-end" : "items-start"
-        )}
-      >
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-medium">
-            {isUser ? (userName || "You") : "AI Assistant"}
+      {/* Content */}
+      <div className={cn("flex-1 min-w-0 space-y-2", isUser && "flex flex-col items-end")}>
+        {/* Header */}
+        <div className={cn("flex items-center gap-2 text-xs text-muted-foreground", isUser && "flex-row-reverse")}>
+          <span className="font-medium text-foreground">
+            {isUser ? userName : "AI Assistant"}
           </span>
-          <span className="text-xs text-muted-foreground">
-            {formatRelativeTime(message.created_at)}
-          </span>
+          <span>{formatRelativeTime(message.created_at)}</span>
         </div>
 
+        {/* Message Content */}
         <div
           className={cn(
-            "rounded-2xl px-4 py-3 text-sm",
+            "rounded-2xl",
             isUser
-              ? "bg-primary text-primary-foreground rounded-tr-sm"
-              : "bg-muted rounded-tl-sm"
+              ? "bg-primary text-primary-foreground px-4 py-2.5 max-w-[85%]"
+              : "bg-muted/50 px-4 py-3 max-w-full"
           )}
         >
-          <p className="whitespace-pre-wrap break-words">{message.content}</p>
+          {isUser ? (
+            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+          ) : (
+            <AskAIMarkdown content={message.content} />
+          )}
         </div>
 
-        {/* Actions - only for AI messages */}
-        {!isUser && (
-          <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 px-2 text-xs"
-              onClick={handleCopy}
-            >
-              {copied ? (
-                <>
-                  <Check className="h-3 w-3 mr-1" />
-                  Copied
-                </>
-              ) : (
-                <>
-                  <Copy className="h-3 w-3 mr-1" />
-                  Copy
-                </>
-              )}
-            </Button>
+        {/* Sources */}
+        {!isUser && sources && sources.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {sources.map((source, index) => (
+              <Badge
+                key={index}
+                variant="secondary"
+                className="text-xs gap-1 cursor-pointer hover:bg-secondary/80"
+              >
+                <span className="capitalize">{source.type}</span>
+                <span className="text-muted-foreground">•</span>
+                <span className="truncate max-w-[150px]">{source.title}</span>
+                <ExternalLink className="h-2.5 w-2.5 opacity-50" />
+              </Badge>
+            ))}
           </div>
         )}
 
-        {/* Sources if available */}
-        {message.metadata?.sources && message.metadata.sources.length > 0 && (
-          <div className="mt-2 text-xs text-muted-foreground">
-            <span className="font-medium">Sources:</span>
-            <div className="flex flex-wrap gap-1 mt-1">
-              {message.metadata.sources.map((source, index) => (
-                <span
-                  key={index}
-                  className="inline-flex items-center px-2 py-0.5 rounded-full bg-muted text-muted-foreground"
-                >
-                  {source.title}
-                </span>
-              ))}
-            </div>
-          </div>
+        {/* Actions for AI messages */}
+        {!isUser && (
+          <TooltipProvider>
+            <AskAIMessageActions
+              content={message.content}
+              onRegenerate={onRegenerate}
+              isRegenerating={isRegenerating}
+              className="opacity-0 group-hover:opacity-100 transition-opacity"
+            />
+          </TooltipProvider>
         )}
       </div>
     </div>
