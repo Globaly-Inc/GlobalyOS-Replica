@@ -131,23 +131,9 @@ const Leave = () => {
           })) as LeaveTypeBalance[];
       }
 
-      // Fallback to legacy leave_types for backward compatibility
-      const { data, error } = await supabase
-        .from("leave_type_balances")
-        .select(`
-          id,
-          balance,
-          leave_type:leave_types!inner(
-            id,
-            name,
-            category
-          )
-        `)
-        .eq("employee_id", employee.id)
-        .eq("year", currentYear);
-
-      if (error) throw error;
-      return (data || []) as LeaveTypeBalance[];
+      // Fallback removed - office_leave_types is now the only source
+      // If no office balances found, just return empty
+      return [];
     },
     staleTime: 30 * 1000, // 30 seconds - may change after approvals
     enabled: !!employee?.id,

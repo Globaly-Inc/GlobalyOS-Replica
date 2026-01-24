@@ -189,12 +189,12 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
 
     if (leaveTypeIds.length === 0) return new Map();
 
-    // Single batch query for all balances using request year
+    // Single batch query for all balances using request year (office-aware)
     const { data: balances } = await supabase
       .from("leave_type_balances")
-      .select("employee_id, leave_type_id, balance")
+      .select("employee_id, office_leave_type_id, balance")
       .in("employee_id", employeeIds)
-      .in("leave_type_id", leaveTypeIds)
+      .in("office_leave_type_id", leaveTypeIds)
       .eq("year", requestYear);
 
     // Create a map: "employeeId:leaveTypeName" -> LeaveBalance
@@ -206,7 +206,7 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
         if (!leaveType) return;
         
         const balance = (balances || []).find(
-          b => b.employee_id === empId && b.leave_type_id === leaveType.id
+          (b: any) => b.employee_id === empId && b.office_leave_type_id === leaveType.id
         );
         
         const currentBalance = balance?.balance || 0;

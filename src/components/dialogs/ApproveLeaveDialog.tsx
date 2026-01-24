@@ -124,30 +124,9 @@ export const ApproveLeaveDialog = ({
         }
       }
 
-      // Fallback to legacy leave_types
-      const { data: leaveTypes } = await supabase
-        .from("leave_types")
-        .select("id, name, max_negative_days")
-        .eq("organization_id", currentOrg.id)
-        .eq("is_active", true);
-
-      if (!leaveTypes) return [];
-
-      const { data: balanceData } = await supabase
-        .from("leave_type_balances")
-        .select("leave_type_id, balance")
-        .eq("employee_id", request.employee.id)
-        .eq("year", requestYear);
-
-      const balanceMap = new Map(balanceData?.map(b => [b.leave_type_id, b.balance]) || []);
-
-      return leaveTypes.map(lt => ({
-        leaveTypeId: lt.id,
-        leaveTypeName: lt.name,
-        currentBalance: balanceMap.get(lt.id) || 0,
-        maxNegative: lt.max_negative_days || 0,
-        availableBalance: (balanceMap.get(lt.id) || 0) + (lt.max_negative_days || 0),
-      })) as LeaveBalance[];
+      // Fallback to legacy leave_types - but return empty since leave_type_id is removed
+      // All balances should now use office_leave_types
+      return [];
     },
     enabled: !!request?.employee?.id && !!currentOrg?.id && open,
   });

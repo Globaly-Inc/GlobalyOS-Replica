@@ -83,7 +83,7 @@ export const useOfficeLeaveTypesQuery = (officeId: string | undefined, activeOnl
   });
 };
 
-// Fetch leave balances for an employee
+// Fetch leave balances for an employee (office-aware)
 export const useLeaveBalances = (employeeId: string | undefined, year?: number) => {
   const currentYear = year || new Date().getFullYear();
 
@@ -92,18 +92,19 @@ export const useLeaveBalances = (employeeId: string | undefined, year?: number) 
     queryFn: async (): Promise<LeaveTypeBalanceWithType[]> => {
       if (!employeeId) return [];
 
+      // Use office_leave_types via office_leave_type_id
       const { data, error } = await supabase
         .from('leave_type_balances')
         .select(`
           id,
           employee_id,
-          leave_type_id,
+          office_leave_type_id,
           organization_id,
           balance,
           year,
           created_at,
           updated_at,
-          leave_type:leave_types!inner(
+          leave_type:office_leave_types!inner(
             id,
             organization_id,
             name,
@@ -111,9 +112,7 @@ export const useLeaveBalances = (employeeId: string | undefined, year?: number) 
             description,
             default_days,
             min_days_advance,
-            applies_to_all_offices,
             is_active,
-            is_system,
             created_at,
             updated_at
           )
@@ -123,7 +122,16 @@ export const useLeaveBalances = (employeeId: string | undefined, year?: number) 
 
       if (error) throw error;
 
-      return data as LeaveTypeBalanceWithType[];
+      // Map to the expected interface shape
+      return (data || []).map((item: any) => ({
+        ...item,
+        leave_type_id: item.office_leave_type_id, // For backward compat
+        leave_type: {
+          ...item.leave_type,
+          applies_to_all_offices: true, // Not applicable for office types
+          is_system: false,
+        },
+      })) as LeaveTypeBalanceWithType[];
     },
     staleTime: 30 * 1000, // 30 seconds - may change after approvals
     enabled: !!employeeId,
@@ -324,7 +332,7 @@ export const useCancelLeaveRequest = () => {
       // First, fetch the leave request to check if it was approved
       const { data: request, error: fetchError } = await supabase
         .from('leave_requests')
-        .select('id, employee_id, leave_type, leave_type_id, days_count, status, organization_id')
+        .select('id, employee_id, leave_type, office_leave_type_id, days_count, status, organization_id')
         .eq('id', requestId)
         .single();
 
@@ -335,29 +343,29 @@ export const useCancelLeaveRequest = () => {
       if (request.status === 'approved' && currentEmployee?.id) {
         const currentYear = new Date().getFullYear();
 
-        // Get the leave type ID (try office leave type first, then org level)
-        const leaveTypeId = request.leave_type_id;
+        // Use office_leave_type_id
+        const officeLeaveTypeId = request.office_leave_type_id;
         
-        if (leaveTypeId) {
+        if (officeLeaveTypeId) {
           // Get current balance
           const { data: balanceData } = await supabase
             .from('leave_type_balances')
             .select('id, balance')
             .eq('employee_id', request.employee_id)
             .eq('year', currentYear)
-            .or(`leave_type_id.eq.${leaveTypeId},office_leave_type_id.eq.${leaveTypeId}`)
+            .eq('office_leave_type_id', officeLeaveTypeId)
             .maybeSingle();
 
           if (balanceData) {
             const previousBalance = balanceData.balance;
             const newBalance = previousBalance + request.days_count;
 
-            // Create reversal log entry
+            // Create reversal log entry using office_leave_type_id
             await supabase.from('leave_balance_logs').insert({
               employee_id: request.employee_id,
               organization_id: request.organization_id,
               leave_type: request.leave_type,
-              leave_type_id: leaveTypeId,
+              office_leave_type_id: officeLeaveTypeId,
               change_amount: request.days_count,
               previous_balance: previousBalance,
               new_balance: newBalance,

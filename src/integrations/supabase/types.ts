@@ -4825,7 +4825,6 @@ export type Database = {
           id: string
           leave_request_id: string | null
           leave_type: string
-          leave_type_id: string | null
           new_balance: number
           office_leave_type_id: string | null
           organization_id: string | null
@@ -4845,7 +4844,6 @@ export type Database = {
           id?: string
           leave_request_id?: string | null
           leave_type: string
-          leave_type_id?: string | null
           new_balance: number
           office_leave_type_id?: string | null
           organization_id?: string | null
@@ -4865,7 +4863,6 @@ export type Database = {
           id?: string
           leave_request_id?: string | null
           leave_type?: string
-          leave_type_id?: string | null
           new_balance?: number
           office_leave_type_id?: string | null
           organization_id?: string | null
@@ -4909,13 +4906,6 @@ export type Database = {
             columns: ["leave_request_id"]
             isOneToOne: false
             referencedRelation: "leave_requests"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "leave_balance_logs_leave_type_id_fkey"
-            columns: ["leave_type_id"]
-            isOneToOne: false
-            referencedRelation: "leave_types"
             referencedColumns: ["id"]
           },
           {
@@ -5015,7 +5005,6 @@ export type Database = {
           half_day_type: string
           id: string
           leave_type: string
-          leave_type_id: string | null
           office_id: string | null
           office_leave_type_id: string | null
           organization_id: string | null
@@ -5036,7 +5025,6 @@ export type Database = {
           half_day_type?: string
           id?: string
           leave_type: string
-          leave_type_id?: string | null
           office_id?: string | null
           office_leave_type_id?: string | null
           organization_id?: string | null
@@ -5057,7 +5045,6 @@ export type Database = {
           half_day_type?: string
           id?: string
           leave_type?: string
-          leave_type_id?: string | null
           office_id?: string | null
           office_leave_type_id?: string | null
           organization_id?: string | null
@@ -5083,13 +5070,6 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "leave_requests_leave_type_id_fkey"
-            columns: ["leave_type_id"]
-            isOneToOne: false
-            referencedRelation: "leave_types"
             referencedColumns: ["id"]
           },
           {
@@ -5149,8 +5129,7 @@ export type Database = {
           created_at: string
           employee_id: string
           id: string
-          leave_type_id: string
-          office_leave_type_id: string | null
+          office_leave_type_id: string
           organization_id: string | null
           updated_at: string
           year: number
@@ -5160,8 +5139,7 @@ export type Database = {
           created_at?: string
           employee_id: string
           id?: string
-          leave_type_id: string
-          office_leave_type_id?: string | null
+          office_leave_type_id: string
           organization_id?: string | null
           updated_at?: string
           year?: number
@@ -5171,8 +5149,7 @@ export type Database = {
           created_at?: string
           employee_id?: string
           id?: string
-          leave_type_id?: string
-          office_leave_type_id?: string | null
+          office_leave_type_id?: string
           organization_id?: string | null
           updated_at?: string
           year?: number
@@ -5193,13 +5170,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "leave_type_balances_leave_type_id_fkey"
-            columns: ["leave_type_id"]
-            isOneToOne: false
-            referencedRelation: "leave_types"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "leave_type_balances_office_leave_type_id_fkey"
             columns: ["office_leave_type_id"]
             isOneToOne: false
@@ -5211,42 +5181,6 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      leave_type_offices: {
-        Row: {
-          created_at: string
-          id: string
-          leave_type_id: string
-          office_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          leave_type_id: string
-          office_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          leave_type_id?: string
-          office_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "leave_type_offices_leave_type_id_fkey"
-            columns: ["leave_type_id"]
-            isOneToOne: false
-            referencedRelation: "leave_types"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "leave_type_offices_office_id_fkey"
-            columns: ["office_id"]
-            isOneToOne: false
-            referencedRelation: "offices"
             referencedColumns: ["id"]
           },
         ]

@@ -91,51 +91,49 @@ export const EditLeaveAdjustmentDialog = ({
       // If balance changed, recalculate from all logs for this leave type
       const balanceDiff = changeAmount - adjustment.change_amount;
       if (balanceDiff !== 0 && employeeId) {
-        // Get the leave_type_id from leave_types table
-        const { data: leaveTypeData } = await supabase
-          .from("leave_types")
-          .select("id")
-          .eq("organization_id", currentOrg?.id)
-          .eq("name", adjustment.leave_type)
+        // Get the office_leave_type_id from office_leave_types table
+        const { data: employee } = await supabase
+          .from("employees")
+          .select("office_id")
+          .eq("id", employeeId)
           .single();
 
-        if (leaveTypeData) {
-          const currentYear = new Date().getFullYear();
-          
-          // Recalculate balance from ALL logs for this employee/leave_type/year
-          const { data: allLogs } = await supabase
-            .from("leave_balance_logs")
-            .select("change_amount")
-            .eq("employee_id", employeeId)
-            .eq("leave_type_id", leaveTypeData.id)
-            .eq("year", currentYear);
-
-          const totalBalance = allLogs?.reduce((sum, log) => sum + (log.change_amount || 0), 0) || 0;
-
-          // Update or insert the balance
-          const { data: existingBalance } = await supabase
-            .from("leave_type_balances")
+        if (employee?.office_id) {
+          const { data: leaveTypeData } = await supabase
+            .from("office_leave_types")
             .select("id")
-            .eq("employee_id", employeeId)
-            .eq("leave_type_id", leaveTypeData.id)
-            .eq("year", currentYear)
-            .maybeSingle();
+            .eq("office_id", employee.office_id)
+            .eq("name", adjustment.leave_type)
+            .single();
 
-          if (existingBalance) {
-            await supabase
+          if (leaveTypeData) {
+            const currentYear = new Date().getFullYear();
+            
+            // Recalculate balance from ALL logs for this employee/leave_type/year
+            const { data: allLogs } = await supabase
+              .from("leave_balance_logs")
+              .select("change_amount")
+              .eq("employee_id", employeeId)
+              .eq("office_leave_type_id", leaveTypeData.id)
+              .eq("year", currentYear);
+
+            const totalBalance = allLogs?.reduce((sum, log) => sum + (log.change_amount || 0), 0) || 0;
+
+            // Update or insert the balance
+            const { data: existingBalance } = await supabase
               .from("leave_type_balances")
-              .update({ balance: totalBalance, updated_at: new Date().toISOString() })
-              .eq("id", existingBalance.id);
-          } else {
-            await supabase
-              .from("leave_type_balances")
-              .insert({
-                employee_id: employeeId,
-                leave_type_id: leaveTypeData.id,
-                organization_id: currentOrg?.id,
-                year: currentYear,
-                balance: totalBalance
-              });
+              .select("id")
+              .eq("employee_id", employeeId)
+              .eq("office_leave_type_id", leaveTypeData.id)
+              .eq("year", currentYear)
+              .maybeSingle();
+
+            if (existingBalance) {
+              await supabase
+                .from("leave_type_balances")
+                .update({ balance: totalBalance, updated_at: new Date().toISOString() })
+                .eq("id", existingBalance.id);
+            }
           }
         }
       }
