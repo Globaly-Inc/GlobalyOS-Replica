@@ -19,6 +19,49 @@ const MODEL_RATES: Record<string, number> = {
   "openai/gpt-5.2": 0.00004,
 };
 
+// ========================================
+// DETERMINISTIC INTENT DETECTION
+// ========================================
+type DeterministicIntent = "leave_balance" | "kpi_performance" | "hr_contacts" | null;
+
+function detectDeterministicIntent(question: string): DeterministicIntent {
+  const lowerQ = question.toLowerCase();
+  
+  // Leave balance intent
+  const leaveKeywords = [
+    "leave balance", "my leave", "vacation days", "vacation left", 
+    "sick leave", "sick days", "annual leave", "how many leave",
+    "leave remaining", "pto balance", "pto left", "days off left",
+    "remaining leave", "available leave", "leave entitlement"
+  ];
+  if (leaveKeywords.some(kw => lowerQ.includes(kw))) {
+    return "leave_balance";
+  }
+  
+  // KPI/Performance intent
+  const kpiKeywords = [
+    "my performance", "performance tracking", "my kpi", "my kpis",
+    "my goals", "my targets", "how am i doing", "my objectives",
+    "performance metrics", "my okr", "my okrs", "performance status"
+  ];
+  if (kpiKeywords.some(kw => lowerQ.includes(kw))) {
+    return "kpi_performance";
+  }
+  
+  // HR contacts intent
+  const hrKeywords = [
+    "who handles hr", "hr contact", "hr team", "people team",
+    "who do i contact for leave", "who to contact for hr",
+    "hr department", "human resources contact", "admin contact",
+    "who manages hr", "hr manager", "hr person"
+  ];
+  if (hrKeywords.some(kw => lowerQ.includes(kw))) {
+    return "hr_contacts";
+  }
+  
+  return null;
+}
+
 // Detect if query is about internal org data or general assistance
 function detectQueryType(question: string): "internal" | "general" {
   const internalKeywords = [
@@ -150,54 +193,449 @@ serve(async (req) => {
       .maybeSingle();
 
     const role = userRole?.role || "member";
+    const currentYear = new Date().getFullYear();
+
+    // Log request details for debugging
+    console.log("=== GLOBAL-ASK-AI REQUEST ===");
+    console.log("userId:", user.id);
+    console.log("organizationId:", organizationId);
+    console.log("employeeFound:", !!currentEmployee);
+    console.log("employeeId:", currentEmployee?.id);
+    console.log("officeId:", currentEmployee?.office_id);
+    console.log("role:", role);
+    console.log("question:", question);
 
     // ========================================
-    // ORGANIZATION BUSINESS CONTEXT
+    // DETERMINISTIC INTENT HANDLING
+    // Skip LLM entirely for known data queries
     // ========================================
-    const { data: organization } = await supabase
-      .from("organizations")
-      .select(`
-        name,
-        legal_business_name,
-        industry,
-        company_size,
-        country,
-        timezone
-      `)
-      .eq("id", organizationId)
-      .single();
+    const deterministicIntent = detectDeterministicIntent(question);
+    console.log("deterministicIntent:", deterministicIntent);
 
-    // Fetch departments from the departments table (proper normalized table)
-    const { data: departmentsFromTable } = await supabase
-      .from("departments")
-      .select("id, name, description")
-      .eq("organization_id", organizationId)
-      .limit(50);
+    if (deterministicIntent && currentEmployee) {
+      let deterministicAnswer = "";
+      
+      // ========================================
+      // DETERMINISTIC: LEAVE BALANCE
+      // ========================================
+      if (deterministicIntent === "leave_balance") {
+        console.log("=== DETERMINISTIC LEAVE BALANCE ===");
+        
+        // Strategy: Try office_leave_types first (new schema), then fall back to leave_types
+        let leaveBalances: Array<{ name: string; balance: number; category: string }> = [];
+        let balanceYear = currentYear;
+        let dataSource = "";
 
-    // Fetch positions from the positions table (proper normalized table)
-    const { data: positionsFromTable } = await supabase
-      .from("positions")
-      .select("id, name, department, description")
-      .eq("organization_id", organizationId)
-      .limit(100);
+        // First: Try office_leave_types if employee has an office
+        if (currentEmployee.office_id) {
+          console.log("Trying office_leave_types for office:", currentEmployee.office_id);
+          
+          const { data: officeBalances, error: officeError } = await supabase
+            .from("leave_type_balances")
+            .select(`
+              balance, 
+              year,
+              office_leave_type_id,
+              office_leave_types!inner(name, category)
+            `)
+            .eq("employee_id", currentEmployee.id)
+            .eq("year", currentYear)
+            .not("office_leave_type_id", "is", null);
+          
+          console.log("Office balances query result:", { 
+            count: officeBalances?.length, 
+            error: officeError?.message,
+            data: officeBalances 
+          });
+          
+          if (officeBalances && officeBalances.length > 0) {
+            leaveBalances = officeBalances.map((b: any) => ({
+              name: b.office_leave_types?.name || "Unknown",
+              balance: b.balance,
+              category: b.office_leave_types?.category || "N/A"
+            }));
+            dataSource = "office_leave_types";
+          }
+        }
 
-    // Build department names from the proper table
-    const uniqueDepartments = departmentsFromTable?.map(d => d.name).filter(Boolean) || [];
+        // Second: Try legacy leave_types if no office balances found
+        if (leaveBalances.length === 0) {
+          console.log("Trying legacy leave_types");
+          
+          const { data: legacyBalances, error: legacyError } = await supabase
+            .from("leave_type_balances")
+            .select(`
+              balance, 
+              year,
+              leave_type_id,
+              leave_types!inner(name, category)
+            `)
+            .eq("employee_id", currentEmployee.id)
+            .eq("year", currentYear)
+            .not("leave_type_id", "is", null);
+          
+          console.log("Legacy balances query result:", { 
+            count: legacyBalances?.length, 
+            error: legacyError?.message,
+            data: legacyBalances 
+          });
+          
+          if (legacyBalances && legacyBalances.length > 0) {
+            leaveBalances = legacyBalances.map((b: any) => ({
+              name: b.leave_types?.name || "Unknown",
+              balance: b.balance,
+              category: b.leave_types?.category || "N/A"
+            }));
+            dataSource = "leave_types";
+          }
+        }
 
-    // Build positions from the proper table (grouped by department)
-    const positionsByDept: Record<string, string[]> = {};
-    positionsFromTable?.forEach(p => {
-      const dept = p.department || "Other";
-      if (!positionsByDept[dept]) positionsByDept[dept] = [];
-      positionsByDept[dept].push(p.name);
-    });
+        // Third: Try previous year if current year has no data
+        if (leaveBalances.length === 0) {
+          console.log("Trying previous year:", currentYear - 1);
+          balanceYear = currentYear - 1;
+          
+          // Try office first
+          if (currentEmployee.office_id) {
+            const { data: prevOfficeBalances } = await supabase
+              .from("leave_type_balances")
+              .select(`
+                balance, year,
+                office_leave_types!inner(name, category)
+              `)
+              .eq("employee_id", currentEmployee.id)
+              .eq("year", balanceYear)
+              .not("office_leave_type_id", "is", null);
+            
+            if (prevOfficeBalances && prevOfficeBalances.length > 0) {
+              leaveBalances = prevOfficeBalances.map((b: any) => ({
+                name: b.office_leave_types?.name || "Unknown",
+                balance: b.balance,
+                category: b.office_leave_types?.category || "N/A"
+              }));
+              dataSource = "office_leave_types (prev year)";
+            }
+          }
+          
+          // Then legacy
+          if (leaveBalances.length === 0) {
+            const { data: prevLegacyBalances } = await supabase
+              .from("leave_type_balances")
+              .select(`
+                balance, year,
+                leave_types!inner(name, category)
+              `)
+              .eq("employee_id", currentEmployee.id)
+              .eq("year", balanceYear)
+              .not("leave_type_id", "is", null);
+            
+            if (prevLegacyBalances && prevLegacyBalances.length > 0) {
+              leaveBalances = prevLegacyBalances.map((b: any) => ({
+                name: b.leave_types?.name || "Unknown",
+                balance: b.balance,
+                category: b.leave_types?.category || "N/A"
+              }));
+              dataSource = "leave_types (prev year)";
+            }
+          }
+        }
 
-    // Build business context string
-    const businessCategory = organization?.industry || "Not specified";
-    const companySize = organization?.company_size || "Not specified";
-    const companyName = organization?.legal_business_name || organization?.name || "the organization";
-    const companyCountry = organization?.country || "Not specified";
-    const companyTimezone = organization?.timezone || "Not specified";
+        console.log("Final leave balances:", { count: leaveBalances.length, dataSource, balanceYear });
+
+        // Build deterministic answer
+        const profile = currentEmployee.profiles as any;
+        const userName = profile?.full_name || "there";
+        
+        if (leaveBalances.length > 0) {
+          const paidLeaves = leaveBalances.filter(l => l.category === "paid");
+          const unpaidLeaves = leaveBalances.filter(l => l.category === "unpaid");
+          
+          deterministicAnswer = `Hi ${userName}! Here are your leave balances for ${balanceYear}:\n\n`;
+          
+          if (paidLeaves.length > 0) {
+            deterministicAnswer += "**Paid Leave:**\n";
+            paidLeaves.forEach(l => {
+              deterministicAnswer += `• ${l.name}: **${l.balance} days** remaining\n`;
+            });
+          }
+          
+          if (unpaidLeaves.length > 0) {
+            deterministicAnswer += "\n**Unpaid Leave:**\n";
+            unpaidLeaves.forEach(l => {
+              deterministicAnswer += `• ${l.name}: **${l.balance} days** remaining\n`;
+            });
+          }
+          
+          // Fetch pending/upcoming leaves
+          const { data: pendingLeaves } = await supabase
+            .from("leave_requests")
+            .select("leave_type, start_date, end_date, status, days_count")
+            .eq("employee_id", currentEmployee.id)
+            .in("status", ["pending", "approved"])
+            .gte("end_date", new Date().toISOString().split("T")[0])
+            .order("start_date", { ascending: true })
+            .limit(5);
+          
+          if (pendingLeaves && pendingLeaves.length > 0) {
+            deterministicAnswer += "\n**Upcoming/Pending Leaves:**\n";
+            pendingLeaves.forEach(l => {
+              deterministicAnswer += `• ${l.leave_type}: ${l.start_date} to ${l.end_date} (${l.days_count} days, ${l.status})\n`;
+            });
+          }
+        } else {
+          deterministicAnswer = `Hi ${userName}! I couldn't find any leave balances configured for you for ${currentYear}. This could mean:\n\n`;
+          deterministicAnswer += "• Your leave entitlements haven't been set up yet\n";
+          deterministicAnswer += "• Your office doesn't have leave types configured\n\n";
+          deterministicAnswer += "Please contact your HR administrator to set up your leave entitlements.";
+        }
+        
+        // Return deterministic response
+        const endTime = Date.now();
+        await logUsage(supabase, {
+          organizationId,
+          userId: user.id,
+          employeeId: currentEmployee.id,
+          conversationId,
+          queryType: "deterministic_leave",
+          promptLength: question.length,
+          responseLength: deterministicAnswer.length,
+          latencyMs: endTime - startTime,
+        });
+        
+        return new Response(JSON.stringify({ 
+          answer: deterministicAnswer,
+          usage: {
+            model: "deterministic",
+            query_type: "leave_balance",
+            tokens: 0,
+            latency_ms: endTime - startTime
+          }
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // ========================================
+      // DETERMINISTIC: KPI/PERFORMANCE
+      // ========================================
+      if (deterministicIntent === "kpi_performance") {
+        console.log("=== DETERMINISTIC KPI PERFORMANCE ===");
+        
+        const { data: userKpis } = await supabase
+          .from("kpis")
+          .select("title, target_value, current_value, unit, status, period, due_date, description")
+          .eq("employee_id", currentEmployee.id)
+          .order("created_at", { ascending: false })
+          .limit(20);
+        
+        console.log("KPIs found:", userKpis?.length);
+        
+        const profile = currentEmployee.profiles as any;
+        const userName = profile?.full_name || "there";
+        
+        if (userKpis && userKpis.length > 0) {
+          // Group by status
+          const byStatus: Record<string, typeof userKpis> = {};
+          userKpis.forEach(k => {
+            const s = k.status || "unknown";
+            if (!byStatus[s]) byStatus[s] = [];
+            byStatus[s].push(k);
+          });
+          
+          deterministicAnswer = `Hi ${userName}! Here's your performance tracking overview:\n\n`;
+          deterministicAnswer += `**Total KPIs:** ${userKpis.length}\n\n`;
+          
+          // Status summary
+          const statusEmoji: Record<string, string> = {
+            on_track: "🟢",
+            at_risk: "🟡", 
+            behind: "🔴",
+            achieved: "✅",
+            completed: "✅",
+            unknown: "⚪"
+          };
+          
+          deterministicAnswer += "**Status Summary:**\n";
+          Object.entries(byStatus).forEach(([status, kpis]) => {
+            const emoji = statusEmoji[status] || "⚪";
+            deterministicAnswer += `${emoji} ${status.replace("_", " ").toUpperCase()}: ${kpis.length}\n`;
+          });
+          
+          deterministicAnswer += "\n**Your KPIs:**\n";
+          userKpis.forEach(k => {
+            const progress = k.target_value ? Math.round((k.current_value || 0) / k.target_value * 100) : 0;
+            const emoji = statusEmoji[k.status || "unknown"] || "⚪";
+            deterministicAnswer += `\n${emoji} **${k.title}**\n`;
+            deterministicAnswer += `   Progress: ${k.current_value ?? 0}/${k.target_value ?? 0} ${k.unit || ""} (${progress}%)\n`;
+            if (k.due_date) {
+              deterministicAnswer += `   Due: ${k.due_date}\n`;
+            }
+          });
+          
+          // Add insights
+          const atRiskCount = (byStatus["at_risk"]?.length || 0) + (byStatus["behind"]?.length || 0);
+          if (atRiskCount > 0) {
+            deterministicAnswer += `\n⚠️ **Attention:** ${atRiskCount} KPI(s) need attention (at risk or behind).`;
+          }
+        } else {
+          deterministicAnswer = `Hi ${userName}! You don't have any KPIs assigned to you yet.\n\n`;
+          deterministicAnswer += "This could mean:\n";
+          deterministicAnswer += "• Your manager hasn't set up performance goals for you\n";
+          deterministicAnswer += "• KPIs for the current period haven't been created yet\n\n";
+          deterministicAnswer += "Please speak with your manager about setting up your performance objectives.";
+        }
+        
+        const endTime = Date.now();
+        await logUsage(supabase, {
+          organizationId,
+          userId: user.id,
+          employeeId: currentEmployee.id,
+          conversationId,
+          queryType: "deterministic_kpi",
+          promptLength: question.length,
+          responseLength: deterministicAnswer.length,
+          latencyMs: endTime - startTime,
+        });
+        
+        return new Response(JSON.stringify({ 
+          answer: deterministicAnswer,
+          usage: {
+            model: "deterministic",
+            query_type: "kpi_performance",
+            tokens: 0,
+            latency_ms: endTime - startTime
+          }
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // ========================================
+      // DETERMINISTIC: HR CONTACTS
+      // ========================================
+      if (deterministicIntent === "hr_contacts") {
+        console.log("=== DETERMINISTIC HR CONTACTS ===");
+        
+        // Fetch employees in HR-related departments
+        const { data: hrDeptEmployees } = await supabase
+          .from("employees")
+          .select(`
+            id, position, department,
+            profiles!inner(full_name, email)
+          `)
+          .eq("organization_id", organizationId)
+          .eq("status", "active")
+          .or("department.ilike.%hr%,department.ilike.%human resources%,department.ilike.%people%");
+
+        // Fetch users with HR/Admin/Owner roles
+        const { data: hrRoleUsers } = await supabase
+          .from("user_roles")
+          .select("role, user_id")
+          .eq("organization_id", organizationId)
+          .in("role", ["hr", "admin", "owner"]);
+
+        // Get employee details for role users
+        let roleEmployees: any[] = [];
+        if (hrRoleUsers && hrRoleUsers.length > 0) {
+          const userIds = hrRoleUsers.map(r => r.user_id);
+          const { data: empData } = await supabase
+            .from("employees")
+            .select(`
+              id, position, department, user_id,
+              profiles!inner(full_name, email)
+            `)
+            .eq("organization_id", organizationId)
+            .in("user_id", userIds);
+          
+          roleEmployees = (empData || []).map(e => ({
+            ...e,
+            role: hrRoleUsers.find(r => r.user_id === e.user_id)?.role
+          }));
+        }
+
+        // Combine and deduplicate
+        const hrPeopleMap = new Map();
+        
+        hrDeptEmployees?.forEach(e => {
+          hrPeopleMap.set(e.id, {
+            name: (e as any).profiles?.full_name,
+            email: (e as any).profiles?.email,
+            position: e.position,
+            department: e.department,
+            source: "HR Department"
+          });
+        });
+        
+        roleEmployees.forEach(e => {
+          if (!hrPeopleMap.has(e.id)) {
+            hrPeopleMap.set(e.id, {
+              name: (e as any).profiles?.full_name,
+              email: (e as any).profiles?.email,
+              position: e.position,
+              role: e.role,
+              source: `${e.role} role`
+            });
+          } else {
+            const existing = hrPeopleMap.get(e.id);
+            existing.role = e.role;
+          }
+        });
+
+        const hrPeople = Array.from(hrPeopleMap.values());
+        console.log("HR contacts found:", hrPeople.length);
+        
+        const profile = currentEmployee.profiles as any;
+        const userName = profile?.full_name || "there";
+        
+        if (hrPeople.length > 0) {
+          deterministicAnswer = `Hi ${userName}! Here are the people who handle HR matters in your organization:\n\n`;
+          
+          hrPeople.forEach(p => {
+            deterministicAnswer += `• **${p.name}**`;
+            if (p.position) deterministicAnswer += ` - ${p.position}`;
+            if (p.department) deterministicAnswer += ` (${p.department})`;
+            if (p.role) deterministicAnswer += ` [${p.role.toUpperCase()}]`;
+            deterministicAnswer += `\n`;
+          });
+          
+          deterministicAnswer += "\nYou can reach out to any of these people for HR-related questions, leave requests, or other administrative matters.";
+        } else {
+          deterministicAnswer = `Hi ${userName}! I couldn't find specific HR contacts in your organization's directory.\n\n`;
+          deterministicAnswer += "Here are some suggestions:\n";
+          deterministicAnswer += "• Contact your manager for HR-related questions\n";
+          deterministicAnswer += "• Check with your organization's admin\n";
+          deterministicAnswer += "• Look for people in the 'HR' or 'People Operations' department in the team directory";
+        }
+        
+        const endTime = Date.now();
+        await logUsage(supabase, {
+          organizationId,
+          userId: user.id,
+          employeeId: currentEmployee.id,
+          conversationId,
+          queryType: "deterministic_hr",
+          promptLength: question.length,
+          responseLength: deterministicAnswer.length,
+          latencyMs: endTime - startTime,
+        });
+        
+        return new Response(JSON.stringify({ 
+          answer: deterministicAnswer,
+          usage: {
+            model: "deterministic",
+            query_type: "hr_contacts",
+            tokens: 0,
+            latency_ms: endTime - startTime
+          }
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // ========================================
+    // FALL THROUGH TO LLM FOR OTHER QUERIES
+    // ========================================
 
     // Fetch AI knowledge settings
     const { data: aiSettings } = await supabase
@@ -230,43 +668,97 @@ serve(async (req) => {
     const queryType = detectQueryType(question);
 
     // ========================================
+    // ORGANIZATION BUSINESS CONTEXT
+    // ========================================
+    const { data: organization } = await supabase
+      .from("organizations")
+      .select(`
+        name,
+        legal_business_name,
+        industry,
+        company_size,
+        country,
+        timezone
+      `)
+      .eq("id", organizationId)
+      .single();
+
+    // Fetch departments from the departments table
+    const { data: departmentsFromTable } = await supabase
+      .from("departments")
+      .select("id, name, description")
+      .eq("organization_id", organizationId)
+      .limit(50);
+
+    // Fetch positions from the positions table
+    const { data: positionsFromTable } = await supabase
+      .from("positions")
+      .select("id, name, department, description")
+      .eq("organization_id", organizationId)
+      .limit(100);
+
+    // Build department names from the proper table
+    const uniqueDepartments = departmentsFromTable?.map(d => d.name).filter(Boolean) || [];
+
+    // Build positions from the proper table (grouped by department)
+    const positionsByDept: Record<string, string[]> = {};
+    positionsFromTable?.forEach(p => {
+      const dept = p.department || "Other";
+      if (!positionsByDept[dept]) positionsByDept[dept] = [];
+      positionsByDept[dept].push(p.name);
+    });
+
+    // Build business context string
+    const businessCategory = organization?.industry || "Not specified";
+    const companySize = organization?.company_size || "Not specified";
+    const companyName = organization?.legal_business_name || organization?.name || "the organization";
+    const companyCountry = organization?.country || "Not specified";
+    const companyTimezone = organization?.timezone || "Not specified";
+
+    // ========================================
     // PERSONAL DATA CONTEXT (Always available to self)
     // ========================================
     let userPersonalContext = "";
-    const currentYear = new Date().getFullYear();
 
     if (currentEmployee) {
-      // User's leave balances - FIXED: Query leave_type_balances with leave_types join
+      // User's leave balances - using both office and legacy tables
       if (settings.leave_enabled) {
-        // First try leave_type_balances (new schema)
-        const { data: leaveTypeBalances } = await supabase
-          .from("leave_type_balances")
-          .select(`
-            balance, 
-            year,
-            leave_types!inner(name, category)
-          `)
-          .eq("employee_id", currentEmployee.id)
-          .eq("year", currentYear);
-        
-        // If no balances for current year, try previous year as fallback
-        let balancesToUse = leaveTypeBalances;
+        let leaveBalances: Array<{ name: string; balance: number; category: string }> = [];
         let balanceYear = currentYear;
-        
-        if (!leaveTypeBalances || leaveTypeBalances.length === 0) {
-          const { data: prevYearBalances } = await supabase
+
+        // Try office_leave_types first
+        if (currentEmployee.office_id) {
+          const { data: officeBalances } = await supabase
             .from("leave_type_balances")
-            .select(`
-              balance, 
-              year,
-              leave_types!inner(name, category)
-            `)
+            .select(`balance, year, office_leave_types!inner(name, category)`)
             .eq("employee_id", currentEmployee.id)
-            .eq("year", currentYear - 1);
+            .eq("year", currentYear)
+            .not("office_leave_type_id", "is", null);
           
-          if (prevYearBalances && prevYearBalances.length > 0) {
-            balancesToUse = prevYearBalances;
-            balanceYear = currentYear - 1;
+          if (officeBalances && officeBalances.length > 0) {
+            leaveBalances = officeBalances.map((b: any) => ({
+              name: b.office_leave_types?.name || "Unknown",
+              balance: b.balance,
+              category: b.office_leave_types?.category || "N/A"
+            }));
+          }
+        }
+
+        // Fallback to legacy
+        if (leaveBalances.length === 0) {
+          const { data: legacyBalances } = await supabase
+            .from("leave_type_balances")
+            .select(`balance, year, leave_types!inner(name, category)`)
+            .eq("employee_id", currentEmployee.id)
+            .eq("year", currentYear)
+            .not("leave_type_id", "is", null);
+          
+          if (legacyBalances && legacyBalances.length > 0) {
+            leaveBalances = legacyBalances.map((b: any) => ({
+              name: b.leave_types?.name || "Unknown",
+              balance: b.balance,
+              category: b.leave_types?.category || "N/A"
+            }));
           }
         }
         
@@ -281,9 +773,9 @@ serve(async (req) => {
 
         userPersonalContext += `
 YOUR LEAVE BALANCES (${balanceYear}):
-${balancesToUse && balancesToUse.length > 0 
-  ? balancesToUse.map((lb: any) => 
-      `- ${lb.leave_types?.name || "Unknown"}: ${lb.balance} days remaining (${lb.leave_types?.category || "N/A"})`
+${leaveBalances.length > 0 
+  ? leaveBalances.map(lb => 
+      `- ${lb.name}: ${lb.balance} days remaining (${lb.category})`
     ).join("\n") 
   : "No leave balances configured. Please contact HR to set up your leave entitlements."}
 
@@ -320,7 +812,7 @@ YOUR ATTENDANCE (Last 30 Days):
 `;
       }
 
-      // User's KPIs - ENHANCED: Better formatting for performance tracking questions
+      // User's KPIs
       if (settings.kpis_enabled) {
         const { data: userKpis } = await supabase
           .from("kpis")
@@ -369,13 +861,14 @@ KPI STATUS SUMMARY: ${Object.entries(kpiStatusSummary).map(([s, c]) => `${s}: ${
       if (directReports && directReports.length > 0) {
         const directReportIds = directReports.map(dr => dr.id);
         
-        // Get leave balances for direct reports using leave_type_balances
+        // Get leave balances for direct reports
         if (settings.leave_enabled) {
           const { data: teamLeaveBalances } = await supabase
             .from("leave_type_balances")
             .select(`
               employee_id, balance,
-              leave_types!inner(name)
+              leave_types(name),
+              office_leave_types(name)
             `)
             .in("employee_id", directReportIds)
             .eq("year", currentYear);
@@ -384,7 +877,8 @@ KPI STATUS SUMMARY: ${Object.entries(kpiStatusSummary).map(([s, c]) => `${s}: ${
           const teamLeaveMap: Record<string, string[]> = {};
           teamLeaveBalances?.forEach((lb: any) => {
             if (!teamLeaveMap[lb.employee_id]) teamLeaveMap[lb.employee_id] = [];
-            teamLeaveMap[lb.employee_id].push(`${lb.leave_types?.name}: ${lb.balance}`);
+            const typeName = lb.office_leave_types?.name || lb.leave_types?.name || "Unknown";
+            teamLeaveMap[lb.employee_id].push(`${typeName}: ${lb.balance}`);
           });
 
           const { data: teamPendingLeaves } = await supabase
@@ -519,7 +1013,6 @@ ${allPendingLeaves?.slice(0, 5).map(l =>
           source: `${e.role} role`
         });
       } else {
-        // Add role info to existing entry
         const existing = hrPeopleMap.get(e.id);
         existing.role = e.role;
       }
@@ -648,85 +1141,69 @@ ${Object.entries(positionsByDept).map(([dept, positions]) =>
     const profile = currentEmployee?.profiles as unknown as { full_name: string; avatar_url: string; email: string } | null;
     const userName = profile?.full_name || "User";
     
-    const systemPrompt = `You are GlobalyOS AI - a powerful, helpful AI assistant that operates in TWO modes:
+    const systemPrompt = `You are GlobalyOS AI - a helpful AI assistant for ${companyName}.
 
-## MODE 1: ORGANIZATION KNOWLEDGE (Internal Queries)
-When the user asks about their organization, team, policies, leave, attendance, KPIs, etc., answer using the provided organization context below.
+## YOUR ROLE:
+Answer questions about the organization, team, policies, leave, attendance, KPIs using the context below.
+For general questions (writing, research, coding), act as a helpful assistant.
 
-## MODE 2: GENERAL ASSISTANT (External Queries)
-When the user asks for general help like:
-- Writing content, emails, SOPs, documentation
-- Research or explanations on any topic
-- Coding help, translations, summaries
-- Creative writing, brainstorming
-- Any query NOT related to internal org data
-
-Act as a helpful, knowledgeable AI assistant and provide comprehensive answers.
-
-## KEY DATA RELATIONSHIPS - USE THIS TO ANSWER QUESTIONS:
-- **LEAVE BALANCES**: When asked "what's my leave balance" or "how many vacation days", check "YOUR LEAVE BALANCES" section - shows days per leave type (Annual Leave, Sick Leave, Unpaid Leave, etc.)
-- **PERFORMANCE/KPIs**: When asked "how is my performance" or "my goals" or "my KPIs", check "YOUR KPIs/PERFORMANCE METRICS" section - these ARE your performance tracking metrics
-- **HR CONTACTS**: When asked "who handles HR" or "who should I contact for leave/HR issues", check "HR & ADMIN CONTACTS" section
-- **ORG STRUCTURE**: When asked about departments, positions, organization chart, check "ORGANIZATION STRUCTURE" section
-- **TEAM**: When asked to find someone or "who works here", check "TEAM DIRECTORY" section
-
-## CRITICAL PRIVACY & SECURITY RULES:
-- NEVER share salary, bank details, tax info, or sensitive HR data of ANY user
-- Regular users ONLY see their OWN personal data (leave, attendance, KPIs)
-- Managers can see their direct reports' data
-- Admin/HR/Owner have broader access as shown in context
-- NEVER expose data from other organizations
-- If organization knowledge doesn't contain the answer, say so clearly
-
-## ORGANIZATION BUSINESS CONTEXT:
-- Company Name: ${companyName}
-- Business Category: ${businessCategory}
-- Company Size: ${companySize}
+## ORGANIZATION:
+- Company: ${companyName}
+- Industry: ${businessCategory}
+- Size: ${companySize}
 - Country: ${companyCountry}
-- Timezone: ${companyTimezone}
 
-${orgStructureContext}
-
-## CURRENT USER CONTEXT:
+## CURRENT USER:
 Name: ${userName}
 Role: ${role}
 Department: ${currentEmployee?.department || "Unknown"}
 Position: ${currentEmployee?.position || "Unknown"}
 
---- YOUR PERSONAL DATA (${userName}) ---
-${userPersonalContext || "Personal data not available or disabled."}
+${userPersonalContext ? `## YOUR PERSONAL DATA:\n${userPersonalContext}` : ""}
 
-${teamDataContext ? `--- TEAM DATA (You have access as ${role}) ---
-${teamDataContext}` : ""}
+${teamDataContext ? `## TEAM DATA (${role} access):\n${teamDataContext}` : ""}
 
-${hrContactsContext ? `--- HR & ADMIN CONTACTS ---
-${hrContactsContext}` : ""}
+${hrContactsContext ? `## HR CONTACTS:\n${hrContactsContext}` : ""}
 
-${queryType === "internal" ? `--- ORGANIZATION WIKI & KNOWLEDGE BASE ---
-${wikiContext || "No wiki content available."}
+${orgStructureContext ? `## ORG STRUCTURE:\n${orgStructureContext}` : ""}
 
---- TEAM DIRECTORY ---
-${teamDirectoryContext || "Team directory not available."}
+${queryType === "internal" ? `
+## WIKI:
+${wikiContext || "No wiki content."}
 
---- RECENT ANNOUNCEMENTS & WINS ---
-${announcementsContext || "No recent announcements."}
+## TEAM DIRECTORY:
+${teamDirectoryContext || "Not available."}
 
---- UPCOMING CALENDAR EVENTS ---
-${calendarContext || "No upcoming events."}` : ""}
----
+## ANNOUNCEMENTS:
+${announcementsContext || "None."}
 
-## RESPONSE GUIDELINES:
-1. For leave balance questions: List each leave type with exact balance (e.g., "Annual Leave: 5 days, Sick Leave: 7 days")
-2. For performance questions: List KPIs with progress percentages and status
-3. For HR contact questions: List the people with their positions and roles
-4. Always be specific with numbers and data when available
-5. If data is empty or not available, explain why and suggest next steps
+## CALENDAR:
+${calendarContext || "No events."}
+` : ""}
 
-Respond naturally based on the query type. Be helpful, accurate, and professional.`;
+## PRIVACY RULES:
+- Never share salary, bank details, or sensitive HR data
+- Users only see their own personal data
+- Managers see direct reports' data
+- Admin/HR/Owner have broader access
+
+Be helpful, accurate, and concise.`;
+
+    // Limit conversation history to avoid model confusion
+    const limitedHistory = conversationHistory.slice(-6).filter((msg: { role: string; content: string }) => {
+      // Filter out previous "I don't have access" responses to prevent poisoning
+      if (msg.role === "assistant" && 
+          (msg.content.includes("I do not have access") || 
+           msg.content.includes("data is not available") ||
+           msg.content.includes("does not contain"))) {
+        return false;
+      }
+      return true;
+    });
 
     const messages = [
       { role: "system", content: systemPrompt },
-      ...conversationHistory.map((msg: { role: string; content: string }) => ({
+      ...limitedHistory.map((msg: { role: string; content: string }) => ({
         role: msg.role,
         content: msg.content,
       })),
@@ -770,9 +1247,9 @@ Respond naturally based on the query type. Be helpful, accurate, and professiona
     const endTime = Date.now();
     const latencyMs = endTime - startTime;
     
-    // Estimate tokens (rough approximation: 1 token ≈ 4 characters)
+    // Estimate tokens
     const promptLength = systemPrompt.length + question.length + 
-      conversationHistory.reduce((sum: number, m: { content: string }) => sum + m.content.length, 0);
+      limitedHistory.reduce((sum: number, m: { content: string }) => sum + m.content.length, 0);
     const promptTokens = data.usage?.prompt_tokens || Math.ceil(promptLength / 4);
     const completionTokens = data.usage?.completion_tokens || Math.ceil(answer.length / 4);
     const totalTokens = promptTokens + completionTokens;
@@ -837,3 +1314,41 @@ Respond naturally based on the query type. Be helpful, accurate, and professiona
     });
   }
 });
+
+// Helper function to log usage for deterministic queries
+async function logUsage(supabase: any, params: {
+  organizationId: string;
+  userId: string;
+  employeeId: string;
+  conversationId?: string;
+  queryType: string;
+  promptLength: number;
+  responseLength: number;
+  latencyMs: number;
+}) {
+  try {
+    await supabase.from("ai_usage_logs").insert({
+      organization_id: params.organizationId,
+      user_id: params.userId,
+      employee_id: params.employeeId,
+      conversation_id: params.conversationId || null,
+      model: "deterministic",
+      query_type: params.queryType,
+      prompt_length: params.promptLength,
+      response_length: params.responseLength,
+      prompt_tokens: 0,
+      completion_tokens: 0,
+      total_tokens: 0,
+      estimated_cost: 0,
+      latency_ms: params.latencyMs,
+    });
+
+    await supabase.rpc('record_usage', {
+      _organization_id: params.organizationId,
+      _feature: 'ai_queries',
+      _quantity: 1
+    });
+  } catch (e) {
+    console.error("Error logging usage:", e);
+  }
+}
