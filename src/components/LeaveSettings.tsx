@@ -125,34 +125,16 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
       return;
     }
 
-    // Load office mappings for each leave type
-    const typesWithOffices = await Promise.all(
-      (types || []).map(async (type) => {
-          if (!type.applies_to_all_offices) {
-            const { data: officeData } = await supabase
-              .from("leave_type_offices")
-              .select("office_id")
-              .eq("leave_type_id", type.id);
-            
-            return {
-              ...type,
-              office_ids: officeData?.map((o) => o.office_id) || [],
-              applies_to_gender: (type.applies_to_gender || 'all') as 'all' | 'male' | 'female',
-              max_negative_days: type.max_negative_days || 0,
-              applies_to_employment_types: type.applies_to_employment_types || ['trainee', 'intern', 'contract', 'employee'],
-              carry_forward_mode: (type.carry_forward_mode || 'none') as 'none' | 'positive_only' | 'negative_only' | 'all',
-            };
-          }
-          return { 
-            ...type, 
-            office_ids: [],
-            applies_to_gender: (type.applies_to_gender || 'all') as 'all' | 'male' | 'female',
-            max_negative_days: type.max_negative_days || 0,
-            applies_to_employment_types: type.applies_to_employment_types || ['trainee', 'intern', 'contract', 'employee'],
-            carry_forward_mode: (type.carry_forward_mode || 'none') as 'none' | 'positive_only' | 'negative_only' | 'all',
-          };
-        })
-    );
+    // Office mappings are now handled via office_leave_types table
+    // This legacy leave_types table is for org-level fallback only
+    const typesWithOffices = (types || []).map((type) => ({
+      ...type,
+      office_ids: [],
+      applies_to_gender: (type.applies_to_gender || 'all') as 'all' | 'male' | 'female',
+      max_negative_days: type.max_negative_days || 0,
+      applies_to_employment_types: type.applies_to_employment_types || ['trainee', 'intern', 'contract', 'employee'],
+      carry_forward_mode: (type.carry_forward_mode || 'none') as 'none' | 'positive_only' | 'negative_only' | 'all',
+    }));
 
     setLeaveTypes(typesWithOffices as LeaveType[]);
     setLoading(false);
@@ -228,12 +210,6 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
 
         if (error) throw error;
         leaveTypeId = editingType.id;
-
-        // Delete existing office mappings
-        await supabase
-          .from("leave_type_offices")
-          .delete()
-          .eq("leave_type_id", editingType.id);
       } else {
         // Create new
         const { data, error } = await supabase
@@ -246,19 +222,13 @@ export const LeaveSettings = ({ embedded = false }: { embedded?: boolean }) => {
         leaveTypeId = data.id;
       }
 
-      // Add office mappings if not applying to all
-      if (!formAppliesToAll && formSelectedOffices.length > 0) {
-        const mappings = formSelectedOffices.map((officeId) => ({
-          leave_type_id: leaveTypeId,
-          office_id: officeId,
-        }));
+      // Office mappings are now handled via office_leave_types table
+      // Skip legacy leave_type_offices insertion
 
-        const { error: mappingError } = await supabase
-          .from("leave_type_offices")
-          .insert(mappings);
-
-        if (mappingError) throw mappingError;
-      }
+      toast.success(editingType ? "Leave type updated" : "Leave type created");
+      setDialogOpen(false);
+      resetForm();
+      loadLeaveTypes();
 
       toast.success(editingType ? "Leave type updated" : "Leave type created");
       setDialogOpen(false);

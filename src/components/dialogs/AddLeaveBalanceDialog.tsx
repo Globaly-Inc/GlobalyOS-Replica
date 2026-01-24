@@ -69,12 +69,12 @@ export const AddLeaveBalanceDialog = ({
       const selectedLeaveType = leaveTypes.find(lt => lt.id === leaveType);
       if (!selectedLeaveType) throw new Error("Leave type not found");
 
-      // Get current balance to calculate new_balance for the log
+      // Get current balance to calculate new_balance for the log (using office_leave_type_id)
       const { data: existingBalance } = await supabase
         .from("leave_type_balances")
         .select("id, balance")
         .eq("employee_id", employeeId)
-        .eq("leave_type_id", leaveType)
+        .eq("office_leave_type_id", leaveType)
         .eq("year", currentYear)
         .maybeSingle();
       

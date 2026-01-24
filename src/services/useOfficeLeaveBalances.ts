@@ -110,36 +110,7 @@ export const useEmployeeLeaveTypes = (
                 is_system: type.is_system,
                 created_at: type.created_at,
                 updated_at: type.updated_at,
-              });
-            } else if (employee.office_id) {
-              // Check office mapping
-              const { data: mapping } = await supabase
-                .from('leave_type_offices')
-                .select('id')
-                .eq('leave_type_id', type.id)
-                .eq('office_id', employee.office_id)
-                .single();
-
-              if (mapping) {
-                filteredOrgTypes.push({
-                  id: type.id,
-                  office_id: employee.office_id,
-                  organization_id: currentOrg.id,
-                  name: type.name,
-                  category: type.category as 'paid' | 'unpaid',
-                  description: type.description,
-                  default_days: type.default_days || 0,
-                  min_days_advance: type.min_days_advance,
-                  max_negative_days: type.max_negative_days || 0,
-                  applies_to_gender: (type.applies_to_gender || 'all') as 'all' | 'male' | 'female',
-                  applies_to_employment_types: type.applies_to_employment_types,
-                  carry_forward_mode: type.carry_forward_mode || 'none',
-                  is_active: type.is_active,
-                  is_system: type.is_system,
-                  created_at: type.created_at,
-                  updated_at: type.updated_at,
-                });
-              }
+            });
             }
           }
           leaveTypes = filteredOrgTypes;

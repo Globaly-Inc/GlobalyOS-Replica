@@ -258,17 +258,14 @@ export const BulkLeaveImportDialog = () => {
             continue;
           }
 
-          const { error } = await supabase
-            .from('leave_type_balances')
-            .upsert({
-              employee_id: employeeId,
-              leave_type_id: leaveTypeId,
-              organization_id: currentOrg.id,
-              balance: balance,
-              year: new Date().getFullYear(),
-            }, {
-              onConflict: 'employee_id,leave_type_id,year',
-            });
+          // Skip balance upsert - BulkLeaveImportDialog now only supports leave requests
+          // Opening balances should be handled via the office_leave_types system
+          importResults.push({
+            employee_name: empName,
+            record_type: `Balance: ${leaveTypeName} (${balance} days)`,
+            success: false,
+            error: 'Opening balance import not supported. Use Leave Balance Init instead.',
+          });
 
           importResults.push({
             employee_name: empName,

@@ -13,7 +13,7 @@ export interface InvalidBalance {
   employee_id: string;
   employee_name: string;
   avatar_url: string | null;
-  leave_type_id: string;
+  office_leave_type_id: string;
   leave_type_name: string;
   balance: number;
   employment_type: string | null;
@@ -36,20 +36,20 @@ export const useInvalidBalances = (year: number) => {
     queryFn: async (): Promise<InvalidBalance[]> => {
       if (!currentOrg?.id) return [];
 
-      // Get all balances for the target year
+      // Get all balances for the target year (using office_leave_type_id)
       const { data: balances, error: balError } = await supabase
         .from("leave_type_balances")
         .select(`
           id,
           employee_id,
-          leave_type_id,
+          office_leave_type_id,
           balance,
           employee:employees!inner(
             id,
             employment_type,
             profiles!inner(full_name, avatar_url)
           ),
-          leave_type:leave_types!inner(id, name)
+          leave_type:office_leave_types!inner(id, name)
         `)
         .eq("organization_id", currentOrg.id)
         .eq("year", year);
@@ -60,7 +60,7 @@ export const useInvalidBalances = (year: number) => {
       // Get all logs for the target year with initialization actions
       const { data: logs, error: logError } = await supabase
         .from("leave_balance_logs")
-        .select("employee_id, leave_type_id, action")
+        .select("employee_id, office_leave_type_id, action")
         .eq("organization_id", currentOrg.id)
         .in("action", ["year_allocation", "year_init", "carry_forward_in"])
         .gte("effective_date", `${year}-01-01`)
@@ -71,14 +71,14 @@ export const useInvalidBalances = (year: number) => {
       // Create a set of valid employee+leave_type combinations (those with proper logs)
       const validKey = (empId: string, ltId: string) => `${empId}-${ltId}`;
       const validSet = new Set(
-        (logs || []).map((l) => validKey(l.employee_id, l.leave_type_id))
+        (logs || []).map((l) => validKey(l.employee_id, l.office_leave_type_id))
       );
 
       // Filter balances to find those without proper logs
       const invalidBalances: InvalidBalance[] = [];
 
       for (const balance of balances) {
-        const key = validKey(balance.employee_id, balance.leave_type_id);
+        const key = validKey(balance.employee_id, balance.office_leave_type_id);
         
         if (!validSet.has(key)) {
           const emp = balance.employee as any;
@@ -89,7 +89,7 @@ export const useInvalidBalances = (year: number) => {
             employee_id: balance.employee_id,
             employee_name: emp.profiles.full_name,
             avatar_url: emp.profiles.avatar_url,
-            leave_type_id: balance.leave_type_id,
+            office_leave_type_id: balance.office_leave_type_id,
             leave_type_name: lt.name,
             balance: balance.balance,
             employment_type: emp.employment_type,
@@ -190,24 +190,24 @@ export const useCleanIneligibleBalances = () => {
     mutationFn: async (year: number): Promise<{ deleted: number; checked: number }> => {
       if (!currentOrg?.id) throw new Error("No organization");
 
-      // Get all balances with employee and leave type details
+      // Get all balances with employee and leave type details (office-aware)
       const { data: balances, error: balError } = await supabase
         .from("leave_type_balances")
         .select(`
           id,
           employee_id,
-          leave_type_id,
+          office_leave_type_id,
           employee:employees!inner(
             id,
             employment_type,
             gender,
             office_id
           ),
-          leave_type:leave_types!inner(
+          leave_type:office_leave_types!inner(
             id,
             applies_to_employment_types,
             applies_to_gender,
-            applies_to_all_offices
+            office_id
           )
         `)
         .eq("organization_id", currentOrg.id)
@@ -215,19 +215,6 @@ export const useCleanIneligibleBalances = () => {
 
       if (balError) throw balError;
       if (!balances?.length) return { deleted: 0, checked: 0 };
-
-      // Get office mappings
-      const { data: officeMappings } = await supabase
-        .from("leave_type_offices")
-        .select("leave_type_id, office_id");
-
-      const officeMappingsByType = new Map<string, Set<string>>();
-      officeMappings?.forEach((m) => {
-        if (!officeMappingsByType.has(m.leave_type_id)) {
-          officeMappingsByType.set(m.leave_type_id, new Set());
-        }
-        officeMappingsByType.get(m.leave_type_id)!.add(m.office_id);
-      });
 
       // Find ineligible balances
       const ineligibleIds: string[] = [];
@@ -250,13 +237,10 @@ export const useCleanIneligibleBalances = () => {
           continue;
         }
 
-        // Check office eligibility
-        if (!lt.applies_to_all_offices && emp.office_id) {
-          const officeSet = officeMappingsByType.get(balance.leave_type_id);
-          if (!officeSet || !officeSet.has(emp.office_id)) {
-            ineligibleIds.push(balance.id);
-            continue;
-          }
+        // Check office eligibility - office_leave_types are already office-specific
+        if (lt.office_id && emp.office_id && lt.office_id !== emp.office_id) {
+          ineligibleIds.push(balance.id);
+          continue;
         }
       }
 
