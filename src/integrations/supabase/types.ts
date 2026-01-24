@@ -5017,6 +5017,7 @@ export type Database = {
           leave_type: string
           leave_type_id: string | null
           office_id: string | null
+          office_leave_type_id: string | null
           organization_id: string | null
           reason: string
           reviewed_at: string | null
@@ -5037,6 +5038,7 @@ export type Database = {
           leave_type: string
           leave_type_id?: string | null
           office_id?: string | null
+          office_leave_type_id?: string | null
           organization_id?: string | null
           reason: string
           reviewed_at?: string | null
@@ -5057,6 +5059,7 @@ export type Database = {
           leave_type?: string
           leave_type_id?: string | null
           office_id?: string | null
+          office_leave_type_id?: string | null
           organization_id?: string | null
           reason?: string
           reviewed_at?: string | null
@@ -5094,6 +5097,13 @@ export type Database = {
             columns: ["office_id"]
             isOneToOne: false
             referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_office_leave_type_id_fkey"
+            columns: ["office_leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "office_leave_types"
             referencedColumns: ["id"]
           },
           {

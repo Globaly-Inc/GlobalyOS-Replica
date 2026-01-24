@@ -218,12 +218,12 @@ export const AddLeaveRequestDialog = ({
         }
       }
 
-      // Insert leave request with office_id and leave_type_id for the new schema
+      // Insert leave request with office_leave_type_id for the new schema
       const { error } = await supabase.from("leave_requests").insert({
         employee_id: employeeId,
         organization_id: currentOrg?.id,
         office_id: employeeData?.office_id || null,
-        leave_type_id: selectedLeaveType.id,
+        office_leave_type_id: selectedLeaveType.id,
         leave_type: selectedLeaveType.name,
         start_date: startDateStr,
         end_date: endDateStr,

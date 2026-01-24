@@ -162,7 +162,7 @@ export const AddLeaveForEmployeeDialog = ({
       const { error } = await supabase.from("leave_requests").insert({
         employee_id: employeeId,
         organization_id: currentOrg?.id,
-        leave_type_id: selectedLeaveType.id,
+        office_leave_type_id: selectedLeaveType.id,
         leave_type: selectedLeaveType.name,
         start_date: format(startDate, "yyyy-MM-dd"),
         end_date: format(endDate, "yyyy-MM-dd"),
