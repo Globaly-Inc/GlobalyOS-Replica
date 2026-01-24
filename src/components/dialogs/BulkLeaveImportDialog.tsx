@@ -267,12 +267,7 @@ export const BulkLeaveImportDialog = () => {
             error: 'Opening balance import not supported. Use Leave Balance Init instead.',
           });
 
-          importResults.push({
-            employee_name: empName,
-            record_type: `Balance: ${leaveTypeName} (${balance} days)`,
-            success: !error,
-            error: error?.message,
-          });
+          // Skip duplicate result - already added above
         }
       }
 
