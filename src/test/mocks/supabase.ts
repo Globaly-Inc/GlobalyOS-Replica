@@ -35,45 +35,78 @@ export const mockEmployee = {
   status: 'active',
 };
 
+// Result type
+interface MockResult {
+  data: unknown[] | null;
+  error: null;
+}
+
+// Thenable mock type that allows chaining
+interface ChainableMock extends PromiseLike<MockResult> {
+  eq: (col: string, val: unknown) => ChainableMock;
+  neq: (col: string, val: unknown) => ChainableMock;
+  single: () => Promise<{ data: null; error: null }>;
+  maybeSingle: () => Promise<{ data: null; error: null }>;
+  order: (col: string, opts?: unknown) => ChainableMock;
+  limit: (n: number) => ChainableMock;
+  range: (start: number, end: number) => ChainableMock;
+  ilike: (col: string, pattern: string) => ChainableMock;
+  select: (cols?: string) => ChainableMock;
+}
+
+// Create a chainable mock that is also thenable (like Supabase queries)
+const createChainable = (): ChainableMock => {
+  const result: MockResult = { data: [], error: null };
+  
+  const chainable: ChainableMock = {
+    eq: (_col: string, _val: unknown) => chainable,
+    neq: (_col: string, _val: unknown) => chainable,
+    single: () => Promise.resolve({ data: null, error: null }),
+    maybeSingle: () => Promise.resolve({ data: null, error: null }),
+    order: (_col: string, _opts?: unknown) => chainable,
+    limit: (_n: number) => chainable,
+    range: (_start: number, _end: number) => chainable,
+    ilike: (_col: string, _pattern: string) => chainable,
+    select: (_cols?: string) => chainable,
+    then: <TResult1 = MockResult, TResult2 = never>(
+      onfulfilled?: ((value: MockResult) => TResult1 | PromiseLike<TResult1>) | null,
+      onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
+    ): PromiseLike<TResult1 | TResult2> => {
+      return Promise.resolve(result).then(onfulfilled, onrejected);
+    }
+  };
+  
+  return chainable;
+};
+
 // Create mock Supabase client
 export const createMockSupabaseClient = () => {
-  const createChainable = (): Record<string, ReturnType<typeof vi.fn>> => {
-    const chainable: Record<string, ReturnType<typeof vi.fn>> = {};
-    chainable.eq = vi.fn().mockReturnValue(chainable);
-    chainable.neq = vi.fn().mockReturnValue(chainable);
-    chainable.single = vi.fn().mockResolvedValue({ data: null, error: null });
-    chainable.maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
-    chainable.order = vi.fn().mockReturnValue(chainable);
-    chainable.limit = vi.fn().mockReturnValue(chainable);
-    chainable.range = vi.fn().mockReturnValue(chainable);
-    chainable.then = vi.fn((resolve) => resolve({ data: [], error: null }));
-    chainable.select = vi.fn().mockReturnValue(chainable);
-    return chainable;
-  };
-
-  const mockFrom = vi.fn((_table: string) => {
+  const mockFrom = (_table: string) => {
     const chainable = createChainable();
     return {
-      select: vi.fn((_columns?: string) => chainable),
-      insert: vi.fn((_data: unknown) => chainable),
-      update: vi.fn((_data: unknown) => chainable),
-      delete: vi.fn(() => chainable),
+      select: (_columns?: string) => chainable,
+      insert: (_data: unknown) => chainable,
+      update: (_data: unknown) => chainable,
+      delete: () => chainable,
     };
-  });
-
-  const mockAuth = {
-    getUser: vi.fn().mockResolvedValue({ data: { user: mockUser }, error: null }),
-    getSession: vi.fn().mockResolvedValue({ data: { session: { user: mockUser } }, error: null }),
-    signInWithOtp: vi.fn().mockResolvedValue({ data: {}, error: null }),
-    signOut: vi.fn().mockResolvedValue({ error: null }),
-    onAuthStateChange: vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } }),
   };
 
-  const mockRpc = vi.fn().mockResolvedValue({ data: null, error: null });
+  const mockAuth = {
+    getUser: vi.fn(() => Promise.resolve({ data: { user: mockUser }, error: null })),
+    getSession: vi.fn(() => Promise.resolve({ data: { session: { user: mockUser } }, error: null })),
+    signInWithOtp: vi.fn(() => Promise.resolve({ data: {}, error: null })),
+    signOut: vi.fn(() => Promise.resolve({ error: null })),
+    onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
+  };
+
+  // Mock rpc that accepts function name and optional params
+  const mockRpc = (_funcName: string, _params?: Record<string, unknown>) => {
+    return Promise.resolve({ data: null, error: null });
+  };
 
   const mockChannel = vi.fn(() => ({
     on: vi.fn().mockReturnThis(),
-    subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }),
+    subscribe: vi.fn(() => ({ unsubscribe: vi.fn() })),
   }));
 
   return {
