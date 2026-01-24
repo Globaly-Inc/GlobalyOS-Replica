@@ -29,7 +29,8 @@ function detectQueryType(question: string): "internal" | "general" {
     "announcement", "wiki", "policy", "procedure", "document",
     "calendar", "event", "holiday", "meeting",
     "manager", "department", "office", "org chart",
-    "my ", "our ", "company", "organization"
+    "my ", "our ", "company", "organization",
+    "hr", "human resources", "people team", "admin"
   ];
   
   const lowerQuestion = question.toLowerCase();
@@ -140,8 +141,6 @@ serve(async (req) => {
       .eq("organization_id", organizationId)
       .maybeSingle();
 
-    // Type assertion for profile (Supabase returns array but we use !inner for single)
-
     // Get user's role in the organization
     const { data: userRole } = await supabase
       .from("user_roles")
@@ -168,25 +167,30 @@ serve(async (req) => {
       .eq("id", organizationId)
       .single();
 
-    // Fetch distinct departments from employees
-    const { data: departmentsData } = await supabase
-      .from("employees")
-      .select("department")
+    // Fetch departments from the departments table (proper normalized table)
+    const { data: departmentsFromTable } = await supabase
+      .from("departments")
+      .select("id, name, description")
       .eq("organization_id", organizationId)
-      .eq("status", "active")
-      .not("department", "is", null);
+      .limit(50);
 
-    const uniqueDepartments = [...new Set(departmentsData?.map(d => d.department).filter(Boolean) || [])];
-
-    // Fetch distinct positions/roles
-    const { data: positionsData } = await supabase
-      .from("employees")
-      .select("position")
+    // Fetch positions from the positions table (proper normalized table)
+    const { data: positionsFromTable } = await supabase
+      .from("positions")
+      .select("id, name, department, description")
       .eq("organization_id", organizationId)
-      .eq("status", "active")
-      .not("position", "is", null);
+      .limit(100);
 
-    const uniquePositions = [...new Set(positionsData?.map(p => p.position).filter(Boolean) || [])].slice(0, 15);
+    // Build department names from the proper table
+    const uniqueDepartments = departmentsFromTable?.map(d => d.name).filter(Boolean) || [];
+
+    // Build positions from the proper table (grouped by department)
+    const positionsByDept: Record<string, string[]> = {};
+    positionsFromTable?.forEach(p => {
+      const dept = p.department || "Other";
+      if (!positionsByDept[dept]) positionsByDept[dept] = [];
+      positionsByDept[dept].push(p.name);
+    });
 
     // Build business context string
     const businessCategory = organization?.industry || "Not specified";
@@ -232,18 +236,43 @@ serve(async (req) => {
     const currentYear = new Date().getFullYear();
 
     if (currentEmployee) {
-      // User's leave balances
+      // User's leave balances - FIXED: Query leave_type_balances with leave_types join
       if (settings.leave_enabled) {
-        const { data: leaveBalances } = await supabase
-          .from("leave_balances")
-          .select("vacation_days, sick_days, pto_days, year")
+        // First try leave_type_balances (new schema)
+        const { data: leaveTypeBalances } = await supabase
+          .from("leave_type_balances")
+          .select(`
+            balance, 
+            year,
+            leave_types!inner(name, category)
+          `)
           .eq("employee_id", currentEmployee.id)
-          .eq("year", currentYear)
-          .maybeSingle();
+          .eq("year", currentYear);
+        
+        // If no balances for current year, try previous year as fallback
+        let balancesToUse = leaveTypeBalances;
+        let balanceYear = currentYear;
+        
+        if (!leaveTypeBalances || leaveTypeBalances.length === 0) {
+          const { data: prevYearBalances } = await supabase
+            .from("leave_type_balances")
+            .select(`
+              balance, 
+              year,
+              leave_types!inner(name, category)
+            `)
+            .eq("employee_id", currentEmployee.id)
+            .eq("year", currentYear - 1);
+          
+          if (prevYearBalances && prevYearBalances.length > 0) {
+            balancesToUse = prevYearBalances;
+            balanceYear = currentYear - 1;
+          }
+        }
         
         const { data: pendingLeaves } = await supabase
           .from("leave_requests")
-          .select("leave_type, start_date, end_date, status, reason")
+          .select("leave_type, start_date, end_date, status, reason, days_count")
           .eq("employee_id", currentEmployee.id)
           .in("status", ["pending", "approved"])
           .gte("end_date", new Date().toISOString().split("T")[0])
@@ -251,13 +280,17 @@ serve(async (req) => {
           .limit(10);
 
         userPersonalContext += `
-YOUR LEAVE BALANCES (${currentYear}):
-- Vacation Days: ${leaveBalances?.vacation_days ?? "N/A"} remaining
-- Sick Days: ${leaveBalances?.sick_days ?? "N/A"} remaining
-- PTO Days: ${leaveBalances?.pto_days ?? "N/A"} remaining
+YOUR LEAVE BALANCES (${balanceYear}):
+${balancesToUse && balancesToUse.length > 0 
+  ? balancesToUse.map((lb: any) => 
+      `- ${lb.leave_types?.name || "Unknown"}: ${lb.balance} days remaining (${lb.leave_types?.category || "N/A"})`
+    ).join("\n") 
+  : "No leave balances configured. Please contact HR to set up your leave entitlements."}
 
 YOUR PENDING/UPCOMING LEAVES:
-${pendingLeaves?.length ? pendingLeaves.map(l => `- ${l.leave_type}: ${l.start_date} to ${l.end_date} (${l.status})`).join("\n") : "No upcoming leaves"}
+${pendingLeaves?.length 
+  ? pendingLeaves.map(l => `- ${l.leave_type}: ${l.start_date} to ${l.end_date} (${l.days_count} days, ${l.status})`).join("\n") 
+  : "No upcoming leaves"}
 `;
       }
 
@@ -287,20 +320,32 @@ YOUR ATTENDANCE (Last 30 Days):
 `;
       }
 
-      // User's KPIs
+      // User's KPIs - ENHANCED: Better formatting for performance tracking questions
       if (settings.kpis_enabled) {
         const { data: userKpis } = await supabase
           .from("kpis")
-          .select("title, target_value, current_value, unit, status, period, due_date")
+          .select("title, target_value, current_value, unit, status, period, due_date, description")
           .eq("employee_id", currentEmployee.id)
           .order("created_at", { ascending: false })
           .limit(10);
 
+        const kpiStatusSummary = userKpis?.reduce((acc: Record<string, number>, k) => {
+          const status = k.status || "unknown";
+          acc[status] = (acc[status] || 0) + 1;
+          return acc;
+        }, {}) || {};
+
         userPersonalContext += `
-YOUR KPIs:
-${userKpis?.length ? userKpis.map(k => 
-  `- ${k.title}: ${k.current_value ?? 0}/${k.target_value ?? 0} ${k.unit || ""} (${k.status || "N/A"})${k.due_date ? ` - Due: ${k.due_date}` : ""}`
-).join("\n") : "No KPIs assigned"}
+YOUR KPIs/PERFORMANCE METRICS (${userKpis?.length || 0} total):
+${userKpis?.length ? userKpis.map(k => {
+  const progress = k.target_value ? ((k.current_value || 0) / k.target_value * 100).toFixed(0) : 0;
+  return `- ${k.title}
+    Progress: ${k.current_value ?? 0}/${k.target_value ?? 0} ${k.unit || ""} (${progress}%)
+    Status: ${k.status || "N/A"}
+    Period: ${k.period || "N/A"}${k.due_date ? ` | Due: ${k.due_date}` : ""}`;
+}).join("\n") : "No KPIs assigned to you. Contact your manager to set up performance goals."}
+
+KPI STATUS SUMMARY: ${Object.entries(kpiStatusSummary).map(([s, c]) => `${s}: ${c}`).join(", ") || "N/A"}
 `;
       }
     }
@@ -324,13 +369,23 @@ ${userKpis?.length ? userKpis.map(k =>
       if (directReports && directReports.length > 0) {
         const directReportIds = directReports.map(dr => dr.id);
         
-        // Get leave balances for direct reports
+        // Get leave balances for direct reports using leave_type_balances
         if (settings.leave_enabled) {
-          const { data: teamLeaves } = await supabase
-            .from("leave_balances")
-            .select("employee_id, vacation_days, sick_days, pto_days")
+          const { data: teamLeaveBalances } = await supabase
+            .from("leave_type_balances")
+            .select(`
+              employee_id, balance,
+              leave_types!inner(name)
+            `)
             .in("employee_id", directReportIds)
             .eq("year", currentYear);
+
+          // Group by employee
+          const teamLeaveMap: Record<string, string[]> = {};
+          teamLeaveBalances?.forEach((lb: any) => {
+            if (!teamLeaveMap[lb.employee_id]) teamLeaveMap[lb.employee_id] = [];
+            teamLeaveMap[lb.employee_id].push(`${lb.leave_types?.name}: ${lb.balance}`);
+          });
 
           const { data: teamPendingLeaves } = await supabase
             .from("leave_requests")
@@ -341,8 +396,8 @@ ${userKpis?.length ? userKpis.map(k =>
           teamDataContext += `
 YOUR DIRECT REPORTS (${directReports.length}):
 ${directReports.map(dr => {
-  const leave = teamLeaves?.find(l => l.employee_id === dr.id);
-  return `- ${(dr as any).profiles?.full_name}: ${dr.position} | Vacation: ${leave?.vacation_days ?? "N/A"}, Sick: ${leave?.sick_days ?? "N/A"}`;
+  const leaveInfo = teamLeaveMap[dr.id]?.join(", ") || "No balances";
+  return `- ${(dr as any).profiles?.full_name}: ${dr.position} | ${leaveInfo}`;
 }).join("\n")}
 
 PENDING LEAVE REQUESTS FROM YOUR TEAM:
@@ -399,6 +454,86 @@ ${allPendingLeaves?.slice(0, 5).map(l =>
 ).join("\n") || "None"}
 `;
       }
+    }
+
+    // ========================================
+    // HR & ADMIN CONTACTS CONTEXT
+    // ========================================
+    let hrContactsContext = "";
+    
+    // Fetch employees in HR-related departments
+    const { data: hrDeptEmployees } = await supabase
+      .from("employees")
+      .select(`
+        id, position, department,
+        profiles!inner(full_name, email)
+      `)
+      .eq("organization_id", organizationId)
+      .eq("status", "active")
+      .or("department.ilike.%hr%,department.ilike.%human resources%,department.ilike.%people%");
+
+    // Fetch users with HR/Admin/Owner roles
+    const { data: hrRoleUsers } = await supabase
+      .from("user_roles")
+      .select("role, user_id")
+      .eq("organization_id", organizationId)
+      .in("role", ["hr", "admin", "owner"]);
+
+    // Get employee details for role users
+    let roleEmployees: any[] = [];
+    if (hrRoleUsers && hrRoleUsers.length > 0) {
+      const userIds = hrRoleUsers.map(r => r.user_id);
+      const { data: empData } = await supabase
+        .from("employees")
+        .select(`
+          id, position, department, user_id,
+          profiles!inner(full_name, email)
+        `)
+        .eq("organization_id", organizationId)
+        .in("user_id", userIds);
+      
+      roleEmployees = (empData || []).map(e => ({
+        ...e,
+        role: hrRoleUsers.find(r => r.user_id === e.user_id)?.role
+      }));
+    }
+
+    // Combine and deduplicate HR contacts
+    const hrPeopleMap = new Map();
+    
+    hrDeptEmployees?.forEach(e => {
+      hrPeopleMap.set(e.id, {
+        name: (e as any).profiles?.full_name,
+        position: e.position,
+        department: e.department,
+        source: "HR Department"
+      });
+    });
+    
+    roleEmployees.forEach(e => {
+      if (!hrPeopleMap.has(e.id)) {
+        hrPeopleMap.set(e.id, {
+          name: (e as any).profiles?.full_name,
+          position: e.position,
+          role: e.role,
+          source: `${e.role} role`
+        });
+      } else {
+        // Add role info to existing entry
+        const existing = hrPeopleMap.get(e.id);
+        existing.role = e.role;
+      }
+    });
+
+    const hrPeople = Array.from(hrPeopleMap.values());
+    
+    if (hrPeople.length > 0) {
+      hrContactsContext = `
+HR & ADMIN CONTACTS (People who handle HR matters):
+${hrPeople.map(p => 
+  `- ${p.name}: ${p.position || "N/A"}${p.department ? ` (${p.department})` : ""}${p.role ? ` [${p.role.toUpperCase()}]` : ""}`
+).join("\n")}
+`;
     }
 
     // ========================================
@@ -490,6 +625,24 @@ ${allPendingLeaves?.slice(0, 5).map(l =>
     }
 
     // ========================================
+    // BUILD ORGANIZATION STRUCTURE CONTEXT
+    // ========================================
+    let orgStructureContext = "";
+    if (uniqueDepartments.length > 0 || Object.keys(positionsByDept).length > 0) {
+      orgStructureContext = `
+ORGANIZATION STRUCTURE:
+
+DEPARTMENTS (${uniqueDepartments.length}):
+${uniqueDepartments.map(d => `- ${d}`).join("\n") || "No departments defined"}
+
+POSITIONS BY DEPARTMENT:
+${Object.entries(positionsByDept).map(([dept, positions]) => 
+  `${dept}:\n${positions.map(p => `  - ${p}`).join("\n")}`
+).join("\n\n") || "No positions defined"}
+`;
+    }
+
+    // ========================================
     // BUILD SYSTEM PROMPT
     // ========================================
     const profile = currentEmployee?.profiles as unknown as { full_name: string; avatar_url: string; email: string } | null;
@@ -498,7 +651,7 @@ ${allPendingLeaves?.slice(0, 5).map(l =>
     const systemPrompt = `You are GlobalyOS AI - a powerful, helpful AI assistant that operates in TWO modes:
 
 ## MODE 1: ORGANIZATION KNOWLEDGE (Internal Queries)
-When the user asks about their organization, team, policies, leave, attendance, KPIs, wiki, etc., answer using the provided organization context below.
+When the user asks about their organization, team, policies, leave, attendance, KPIs, etc., answer using the provided organization context below.
 
 ## MODE 2: GENERAL ASSISTANT (External Queries)
 When the user asks for general help like:
@@ -508,7 +661,14 @@ When the user asks for general help like:
 - Creative writing, brainstorming
 - Any query NOT related to internal org data
 
-Act as a helpful, knowledgeable AI assistant and provide comprehensive answers. You can help with anything a user needs.
+Act as a helpful, knowledgeable AI assistant and provide comprehensive answers.
+
+## KEY DATA RELATIONSHIPS - USE THIS TO ANSWER QUESTIONS:
+- **LEAVE BALANCES**: When asked "what's my leave balance" or "how many vacation days", check "YOUR LEAVE BALANCES" section - shows days per leave type (Annual Leave, Sick Leave, Unpaid Leave, etc.)
+- **PERFORMANCE/KPIs**: When asked "how is my performance" or "my goals" or "my KPIs", check "YOUR KPIs/PERFORMANCE METRICS" section - these ARE your performance tracking metrics
+- **HR CONTACTS**: When asked "who handles HR" or "who should I contact for leave/HR issues", check "HR & ADMIN CONTACTS" section
+- **ORG STRUCTURE**: When asked about departments, positions, organization chart, check "ORGANIZATION STRUCTURE" section
+- **TEAM**: When asked to find someone or "who works here", check "TEAM DIRECTORY" section
 
 ## CRITICAL PRIVACY & SECURITY RULES:
 - NEVER share salary, bank details, tax info, or sensitive HR data of ANY user
@@ -517,7 +677,6 @@ Act as a helpful, knowledgeable AI assistant and provide comprehensive answers. 
 - Admin/HR/Owner have broader access as shown in context
 - NEVER expose data from other organizations
 - If organization knowledge doesn't contain the answer, say so clearly
-- For general queries, don't include internal org data in responses
 
 ## ORGANIZATION BUSINESS CONTEXT:
 - Company Name: ${companyName}
@@ -525,14 +684,8 @@ Act as a helpful, knowledgeable AI assistant and provide comprehensive answers. 
 - Company Size: ${companySize}
 - Country: ${companyCountry}
 - Timezone: ${companyTimezone}
-- Departments: ${uniqueDepartments.length > 0 ? uniqueDepartments.join(", ") : "Not defined"}
-- Key Roles/Positions: ${uniquePositions.length > 0 ? uniquePositions.join(", ") : "Not defined"}
 
-When answering questions:
-1. Consider the "${businessCategory}" business category context when providing advice or examples
-2. Use terminology appropriate to a ${companySize} company in the ${businessCategory} sector
-3. Reference relevant departments or roles when applicable
-4. If discussing policies or procedures, frame them appropriately for this business type
+${orgStructureContext}
 
 ## CURRENT USER CONTEXT:
 Name: ${userName}
@@ -545,6 +698,9 @@ ${userPersonalContext || "Personal data not available or disabled."}
 
 ${teamDataContext ? `--- TEAM DATA (You have access as ${role}) ---
 ${teamDataContext}` : ""}
+
+${hrContactsContext ? `--- HR & ADMIN CONTACTS ---
+${hrContactsContext}` : ""}
 
 ${queryType === "internal" ? `--- ORGANIZATION WIKI & KNOWLEDGE BASE ---
 ${wikiContext || "No wiki content available."}
@@ -559,7 +715,14 @@ ${announcementsContext || "No recent announcements."}
 ${calendarContext || "No upcoming events."}` : ""}
 ---
 
-Respond naturally based on the query type. Be helpful, accurate, and professional. For internal queries, cite sources when relevant (Wiki, Team Directory, Calendar, etc.). For general queries, be thorough and helpful.`;
+## RESPONSE GUIDELINES:
+1. For leave balance questions: List each leave type with exact balance (e.g., "Annual Leave: 5 days, Sick Leave: 7 days")
+2. For performance questions: List KPIs with progress percentages and status
+3. For HR contact questions: List the people with their positions and roles
+4. Always be specific with numbers and data when available
+5. If data is empty or not available, explain why and suggest next steps
+
+Respond naturally based on the query type. Be helpful, accurate, and professional.`;
 
     const messages = [
       { role: "system", content: systemPrompt },
