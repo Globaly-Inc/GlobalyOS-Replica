@@ -43,6 +43,12 @@ interface PositionData {
   id: string;
   name: string;
   department: string | null;
+  department_id: string | null;
+}
+
+interface DepartmentData {
+  id: string;
+  name: string;
 }
 
 const ROLE_OPTIONS = [
@@ -99,8 +105,9 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
   const [members, setMembers] = useState<MemberFormData[]>([createEmptyMember()]);
   
   // Data loading
-  const [departments, setDepartments] = useState<string[]>([]);
+  const [departments, setDepartments] = useState<DepartmentData[]>([]);
   const [positions, setPositions] = useState<PositionData[]>([]);
+  const [departmentNames, setDepartmentNames] = useState<string[]>([]);
   const [offices, setOffices] = useState<Office[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [ownerInfo, setOwnerInfo] = useState<{ id: string; name: string } | null>(null);
@@ -119,8 +126,7 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
 
   useEffect(() => {
     if (open && currentOrg) {
-      loadDepartments();
-      loadPositions();
+      loadDepartmentsAndPositions();
       loadOffices();
       loadTeamMembers();
       loadOwnerInfo();
@@ -155,16 +161,31 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
     setTempImageSources({});
   };
 
-  const loadDepartments = async () => {
+  const loadDepartmentsAndPositions = async () => {
     if (!currentOrg) return;
-    const { data } = await supabase.from('employees').select('department').eq('organization_id', currentOrg.id).order('department');
-    if (data) setDepartments([...new Set(data.map(e => e.department))].filter(Boolean) as string[]);
-  };
-
-  const loadPositions = async () => {
-    if (!currentOrg) return;
-    const { data } = await supabase.from('positions').select('id, name, department').eq('organization_id', currentOrg.id).order('name');
-    if (data) setPositions(data);
+    
+    // Load from departments table (single source of truth)
+    const [deptResult, posResult] = await Promise.all([
+      supabase
+        .from('departments')
+        .select('id, name')
+        .eq('organization_id', currentOrg.id)
+        .order('name'),
+      supabase
+        .from('positions')
+        .select('id, name, department, department_id')
+        .eq('organization_id', currentOrg.id)
+        .order('department')
+        .order('name')
+    ]);
+    
+    if (deptResult.data) {
+      setDepartments(deptResult.data);
+      setDepartmentNames(deptResult.data.map(d => d.name));
+    }
+    if (posResult.data) {
+      setPositions(posResult.data);
+    }
   };
 
   const loadOffices = async () => {
@@ -255,11 +276,24 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
     if (name.trim().length < 2) return;
     
     const trimmedName = name.trim();
-    if (!departments.includes(trimmedName)) {
-      setDepartments(prev => [...prev, trimmedName]);
-      
+    if (!departmentNames.includes(trimmedName)) {
+      // Insert into departments table
       if (currentOrg) {
         try {
+          const { data: newDept, error } = await supabase
+            .from('departments')
+            .insert({
+              organization_id: currentOrg.id,
+              name: trimmedName
+            })
+            .select('id, name')
+            .single();
+          
+          if (!error && newDept) {
+            setDepartments(prev => [...prev, newDept]);
+            setDepartmentNames(prev => [...prev, newDept.name]);
+          }
+          
           await supabase.functions.invoke('save-org-structure-learning', {
             body: {
               organizationId: currentOrg.id,
@@ -272,7 +306,7 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
             }
           });
         } catch (e) {
-          console.error('Failed to save learning:', e);
+          console.error('Failed to save department:', e);
         }
       }
     }
@@ -698,29 +732,29 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
                             onValueChange={(val) => setDepartmentSearches(prev => ({ ...prev, [index]: val }))}
                           />
                           <CommandList className="max-h-[200px]">
-                            {departments.filter(d => d.toLowerCase().includes((departmentSearches[index] || '').toLowerCase())).length === 0 && 
+                            {departmentNames.filter(d => d.toLowerCase().includes((departmentSearches[index] || '').toLowerCase())).length === 0 && 
                              (departmentSearches[index] || '').trim().length < 2 && (
                               <CommandEmpty>No departments found.</CommandEmpty>
                             )}
                             <CommandGroup>
-                              {departments
+                              {departmentNames
                                 .filter(d => d.toLowerCase().includes((departmentSearches[index] || '').toLowerCase()))
-                                .map((dept) => (
+                                .map((deptName) => (
                                   <CommandItem
-                                    key={dept}
-                                    value={dept}
+                                    key={deptName}
+                                    value={deptName}
                                     onSelect={() => {
-                                      updateMember(index, 'department', dept);
+                                      updateMember(index, 'department', deptName);
                                       setDepartmentOpenStates(prev => ({ ...prev, [index]: false }));
                                       setDepartmentSearches(prev => ({ ...prev, [index]: '' }));
                                     }}
                                   >
-                                    <Check className={cn('mr-2 h-4 w-4', member.department === dept ? 'opacity-100' : 'opacity-0')} />
-                                    {dept}
+                                    <Check className={cn('mr-2 h-4 w-4', member.department === deptName ? 'opacity-100' : 'opacity-0')} />
+                                    {deptName}
                                   </CommandItem>
                                 ))}
                               {(departmentSearches[index] || '').trim().length >= 2 && 
-                               !departments.some(d => d.toLowerCase() === (departmentSearches[index] || '').toLowerCase()) && (
+                               !departmentNames.some(d => d.toLowerCase() === (departmentSearches[index] || '').toLowerCase()) && (
                                 <CommandItem
                                   value={`add-${departmentSearches[index]}`}
                                   onSelect={() => handleAddNewDepartment(index, departmentSearches[index] || '')}

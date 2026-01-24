@@ -2193,6 +2193,44 @@ export type Database = {
         }
         Relationships: []
       }
+      departments: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          organization_id: string
+          sort_order: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          organization_id: string
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "departments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_delivery_log: {
         Row: {
           created_at: string | null
@@ -2830,6 +2868,7 @@ export type Database = {
           created_at: string
           date_of_birth: string | null
           department: string
+          department_id: string | null
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
           emergency_contact_relationship: string | null
@@ -2856,6 +2895,7 @@ export type Database = {
           place_id: string | null
           position: string
           position_effective_date: string | null
+          position_id: string | null
           postcode: string | null
           remuneration: number | null
           remuneration_currency: string | null
@@ -2881,6 +2921,7 @@ export type Database = {
           created_at?: string
           date_of_birth?: string | null
           department: string
+          department_id?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
           emergency_contact_relationship?: string | null
@@ -2907,6 +2948,7 @@ export type Database = {
           place_id?: string | null
           position: string
           position_effective_date?: string | null
+          position_id?: string | null
           postcode?: string | null
           remuneration?: number | null
           remuneration_currency?: string | null
@@ -2932,6 +2974,7 @@ export type Database = {
           created_at?: string
           date_of_birth?: string | null
           department?: string
+          department_id?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
           emergency_contact_relationship?: string | null
@@ -2958,6 +3001,7 @@ export type Database = {
           place_id?: string | null
           position?: string
           position_effective_date?: string | null
+          position_id?: string | null
           postcode?: string | null
           remuneration?: number | null
           remuneration_currency?: string | null
@@ -2975,6 +3019,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "employees_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "employees_legal_entity_id_fkey"
             columns: ["legal_entity_id"]
@@ -3015,6 +3066,13 @@ export type Database = {
             columns: ["payroll_profile_id"]
             isOneToOne: false
             referencedRelation: "payroll_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
             referencedColumns: ["id"]
           },
           {
@@ -6658,6 +6716,7 @@ export type Database = {
           ai_generated_at: string | null
           created_at: string
           department: string | null
+          department_id: string | null
           description: string | null
           id: string
           name: string
@@ -6668,6 +6727,7 @@ export type Database = {
           ai_generated_at?: string | null
           created_at?: string
           department?: string | null
+          department_id?: string | null
           description?: string | null
           id?: string
           name: string
@@ -6678,6 +6738,7 @@ export type Database = {
           ai_generated_at?: string | null
           created_at?: string
           department?: string | null
+          department_id?: string | null
           description?: string | null
           id?: string
           name?: string
@@ -6685,6 +6746,13 @@ export type Database = {
           responsibilities?: string[] | null
         }
         Relationships: [
+          {
+            foreignKeyName: "positions_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "positions_organization_id_fkey"
             columns: ["organization_id"]

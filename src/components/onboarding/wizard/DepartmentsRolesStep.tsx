@@ -370,29 +370,43 @@ export function DepartmentsRolesStep({
     setIsSubmitting(true);
 
     try {
-      // Delete ALL existing positions for this organization
-      const { error: deleteError } = await supabase
-        .from('positions')
-        .delete()
-        .eq('organization_id', organizationId);
+      // Step 1: Delete existing departments and positions for this organization
+      await supabase.from('departments').delete().eq('organization_id', organizationId);
+      await supabase.from('positions').delete().eq('organization_id', organizationId);
 
-      if (deleteError) {
-        console.error('Failed to clear existing positions:', deleteError);
+      // Step 2: Create department records in the departments table
+      const departmentIdMap: Record<string, string> = {};
+      for (const deptName of finalDepartments) {
+        const { data: deptData, error: deptError } = await supabase
+          .from('departments')
+          .insert({
+            organization_id: organizationId,
+            name: deptName,
+          })
+          .select('id')
+          .single();
+
+        if (deptError) {
+          console.error('Failed to insert department:', deptName, deptError);
+        } else if (deptData) {
+          departmentIdMap[deptName] = deptData.id;
+        }
       }
 
-      // Insert the user-selected positions with template descriptions if available
+      // Step 3: Insert the user-selected positions with department_id
       for (const position of finalPositions) {
         const templateData = positionTemplateDetails.get(position.name);
+        const departmentId = departmentIdMap[position.department] || null;
+        
         const { error } = await supabase
           .from('positions')
           .insert({
             organization_id: organizationId,
             name: position.name,
             department: position.department,
-            // Copy description and responsibilities from templates
+            department_id: departmentId,
             description: templateData?.description || null,
             responsibilities: templateData?.responsibilities || null,
-            // Mark as AI-generated if we have template data
             ai_generated_at: templateData?.description ? new Date().toISOString() : null,
           })
           .select()
