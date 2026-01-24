@@ -119,39 +119,107 @@ export type Database = {
           },
         ]
       }
+      ai_conversation_participants: {
+        Row: {
+          added_at: string | null
+          added_by: string | null
+          can_send_messages: boolean | null
+          conversation_id: string
+          employee_id: string
+          id: string
+          organization_id: string
+          role: string | null
+        }
+        Insert: {
+          added_at?: string | null
+          added_by?: string | null
+          can_send_messages?: boolean | null
+          conversation_id: string
+          employee_id: string
+          id?: string
+          organization_id: string
+          role?: string | null
+        }
+        Update: {
+          added_at?: string | null
+          added_by?: string | null
+          can_send_messages?: boolean | null
+          conversation_id?: string
+          employee_id?: string
+          id?: string
+          organization_id?: string
+          role?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_conversation_participants_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_conversation_participants_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_conversation_participants_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_conversation_participants_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_conversations: {
         Row: {
           created_at: string | null
           id: string
           is_archived: boolean | null
           is_pinned: boolean | null
+          is_shared: boolean | null
           last_message_at: string | null
           organization_id: string
           title: string
           updated_at: string | null
           user_id: string
+          visibility: string | null
         }
         Insert: {
           created_at?: string | null
           id?: string
           is_archived?: boolean | null
           is_pinned?: boolean | null
+          is_shared?: boolean | null
           last_message_at?: string | null
           organization_id: string
           title?: string
           updated_at?: string | null
           user_id: string
+          visibility?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
           is_archived?: boolean | null
           is_pinned?: boolean | null
+          is_shared?: boolean | null
           last_message_at?: string | null
           organization_id?: string
           title?: string
           updated_at?: string | null
           user_id?: string
+          visibility?: string | null
         }
         Relationships: [
           {
@@ -205,6 +273,68 @@ export type Database = {
             foreignKeyName: "ai_indexing_status_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_internal_notes: {
+        Row: {
+          author_employee_id: string
+          content: string
+          conversation_id: string
+          created_at: string | null
+          id: string
+          mentioned_employee_ids: string[] | null
+          organization_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          author_employee_id: string
+          content: string
+          conversation_id: string
+          created_at?: string | null
+          id?: string
+          mentioned_employee_ids?: string[] | null
+          organization_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          author_employee_id?: string
+          content?: string
+          conversation_id?: string
+          created_at?: string | null
+          id?: string
+          mentioned_employee_ids?: string[] | null
+          organization_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_internal_notes_author_employee_id_fkey"
+            columns: ["author_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_internal_notes_author_employee_id_fkey"
+            columns: ["author_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_internal_notes_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_internal_notes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
@@ -275,6 +405,7 @@ export type Database = {
           metadata: Json | null
           organization_id: string
           role: string
+          sender_employee_id: string | null
         }
         Insert: {
           content: string
@@ -284,6 +415,7 @@ export type Database = {
           metadata?: Json | null
           organization_id: string
           role: string
+          sender_employee_id?: string | null
         }
         Update: {
           content?: string
@@ -293,6 +425,7 @@ export type Database = {
           metadata?: Json | null
           organization_id?: string
           role?: string
+          sender_employee_id?: string | null
         }
         Relationships: [
           {
@@ -307,6 +440,20 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_messages_sender_employee_id_fkey"
+            columns: ["sender_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_messages_sender_employee_id_fkey"
+            columns: ["sender_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
         ]
