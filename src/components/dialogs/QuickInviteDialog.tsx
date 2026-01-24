@@ -551,7 +551,7 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
                 />
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground mb-1.5 block">Work Email (username for login with OTP) *</Label>
+                <Label className="text-xs text-muted-foreground mb-1.5 block">Work Email (Username for Login) *</Label>
                 <Input
                   type="email"
                   value={formData.email}
