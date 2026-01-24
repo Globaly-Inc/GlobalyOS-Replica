@@ -36,6 +36,50 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
+    // SECURITY: Verify authentication
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Missing authorization header" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+    if (authError || !user) {
+      console.error("Auth error:", authError);
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // SECURITY: Verify user is a member of the organization
+    const { data: employee, error: membershipError } = await supabase
+      .from("employees")
+      .select("id, organization_id")
+      .eq("user_id", user.id)
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+
+    if (membershipError) {
+      console.error("Membership check error:", membershipError);
+      return new Response(JSON.stringify({ error: "Failed to verify organization membership" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!employee) {
+      console.warn("Unauthorized organization access attempt:", { userId: user.id, organizationId });
+      return new Response(JSON.stringify({ error: "You are not a member of this organization" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Check feature limit before processing
     const { data: limitCheck, error: limitError } = await supabase
       .rpc('check_feature_limit', {
@@ -62,7 +106,7 @@ serve(async (req) => {
       });
     }
 
-    // Fetch wiki pages for context
+    // Fetch wiki pages for context (user is now verified as org member)
     const { data: pages, error: pagesError } = await supabase
       .from("wiki_pages")
       .select("title, content")
