@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, MessageSquare, CheckSquare, Briefcase, Flag, GitBranch, Wallet, Bot } from "lucide-react";
 import { toast } from "sonner";
 import { useAdminActivityLog } from "@/hooks/useAdminActivityLog";
@@ -160,31 +159,21 @@ export const OrganizationFeaturesManager = ({
           Enable or disable features for this organization
         </CardDescription>
       </CardHeader>
-      <CardContent className="p-0">
-        <ScrollArea className="h-[300px] px-6 py-4">
-          <div className="space-y-4">
-            {AVAILABLE_FEATURES.map((feature) => {
-              const Icon = feature.icon;
-              const isEnabled = features[feature.name] ?? false;
-              const isUpdating = updating === feature.name;
+      <CardContent className="p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {AVAILABLE_FEATURES.map((feature) => {
+            const Icon = feature.icon;
+            const isEnabled = features[feature.name] ?? false;
+            const isUpdating = updating === feature.name;
 
-              return (
-                <div
-                  key={feature.name}
-                  className="flex items-center justify-between rounded-lg border p-4"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                      <Icon className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <Label htmlFor={feature.name} className="text-sm font-medium">
-                        {feature.label}
-                      </Label>
-                      <p className="text-xs text-muted-foreground">
-                        {feature.description}
-                      </p>
-                    </div>
+            return (
+              <div
+                key={feature.name}
+                className="flex flex-col rounded-lg border p-4 h-full"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                    <Icon className="h-5 w-5 text-primary" />
                   </div>
                   <div className="flex items-center gap-2">
                     {isUpdating && (
@@ -198,10 +187,18 @@ export const OrganizationFeaturesManager = ({
                     />
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </ScrollArea>
+                <div className="flex-1">
+                  <Label htmlFor={feature.name} className="text-sm font-medium">
+                    {feature.label}
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {feature.description}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </CardContent>
     </Card>
   );
