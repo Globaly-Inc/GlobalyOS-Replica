@@ -1,373 +1,128 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useOrganization } from "@/hooks/useOrganization";
-import { PageHeader } from "@/components/PageHeader";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Skeleton } from "@/components/ui/skeleton";
+import { AskAISidebar } from "@/components/ask-ai/AskAISidebar";
+import { AskAIConversation } from "@/components/ask-ai/AskAIConversation";
+import { AskAIEmptyState } from "@/components/ask-ai/AskAIEmptyState";
+import { AskAIInput } from "@/components/ask-ai/AskAIInput";
+import {
+  useAIConversations,
+  useCreateConversation,
+  useAddMessage,
+} from "@/services/useAIConversations";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { 
-  Sparkles, 
-  Send, 
-  Loader2, 
-  Lightbulb, 
-  History,
-  MessageCircle
-} from "lucide-react";
-
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-}
-
-interface ConversationRecord {
-  question: string;
-  timestamp: number;
-  topics: string[];
-}
-
-const STORAGE_KEY = "globalai_conversation_history";
-const MAX_HISTORY_ITEMS = 50;
-
-const extractTopics = (question: string): string[] => {
-  const topicPatterns = [
-    { pattern: /\b(team|employee|staff|member|colleague|who)\b/i, topic: "team" },
-    { pattern: /\b(department|engineering|sales|marketing|hr|design|management)\b/i, topic: "department" },
-    { pattern: /\b(wiki|document|policy|guide|how to)\b/i, topic: "wiki" },
-    { pattern: /\b(leave|vacation|pto|sick|holiday|time off)\b/i, topic: "leave" },
-    { pattern: /\b(kpi|performance|goal|target|metric)\b/i, topic: "kpi" },
-    { pattern: /\b(announcement|update|news|recent)\b/i, topic: "announcements" },
-    { pattern: /\b(chat|message|conversation)\b/i, topic: "chat" },
-    { pattern: /\b(project|task|work)\b/i, topic: "projects" },
-    { pattern: /\b(manager|lead|report|supervisor)\b/i, topic: "hierarchy" },
-    { pattern: /\b(office|location|address)\b/i, topic: "offices" },
-  ];
-
-  const topics: string[] = [];
-  topicPatterns.forEach(({ pattern, topic }) => {
-    if (pattern.test(question)) {
-      topics.push(topic);
-    }
-  });
-
-  return topics.length > 0 ? topics : ["general"];
-};
-
-const generateSmartSuggestions = (history: ConversationRecord[]): string[] => {
-  if (history.length === 0) {
-    return [
-      "Who works in the Engineering department?",
-      "What are our company policies?",
-      "Show me recent announcements",
-      "Who is my team lead?",
-    ];
-  }
-
-  const recentHistory = history.slice(-10);
-  const topicCounts: Record<string, number> = {};
-  
-  recentHistory.forEach((record) => {
-    record.topics.forEach((topic) => {
-      topicCounts[topic] = (topicCounts[topic] || 0) + 1;
-    });
-  });
-
-  const sortedTopics = Object.entries(topicCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
-    .map(([topic]) => topic);
-
-  const topicSuggestions: Record<string, string[]> = {
-    team: ["Who recently joined?", "Show org chart", "Who is on my team?"],
-    department: ["Who leads this department?", "Department headcount?"],
-    wiki: ["Recent documentation?", "How do I request leave?"],
-    leave: ["My leave balance?", "How to request time off?"],
-    kpi: ["My current KPIs?", "Team performance?"],
-    announcements: ["Latest company news?", "Upcoming events?"],
-    chat: ["Recent discussions?", "Important messages?"],
-    projects: ["My projects?", "Project deadlines?"],
-    hierarchy: ["Who reports to me?", "Management structure?"],
-    offices: ["Office locations?", "Main office address?"],
-    general: ["What can you help with?", "About our company?"],
-  };
-
-  const suggestions: string[] = [];
-  
-  sortedTopics.forEach((topic) => {
-    if (topicSuggestions[topic]) {
-      const topicSugs = topicSuggestions[topic];
-      const randomSug = topicSugs[Math.floor(Math.random() * topicSugs.length)];
-      if (!suggestions.includes(randomSug)) {
-        suggestions.push(randomSug);
-      }
-    }
-  });
-
-  const lastQuestion = history[history.length - 1]?.question.toLowerCase() || "";
-  if (lastQuestion.includes("who")) {
-    suggestions.unshift("Tell me more about their role");
-  } else if (lastQuestion.includes("what")) {
-    suggestions.unshift("Explain in more detail?");
-  }
-
-  const generalSuggestions = ["What else should I know?", "Any related info?"];
-
-  while (suggestions.length < 4) {
-    const remaining = generalSuggestions.shift();
-    if (remaining && !suggestions.includes(remaining)) {
-      suggestions.push(remaining);
-    } else {
-      break;
-    }
-  }
-
-  return suggestions.slice(0, 4);
-};
+import { Loader2 } from "lucide-react";
 
 const AskAI = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isMobile = useIsMobile();
   const { currentOrg } = useOrganization();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [conversationHistory, setConversationHistory] = useState<ConversationRecord[]>([]);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(
+    searchParams.get("c") || null
+  );
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isCreatingWithMessage, setIsCreatingWithMessage] = useState(false);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(!searchParams.get("c"));
+
+  const { data: conversations = [] } = useAIConversations();
+  const createConversation = useCreateConversation();
+  const addMessage = useAddMessage();
+
+  const activeConversation = conversations.find((c) => c.id === activeConversationId);
 
   useEffect(() => {
-    if (currentOrg?.id) {
-      const key = `${STORAGE_KEY}_${currentOrg.id}`;
-      const stored = localStorage.getItem(key);
-      if (stored) {
-        try {
-          setConversationHistory(JSON.parse(stored));
-        } catch (e) {
-          console.error("Failed to parse conversation history:", e);
-        }
-      }
+    if (activeConversationId) {
+      setSearchParams({ c: activeConversationId }, { replace: true });
+    } else {
+      setSearchParams({}, { replace: true });
     }
-  }, [currentOrg?.id]);
+  }, [activeConversationId, setSearchParams]);
 
-  const saveToHistory = (question: string) => {
-    if (!currentOrg?.id) return;
-
-    const topics = extractTopics(question);
-    const newRecord: ConversationRecord = {
-      question,
-      timestamp: Date.now(),
-      topics,
-    };
-
-    const updatedHistory = [...conversationHistory, newRecord].slice(-MAX_HISTORY_ITEMS);
-    setConversationHistory(updatedHistory);
-
-    const key = `${STORAGE_KEY}_${currentOrg.id}`;
-    localStorage.setItem(key, JSON.stringify(updatedHistory));
+  const handleSelectConversation = (id: string | null) => {
+    setActiveConversationId(id);
+    if (isMobile) setShowMobileSidebar(false);
   };
 
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
+  const handleNewChat = () => {
+    setActiveConversationId(null);
+    if (isMobile) setShowMobileSidebar(false);
+  };
 
-  const smartSuggestions = useMemo(() => {
-    return generateSmartSuggestions(conversationHistory);
-  }, [conversationHistory]);
-
-  const handleSend = async () => {
-    if (!input.trim() || isLoading || !currentOrg?.id) return;
-
-    const userMessage = input.trim();
-    setInput("");
-    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
-    setIsLoading(true);
-
-    saveToHistory(userMessage);
+  const handleSendFirstMessage = async (message: string) => {
+    if (!currentOrg?.id) return;
+    setIsCreatingWithMessage(true);
 
     try {
+      const conversation = await createConversation.mutateAsync("New Conversation");
+      await addMessage.mutateAsync({ conversationId: conversation.id, role: "user", content: message });
+
       const { data, error } = await supabase.functions.invoke("global-ask-ai", {
-        body: {
-          question: userMessage,
-          organizationId: currentOrg.id,
-          conversationHistory: messages,
-          pastQuestions: conversationHistory.slice(-5).map((r) => r.question),
-        },
+        body: { question: message, organizationId: currentOrg.id, conversationId: conversation.id, conversationHistory: [] },
       });
 
-      if (error) throw error;
-
-      setMessages((prev) => [...prev, { role: "assistant", content: data.answer }]);
-    } catch (error: any) {
-      console.error("AI error:", error);
-      
-      if (error?.message?.includes("429") || error?.status === 429) {
-        toast.error("Rate limit exceeded. Please try again later.");
-      } else if (error?.message?.includes("402") || error?.status === 402) {
-        toast.error("AI credits exhausted. Please contact admin.");
+      if (error) {
+        if (error.message?.includes("429")) toast.error("Monthly AI query limit reached");
+        else throw error;
       } else {
-        toast.error("Failed to get AI response");
+        await addMessage.mutateAsync({ conversationId: conversation.id, role: "assistant", content: data.answer });
+        const title = message.slice(0, 50) + (message.length > 50 ? "..." : "");
+        await supabase.from("ai_conversations").update({ title }).eq("id", conversation.id);
       }
-      
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "I'm sorry, I encountered an error. Please try again." },
-      ]);
+      setActiveConversationId(conversation.id);
+    } catch (error) {
+      console.error("Failed to start conversation:", error);
+      toast.error("Failed to start conversation");
     } finally {
-      setIsLoading(false);
+      setIsCreatingWithMessage(false);
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
+  const handleMobileBack = () => {
+    setActiveConversationId(null);
+    setShowMobileSidebar(true);
+  };
+
+  if (isMobile) {
+    if (showMobileSidebar || !activeConversationId) {
+      return (
+        <div className="flex flex-col h-[calc(100vh-8rem)]">
+          <AskAISidebar activeId={activeConversationId} onSelect={handleSelectConversation} onNewChat={handleNewChat} isMobile />
+          {!activeConversationId && (
+            <div className="flex-1 flex flex-col">
+              <AskAIEmptyState onSendMessage={handleSendFirstMessage} isLoading={isCreatingWithMessage} />
+              <div className="p-4 border-t">
+                <AskAIInput onSend={handleSendFirstMessage} isLoading={isCreatingWithMessage} disabled={!currentOrg?.id} />
+              </div>
+            </div>
+          )}
+        </div>
+      );
     }
-  };
-
-  const handleSuggestionClick = (suggestion: string) => {
-    setInput(suggestion);
-  };
-
-  const recentQuestions = conversationHistory.slice(-3).reverse();
+    if (activeConversation) {
+      return (
+        <div className="h-[calc(100vh-8rem)]">
+          <AskAIConversation conversation={activeConversation} onBack={handleMobileBack} isMobile />
+        </div>
+      );
+    }
+    return <div className="flex items-center justify-center h-[calc(100vh-8rem)]"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+  }
 
   return (
-    <div className="space-y-4 md:space-y-6 pb-40 md:pb-24">
-      <div className="flex items-center gap-2 mb-4">
-        <Sparkles className="h-5 w-5 text-ai" />
-        <PageHeader title="Ask AI" />
-      </div>
-
-      {/* Info Card */}
-      <Card className="mb-4">
-        <CardContent className="py-3 px-4">
-          <p className="text-xs text-muted-foreground">
-            Get answers based on your organization data — Wiki, Team directory, and Chat.
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Messages Area */}
-      <div className="space-y-4">
-        {messages.length === 0 ? (
-          <div className="space-y-4">
-            {/* Empty State */}
-            <div className="text-center py-6">
-              <div className="h-16 w-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
-                <MessageCircle className="h-8 w-8 text-primary/50" />
-              </div>
-              <p className="text-sm text-muted-foreground">Ask anything about your organization</p>
-            </div>
-
-            {/* Suggestions */}
-            {smartSuggestions.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Lightbulb className="h-3.5 w-3.5" />
-                  <span className="font-medium">Suggested questions</span>
-                </div>
-                <div className="space-y-2">
-                  {smartSuggestions.map((q, i) => (
-                    <button
-                      key={i}
-                      onClick={() => handleSuggestionClick(q)}
-                      className="block w-full text-left text-sm px-3 py-2.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
-                    >
-                      {q}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Recent Questions */}
-            {recentQuestions.length > 0 && (
-              <div className="space-y-2 pt-2">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <History className="h-3.5 w-3.5" />
-                  <span className="font-medium">Recent questions</span>
-                </div>
-                {recentQuestions.map((record, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleSuggestionClick(record.question)}
-                    className="block w-full text-left text-xs px-3 py-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors truncate"
-                  >
-                    {record.question}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+    <div className="flex h-[calc(100vh-8rem)] overflow-hidden">
+      <AskAISidebar activeId={activeConversationId} onSelect={handleSelectConversation} onNewChat={handleNewChat} collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
+      <div className="flex-1 min-w-0 flex flex-col">
+        {activeConversation ? (
+          <AskAIConversation conversation={activeConversation} />
         ) : (
-          <div className="space-y-3">
-            {messages.map((message, index) => (
-              <div
-                key={index}
-                className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
-                    message.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted"
-                  }`}
-                >
-                  <p className="whitespace-pre-wrap">{message.content}</p>
-                </div>
-              </div>
-            ))}
-            
-            {isLoading && (
-              <div className="flex justify-start">
-                <div className="bg-muted rounded-2xl px-4 py-2.5">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                </div>
-              </div>
-            )}
-
-            {/* Follow-up suggestions */}
-            {!isLoading && messages.length > 0 && messages[messages.length - 1].role === "assistant" && (
-              <div className="pt-2">
-                <div className="flex flex-wrap gap-1.5">
-                  {smartSuggestions.slice(0, 3).map((q, i) => (
-                    <button
-                      key={i}
-                      onClick={() => handleSuggestionClick(q)}
-                      className="text-xs px-3 py-1.5 rounded-full bg-ai/10 text-ai hover:bg-ai/20 transition-colors"
-                    >
-                      {q}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <>
+            <div className="flex-1 overflow-auto"><AskAIEmptyState onSendMessage={handleSendFirstMessage} isLoading={isCreatingWithMessage} /></div>
+            <div className="p-4 border-t bg-background"><div className="max-w-3xl mx-auto"><AskAIInput onSend={handleSendFirstMessage} isLoading={isCreatingWithMessage} disabled={!currentOrg?.id} /></div></div>
+          </>
         )}
-        <div ref={scrollRef} />
-      </div>
-
-      {/* Fixed Input Area */}
-      <div className="fixed left-0 right-0 bg-background border-t border-border px-4 py-3 md:bottom-0 md:pb-0" style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' }}>
-        <div className="flex gap-2">
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask a question..."
-            disabled={isLoading || !currentOrg?.id}
-            className="h-12 rounded-full px-4"
-          />
-          <Button 
-            size="icon" 
-            className="h-12 w-12 rounded-full shrink-0" 
-            onClick={handleSend} 
-            disabled={isLoading || !input.trim() || !currentOrg?.id}
-          >
-            <Send className="h-5 w-5" />
-          </Button>
-        </div>
       </div>
     </div>
   );
