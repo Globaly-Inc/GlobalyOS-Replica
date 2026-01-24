@@ -4827,6 +4827,7 @@ export type Database = {
           leave_type: string
           leave_type_id: string | null
           new_balance: number
+          office_leave_type_id: string | null
           organization_id: string | null
           previous_balance: number
           reason: string | null
@@ -4846,6 +4847,7 @@ export type Database = {
           leave_type: string
           leave_type_id?: string | null
           new_balance: number
+          office_leave_type_id?: string | null
           organization_id?: string | null
           previous_balance?: number
           reason?: string | null
@@ -4865,6 +4867,7 @@ export type Database = {
           leave_type?: string
           leave_type_id?: string | null
           new_balance?: number
+          office_leave_type_id?: string | null
           organization_id?: string | null
           previous_balance?: number
           reason?: string | null
@@ -4913,6 +4916,13 @@ export type Database = {
             columns: ["leave_type_id"]
             isOneToOne: false
             referencedRelation: "leave_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_balance_logs_office_leave_type_id_fkey"
+            columns: ["office_leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "office_leave_types"
             referencedColumns: ["id"]
           },
           {
