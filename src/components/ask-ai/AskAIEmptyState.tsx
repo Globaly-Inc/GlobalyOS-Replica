@@ -178,7 +178,7 @@ export const AskAIEmptyState = ({
               <div className={`shrink-0 w-8 h-8 rounded-lg ${suggestion.bgColor} flex items-center justify-center group-hover:scale-110 transition-transform`}>
                 <Icon className={`w-4 h-4 ${suggestion.color}`} />
               </div>
-              <span className="text-sm font-medium leading-snug text-wrap break-words">{suggestion.text}</span>
+              <span className="text-sm leading-snug text-wrap break-words">{suggestion.text}</span>
             </Button>
           );
         })}
