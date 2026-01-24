@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,14 +6,19 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { UserPlus, Check, CalendarIcon, Plus, Loader2 } from "lucide-react";
+import { UserPlus, Check, CalendarIcon, Plus, Loader2, Camera, ChevronsUpDown, X, Users } from "lucide-react";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useEmploymentTypes } from "@/hooks/useEmploymentTypes";
 import { format } from "date-fns";
+import { ImageCropper } from "@/components/ui/image-cropper";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface QuickInviteDialogProps {
   open: boolean;
@@ -26,14 +31,39 @@ interface Office {
   name: string;
 }
 
+interface TeamMember {
+  id: string;
+  user_id: string;
+  profiles: {
+    full_name: string;
+    avatar_url: string | null;
+  };
+}
+
+interface PositionData {
+  id: string;
+  name: string;
+  department: string | null;
+}
+
+const ROLE_OPTIONS = [
+  { value: 'admin', label: 'Admin', description: 'Full access to all settings and team management' },
+  { value: 'hr', label: 'HR', description: 'Manage employee records, leave, and attendance' },
+  { value: 'manager', label: 'Manager', description: 'Team oversight and performance reviews' },
+  { value: 'member', label: 'Member', description: 'Standard employee access' },
+];
+
 const quickInviteSchema = z.object({
   fullName: z.string().trim().min(2, "Name is required").max(100, "Name must be less than 100 characters"),
   email: z.string().trim().email("Valid email required").max(255, "Email must be less than 255 characters"),
   officeId: z.string().min(1, "Please select an office"),
   department: z.string().trim().min(2, "Department is required").max(100),
   position: z.string().trim().min(2, "Position is required").max(100),
-  joinDate: z.string().min(1, "Join date is required"),
+  joinDate: z.string().optional(),
   employmentType: z.string().min(1, "Please select employment type"),
+  role: z.enum(['admin', 'hr', 'manager', 'member']),
+  managerId: z.string().optional(),
+  isNewHire: z.boolean(),
 });
 
 type QuickInviteFormData = z.infer<typeof quickInviteSchema>;
@@ -47,18 +77,28 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
   
   // Data loading
   const [departments, setDepartments] = useState<string[]>([]);
-  const [positions, setPositions] = useState<string[]>([]);
+  const [positions, setPositions] = useState<PositionData[]>([]);
   const [offices, setOffices] = useState<Office[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const { data: employmentTypes = [], isLoading: loadingEmploymentTypes } = useEmploymentTypes(true);
   
-  // Inline add state
-  const [isAddingNewDepartment, setIsAddingNewDepartment] = useState(false);
-  const [isAddingNewPosition, setIsAddingNewPosition] = useState(false);
-  const [newDepartment, setNewDepartment] = useState("");
-  const [newPosition, setNewPosition] = useState("");
+  // Combobox state
+  const [departmentOpen, setDepartmentOpen] = useState(false);
+  const [positionOpen, setPositionOpen] = useState(false);
+  const [managerOpen, setManagerOpen] = useState(false);
+  const [departmentSearch, setDepartmentSearch] = useState("");
+  const [positionSearch, setPositionSearch] = useState("");
+  const [managerSearch, setManagerSearch] = useState("");
   
   // Date picker state
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  
+  // Avatar state
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [tempImageSrc, setTempImageSrc] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState<QuickInviteFormData>({
     fullName: "",
@@ -68,6 +108,9 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
     position: "",
     joinDate: "",
     employmentType: "",
+    role: "member",
+    managerId: "",
+    isNewHire: false,
   });
 
   useEffect(() => {
@@ -75,6 +118,7 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
       loadDepartments();
       loadPositions();
       loadOffices();
+      loadTeamMembers();
     }
   }, [open, currentOrg?.id]);
 
@@ -83,6 +127,13 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
       resetForm();
     }
   }, [open]);
+
+  // Auto-select office if only one exists
+  useEffect(() => {
+    if (offices.length === 1 && !formData.officeId) {
+      setFormData(prev => ({ ...prev, officeId: offices[0].id }));
+    }
+  }, [offices]);
 
   const resetForm = () => {
     setFormData({
@@ -93,25 +144,29 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
       position: "",
       joinDate: "",
       employmentType: "",
+      role: "member",
+      managerId: "",
+      isNewHire: false,
     });
     setErrors({});
     setSuccess(false);
-    setIsAddingNewDepartment(false);
-    setIsAddingNewPosition(false);
-    setNewDepartment("");
-    setNewPosition("");
+    setAvatarFile(null);
+    setAvatarPreview(null);
+    setDepartmentSearch("");
+    setPositionSearch("");
+    setManagerSearch("");
   };
 
   const loadDepartments = async () => {
     if (!currentOrg) return;
     const { data } = await supabase.from('employees').select('department').eq('organization_id', currentOrg.id).order('department');
-    if (data) setDepartments([...new Set(data.map(e => e.department))].filter(Boolean));
+    if (data) setDepartments([...new Set(data.map(e => e.department))].filter(Boolean) as string[]);
   };
 
   const loadPositions = async () => {
     if (!currentOrg) return;
-    const { data } = await supabase.from('positions').select('name').eq('organization_id', currentOrg.id).order('name');
-    if (data) setPositions(data.map(p => p.name));
+    const { data } = await supabase.from('positions').select('id, name, department').eq('organization_id', currentOrg.id).order('name');
+    if (data) setPositions(data);
   };
 
   const loadOffices = async () => {
@@ -120,7 +175,20 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
     if (data) setOffices(data);
   };
 
-  const handleChange = useCallback((field: keyof QuickInviteFormData, value: string) => {
+  const loadTeamMembers = async () => {
+    if (!currentOrg) return;
+    const { data } = await supabase
+      .from('employees')
+      .select('id, user_id, profiles:user_id(full_name, avatar_url)')
+      .eq('organization_id', currentOrg.id)
+      .eq('status', 'active')
+      .order('created_at');
+    if (data) {
+      setTeamMembers(data.filter(m => m.profiles) as TeamMember[]);
+    }
+  };
+
+  const handleChange = useCallback((field: keyof QuickInviteFormData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setErrors(prev => {
       const newErrors = { ...prev };
@@ -129,22 +197,126 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
     });
   }, []);
 
-  const handleAddNewDepartment = () => {
-    if (newDepartment.trim().length >= 2) {
-      setDepartments(prev => [...prev, newDepartment.trim()]);
-      handleChange('department', newDepartment.trim());
-      setNewDepartment("");
-      setIsAddingNewDepartment(false);
+  // Handle department change - clear position when department changes
+  const handleDepartmentChange = (value: string) => {
+    handleChange('department', value);
+    handleChange('position', ''); // Clear position when department changes
+    setPositionSearch('');
+  };
+
+  // Add new department
+  const handleAddNewDepartment = async (name: string) => {
+    if (name.trim().length < 2) return;
+    
+    const trimmedName = name.trim();
+    if (!departments.includes(trimmedName)) {
+      setDepartments(prev => [...prev, trimmedName]);
+      
+      // Record for AI learning
+      if (currentOrg) {
+        try {
+          await supabase.functions.invoke('save-org-structure-learning', {
+            body: {
+              organizationId: currentOrg.id,
+              businessCategory: 'custom',
+              companySize: 'medium',
+              selectedDepartments: [],
+              selectedPositions: [],
+              customDepartments: [trimmedName],
+              customPositions: [],
+            }
+          });
+        } catch (e) {
+          console.error('Failed to save learning:', e);
+        }
+      }
+    }
+    handleDepartmentChange(trimmedName);
+    setDepartmentOpen(false);
+    setDepartmentSearch("");
+  };
+
+  // Add new position
+  const handleAddNewPosition = async (name: string) => {
+    if (name.trim().length < 2) return;
+    
+    const trimmedName = name.trim();
+    
+    // Save to positions table
+    if (currentOrg) {
+      try {
+        const { data: newPos } = await supabase
+          .from('positions')
+          .insert({
+            name: trimmedName,
+            department: formData.department || null,
+            organization_id: currentOrg.id,
+          })
+          .select()
+          .single();
+          
+        if (newPos) {
+          setPositions(prev => [...prev, newPos]);
+        }
+        
+        // Record for AI learning
+        await supabase.functions.invoke('save-org-structure-learning', {
+          body: {
+            organizationId: currentOrg.id,
+            businessCategory: 'custom',
+            companySize: 'medium',
+            selectedDepartments: [],
+            selectedPositions: [],
+            customDepartments: [],
+            customPositions: [trimmedName],
+          }
+        });
+      } catch (e) {
+        console.error('Failed to save position:', e);
+      }
+    }
+    
+    handleChange('position', trimmedName);
+    setPositionOpen(false);
+    setPositionSearch("");
+  };
+
+  // Filter positions by department
+  const filteredPositions = formData.department
+    ? positions.filter(p => !p.department || p.department === formData.department)
+    : positions;
+
+  // Avatar handling
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Please select an image under 5MB", variant: "destructive" });
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setTempImageSrc(event.target?.result as string);
+      setCropperOpen(true);
+    };
+    reader.readAsDataURL(file);
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
-  const handleAddNewPosition = () => {
-    if (newPosition.trim().length >= 2) {
-      setPositions(prev => [...prev, newPosition.trim()]);
-      handleChange('position', newPosition.trim());
-      setNewPosition("");
-      setIsAddingNewPosition(false);
-    }
+  const handleCropComplete = (croppedBlob: Blob) => {
+    const file = new File([croppedBlob], 'avatar.png', { type: 'image/png' });
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(croppedBlob));
+  };
+
+  const removeAvatar = () => {
+    setAvatarFile(null);
+    setAvatarPreview(null);
   };
 
   const validateForm = () => {
@@ -175,6 +347,20 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
     try {
       const validated = quickInviteSchema.parse(formData);
       
+      // Upload avatar if exists
+      let avatarUrl = '';
+      if (avatarFile && currentOrg) {
+        const fileName = `team-invites/${currentOrg.id}/${Date.now()}-avatar.png`;
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(fileName, avatarFile, { upsert: true });
+          
+        if (!uploadError) {
+          const { data: publicUrl } = supabase.storage.from('avatars').getPublicUrl(fileName);
+          avatarUrl = publicUrl.publicUrl;
+        }
+      }
+      
       // Split name into first/last for the API
       const nameParts = validated.fullName.trim().split(' ');
       const firstName = nameParts[0] || '';
@@ -189,11 +375,13 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
         officeId: validated.officeId,
         department: validated.department,
         position: validated.position,
-        joinDate: validated.joinDate,
+        joinDate: validated.joinDate || format(new Date(), 'yyyy-MM-dd'),
         employmentType: validated.employmentType,
-        role: 'member', // Default role
+        role: validated.role,
         organizationId: currentOrg?.id,
-        isNewHire: false,
+        isNewHire: validated.isNewHire,
+        managerId: validated.managerId || '',
+        avatarUrl,
         // Optional fields with defaults
         phone: '',
         dateOfBirth: '',
@@ -201,7 +389,6 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
         city: '',
         state: '',
         country: '',
-        managerId: '',
       }, {
         componentName: 'QuickInviteDialog',
         actionAttempted: `Quick invite team member: ${validated.fullName}`,
@@ -244,13 +431,17 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
     }
   };
 
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
   if (success) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-md">
           <div className="py-12 text-center">
-            <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-6">
-              <Check className="h-8 w-8 text-green-600 dark:text-green-400" />
+            <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+              <Check className="h-8 w-8 text-primary" />
             </div>
             <h2 className="text-2xl font-bold text-foreground mb-2">Invitation Sent!</h2>
             <p className="text-muted-foreground">{formData.fullName} will receive an email with login details to complete their onboarding.</p>
@@ -262,209 +453,450 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5" />
             Invite Team Member
           </DialogTitle>
           <DialogDescription>
-            Quick invite a new team member. They'll complete their profile during onboarding.
+            Invite a new team member with full profile setup. They'll receive an email to complete onboarding.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          {/* Full Name */}
-          <div className="space-y-2">
-            <Label htmlFor="fullName">Full Name <span className="text-destructive">*</span></Label>
-            <Input
-              id="fullName"
-              placeholder="John Doe"
-              value={formData.fullName}
-              onChange={(e) => handleChange('fullName', e.target.value)}
-              className={cn(errors.fullName && "border-destructive")}
-            />
-            {errors.fullName && <p className="text-xs text-destructive">{errors.fullName}</p>}
-          </div>
-
-          {/* Email */}
-          <div className="space-y-2">
-            <Label htmlFor="email">Work Email <span className="text-destructive">*</span></Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="john@company.com"
-              value={formData.email}
-              onChange={(e) => handleChange('email', e.target.value)}
-              className={cn(errors.email && "border-destructive")}
-            />
-            {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
-          </div>
-
-          {/* Office & Department row */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Office */}
-            <div className="space-y-2">
-              <Label>Office <span className="text-destructive">*</span></Label>
-              <Select value={formData.officeId} onValueChange={(value) => handleChange('officeId', value)}>
-                <SelectTrigger className={cn(errors.officeId && "border-destructive")}>
-                  <SelectValue placeholder="Select office" />
-                </SelectTrigger>
-                <SelectContent>
-                  {offices.map((office) => (
-                    <SelectItem key={office.id} value={office.id}>{office.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.officeId && <p className="text-xs text-destructive">{errors.officeId}</p>}
-            </div>
-
-            {/* Department */}
-            <div className="space-y-2">
-              <Label>Department <span className="text-destructive">*</span></Label>
-              {isAddingNewDepartment ? (
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="New department"
-                    value={newDepartment}
-                    onChange={(e) => setNewDepartment(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddNewDepartment()}
-                    autoFocus
-                  />
-                  <Button type="button" size="icon" variant="ghost" onClick={handleAddNewDepartment}>
-                    <Check className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
-                <Select value={formData.department} onValueChange={(value) => {
-                  if (value === '__add_new__') {
-                    setIsAddingNewDepartment(true);
-                  } else {
-                    handleChange('department', value);
-                  }
-                }}>
-                  <SelectTrigger className={cn(errors.department && "border-destructive")}>
-                    <SelectValue placeholder="Select department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {departments.map((dept) => (
-                      <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                    ))}
-                    <SelectItem value="__add_new__" className="text-primary">
-                      <div className="flex items-center gap-2">
-                        <Plus className="h-4 w-4" />
-                        Add new department
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-              {errors.department && <p className="text-xs text-destructive">{errors.department}</p>}
-            </div>
-          </div>
-
-          {/* Position & Employment Type row */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Position */}
-            <div className="space-y-2">
-              <Label>Position <span className="text-destructive">*</span></Label>
-              {isAddingNewPosition ? (
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="New position"
-                    value={newPosition}
-                    onChange={(e) => setNewPosition(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddNewPosition()}
-                    autoFocus
-                  />
-                  <Button type="button" size="icon" variant="ghost" onClick={handleAddNewPosition}>
-                    <Check className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
-                <Select value={formData.position} onValueChange={(value) => {
-                  if (value === '__add_new__') {
-                    setIsAddingNewPosition(true);
-                  } else {
-                    handleChange('position', value);
-                  }
-                }}>
-                  <SelectTrigger className={cn(errors.position && "border-destructive")}>
-                    <SelectValue placeholder="Select position" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {positions.map((pos) => (
-                      <SelectItem key={pos} value={pos}>{pos}</SelectItem>
-                    ))}
-                    <SelectItem value="__add_new__" className="text-primary">
-                      <div className="flex items-center gap-2">
-                        <Plus className="h-4 w-4" />
-                        Add new position
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-              {errors.position && <p className="text-xs text-destructive">{errors.position}</p>}
-            </div>
-
-            {/* Employment Type */}
-            <div className="space-y-2">
-              <Label>Employment Type <span className="text-destructive">*</span></Label>
-              <Select 
-                value={formData.employmentType} 
-                onValueChange={(value) => handleChange('employmentType', value)}
-                disabled={loadingEmploymentTypes}
-              >
-                <SelectTrigger className={cn(errors.employmentType && "border-destructive")}>
-                  <SelectValue placeholder={loadingEmploymentTypes ? "Loading..." : "Select type"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {employmentTypes.map((type) => (
-                    <SelectItem key={type.id} value={type.name}>{type.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.employmentType && <p className="text-xs text-destructive">{errors.employmentType}</p>}
-            </div>
-          </div>
-
-          {/* Join Date */}
-          <div className="space-y-2">
-            <Label>Join Date <span className="text-destructive">*</span></Label>
-            <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !formData.joinDate && "text-muted-foreground",
-                    errors.joinDate && "border-destructive"
+        <ScrollArea className="flex-1 pr-4 -mr-4">
+          <div className="space-y-6 py-4 pr-4">
+            {/* Row 1: Avatar + Existing/New Hire Toggle */}
+            <div className="flex items-start gap-6">
+              {/* Avatar Upload */}
+              <div className="flex flex-col items-center gap-2">
+                <div className="relative">
+                  <Avatar className="h-20 w-20 border-2 border-dashed border-muted-foreground/25">
+                    {avatarPreview ? (
+                      <AvatarImage src={avatarPreview} />
+                    ) : (
+                      <AvatarFallback className="bg-muted text-muted-foreground">
+                        <Camera className="h-6 w-6" />
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                  {avatarPreview && (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute -top-1 -right-1 h-5 w-5 rounded-full"
+                      onClick={removeAvatar}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
                   )}
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => fileInputRef.current?.click()}
                 >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {formData.joinDate ? format(new Date(formData.joinDate), "PPP") : "Select date"}
+                  Upload Photo
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={formData.joinDate ? new Date(formData.joinDate) : undefined}
-                  onSelect={(date) => {
-                    if (date) {
-                      handleChange('joinDate', format(date, 'yyyy-MM-dd'));
-                      setDatePickerOpen(false);
-                    }
-                  }}
-                  initialFocus
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileSelect}
                 />
-              </PopoverContent>
-            </Popover>
-            {errors.joinDate && <p className="text-xs text-destructive">{errors.joinDate}</p>}
-          </div>
-        </div>
+              </div>
 
-        <DialogFooter>
+              {/* Existing/New Hire Toggle */}
+              <div className="flex-1 space-y-3">
+                <Label>Employee Type</Label>
+                <RadioGroup
+                  value={formData.isNewHire ? "new" : "existing"}
+                  onValueChange={(value) => handleChange('isNewHire', value === "new")}
+                  className="flex gap-4"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="existing" id="existing" />
+                    <Label htmlFor="existing" className="font-normal cursor-pointer">
+                      Existing Team
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="new" id="new" />
+                    <Label htmlFor="new" className="font-normal cursor-pointer">
+                      New Hire
+                    </Label>
+                  </div>
+                </RadioGroup>
+                <p className="text-xs text-muted-foreground">
+                  {formData.isNewHire 
+                    ? "This person is a new hire joining the company" 
+                    : "This person is already part of the team"}
+                </p>
+              </div>
+            </div>
+
+            {/* Row 2: Full Name, Work Email */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Full Name <span className="text-destructive">*</span></Label>
+                <Input
+                  id="fullName"
+                  placeholder="John Doe"
+                  value={formData.fullName}
+                  onChange={(e) => handleChange('fullName', e.target.value)}
+                  className={cn(errors.fullName && "border-destructive")}
+                />
+                {errors.fullName && <p className="text-xs text-destructive">{errors.fullName}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email">Work Email <span className="text-destructive">*</span></Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="john@company.com"
+                  value={formData.email}
+                  onChange={(e) => handleChange('email', e.target.value)}
+                  className={cn(errors.email && "border-destructive")}
+                />
+                {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+              </div>
+            </div>
+
+            {/* Row 3: Office, Manager */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Office */}
+              <div className="space-y-2">
+                <Label>Office <span className="text-destructive">*</span></Label>
+                <Select value={formData.officeId} onValueChange={(value) => handleChange('officeId', value)}>
+                  <SelectTrigger className={cn(errors.officeId && "border-destructive")}>
+                    <SelectValue placeholder="Select office" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {offices.map((office) => (
+                      <SelectItem key={office.id} value={office.id}>{office.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.officeId && <p className="text-xs text-destructive">{errors.officeId}</p>}
+              </div>
+
+              {/* Manager */}
+              <div className="space-y-2">
+                <Label>Reports To</Label>
+                <Popover open={managerOpen} onOpenChange={setManagerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={managerOpen}
+                      className="w-full justify-between font-normal"
+                    >
+                      {formData.managerId ? (
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4 text-muted-foreground" />
+                          {teamMembers.find(m => m.id === formData.managerId)?.profiles.full_name || 'Select manager'}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">Select manager</span>
+                      )}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[300px] p-0" align="start">
+                    <Command>
+                      <CommandInput 
+                        placeholder="Search team members..." 
+                        value={managerSearch}
+                        onValueChange={setManagerSearch}
+                      />
+                      <CommandList>
+                        <CommandEmpty>No team member found.</CommandEmpty>
+                        <CommandGroup>
+                          <CommandItem
+                            value="none"
+                            onSelect={() => {
+                              handleChange('managerId', '');
+                              setManagerOpen(false);
+                            }}
+                          >
+                            <span className="text-muted-foreground">No manager</span>
+                          </CommandItem>
+                          {teamMembers.map((member) => (
+                            <CommandItem
+                              key={member.id}
+                              value={member.profiles.full_name}
+                              onSelect={() => {
+                                handleChange('managerId', member.id);
+                                setManagerOpen(false);
+                              }}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-6 w-6">
+                                  <AvatarImage src={member.profiles.avatar_url || undefined} />
+                                  <AvatarFallback className="text-xs">
+                                    {getInitials(member.profiles.full_name)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                {member.profiles.full_name}
+                              </div>
+                              {formData.managerId === member.id && (
+                                <Check className="ml-auto h-4 w-4" />
+                              )}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+
+            {/* Row 4: Department, Position (searchable comboboxes) */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Department */}
+              <div className="space-y-2">
+                <Label>Department <span className="text-destructive">*</span></Label>
+                <Popover open={departmentOpen} onOpenChange={setDepartmentOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={departmentOpen}
+                      className={cn(
+                        "w-full justify-between font-normal",
+                        errors.department && "border-destructive"
+                      )}
+                    >
+                      {formData.department || <span className="text-muted-foreground">Select department</span>}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[300px] p-0" align="start">
+                    <Command>
+                      <CommandInput 
+                        placeholder="Search or add department..." 
+                        value={departmentSearch}
+                        onValueChange={setDepartmentSearch}
+                      />
+                      <CommandList>
+                        <CommandEmpty>
+                          {departmentSearch.trim().length >= 2 ? (
+                            <Button
+                              variant="ghost"
+                              className="w-full justify-start text-primary"
+                              onClick={() => handleAddNewDepartment(departmentSearch)}
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Add "{departmentSearch.trim()}"
+                            </Button>
+                          ) : (
+                            "Type to search or add new"
+                          )}
+                        </CommandEmpty>
+                        <CommandGroup>
+                          {departments
+                            .filter(d => d.toLowerCase().includes(departmentSearch.toLowerCase()))
+                            .map((dept) => (
+                              <CommandItem
+                                key={dept}
+                                value={dept}
+                                onSelect={() => {
+                                  handleDepartmentChange(dept);
+                                  setDepartmentOpen(false);
+                                  setDepartmentSearch("");
+                                }}
+                              >
+                                {dept}
+                                {formData.department === dept && (
+                                  <Check className="ml-auto h-4 w-4" />
+                                )}
+                              </CommandItem>
+                            ))}
+                          {departmentSearch.trim().length >= 2 && 
+                           !departments.some(d => d.toLowerCase() === departmentSearch.toLowerCase()) && (
+                            <CommandItem
+                              value={`add-${departmentSearch}`}
+                              onSelect={() => handleAddNewDepartment(departmentSearch)}
+                              className="text-primary"
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Add "{departmentSearch.trim()}"
+                            </CommandItem>
+                          )}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                {errors.department && <p className="text-xs text-destructive">{errors.department}</p>}
+              </div>
+
+              {/* Position */}
+              <div className="space-y-2">
+                <Label>Position <span className="text-destructive">*</span></Label>
+                <Popover open={positionOpen} onOpenChange={setPositionOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={positionOpen}
+                      className={cn(
+                        "w-full justify-between font-normal",
+                        errors.position && "border-destructive"
+                      )}
+                    >
+                      {formData.position || <span className="text-muted-foreground">Select position</span>}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[300px] p-0" align="start">
+                    <Command>
+                      <CommandInput 
+                        placeholder="Search or add position..." 
+                        value={positionSearch}
+                        onValueChange={setPositionSearch}
+                      />
+                      <CommandList>
+                        <CommandEmpty>
+                          {positionSearch.trim().length >= 2 ? (
+                            <Button
+                              variant="ghost"
+                              className="w-full justify-start text-primary"
+                              onClick={() => handleAddNewPosition(positionSearch)}
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Add "{positionSearch.trim()}"
+                            </Button>
+                          ) : (
+                            "Type to search or add new"
+                          )}
+                        </CommandEmpty>
+                        <CommandGroup>
+                          {filteredPositions
+                            .filter(p => p.name.toLowerCase().includes(positionSearch.toLowerCase()))
+                            .map((pos) => (
+                              <CommandItem
+                                key={pos.id}
+                                value={pos.name}
+                                onSelect={() => {
+                                  handleChange('position', pos.name);
+                                  setPositionOpen(false);
+                                  setPositionSearch("");
+                                }}
+                              >
+                                {pos.name}
+                                {formData.position === pos.name && (
+                                  <Check className="ml-auto h-4 w-4" />
+                                )}
+                              </CommandItem>
+                            ))}
+                          {positionSearch.trim().length >= 2 && 
+                           !filteredPositions.some(p => p.name.toLowerCase() === positionSearch.toLowerCase()) && (
+                            <CommandItem
+                              value={`add-${positionSearch}`}
+                              onSelect={() => handleAddNewPosition(positionSearch)}
+                              className="text-primary"
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Add "{positionSearch.trim()}"
+                            </CommandItem>
+                          )}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                {errors.position && <p className="text-xs text-destructive">{errors.position}</p>}
+              </div>
+            </div>
+
+            {/* Row 5: Employment Type, Role */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Employment Type */}
+              <div className="space-y-2">
+                <Label>Employment Type <span className="text-destructive">*</span></Label>
+                <Select 
+                  value={formData.employmentType} 
+                  onValueChange={(value) => handleChange('employmentType', value)}
+                  disabled={loadingEmploymentTypes}
+                >
+                  <SelectTrigger className={cn(errors.employmentType && "border-destructive")}>
+                    <SelectValue placeholder={loadingEmploymentTypes ? "Loading..." : "Select type"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employmentTypes.map((type) => (
+                      <SelectItem key={type.id} value={type.name}>{type.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.employmentType && <p className="text-xs text-destructive">{errors.employmentType}</p>}
+              </div>
+
+              {/* Role */}
+              <div className="space-y-2">
+                <Label>System Role <span className="text-destructive">*</span></Label>
+                <Select 
+                  value={formData.role} 
+                  onValueChange={(value) => handleChange('role', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROLE_OPTIONS.map((role) => (
+                      <SelectItem key={role.value} value={role.value}>
+                        <div className="flex flex-col">
+                          <span>{role.label}</span>
+                          <span className="text-xs text-muted-foreground">{role.description}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Row 6: Join Date (optional) */}
+            <div className="space-y-2">
+              <Label>Join Date <span className="text-muted-foreground text-xs">(optional)</span></Label>
+              <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !formData.joinDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {formData.joinDate ? format(new Date(formData.joinDate), "PPP") : "Select date (defaults to today)"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={formData.joinDate ? new Date(formData.joinDate) : undefined}
+                    onSelect={(date) => {
+                      if (date) {
+                        handleChange('joinDate', format(date, 'yyyy-MM-dd'));
+                        setDatePickerOpen(false);
+                      }
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+        </ScrollArea>
+
+        <DialogFooter className="pt-4 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancel
           </Button>
@@ -483,6 +915,20 @@ export function QuickInviteDialog({ open, onOpenChange, onSuccess }: QuickInvite
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Image Cropper */}
+      {tempImageSrc && (
+        <ImageCropper
+          open={cropperOpen}
+          onOpenChange={(open) => {
+            setCropperOpen(open);
+            if (!open) setTempImageSrc(null);
+          }}
+          imageSrc={tempImageSrc}
+          onCropComplete={handleCropComplete}
+          cropShape="circle"
+        />
+      )}
     </Dialog>
   );
 }
