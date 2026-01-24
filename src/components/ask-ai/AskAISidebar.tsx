@@ -188,11 +188,11 @@ export const AskAISidebar = ({
               <Sparkles className="h-5 w-5 text-ai" />
               <span className="font-semibold">Ask AI</span>
             </div>
+            <Button onClick={onNewChat} className="gap-1.5" size="sm">
+              <Plus className="h-4 w-4" />
+              New Chat
+            </Button>
           </div>
-          <Button onClick={onNewChat} className="w-full gap-2" size="sm">
-            <Plus className="h-4 w-4" />
-            New Chat
-          </Button>
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
