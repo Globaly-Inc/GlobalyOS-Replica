@@ -8,6 +8,11 @@ import {
   Clock,
   Sparkles,
   Building2,
+  Mail,
+  FileEdit,
+  Lightbulb,
+  BookOpen,
+  Palmtree,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -18,51 +23,104 @@ interface AskAIEmptyStateProps {
   isLoading?: boolean;
 }
 
-const suggestionCategories = [
+// Internal organization queries
+const internalSuggestions = [
   {
-    icon: Users,
-    text: "Who works in Engineering?",
-    color: "text-blue-600 dark:text-blue-400",
-    bgColor: "bg-blue-500/10",
-  },
-  {
-    icon: Calendar,
-    text: "What events are coming up this week?",
-    color: "text-purple-600 dark:text-purple-400",
-    bgColor: "bg-purple-500/10",
-  },
-  {
-    icon: FileText,
-    text: "What are our leave policies?",
-    color: "text-amber-600 dark:text-amber-400",
-    bgColor: "bg-amber-500/10",
-  },
-  {
-    icon: Megaphone,
-    text: "Show me recent announcements",
-    color: "text-rose-600 dark:text-rose-400",
-    bgColor: "bg-rose-500/10",
+    icon: Palmtree,
+    text: "What's my leave balance?",
+    color: "text-green-600 dark:text-green-400",
+    bgColor: "bg-green-500/10",
+    category: "personal",
   },
   {
     icon: Target,
     text: "How are my KPIs tracking?",
     color: "text-emerald-600 dark:text-emerald-400",
     bgColor: "bg-emerald-500/10",
+    category: "personal",
   },
   {
     icon: Clock,
-    text: "Who is out of office today?",
+    text: "Show my attendance summary",
     color: "text-cyan-600 dark:text-cyan-400",
     bgColor: "bg-cyan-500/10",
+    category: "personal",
+  },
+  {
+    icon: Users,
+    text: "Who works in Engineering?",
+    color: "text-blue-600 dark:text-blue-400",
+    bgColor: "bg-blue-500/10",
+    category: "team",
+  },
+  {
+    icon: Calendar,
+    text: "What events are coming up?",
+    color: "text-purple-600 dark:text-purple-400",
+    bgColor: "bg-purple-500/10",
+    category: "org",
+  },
+  {
+    icon: Megaphone,
+    text: "Show recent announcements",
+    color: "text-rose-600 dark:text-rose-400",
+    bgColor: "bg-rose-500/10",
+    category: "org",
+  },
+];
+
+// General AI assistant queries
+const generalSuggestions = [
+  {
+    icon: Mail,
+    text: "Write a professional email",
+    color: "text-indigo-600 dark:text-indigo-400",
+    bgColor: "bg-indigo-500/10",
+    category: "writing",
+  },
+  {
+    icon: FileEdit,
+    text: "Help me create an SOP document",
+    color: "text-orange-600 dark:text-orange-400",
+    bgColor: "bg-orange-500/10",
+    category: "writing",
+  },
+  {
+    icon: Lightbulb,
+    text: "Brainstorm ideas for a team meeting",
+    color: "text-yellow-600 dark:text-yellow-400",
+    bgColor: "bg-yellow-500/10",
+    category: "creative",
+  },
+  {
+    icon: BookOpen,
+    text: "Explain a complex topic simply",
+    color: "text-teal-600 dark:text-teal-400",
+    bgColor: "bg-teal-500/10",
+    category: "research",
+  },
+  {
+    icon: FileText,
+    text: "Summarize a long document",
+    color: "text-amber-600 dark:text-amber-400",
+    bgColor: "bg-amber-500/10",
+    category: "writing",
+  },
+  {
+    icon: Sparkles,
+    text: "Improve my writing",
+    color: "text-pink-600 dark:text-pink-400",
+    bgColor: "bg-pink-500/10",
+    category: "writing",
   },
 ];
 
 const typewriterPhrases = [
+  "about your leave balance...",
   "about your team...",
-  "about policies...",
-  "about events...",
-  "about KPIs...",
-  "anything...",
+  "to write an email...",
+  "to create an SOP...",
+  "about anything...",
 ];
 
 export const AskAIEmptyState = ({
@@ -78,8 +136,10 @@ export const AskAIEmptyState = ({
     startDelay: 500,
   });
 
+  // Combine internal and general suggestions, randomly pick 6
   const suggestions = useMemo(() => {
-    return [...suggestionCategories].sort(() => Math.random() - 0.5).slice(0, 6);
+    const allSuggestions = [...internalSuggestions, ...generalSuggestions];
+    return allSuggestions.sort(() => Math.random() - 0.5).slice(0, 6);
   }, []);
 
   return (
