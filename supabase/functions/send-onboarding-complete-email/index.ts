@@ -43,6 +43,7 @@ serve(async (req: Request): Promise<Response> => {
         personal_email,
         position,
         department,
+        office_id,
         organizations!inner(id, name, slug)
       `)
       .eq("id", employeeId)
@@ -67,6 +68,11 @@ serve(async (req: Request): Promise<Response> => {
     const org = (employee.organizations as any) as { id: string; name: string; slug: string };
     const recipientEmail = employee.personal_email || profile?.email;
     const fullName = profile?.full_name || "Team Member";
+
+    // ============================================
+    // AUTO-ASSIGN WORK SCHEDULE FROM OFFICE
+    // ============================================
+    await setupEmployeeSchedule(supabase, employeeId, employee.office_id, employee.organization_id);
 
     if (!recipientEmail) {
       console.error("No email found for employee");
@@ -152,3 +158,73 @@ serve(async (req: Request): Promise<Response> => {
     );
   }
 });
+
+/**
+ * Sets up an employee's work schedule based on their assigned office schedule.
+ * Skips if employee already has a schedule or no office is assigned.
+ */
+// deno-lint-ignore no-explicit-any
+async function setupEmployeeSchedule(supabase: any, employeeId: string, officeId: string | null, organizationId: string) {
+  try {
+    // Check if employee already has a schedule
+    const { data: existingSchedule } = await supabase
+      .from("employee_schedules")
+      .select("id")
+      .eq("employee_id", employeeId)
+      .maybeSingle();
+
+    if (existingSchedule) {
+      console.log(`Employee ${employeeId} already has a schedule, skipping`);
+      return;
+    }
+
+    if (!officeId) {
+      console.log(`Employee ${employeeId} has no office assigned, skipping schedule creation`);
+      return;
+    }
+
+    // Get office schedule
+    const { data: officeSchedule, error: scheduleError } = await supabase
+      .from("office_schedules")
+      .select("*")
+      .eq("office_id", officeId)
+      .maybeSingle();
+
+    if (scheduleError) {
+      console.error(`Error fetching office schedule for office ${officeId}:`, scheduleError);
+      return;
+    }
+
+    if (!officeSchedule) {
+      console.log(`No office schedule found for office ${officeId}, skipping schedule creation`);
+      return;
+    }
+
+    // Create employee schedule from office schedule
+    const { error: insertError } = await supabase
+      .from("employee_schedules")
+      .insert({
+        employee_id: employeeId,
+        organization_id: organizationId,
+        work_start_time: officeSchedule.work_start_time || "09:00",
+        work_end_time: officeSchedule.work_end_time || "17:00",
+        work_days: officeSchedule.work_days || [1, 2, 3, 4, 5],
+        day_schedules: officeSchedule.day_schedules,
+        timezone: officeSchedule.timezone || "UTC",
+        late_threshold_minutes: officeSchedule.late_threshold_minutes || 15,
+        break_start_time: officeSchedule.break_start_time,
+        break_end_time: officeSchedule.break_end_time,
+        work_location: "office",
+      });
+
+    if (insertError) {
+      console.error(`Failed to create schedule for employee ${employeeId}:`, insertError);
+      return;
+    }
+
+    console.log(`Successfully created work schedule for employee ${employeeId} from office ${officeId}`);
+  } catch (error) {
+    console.error(`Error in setupEmployeeSchedule for ${employeeId}:`, error);
+    // Don't throw - schedule setup failure shouldn't block onboarding completion
+  }
+}
