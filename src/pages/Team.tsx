@@ -510,10 +510,6 @@ const Team = () => {
                 <span className="hidden sm:inline">Invite Team Member</span>
                 <span className="sm:hidden">Invite</span>
               </Button>
-              <Button variant="outline" onClick={() => setInviteDialogOpen(true)} className="hidden sm:inline-flex gap-2">
-                <UserCog className="h-4 w-4" />
-                Add with Details
-              </Button>
             </>
           )}
         </PageHeader>
