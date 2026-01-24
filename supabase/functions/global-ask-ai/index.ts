@@ -79,20 +79,29 @@ serve(async (req) => {
       });
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
+    // Create client with user's auth for token validation
+    const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
     });
 
-    // Verify user token and get user ID
+    // Verify user token using getClaims
     const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
     
-    if (userError || !user) {
+    if (claimsError || !claimsData?.claims) {
+      console.error("Token validation failed:", claimsError);
       return new Response(JSON.stringify({ error: "Invalid token" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const user = { id: claimsData.claims.sub as string };
+
+    // Service role client for database operations
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
 
     // Check feature limit before processing
     const { data: limitCheck, error: limitError } = await supabase
