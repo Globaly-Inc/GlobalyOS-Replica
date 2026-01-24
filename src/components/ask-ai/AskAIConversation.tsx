@@ -1,19 +1,28 @@
 import { useState, useRef, useEffect } from "react";
-import { ArrowLeft, Loader2, Sparkles, RefreshCw } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, RefreshCw, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAIMessages, useAddMessage, useRenameConversation, AIConversation } from "@/services/useAIConversations";
+import { useAIParticipants, useAIInternalNotes, useAddInternalNote } from "@/services/useAISharing";
 import { AskAIMessageBubble } from "./AskAIMessageBubble";
 import { AskAIInput } from "./AskAIInput";
 import { AskAIFollowUpSuggestions } from "./AskAIFollowUpSuggestions";
+import { AskAIShareDialog } from "./AskAIShareDialog";
+import { AskAIParticipants } from "./AskAIParticipants";
+import { AskAIInternalNote, InternalNote } from "./AskAIInternalNote";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
 
 interface AskAIConversationProps {
-  conversation: AIConversation;
+  conversation: AIConversation & {
+    is_shared?: boolean;
+    visibility?: "private" | "team" | "specific";
+  };
   onBack?: () => void;
   isMobile?: boolean;
 }
@@ -24,23 +33,47 @@ export const AskAIConversation = ({
   isMobile,
 }: AskAIConversationProps) => {
   const { currentOrg } = useOrganization();
+  const { user } = useAuth();
   const { data: messages = [], isLoading: messagesLoading, refetch } = useAIMessages(conversation.id);
+  const { data: participants = [], refetch: refetchParticipants } = useAIParticipants(conversation.id);
+  const { data: internalNotes = [], refetch: refetchNotes } = useAIInternalNotes(conversation.id);
   const addMessage = useAddMessage();
+  const addInternalNote = useAddInternalNote();
   const renameConversation = useRenameConversation();
   
   const [isGenerating, setIsGenerating] = useState(false);
   const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(conversation.title);
+  const [isShared, setIsShared] = useState(conversation.is_shared || false);
+  const [visibility, setVisibility] = useState<"private" | "team" | "specific">(
+    conversation.visibility || "private"
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Fetch current employee for author tracking
+  const { data: currentEmployee } = useQuery({
+    queryKey: ["current-employee", currentOrg?.id, user?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id || !user?.id) return null;
+      const { data } = await supabase
+        .from("employees")
+        .select("id, profiles(full_name, avatar_url)")
+        .eq("organization_id", currentOrg.id)
+        .eq("user_id", user.id)
+        .single();
+      return data;
+    },
+    enabled: !!currentOrg?.id && !!user?.id,
+  });
 
   // Scroll to bottom when messages change
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isGenerating]);
+  }, [messages, internalNotes, isGenerating]);
 
-  // Set up realtime subscription
+  // Set up realtime subscription for messages
   useEffect(() => {
     const channel = supabase
       .channel(`ai-messages-${conversation.id}`)
@@ -56,12 +89,24 @@ export const AskAIConversation = ({
           refetch();
         }
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "ai_internal_notes",
+          filter: `conversation_id=eq.${conversation.id}`,
+        },
+        () => {
+          refetchNotes();
+        }
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [conversation.id, refetch]);
+  }, [conversation.id, refetch, refetchNotes]);
 
   const sendMessage = async (content: string, isRegenerate = false) => {
     if (!currentOrg?.id) return;
@@ -137,6 +182,20 @@ export const AskAIConversation = ({
     await sendMessage(content, false);
   };
 
+  const handleAddNote = async (content: string, mentionedEmployeeIds: string[]) => {
+    if (!currentEmployee?.id) {
+      toast.error("Unable to add note");
+      return;
+    }
+
+    await addInternalNote.mutateAsync({
+      conversationId: conversation.id,
+      content,
+      mentionedEmployeeIds,
+      authorEmployeeId: currentEmployee.id,
+    });
+  };
+
   const handleRegenerate = async (messageIndex: number) => {
     // Find the user message before this AI message
     const aiMessage = messages[messageIndex];
@@ -164,8 +223,21 @@ export const AskAIConversation = ({
     setEditingTitle(false);
   };
 
+  const handleShareChange = (newIsShared: boolean, newVisibility: "private" | "team" | "specific") => {
+    setIsShared(newIsShared);
+    setVisibility(newVisibility);
+  };
+
+  // Combine messages and notes for timeline display
+  const timelineItems = [
+    ...messages.map((m) => ({ type: "message" as const, data: m, timestamp: m.created_at })),
+    ...internalNotes.map((n) => ({ type: "note" as const, data: n, timestamp: n.created_at })),
+  ].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
   // Get the last AI message for follow-up suggestions
   const lastAIMessage = messages.filter(m => m.role === "assistant").pop();
+
+  const ownerProfile = currentEmployee?.profiles as { full_name: string; avatar_url: string | null } | undefined;
 
   return (
     <div className="flex flex-col h-full">
@@ -203,6 +275,28 @@ export const AskAIConversation = ({
             {conversation.title}
           </h2>
         )}
+
+        {/* Participants Avatars */}
+        {isShared && (
+          <AskAIParticipants
+            participants={participants}
+            ownerName={ownerProfile?.full_name || "You"}
+            ownerAvatar={ownerProfile?.avatar_url}
+          />
+        )}
+
+        {/* Share Button */}
+        <AskAIShareDialog
+          conversationId={conversation.id}
+          conversationTitle={conversation.title}
+          isShared={isShared}
+          visibility={visibility}
+          participants={participants}
+          ownerId={user?.id || ""}
+          onShareChange={handleShareChange}
+          onParticipantsChange={refetchParticipants}
+        />
+
         <Button
           size="icon"
           variant="ghost"
@@ -220,20 +314,26 @@ export const AskAIConversation = ({
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : messages.length === 0 ? (
+          ) : timelineItems.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Sparkles className="h-12 w-12 mx-auto mb-4 opacity-20 text-ai" />
               <p className="text-sm">Start the conversation</p>
               <p className="text-xs mt-1">Ask anything about your organization</p>
             </div>
           ) : (
-            messages.map((message, index) => (
-              <div key={message.id} className="group">
-                <AskAIMessageBubble
-                  message={message}
-                  onRegenerate={message.role === "assistant" ? () => handleRegenerate(index) : undefined}
-                  isRegenerating={regeneratingIndex === index}
-                />
+            timelineItems.map((item, index) => (
+              <div key={`${item.type}-${item.data.id}`} className="group">
+                {item.type === "message" ? (
+                  <AskAIMessageBubble
+                    message={item.data}
+                    onRegenerate={item.data.role === "assistant" ? () => handleRegenerate(
+                      messages.findIndex((m) => m.id === item.data.id)
+                    ) : undefined}
+                    isRegenerating={regeneratingIndex === messages.findIndex((m) => m.id === item.data.id)}
+                  />
+                ) : (
+                  <AskAIInternalNote note={item.data as InternalNote} />
+                )}
               </div>
             ))
           )}
@@ -269,8 +369,10 @@ export const AskAIConversation = ({
         <div className="max-w-3xl mx-auto">
           <AskAIInput
             onSend={handleSend}
+            onAddNote={handleAddNote}
             isLoading={isGenerating}
             disabled={!currentOrg?.id}
+            showNoteMode={isShared || participants.length > 0}
           />
         </div>
       </div>
