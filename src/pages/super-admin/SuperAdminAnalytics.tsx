@@ -100,9 +100,14 @@ const SuperAdminAnalytics = () => {
   const [showActivitiesCumulative, setShowActivitiesCumulative] = useState(false);
   const [openModules, setOpenModules] = useState<string[]>(['team', 'hr', 'wiki', 'organization']);
 
+  // Stabilize dependencies using primitive values to prevent infinite re-renders
+  const selectedOrgsKey = selectedOrgs.join(',');
+  const selectedUsersKey = selectedUsers.join(',');
+
   useEffect(() => {
     fetchAnalytics();
-  }, [selectedOrgs, selectedUsers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedOrgsKey, selectedUsersKey]);
 
   const fetchAnalytics = async () => {
     try {

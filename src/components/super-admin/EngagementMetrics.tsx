@@ -46,9 +46,15 @@ const EngagementMetrics = ({ selectedOrgs, selectedUsers, dateRange }: Engagemen
   const [loading, setLoading] = useState(true);
   const [pageVisits, setPageVisits] = useState<PageVisit[]>([]);
 
+  // Stabilize dependencies using primitive values to prevent infinite re-renders
+  const selectedOrgsKey = selectedOrgs.join(',');
+  const selectedUsersKey = selectedUsers.join(',');
+  const dateRangeKey = `${dateRange.start.getTime()}-${dateRange.end.getTime()}`;
+
   useEffect(() => {
     fetchPageVisits();
-  }, [selectedOrgs, selectedUsers, dateRange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedOrgsKey, selectedUsersKey, dateRangeKey]);
 
   const fetchPageVisits = async () => {
     setLoading(true);
