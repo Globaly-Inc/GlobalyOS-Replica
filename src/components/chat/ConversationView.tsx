@@ -51,6 +51,7 @@ import {
   useDeleteMessage,
   useMessageReactions,
   useToggleReaction,
+  useTogglePinMessage,
   useSpace,
   useSpaceMembers,
   useConversationParticipants,
@@ -134,6 +135,7 @@ const ConversationView = ({
   
   const { data: messageStars = [] } = useMessageStars();
   const toggleStar = useToggleMessageStar();
+  const togglePin = useTogglePinMessage();
   const editMessage = useEditMessage();
   const deleteMessage = useDeleteMessage();
   const toggleReaction = useToggleReaction();
@@ -839,8 +841,9 @@ const ConversationView = ({
                               setEditingMessageId(null);
                             }}
                             onDelete={() => deleteMessage.mutate(message.id)}
-                            onPin={() => toggleStar.mutate(message.id)}
-                            isPinned={isStarred}
+                            onStar={() => toggleStar.mutate(message.id)}
+                            onPin={() => togglePin.mutate({ messageId: message.id, isPinned: message.is_pinned })}
+                            isStarred={isStarred}
                             onReact={(emoji) => toggleReaction.mutate({ 
                               messageId: message.id, 
                               emoji 

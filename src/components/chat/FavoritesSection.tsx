@@ -1,4 +1,4 @@
-import { Star, ChevronRight } from "lucide-react";
+import { Bookmark, ChevronRight } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useChatFavorites, useToggleFavorite } from "@/hooks/useChatFavorites";
@@ -84,7 +84,7 @@ const FavoritesSection = ({ activeChat, onSelectChat, onlineStatuses }: Favorite
             isExpanded && "rotate-90"
           )} 
         />
-        <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
+        <Bookmark className="h-3 w-3 text-blue-500 fill-blue-500" />
         Favorites
       </button>
       
@@ -151,8 +151,8 @@ const FavoritesSection = ({ activeChat, onSelectChat, onlineStatuses }: Favorite
                   {name}
                 </span>
 
-                <Star 
-                  className="h-3 w-3 text-yellow-500 fill-yellow-500 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
+                <Bookmark 
+                  className="h-3 w-3 text-blue-500 fill-blue-500 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
                   onClick={(e) => {
                     e.stopPropagation();
                     toggleFavorite.mutate({
