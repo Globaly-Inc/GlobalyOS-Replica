@@ -8,6 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
   Sparkles, 
   BookOpen, 
@@ -22,7 +30,8 @@ import {
   Loader2,
   AlertCircle,
   Database,
-  CheckCircle2
+  CheckCircle2,
+  Timer
 } from "lucide-react";
 
 interface AIKnowledgeSettingsProps {
@@ -39,6 +48,9 @@ interface AISettings {
   calendar_enabled: boolean;
   leave_enabled: boolean;
   attendance_enabled: boolean;
+  auto_reindex_enabled: boolean;
+  auto_reindex_hour: number;
+  last_auto_reindex_at: string | null;
 }
 
 const defaultSettings: AISettings = {
@@ -50,7 +62,21 @@ const defaultSettings: AISettings = {
   calendar_enabled: true,
   leave_enabled: true,
   attendance_enabled: true,
+  auto_reindex_enabled: false,
+  auto_reindex_hour: 2,
+  last_auto_reindex_at: null,
 };
+
+// Generate hour options for the schedule dropdown
+const hourOptions = Array.from({ length: 24 }, (_, i) => {
+  const hour = i;
+  const period = hour >= 12 ? "PM" : "AM";
+  const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return {
+    value: hour,
+    label: `${displayHour}:00 ${period}`,
+  };
+});
 
 // Map settings keys to database content_type values in ai_content_index
 const sourceTypeMapping: Record<string, string[]> = {
@@ -147,6 +173,22 @@ const sourceTypeLabels: Record<string, string> = {
   calendar_event: "Calendar",
   leave_record: "Leave Info",
   attendance: "Attendance",
+};
+
+// Helper to calculate next scheduled time
+const getNextScheduledTime = (hour: number): string => {
+  const now = new Date();
+  const next = new Date();
+  next.setHours(hour, 0, 0, 0);
+
+  if (next <= now) {
+    next.setDate(next.getDate() + 1);
+  }
+
+  const isToday = next.toDateString() === now.toDateString();
+  const period = hour >= 12 ? "PM" : "AM";
+  const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return `${isToday ? "Today" : "Tomorrow"} at ${displayHour}:00 ${period}`;
 };
 
 export const AIKnowledgeSettings = ({ organizationId }: AIKnowledgeSettingsProps) => {
@@ -282,6 +324,9 @@ export const AIKnowledgeSettings = ({ organizationId }: AIKnowledgeSettingsProps
           calendar_enabled: data.calendar_enabled,
           leave_enabled: data.leave_enabled,
           attendance_enabled: data.attendance_enabled,
+          auto_reindex_enabled: data.auto_reindex_enabled ?? false,
+          auto_reindex_hour: data.auto_reindex_hour ?? 2,
+          last_auto_reindex_at: data.last_auto_reindex_at,
         });
       }
     } catch (error: any) {
@@ -495,6 +540,72 @@ export const AIKnowledgeSettings = ({ organizationId }: AIKnowledgeSettingsProps
           <p className="text-sm text-muted-foreground">
             Changes take effect on next AI index. Use "Re-index Now" to update immediately.
           </p>
+        </div>
+
+        <Separator />
+
+        {/* Automatic Re-indexing Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-base font-medium flex items-center gap-2">
+                <Timer className="h-4 w-4" />
+                Automatic Re-indexing
+              </Label>
+              <p className="text-sm text-muted-foreground mt-1">
+                Automatically update the AI knowledge base daily
+              </p>
+            </div>
+            <Switch
+              checked={settings.auto_reindex_enabled}
+              onCheckedChange={(checked) => {
+                setSettings(prev => ({ ...prev, auto_reindex_enabled: checked }));
+                setHasChanges(true);
+              }}
+            />
+          </div>
+
+          {settings.auto_reindex_enabled && (
+            <div className="space-y-3 pl-6 border-l-2 border-muted">
+              <div className="flex items-center gap-3">
+                <Label className="text-sm">Run at:</Label>
+                <Select 
+                  value={String(settings.auto_reindex_hour)} 
+                  onValueChange={(v) => {
+                    setSettings(prev => ({ ...prev, auto_reindex_hour: Number(v) }));
+                    setHasChanges(true);
+                  }}
+                >
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {hourOptions.map(opt => (
+                      <SelectItem key={opt.value} value={String(opt.value)}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-xs text-muted-foreground">
+                  (organization timezone)
+                </span>
+              </div>
+
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  Last run: {settings.last_auto_reindex_at 
+                    ? getShortRelativeTime(settings.last_auto_reindex_at) 
+                    : "Never"}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  Next: {getNextScheduledTime(settings.auto_reindex_hour)}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Overall progress bar */}
