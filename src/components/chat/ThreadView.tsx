@@ -174,7 +174,7 @@ const ThreadView = ({
   const parentSenderName = parentMessage.sender?.profiles?.full_name || "Unknown";
 
   return (
-    <div className="flex flex-col h-full bg-card border-l border-border">
+    <div className="flex flex-col h-full bg-card border-l border-border w-80 flex-shrink-0">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <h3 className="font-semibold text-sm">Thread</h3>
