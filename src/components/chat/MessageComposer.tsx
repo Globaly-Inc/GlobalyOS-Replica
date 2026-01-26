@@ -28,6 +28,7 @@ import {
   FileIcon,
   Upload,
   AtSign,
+  Video,
 } from "lucide-react";
 import { useSendMessage, useTypingIndicator, useSaveMentions, useSpaceMembers, useConversationParticipants } from "@/services/useChat";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -41,10 +42,17 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 import EmojiPicker from "@/components/ui/EmojiPicker";
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+const ALLOWED_VIDEO_TYPES = [
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+  "video/x-msvideo",
+];
 const ALLOWED_FILE_TYPES = [
   ...ALLOWED_IMAGE_TYPES,
+  ...ALLOWED_VIDEO_TYPES,
   "application/pdf",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -77,7 +85,7 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
   ({ conversationId, spaceId }, ref) => {
   const [message, setMessage] = useState("");
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-  const [uploadType, setUploadType] = useState<"file" | "image">("file");
+  const [uploadType, setUploadType] = useState<"file" | "image" | "video">("file");
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -114,8 +122,8 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
     addFiles: (files: File[]) => {
       const newFiles: SelectedFile[] = [];
       files.forEach(file => {
-        if (file.size > MAX_FILE_SIZE) {
-          toast.error(`${file.name} exceeds 10MB limit`);
+      if (file.size > MAX_FILE_SIZE) {
+          toast.error(`${file.name} exceeds 50MB limit`);
           return;
         }
         if (!ALLOWED_FILE_TYPES.includes(file.type)) {
@@ -269,7 +277,7 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
       }
       
       const result = await sendMessage.mutateAsync({
-        content: message.trim() || (uploadedAttachments.length > 0 ? "Shared file(s)" : ""),
+        content: message.trim(),
         conversationId: conversationId || undefined,
         spaceId: spaceId || undefined,
         attachments: uploadedAttachments,
@@ -338,7 +346,7 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
     textarea.focus();
   };
 
-  const openUploadDialog = (type: "file" | "image") => {
+  const openUploadDialog = (type: "file" | "image" | "video") => {
     setUploadType(type);
     setSelectedFiles([]);
     setUploadDialogOpen(true);
@@ -347,12 +355,16 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
   const handleFileSelect = useCallback((files: FileList | null) => {
     if (!files) return;
     
-    const allowedTypes = uploadType === "image" ? ALLOWED_IMAGE_TYPES : ALLOWED_FILE_TYPES;
+    const allowedTypes = uploadType === "image" 
+      ? ALLOWED_IMAGE_TYPES 
+      : uploadType === "video"
+      ? ALLOWED_VIDEO_TYPES
+      : ALLOWED_FILE_TYPES;
     const newFiles: SelectedFile[] = [];
     
     Array.from(files).forEach(file => {
       if (file.size > MAX_FILE_SIZE) {
-        toast.error(`${file.name} exceeds 10MB limit`);
+        toast.error(`${file.name} exceeds 50MB limit`);
         return;
       }
       if (!allowedTypes.includes(file.type)) {
@@ -582,6 +594,14 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
                     <Image className="h-4 w-4" />
                     Upload image
                   </Button>
+                  <Button 
+                    variant="ghost" 
+                    className="w-full justify-start gap-2 h-9"
+                    onClick={() => openUploadDialog("video")}
+                  >
+                    <Video className="h-4 w-4" />
+                    Upload video
+                  </Button>
                 </PopoverContent>
               </Popover>
 
@@ -649,9 +669,9 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
       {/* Upload Dialog */}
       <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader>
+        <DialogHeader>
             <DialogTitle>
-              {uploadType === "image" ? "Upload Images" : "Upload Files"}
+              {uploadType === "image" ? "Upload Images" : uploadType === "video" ? "Upload Videos" : "Upload Files"}
             </DialogTitle>
           </DialogHeader>
           
@@ -671,14 +691,14 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
               ref={fileInputRef}
               type="file"
               multiple
-              accept={uploadType === "image" ? ALLOWED_IMAGE_TYPES.join(",") : ALLOWED_FILE_TYPES.join(",")}
+              accept={uploadType === "image" ? ALLOWED_IMAGE_TYPES.join(",") : uploadType === "video" ? ALLOWED_VIDEO_TYPES.join(",") : ALLOWED_FILE_TYPES.join(",")}
               onChange={(e) => handleFileSelect(e.target.files)}
               className="hidden"
             />
             
             <Upload className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
             <p className="text-sm text-muted-foreground mb-2">
-              Drag and drop {uploadType === "image" ? "images" : "files"} here, or
+              Drag and drop {uploadType === "image" ? "images" : uploadType === "video" ? "videos" : "files"} here, or
             </p>
             <Button 
               variant="outline" 
@@ -687,7 +707,7 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
               Browse files
             </Button>
             <p className="text-xs text-muted-foreground mt-3">
-              Max file size: 10MB
+              Max file size: 50MB
             </p>
           </div>
 
