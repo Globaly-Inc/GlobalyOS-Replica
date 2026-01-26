@@ -117,7 +117,7 @@ export const EditLeaveRequestDialog = ({
 
       const updateData: any = {
         leave_type: selectedLeaveType?.name || request.leave_type,  // Text for display
-        leave_type_id: leaveTypeId,                                   // FK for trigger
+        office_leave_type_id: leaveTypeId,                            // FK for trigger
         start_date: format(startDate, "yyyy-MM-dd"),
         end_date: format(endDate, "yyyy-MM-dd"),
         days_count: daysCount,

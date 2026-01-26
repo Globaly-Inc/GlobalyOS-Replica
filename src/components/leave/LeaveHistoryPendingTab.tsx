@@ -185,16 +185,6 @@ export const LeaveHistoryPendingTab = ({
       }
     }
 
-    // Fallback to legacy leave_types
-    const { data: leaveTypes } = await supabase
-      .from("leave_types")
-      .select("id, name, max_negative_days")
-      .eq("organization_id", currentOrg.id)
-      .eq("is_active", true);
-
-    (leaveTypes || []).forEach(lt => {
-      map.set(lt.name.toLowerCase(), lt);
-    });
     return map;
   };
 
@@ -503,20 +493,9 @@ export const LeaveHistoryPendingTab = ({
         newLeaveTypeData = officeType;
       }
 
-      // Fallback to legacy leave_types
-      if (!newLeaveTypeData) {
-        const { data: legacyType } = await supabase
-          .from("leave_types")
-          .select("id")
-          .eq("organization_id", currentOrg?.id)
-          .ilike("name", newLeaveType)
-          .maybeSingle();
-        newLeaveTypeData = legacyType;
-      }
-      
       if (newLeaveTypeData) {
         updateData.leave_type = newLeaveType;
-        updateData.leave_type_id = newLeaveTypeData.id;
+        updateData.office_leave_type_id = newLeaveTypeData.id;
       } else {
         toast.error(`Could not find leave type: ${newLeaveType}`);
         setProcessing(null);
