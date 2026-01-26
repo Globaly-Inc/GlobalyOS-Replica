@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus, Building2, Settings, Upload, LayoutGrid, Users, ArrowUpRight, UserCog, Wifi, WifiOff, FolderKanban, X, Filter } from "lucide-react";
+import { Search, UserPlus, Building2, Settings, Upload, LayoutGrid, Users, ArrowUpRight, UserCog, Wifi, WifiOff, X, Filter } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { supabase } from "@/integrations/supabase/client";
@@ -54,17 +54,6 @@ interface Office {
   name: string;
 }
 
-interface Project {
-  id: string;
-  name: string;
-  color: string | null;
-}
-
-interface EmployeeProject {
-  employee_id: string;
-  project_id: string;
-}
-
 interface UserRole {
   user_id: string;
   role: string;
@@ -93,13 +82,12 @@ const Team = () => {
   const {
     statusFilter, setStatusFilter,
     onlineFilter, setOnlineFilter,
-    projectFilter, setProjectFilter,
+    officeFilter, setOfficeFilter,
     viewMode, setViewMode,
     clearFilters: clearAllFilters,
   } = useTeamFilters();
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [employeeProjects, setEmployeeProjects] = useState<EmployeeProject[]>([]);
+  const [offices, setOffices] = useState<Office[]>([]);
   const [userRoles, setUserRoles] = useState<Record<string, string>>({});
   const [onlineStatuses, setOnlineStatuses] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
@@ -170,27 +158,22 @@ const Team = () => {
     if (!currentOrg) return;
     setLoading(true);
     
-    // Fetch all data in parallel
-    const [employeeResult, projectsResult, employeeProjectsResult] = await Promise.all([
+    // Fetch employees and offices in parallel
+    const [employeeResult, officesResult] = await Promise.all([
       supabase
         .from("employee_directory")
         .select("*")
         .eq("organization_id", currentOrg.id)
         .order("created_at", { ascending: false }),
       supabase
-        .from("projects")
-        .select("id, name, color")
+        .from("offices")
+        .select("id, name")
         .eq("organization_id", currentOrg.id)
-        .order("name"),
-      supabase
-        .from("employee_projects")
-        .select("employee_id, project_id")
-        .eq("organization_id", currentOrg.id)
+        .order("name")
     ]);
 
-    // Set projects
-    if (projectsResult.data) setProjects(projectsResult.data as Project[]);
-    if (employeeProjectsResult.data) setEmployeeProjects(employeeProjectsResult.data as EmployeeProject[]);
+    // Set offices
+    if (officesResult.data) setOffices(officesResult.data as Office[]);
 
     if (employeeResult.data) {
       // Transform view data to match Employee interface
@@ -271,22 +254,19 @@ const Team = () => {
     return { online, offline: activeEmployees.length - online };
   }, [employees, onlineStatuses]);
 
+  // Count employees with no office
+  const noOfficeCount = useMemo(() => {
+    return employees.filter(e => !e.office_id).length;
+  }, [employees]);
+
   // Count active filters
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (statusFilter !== 'active') count++; // 'active' is default
     if (onlineFilter !== 'all') count++;
-    if (projectFilter !== 'all') count++;
+    if (officeFilter !== 'all') count++;
     return count;
-  }, [statusFilter, onlineFilter, projectFilter]);
-
-  // clearAllFilters is now provided by useTeamFilters
-
-  // Count employees with no project assignments
-  const noProjectCount = useMemo(() => {
-    const employeesWithProjects = new Set(employeeProjects.map(ep => ep.employee_id));
-    return employees.filter(e => !employeesWithProjects.has(e.id)).length;
-  }, [employees, employeeProjects]);
+  }, [statusFilter, onlineFilter, officeFilter]);
 
   const filteredEmployees = useMemo(() => {
     return employees
@@ -297,11 +277,11 @@ const Team = () => {
         return onlineFilter === 'online' ? isOnline : !isOnline;
       })
       .filter((employee) => {
-        if (projectFilter === 'all') return true;
-        if (projectFilter === 'none') {
-          return !employeeProjects.some(ep => ep.employee_id === employee.id);
+        if (officeFilter === 'all') return true;
+        if (officeFilter === 'none') {
+          return !employee.office_id;
         }
-        return employeeProjects.some(ep => ep.employee_id === employee.id && ep.project_id === projectFilter);
+        return employee.office_id === officeFilter;
       })
       .filter((employee) =>
         employee.profiles.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -309,7 +289,7 @@ const Team = () => {
         employee.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (employee.offices?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
       );
-  }, [employees, statusFilter, onlineFilter, onlineStatuses, projectFilter, employeeProjects, searchQuery]);
+  }, [employees, statusFilter, onlineFilter, onlineStatuses, officeFilter, searchQuery]);
 
   // Pagination for cards view
   const pagination = usePagination({ pageKey: 'team-directory' });
@@ -322,7 +302,7 @@ const Team = () => {
   // Reset to page 1 when filters change
   useEffect(() => {
     pagination.resetPage();
-  }, [statusFilter, onlineFilter, projectFilter, searchQuery]);
+  }, [statusFilter, onlineFilter, officeFilter, searchQuery]);
 
   // Paginated employees for cards view only
   const paginatedEmployees = useMemo(() => {
@@ -591,39 +571,33 @@ const Team = () => {
               </SelectContent>
             </Select>
 
-            {/* Project Filter */}
-            {projects.length > 0 && (
-              <Select value={projectFilter} onValueChange={setProjectFilter}>
+            {/* Office Filter */}
+            {offices.length > 0 && (
+              <Select value={officeFilter} onValueChange={setOfficeFilter}>
                 <SelectTrigger className={cn(
                   "w-[150px] h-9",
-                  projectFilter !== 'all' && "border-primary bg-primary/5"
+                  officeFilter !== 'all' && "border-primary bg-primary/5"
                 )}>
                   <div className="flex items-center gap-2">
-                    <FolderKanban className="h-4 w-4 text-muted-foreground" />
-                    <SelectValue placeholder="Project" />
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <SelectValue placeholder="Office" />
                   </div>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Projects</SelectItem>
+                  <SelectItem value="all">All Offices</SelectItem>
                   <SelectItem value="none">
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full border border-dashed border-muted-foreground/50" />
-                      <span>No Project</span>
-                      <span className="text-muted-foreground">({noProjectCount})</span>
+                      <span>No Office</span>
+                      <span className="text-muted-foreground">({noOfficeCount})</span>
                     </div>
                   </SelectItem>
-                  {projects.map((project) => {
-                    const memberCount = employeeProjects.filter(ep => ep.project_id === project.id).length;
+                  {offices.map((office) => {
+                    const memberCount = officeEmployeeCounts[office.id] || 0;
                     return (
-                      <SelectItem key={project.id} value={project.id}>
+                      <SelectItem key={office.id} value={office.id}>
                         <div className="flex items-center gap-2">
-                          {project.color && (
-                            <span 
-                              className="w-2 h-2 rounded-full" 
-                              style={{ backgroundColor: project.color }}
-                            />
-                          )}
-                          <span>{project.name}</span>
+                          <span>{office.name}</span>
                           <span className="text-muted-foreground">({memberCount})</span>
                         </div>
                       </SelectItem>

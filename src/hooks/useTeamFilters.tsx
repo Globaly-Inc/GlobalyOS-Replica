@@ -7,14 +7,14 @@ type ViewMode = "cards" | "orgchart";
 interface TeamFilters {
   statusFilter: StatusFilter;
   onlineFilter: OnlineFilter;
-  projectFilter: string;
+  officeFilter: string;
   viewMode: ViewMode;
 }
 
 const DEFAULT_FILTERS: TeamFilters = {
   statusFilter: "active",
   onlineFilter: "all",
-  projectFilter: "all",
+  officeFilter: "all",
   viewMode: "cards",
 };
 
@@ -29,12 +29,12 @@ export const useTeamFilters = () => {
     // Filter values
     statusFilter: filters.statusFilter,
     onlineFilter: filters.onlineFilter,
-    projectFilter: filters.projectFilter,
+    officeFilter: filters.officeFilter,
     viewMode: filters.viewMode,
     // Setters
     setStatusFilter: (value: StatusFilter) => setFilter("statusFilter", value),
     setOnlineFilter: (value: OnlineFilter) => setFilter("onlineFilter", value),
-    setProjectFilter: (value: string) => setFilter("projectFilter", value),
+    setOfficeFilter: (value: string) => setFilter("officeFilter", value),
     setViewMode: (value: ViewMode) => setFilter("viewMode", value),
     clearFilters,
     isLoaded,
