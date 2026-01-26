@@ -56,7 +56,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  Search,
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import MessageSearch from "./MessageSearch";
 import { PDFViewer } from "@/components/feed/PDFViewer";
 import { VideoPlayer } from "@/components/feed/VideoPlayer";
 import { format } from "date-fns";
@@ -137,6 +140,7 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showTransferAdminDialog, setShowTransferAdminDialog] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   
   // Shared files lightbox state
   const [filesLightboxOpen, setFilesLightboxOpen] = useState(false);
@@ -505,206 +509,105 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
 
   return (
     <div className="flex flex-col h-full bg-card border-l border-border w-80">
+      {/* Hidden file input for space icon upload */}
+      {activeChat.type === 'space' && (
+        <input
+          ref={spaceIconInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          className="hidden"
+          onChange={handleSpaceIconUpload}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          {activeChat.type === 'conversation' && !activeChat.isGroup ? (
-            <div className="relative">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={otherParticipant?.avatar_url || undefined} />
-                <AvatarFallback className="text-sm bg-primary/10 text-primary">
-                  {getInitials(activeChat.name)}
-                </AvatarFallback>
-              </Avatar>
-              {otherParticipant?.is_online && (
-                <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-card" />
-              )}
-            </div>
-          ) : activeChat.type === 'space' ? (
-            <>
-              {/* Hidden file input for space icon upload */}
-              <input
-                ref={spaceIconInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                className="hidden"
-                onChange={handleSpaceIconUpload}
-              />
-              <div 
-                className={cn(
-                  "relative flex items-center justify-center h-10 w-10 rounded bg-primary/10 text-primary font-semibold",
-                  isSpaceAdmin && "cursor-pointer group"
-                )}
-                onClick={() => isSpaceAdmin && spaceIconInputRef.current?.click()}
-                title={isSpaceAdmin ? "Click to change space icon" : undefined}
-              >
-                {isUploadingIcon ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : spaceIconUrl ? (
-                  <img src={spaceIconUrl} alt={activeChat.name} className="h-10 w-10 rounded object-cover" />
-                ) : (
-                  activeChat.name.charAt(0).toUpperCase()
-                )}
-                {/* Camera overlay for admins on hover */}
-                {isSpaceAdmin && !isUploadingIcon && (
-                  <div className="absolute inset-0 bg-black/50 rounded opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <Camera className="h-4 w-4 text-white" />
-                  </div>
-                )}
-              </div>
-            </>
-          ) : (
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={activeChat.iconUrl || undefined} />
-              <AvatarFallback className="text-sm bg-primary/10 text-primary">
-                {getInitials(activeChat.name)}
-              </AvatarFallback>
-            </Avatar>
+        {/* Left: Back button (mobile) + Title */}
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          {isMobileOverlay && (
+            <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={onClose}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
           )}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               {activeChat.type === 'space' && <span className="text-muted-foreground">#</span>}
-              <h2 className="font-semibold text-foreground truncate">{activeChat.name}</h2>
+              <h2 className="font-semibold text-foreground truncate text-sm">{activeChat.name}</h2>
             </div>
-            {otherParticipant?.position && (
-              <p className="text-xs text-muted-foreground truncate">{otherParticipant.position}</p>
-            )}
-            {activeChat.type === 'space' && (
-              <p className="text-xs text-muted-foreground">{memberCount} members</p>
-            )}
+            <p className="text-xs text-muted-foreground">
+              {activeChat.type === 'space' 
+                ? `${memberCount} members` 
+                : activeChat.isGroup 
+                ? 'Group' 
+                : 'Direct message'}
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => toggleFavorite.mutate({
-              conversationId: conversationId || undefined,
-              spaceId: spaceId || undefined,
-            })}
-          >
-            <Star className={cn("h-4 w-4", isFavorited && "fill-yellow-500 text-yellow-500")} />
-          </Button>
-          
-          {/* 3-dot dropdown menu for spaces */}
-          {activeChat.type === 'space' && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-popover">
-                <DropdownMenuItem onClick={() => setShowMembersDialog(true)}>
-                  <Users className="h-4 w-4 mr-2" />
-                  View members
-                </DropdownMenuItem>
-                {isSpaceAdmin && (
-                  <>
-                    <DropdownMenuItem onClick={() => setShowAddMembersDialog(true)}>
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      Add members
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => setShowSettingsDialog(true)}>
-                      <Settings className="h-4 w-4 mr-2" />
-                      Space settings
-                    </DropdownMenuItem>
-                  </>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleToggleSpaceMute}>
-                  {spaceNotificationSetting === 'mute' ? (
-                    <>
-                      <Bell className="h-4 w-4 mr-2" />
-                      Unmute notifications
-                    </>
-                  ) : (
-                    <>
-                      <BellOff className="h-4 w-4 mr-2" />
-                      Mute notifications
-                    </>
-                  )}
-                </DropdownMenuItem>
-                {/* Leave space option - conditional based on admin status */}
-                {isSpaceAdmin ? (
-                  canAdminLeaveDirectly ? (
-                    <DropdownMenuItem 
-                      onClick={() => setShowLeaveConfirm(true)}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <LogOut className="h-4 w-4 mr-2" />
-                      Leave space
-                    </DropdownMenuItem>
-                  ) : nonAdminMembers.length > 0 ? (
-                    <DropdownMenuItem 
-                      onClick={() => setShowTransferAdminDialog(true)}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <LogOut className="h-4 w-4 mr-2" />
-                      Leave space (transfer admin)
-                    </DropdownMenuItem>
-                  ) : (
-                    <DropdownMenuItem 
-                      disabled 
-                      className="text-muted-foreground"
-                    >
-                      <LogOut className="h-4 w-4 mr-2" />
-                      Cannot leave (only member)
-                    </DropdownMenuItem>
-                  )
+        
+        {/* Right: Action buttons - Mute, Favorite, Search */}
+        <div className="flex items-center gap-0.5">
+          {/* Mute Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={activeChat.type === 'space' ? handleToggleSpaceMute : handleToggleMute}
+              >
+                {(activeChat.type === 'space' ? spaceNotificationSetting === 'mute' : isMuted) ? (
+                  <BellOff className="h-4 w-4 text-muted-foreground" />
                 ) : (
-                  <DropdownMenuItem 
-                    onClick={() => setShowLeaveConfirm(true)}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Leave space
-                  </DropdownMenuItem>
+                  <Bell className="h-4 w-4" />
                 )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {(activeChat.type === 'space' ? spaceNotificationSetting === 'mute' : isMuted)
+                ? 'Unmute notifications'
+                : 'Mute notifications'}
+            </TooltipContent>
+          </Tooltip>
+
+          {/* Favorite Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => toggleFavorite.mutate({
+                  conversationId: conversationId || undefined,
+                  spaceId: spaceId || undefined,
+                })}
+              >
+                <Star className={cn(
+                  "h-4 w-4",
+                  isFavorited && "fill-orange-500 text-orange-500"
+                )} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+            </TooltipContent>
+          </Tooltip>
+
+          {/* Search Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn("h-8 w-8", showSearch && "bg-accent")}
+                onClick={() => setShowSearch(!showSearch)}
+              >
+                <Search className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Search messages</TooltipContent>
+          </Tooltip>
           
-          {/* 3-dot dropdown menu for conversations */}
-          {activeChat.type === 'conversation' && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-popover">
-                <DropdownMenuItem onClick={handleToggleMute}>
-                  {isMuted ? (
-                    <>
-                      <Bell className="h-4 w-4 mr-2" />
-                      Unmute chat
-                    </>
-                  ) : (
-                    <>
-                      <BellOff className="h-4 w-4 mr-2" />
-                      Mute chat
-                    </>
-                  )}
-                </DropdownMenuItem>
-                {activeChat.isGroup && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      onClick={() => setShowLeaveConfirm(true)}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <LogOut className="h-4 w-4 mr-2" />
-                      Leave group
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-          
+          {/* Close button for mobile only */}
           {isMobileOverlay && (
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
               <X className="h-4 w-4" />
@@ -712,6 +615,25 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
           )}
         </div>
       </div>
+
+      {/* Message Search Panel */}
+      <MessageSearch
+        conversationId={conversationId}
+        spaceId={spaceId}
+        isOpen={showSearch}
+        onClose={() => setShowSearch(false)}
+        onResultClick={(messageId) => {
+          const messageElement = document.getElementById(`message-${messageId}`);
+          if (messageElement) {
+            messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            messageElement.classList.add('ring-2', 'ring-primary');
+            setTimeout(() => {
+              messageElement.classList.remove('ring-2', 'ring-primary');
+            }, 2000);
+          }
+          setShowSearch(false);
+        }}
+      />
 
       <ScrollArea className="flex-1">
         {/* About Section */}
