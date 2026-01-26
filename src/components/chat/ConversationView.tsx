@@ -711,15 +711,6 @@ const ConversationView = ({
           </div>
 
           <div className="flex items-center gap-0.5 md:gap-1 flex-shrink-0">
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={() => setShowSearch(!showSearch)}
-              className={`h-9 w-9 ${showSearch ? "bg-accent" : ""}`}
-            >
-              <Search className="h-4 w-4" />
-            </Button>
-            
             {/* Mobile: Show info button and more menu button */}
             {isMobile && (
               <>
