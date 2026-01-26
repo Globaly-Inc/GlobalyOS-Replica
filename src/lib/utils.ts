@@ -100,3 +100,41 @@ export function formatRelativeTime(date: string | Date | null | undefined): stri
   if (diffWeeks < 4) return `${diffWeeks}w ago`;
   return `${diffMonths}mo ago`;
 }
+
+/**
+ * Smart date formatter for social feeds
+ * Shows relative time for recent posts, full date+time for older posts
+ * @param date - The date to format
+ * @param thresholdDays - Number of days after which to show full date (default: 3)
+ * @param timezone - Optional timezone for formatting
+ */
+export function formatSmartDateTime(
+  date: string | Date | null | undefined, 
+  thresholdDays: number = 3,
+  timezone?: string
+): string {
+  if (!date) return '';
+  const dateObj = new Date(date);
+  if (!isValidDate(dateObj)) return '';
+  
+  const now = new Date();
+  const diffMs = now.getTime() - dateObj.getTime();
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  
+  // If older than threshold, show full date with time
+  if (diffDays >= thresholdDays) {
+    if (timezone) {
+      return formatInTimeZone(dateObj, timezone, "dd MMM yyyy - h:mm a");
+    }
+    return format(dateObj, "dd MMM yyyy - h:mm a");
+  }
+  
+  // Otherwise, show relative time
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  return `${Math.floor(diffDays)}d ago`;
+}
