@@ -27,12 +27,16 @@ interface AskAIConversationProps {
   };
   onBack?: () => void;
   isMobile?: boolean;
+  pendingMessage?: string | null;
+  onPendingMessageProcessed?: () => void;
 }
 
 export const AskAIConversation = ({
   conversation,
   onBack,
   isMobile,
+  pendingMessage,
+  onPendingMessageProcessed,
 }: AskAIConversationProps) => {
   const { currentOrg } = useOrganization();
   const { user } = useAuth();
@@ -74,6 +78,21 @@ export const AskAIConversation = ({
     },
     enabled: !!currentOrg?.id && !!user?.id,
   });
+
+  // Handle pending message from suggestion cards - auto-send when conversation loads
+  const pendingMessageProcessedRef = useRef(false);
+  useEffect(() => {
+    if (pendingMessage && !isGenerating && !pendingMessageProcessedRef.current) {
+      pendingMessageProcessedRef.current = true;
+      handleSend(pendingMessage);
+      onPendingMessageProcessed?.();
+    }
+  }, [pendingMessage, isGenerating]);
+
+  // Reset ref when conversation changes
+  useEffect(() => {
+    pendingMessageProcessedRef.current = false;
+  }, [conversation.id]);
 
   // Scroll to bottom when messages change
   useEffect(() => {

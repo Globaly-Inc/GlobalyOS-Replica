@@ -26,6 +26,7 @@ const AskAI = () => {
   
   const [isCreatingWithMessage, setIsCreatingWithMessage] = useState(false);
   const [showMobileSidebar, setShowMobileSidebar] = useState(!searchParams.get("c"));
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
 
   const { data: conversations = [] } = useAIConversations();
   const createConversation = useCreateConversation();
@@ -56,28 +57,24 @@ const AskAI = () => {
     setIsCreatingWithMessage(true);
 
     try {
+      // Create conversation and navigate immediately
       const conversation = await createConversation.mutateAsync("New Conversation");
-      await addMessage.mutateAsync({ conversationId: conversation.id, role: "user", content: message });
-
-      const { data, error } = await supabase.functions.invoke("global-ask-ai", {
-        body: { question: message, organizationId: currentOrg.id, conversationId: conversation.id, conversationHistory: [] },
-      });
-
-      if (error) {
-        if (error.message?.includes("429")) toast.error("Monthly AI query limit reached");
-        else throw error;
-      } else {
-        await addMessage.mutateAsync({ conversationId: conversation.id, role: "assistant", content: data.answer });
-        const title = message.slice(0, 50) + (message.length > 50 ? "..." : "");
-        await supabase.from("ai_conversations").update({ title }).eq("id", conversation.id);
-      }
+      
+      // Store pending message and navigate to conversation view
+      setPendingMessage(message);
       setActiveConversationId(conversation.id);
+      
+      if (isMobile) setShowMobileSidebar(false);
     } catch (error) {
-      console.error("Failed to start conversation:", error);
+      console.error("Failed to create conversation:", error);
       toast.error("Failed to start conversation");
     } finally {
       setIsCreatingWithMessage(false);
     }
+  };
+  
+  const handlePendingMessageProcessed = () => {
+    setPendingMessage(null);
   };
 
   const handleMobileBack = () => {
@@ -104,7 +101,13 @@ const AskAI = () => {
     if (activeConversation) {
       return (
         <div className="h-[calc(100vh-8rem)]">
-          <AskAIConversation conversation={activeConversation} onBack={handleMobileBack} isMobile />
+          <AskAIConversation 
+            conversation={activeConversation} 
+            onBack={handleMobileBack} 
+            isMobile 
+            pendingMessage={pendingMessage}
+            onPendingMessageProcessed={handlePendingMessageProcessed}
+          />
         </div>
       );
     }
@@ -116,7 +119,11 @@ const AskAI = () => {
       <AskAISidebar activeId={activeConversationId} onSelect={handleSelectConversation} onNewChat={handleNewChat} />
       <div className="flex-1 min-w-0 flex flex-col">
         {activeConversation ? (
-          <AskAIConversation conversation={activeConversation} />
+          <AskAIConversation 
+            conversation={activeConversation} 
+            pendingMessage={pendingMessage}
+            onPendingMessageProcessed={handlePendingMessageProcessed}
+          />
         ) : (
           <>
             <div className="flex-1 overflow-auto"><AskAIEmptyState onSendMessage={handleSendFirstMessage} isLoading={isCreatingWithMessage} /></div>
