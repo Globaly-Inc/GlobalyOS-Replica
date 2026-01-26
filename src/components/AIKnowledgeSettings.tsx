@@ -52,16 +52,16 @@ const defaultSettings: AISettings = {
   attendance_enabled: true,
 };
 
-// Map settings keys to database source_type values
-const sourceTypeMapping: Record<string, string> = {
-  wiki_enabled: 'wiki_page',
-  chat_enabled: 'chat_message',
-  team_directory_enabled: 'team_member',
-  announcements_enabled: 'announcement',
-  kpis_enabled: 'kpi',
-  calendar_enabled: 'calendar_event',
-  leave_enabled: 'leave_record',
-  attendance_enabled: 'attendance',
+// Map settings keys to database content_type values in ai_content_index
+const sourceTypeMapping: Record<string, string[]> = {
+  wiki_enabled: ['wiki'],
+  chat_enabled: ['chat'],
+  team_directory_enabled: ['employee'],
+  announcements_enabled: ['announcement', 'win'],
+  kpis_enabled: ['kpi'],
+  calendar_enabled: ['calendar'],
+  leave_enabled: ['leave'],
+  attendance_enabled: ['attendance'],
 };
 
 interface IndexStats {
@@ -233,22 +233,22 @@ export const AIKnowledgeSettings = ({ organizationId }: AIKnowledgeSettingsProps
     
     try {
       const { data, error } = await supabase
-        .from("knowledge_embeddings")
-        .select("source_type, updated_at")
+        .from("ai_content_index")
+        .select("content_type, last_updated")
         .eq("organization_id", organizationId);
       
       if (error) throw error;
       
-      // Aggregate counts and find max updated_at per source_type
+      // Aggregate counts and find max last_updated per content_type
       const stats: IndexStats = {};
       data?.forEach((row) => {
-        if (!stats[row.source_type]) {
-          stats[row.source_type] = { count: 0, lastUpdated: null };
+        if (!stats[row.content_type]) {
+          stats[row.content_type] = { count: 0, lastUpdated: null };
         }
-        stats[row.source_type].count++;
-        if (!stats[row.source_type].lastUpdated || 
-            row.updated_at > stats[row.source_type].lastUpdated) {
-          stats[row.source_type].lastUpdated = row.updated_at;
+        stats[row.content_type].count++;
+        if (!stats[row.content_type].lastUpdated || 
+            row.last_updated > stats[row.content_type].lastUpdated) {
+          stats[row.content_type].lastUpdated = row.last_updated;
         }
       });
       
@@ -403,9 +403,23 @@ export const AIKnowledgeSettings = ({ organizationId }: AIKnowledgeSettingsProps
           {knowledgeSources.map((source) => {
             const Icon = source.icon;
             const isEnabled = settings[source.key] as boolean;
-            const sourceType = sourceTypeMapping[source.key];
-            const stats = indexStats[sourceType];
-            const cardStatus = getCardStatus(sourceType);
+            const sourceTypes = sourceTypeMapping[source.key];
+            // Aggregate stats for all content types in this source
+            const aggregatedStats = sourceTypes.reduce(
+              (acc, type) => {
+                const stat = indexStats[type];
+                if (stat) {
+                  acc.count += stat.count;
+                  if (!acc.lastUpdated || (stat.lastUpdated && stat.lastUpdated > acc.lastUpdated)) {
+                    acc.lastUpdated = stat.lastUpdated;
+                  }
+                }
+                return acc;
+              },
+              { count: 0, lastUpdated: null as string | null }
+            );
+            // For card status, check first type in array
+            const cardStatus = getCardStatus(sourceTypes[0]);
             
             return (
               <div
@@ -432,12 +446,12 @@ export const AIKnowledgeSettings = ({ organizationId }: AIKnowledgeSettingsProps
                     <div className="flex items-center gap-3 pt-1 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Database className="h-3 w-3" />
-                        {stats?.count ?? 0} records
+                        {aggregatedStats.count} records
                       </span>
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {stats?.lastUpdated 
-                          ? getShortRelativeTime(stats.lastUpdated) 
+                        {aggregatedStats.lastUpdated 
+                          ? getShortRelativeTime(aggregatedStats.lastUpdated) 
                           : "Not yet indexed"}
                       </span>
                     </div>
