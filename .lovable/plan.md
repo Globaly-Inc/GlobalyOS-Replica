@@ -1,433 +1,600 @@
 
-## Plan: Apply Ask AI UI Pattern to Team Chat (Items 1, 4, 5)
+# Comprehensive Link Sharing Implementation Plan for Team Chat
 
-### Overview
+## Overview
 
-This plan implements the Ask AI visual style for three specific components in Team Chat:
-1. **ConversationView Header** - Simplified header with right-aligned action icons
-4. **ChatRightPanelEnhanced** - Already has collapsible sections, needs minor styling updates
-5. **ChatEmptyState** - Personalized greeting with suggestion cards
+This plan implements a complete link sharing system for Team Chat that includes:
+- Auto-link detection and rendering
+- Rich link preview cards with OpenGraph metadata
+- Platform-specific embeds (YouTube, TikTok, Instagram, Facebook, Twitter/X, Spotify, Loom)
+- Document previews (Google Docs, Figma)
+- Caching for performance
 
 ---
 
-### Item 1: ConversationView Header Redesign
+## Architecture Overview
 
-**File:** `src/components/chat/ConversationView.tsx`
-
-**Current State (Lines 607-739):**
-- Complex header with avatar, name, position, status indicator
-- Multiple conditional layouts for DM/Group/Space
-- Mobile: Info button and More menu button
-- Desktop: Empty action area (search was removed)
-
-**New Design:**
 ```text
-Desktop:
-+------------------------------------------------------------------+
-| [Avatar] # Chat Name                      [🔔] [⭐] [🔍]         |
-|          (subtitle)                                               |
-+------------------------------------------------------------------+
-
-Mobile:
-+------------------------------------------------------------------+
-| [←] [Avatar] Chat Name              [ℹ️] [⋮]                     |
-+------------------------------------------------------------------+
++------------------+      +-------------------------+      +--------------------+
+|   RichTextMessage|----->|   LinkPreviewRenderer   |----->|  Platform-Specific |
+|   (enhanced)     |      |   (orchestrator)        |      |  Components        |
++------------------+      +-------------------------+      +--------------------+
+                                    |                              |
+                                    v                              v
+                          +------------------+          +--------------------+
+                          | fetch-link-meta  |          | YouTubeEmbed      |
+                          | (edge function)  |          | TwitterEmbed      |
+                          +------------------+          | TikTokPreview     |
+                                    |                   | InstagramPreview  |
+                                    v                   | SpotifyEmbed      |
+                          +------------------+          | LoomEmbed         |
+                          | link_metadata_   |          | GoogleDocPreview  |
+                          | cache (DB)       |          | FigmaPreview      |
+                          +------------------+          | GenericLinkCard   |
+                                                        +--------------------+
 ```
+
+---
+
+## Phase 1: Auto-Link Detection & Clickable Links
+
+**Goal**: Convert plain URLs in messages to clickable, styled links
+
+### File: `src/components/chat/RichTextMessage.tsx`
 
 **Changes Required:**
 
-1. **Add New Imports** (around line 27):
-   - Import `Star` from lucide-react
-   - Import `useChatFavorites`, `useToggleFavorite` from `@/hooks/useChatFavorites`
-
-2. **Add Favorites Hook** (around line 155):
-   ```typescript
-   const { data: favorites = [] } = useChatFavorites();
-   const toggleFavorite = useToggleFavorite();
-   ```
-
-3. **Add Computed isFavorited** (around line 210):
-   ```typescript
-   const isFavorited = favorites.some(f => 
-     (conversationId && f.conversation_id === conversationId) || 
-     (spaceId && f.space_id === spaceId)
-   );
-   ```
-
-4. **Replace Desktop Action Area** (lines 736-738):
-   Add three action buttons with tooltips:
-   - **Mute Button**: Bell/BellOff based on mute state
-   - **Favorite Button**: Star with orange fill when favorited
-   - **Search Button**: Toggle showSearch state with accent background when active
-
-**Desktop Action Buttons:**
+1. Add URL detection regex (similar to WikiRichEditor):
 ```typescript
-{!isMobile && (
-  <div className="flex items-center gap-0.5">
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-9 w-9"
-          onClick={activeChat.type === 'space' ? handleToggleSpaceMute : handleToggleMute}
-        >
-          {(activeChat.type === 'space' ? spaceNotificationSetting === 'mute' : isMuted) ? (
-            <BellOff className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            <Bell className="h-4 w-4" />
-          )}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>
-        {(activeChat.type === 'space' ? spaceNotificationSetting === 'mute' : isMuted)
-          ? 'Unmute notifications'
-          : 'Mute notifications'}
-      </TooltipContent>
-    </Tooltip>
+const urlPattern = /(?:https?:\/\/|www\.)[^\s<]+[^\s<.,!?;:'")\]]/g;
+```
 
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-9 w-9"
-          onClick={() => toggleFavorite.mutate({
-            conversationId: conversationId || undefined,
-            spaceId: spaceId || undefined,
-          })}
-        >
-          <Star className={cn("h-4 w-4", isFavorited && "fill-orange-500 text-orange-500")} />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>
-        {isFavorited ? 'Remove from favorites' : 'Add to favorites'}
-      </TooltipContent>
-    </Tooltip>
+2. Modify `formattedContent` logic to:
+   - Detect URLs in text
+   - Render as clickable `<a>` tags with proper styling
+   - Truncate long URLs for display (show domain + path preview)
+   - Add external link indicator icon
 
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn("h-9 w-9", showSearch && "bg-accent")}
-          onClick={() => setShowSearch(!showSearch)}
-        >
-          <Search className="h-4 w-4" />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>Search messages</TooltipContent>
-    </Tooltip>
+**New URL Rendering:**
+```tsx
+<a 
+  href={fullUrl}
+  target="_blank"
+  rel="noopener noreferrer"
+  className="text-primary underline hover:no-underline inline-flex items-center gap-0.5"
+>
+  {truncatedUrl}
+  <ExternalLink className="h-3 w-3 inline-block" />
+</a>
+```
+
+---
+
+## Phase 2: Link Preview Orchestrator Component
+
+**Goal**: Create a component that detects link types and renders appropriate previews
+
+### New File: `src/components/chat/LinkPreviewRenderer.tsx`
+
+**Responsibilities:**
+- Parse message content for URLs
+- Determine platform type for each URL
+- Render appropriate preview component
+- Handle loading and error states
+
+**Platform Detection Logic:**
+```typescript
+const detectPlatform = (url: string): Platform => {
+  const domain = new URL(url).hostname;
+  
+  if (/youtube\.com|youtu\.be/.test(domain)) return 'youtube';
+  if (/twitter\.com|x\.com/.test(domain)) return 'twitter';
+  if (/tiktok\.com/.test(domain)) return 'tiktok';
+  if (/instagram\.com/.test(domain)) return 'instagram';
+  if (/facebook\.com|fb\.watch/.test(domain)) return 'facebook';
+  if (/spotify\.com/.test(domain)) return 'spotify';
+  if (/loom\.com/.test(domain)) return 'loom';
+  if (/docs\.google\.com|slides\.google\.com|sheets\.google\.com/.test(domain)) return 'google-docs';
+  if (/figma\.com/.test(domain)) return 'figma';
+  
+  return 'generic';
+};
+```
+
+**Props Interface:**
+```typescript
+interface LinkPreviewRendererProps {
+  content: string;
+  messageId: string;
+}
+```
+
+---
+
+## Phase 3: Edge Function for Link Metadata
+
+**Goal**: Fetch OpenGraph metadata for links server-side
+
+### New File: `supabase/functions/fetch-link-metadata/index.ts`
+
+**Features:**
+- Fetch HTML from URL
+- Parse OpenGraph meta tags
+- Extract: title, description, image, favicon, site_name
+- Handle errors gracefully
+- Return structured metadata
+
+**Request/Response:**
+```typescript
+// Request
+{ url: string }
+
+// Response
+{
+  success: boolean;
+  data?: {
+    url: string;
+    title: string | null;
+    description: string | null;
+    image: string | null;
+    favicon: string | null;
+    siteName: string | null;
+    type: string | null;
+  };
+  error?: string;
+}
+```
+
+**Implementation Notes:**
+- Set reasonable timeout (5 seconds)
+- Respect robots.txt where possible
+- Handle redirects
+- Limit image size checks
+- CORS headers for frontend access
+
+---
+
+## Phase 4: Database Cache for Link Metadata (Optional but Recommended)
+
+**Goal**: Cache fetched metadata to avoid repeated API calls
+
+### New Migration: `link_metadata_cache` table
+
+```sql
+CREATE TABLE link_metadata_cache (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  url_hash TEXT NOT NULL, -- SHA256 hash of URL
+  url TEXT NOT NULL,
+  title TEXT,
+  description TEXT,
+  image_url TEXT,
+  favicon_url TEXT,
+  site_name TEXT,
+  content_type TEXT, -- 'video', 'article', 'image', etc.
+  platform TEXT, -- 'youtube', 'twitter', etc.
+  fetched_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '7 days'),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  
+  UNIQUE(organization_id, url_hash)
+);
+
+-- RLS Policy
+ALTER TABLE link_metadata_cache ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can read link metadata for their org"
+ON link_metadata_cache FOR SELECT
+USING (
+  organization_id IN (
+    SELECT organization_id FROM employees WHERE user_id = auth.uid()
+  )
+);
+
+CREATE POLICY "Users can insert link metadata for their org"
+ON link_metadata_cache FOR INSERT
+WITH CHECK (
+  organization_id IN (
+    SELECT organization_id FROM employees WHERE user_id = auth.uid()
+  )
+);
+```
+
+---
+
+## Phase 5: Platform-Specific Preview Components
+
+### 5.1 YouTube Embed
+**File:** `src/components/chat/previews/YouTubeEmbed.tsx`
+
+**Features:**
+- Extract video ID from various URL formats
+- Inline iframe player (16:9 aspect ratio)
+- Click-to-play thumbnail mode (optional for performance)
+- Show video title if available
+
+```tsx
+interface YouTubeEmbedProps {
+  url: string;
+  metadata?: LinkMetadata;
+}
+```
+
+**URL Patterns:**
+- `youtube.com/watch?v=VIDEO_ID`
+- `youtu.be/VIDEO_ID`
+- `youtube.com/embed/VIDEO_ID`
+- `youtube.com/shorts/VIDEO_ID`
+
+---
+
+### 5.2 TikTok Preview
+**File:** `src/components/chat/previews/TikTokPreview.tsx`
+
+**Features:**
+- Rich preview card (not inline embed due to TikTok API restrictions)
+- Show thumbnail, caption preview, username
+- TikTok logo/branding
+- Click to open in new tab
+
+**Note:** TikTok doesn't allow easy embedding, so we use a rich preview card approach.
+
+---
+
+### 5.3 Instagram Preview
+**File:** `src/components/chat/previews/InstagramPreview.tsx`
+
+**Features:**
+- Preview card with Instagram branding
+- Show post type icon (photo, video, reel)
+- Username display
+- Click to open in new tab
+
+**Supported URL Patterns:**
+- `instagram.com/p/POST_ID`
+- `instagram.com/reel/REEL_ID`
+- `instagram.com/stories/USERNAME/STORY_ID`
+
+---
+
+### 5.4 Facebook Preview
+**File:** `src/components/chat/previews/FacebookPreview.tsx`
+
+**Features:**
+- Preview card with Facebook branding
+- Support video links (fb.watch)
+- Show preview image if available
+- Click to open
+
+---
+
+### 5.5 Twitter/X Embed
+**File:** `src/components/chat/previews/TwitterEmbed.tsx`
+
+**Features:**
+- Rich tweet preview card
+- Show tweet text, author, avatar
+- Media thumbnails if present
+- Engagement stats (optional)
+- Proper X branding
+
+**URL Patterns:**
+- `twitter.com/USER/status/TWEET_ID`
+- `x.com/USER/status/TWEET_ID`
+
+---
+
+### 5.6 Spotify Embed
+**File:** `src/components/chat/previews/SpotifyEmbed.tsx`
+
+**Features:**
+- Compact inline player (Spotify's embed widget)
+- Support tracks, albums, playlists, podcasts
+- 80px height compact mode
+
+**URL Patterns:**
+- `open.spotify.com/track/ID`
+- `open.spotify.com/album/ID`
+- `open.spotify.com/playlist/ID`
+- `open.spotify.com/episode/ID`
+
+**Embed Format:**
+```html
+<iframe 
+  src="https://open.spotify.com/embed/track/ID?utm_source=generator&theme=0" 
+  width="100%" 
+  height="80" 
+  frameBorder="0" 
+  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+></iframe>
+```
+
+---
+
+### 5.7 Loom Embed
+**File:** `src/components/chat/previews/LoomEmbed.tsx`
+
+**Features:**
+- Inline video player
+- 16:9 aspect ratio
+- Uses Loom's embed URL format
+
+**URL Pattern:**
+- `loom.com/share/VIDEO_ID`
+
+---
+
+### 5.8 Google Docs/Slides/Sheets Preview
+**File:** `src/components/chat/previews/GoogleDocPreview.tsx`
+
+**Features:**
+- Document type icon (Docs blue, Sheets green, Slides yellow)
+- Document title from metadata
+- "View document" CTA
+- Google branding
+
+**URL Patterns:**
+- `docs.google.com/document/d/DOC_ID`
+- `docs.google.com/spreadsheets/d/SHEET_ID`
+- `docs.google.com/presentation/d/SLIDE_ID`
+
+---
+
+### 5.9 Figma Preview
+**File:** `src/components/chat/previews/FigmaPreview.tsx`
+
+**Features:**
+- Figma logo/branding
+- File name from URL
+- Preview thumbnail if available
+- "Open in Figma" CTA
+
+**URL Patterns:**
+- `figma.com/file/FILE_ID`
+- `figma.com/design/FILE_ID`
+
+---
+
+### 5.10 Generic Link Preview Card
+**File:** `src/components/chat/previews/GenericLinkCard.tsx`
+
+**Features:**
+- Favicon display
+- Title (from OG or page title)
+- Description (truncated)
+- Preview image (if available)
+- Domain display
+- Click to open
+
+**Component Structure:**
+```tsx
+<div className="border rounded-lg overflow-hidden max-w-md hover:bg-muted/50 transition-colors">
+  {/* Preview image */}
+  {metadata.image && (
+    <div className="aspect-video bg-muted">
+      <img src={metadata.image} alt="" className="w-full h-full object-cover" />
+    </div>
+  )}
+  
+  <div className="p-3">
+    {/* Favicon + domain */}
+    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+      {metadata.favicon && <img src={metadata.favicon} className="w-4 h-4" />}
+      <span>{domain}</span>
+    </div>
+    
+    {/* Title */}
+    <h4 className="font-medium text-sm line-clamp-2">{metadata.title}</h4>
+    
+    {/* Description */}
+    {metadata.description && (
+      <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+        {metadata.description}
+      </p>
+    )}
   </div>
+</div>
+```
+
+---
+
+## Phase 6: Custom Hook for Link Metadata
+
+### New File: `src/hooks/useLinkMetadata.ts`
+
+**Features:**
+- Fetch metadata for a URL
+- Check cache first (localStorage + DB)
+- Return loading/error states
+- Deduplicate requests for same URL
+
+```typescript
+interface UseLinkMetadataResult {
+  metadata: LinkMetadata | null;
+  isLoading: boolean;
+  error: Error | null;
+}
+
+export const useLinkMetadata = (url: string): UseLinkMetadataResult => {
+  // 1. Check local storage cache
+  // 2. Check React Query cache
+  // 3. Fetch from edge function
+  // 4. Cache result
+};
+```
+
+---
+
+## Phase 7: Integration with MessageBubble
+
+### File: `src/components/chat/MessageBubble.tsx`
+
+**Changes:**
+1. Import `LinkPreviewRenderer`
+2. Add link preview below message text (before attachments)
+
+```tsx
+{/* Message text */}
+{message.content && (
+  <div className="text-sm text-foreground leading-relaxed">
+    <RichTextMessage content={message.content} />
+    {message.updated_at !== message.created_at && (
+      <span className="text-xs text-muted-foreground ml-1">(edited)</span>
+    )}
+  </div>
+)}
+
+{/* Link previews - NEW */}
+{message.content && (
+  <LinkPreviewRenderer 
+    content={message.content} 
+    messageId={message.id}
+  />
+)}
+
+{/* Attachments */}
+{message.attachments && message.attachments.length > 0 && (
+  // ... existing code
 )}
 ```
 
 ---
 
-### Item 4: ChatRightPanelEnhanced - Minor Styling Updates
+## Phase 8: Types and Constants
 
-**File:** `src/components/chat/ChatRightPanelEnhanced.tsx`
-
-**Current State:**
-- Already has collapsible sections (About, Members, Pinned, Files)
-- Header already updated with Mute, Favorite, Search actions
-- Already uses Chevron icons for collapse/expand
-
-**Changes Required (Match Ask AI Right Panel Style):**
-
-1. **Update Header Style** (lines 523-617):
-   - Add subtle header styling with icon and description
-   - Update to match Ask AI "Conversation Info / Details & members" pattern
-
-**New Header Structure:**
-```typescript
-{/* Header */}
-<div className="flex items-center gap-2 p-4 border-b">
-  <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5">
-    <MessageSquare className="h-4 w-4 text-primary" />
-  </div>
-  <div>
-    <h3 className="font-semibold text-sm">{activeChat.name}</h3>
-    <p className="text-xs text-muted-foreground">
-      {activeChat.type === 'space' 
-        ? `${memberCount} members` 
-        : activeChat.isGroup 
-        ? 'Group chat' 
-        : 'Direct message'}
-    </p>
-  </div>
-</div>
-
-{/* Action buttons row - below header */}
-<div className="flex items-center justify-end gap-0.5 px-4 py-2 border-b">
-  {/* Mute, Favorite, Search buttons */}
-</div>
-```
-
-2. **Update Section Triggers** (lines 640-708, 712-824, 827-874, 876-950):
-   - Use `ChevronUp`/`ChevronDown` toggle pattern like Ask AI
-   - Ensure consistent border styling between sections
-
-3. **Add ChevronUp Import**:
-   ```typescript
-   import { ChevronUp } from "lucide-react";
-   ```
-
-4. **Update CollapsibleTrigger Pattern**:
-   ```typescript
-   <CollapsibleTrigger asChild>
-     <button className="flex items-center justify-between w-full p-4 hover:bg-muted/50 transition-colors">
-       <h4 className="text-sm font-medium flex items-center gap-2">
-         <Icon className="h-4 w-4 text-muted-foreground" />
-         Section Name
-         {count > 0 && (
-           <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
-             {count}
-           </Badge>
-         )}
-       </h4>
-       {isOpen ? (
-         <ChevronUp className="h-4 w-4 text-muted-foreground" />
-       ) : (
-         <ChevronDown className="h-4 w-4 text-muted-foreground" />
-       )}
-     </button>
-   </CollapsibleTrigger>
-   ```
-
-5. **Add Border Separators Between Sections**:
-   - Add `<div className="border-t" />` between each Collapsible section
-
----
-
-### Item 5: ChatEmptyState Redesign
-
-**File:** `src/components/chat/ChatEmptyState.tsx`
-
-**Current State:**
-- Simple centered layout with MessageSquare icon
-- "Welcome to Team Chat" heading
-- Two action buttons (Start a chat, Create a space)
-- Three feature cards below
-
-**New Design (Ask AI Style):**
-```text
-+------------------------------------------------------------------+
-|                                                                  |
-|                    [Org Logo with overlay]                       |
-|                    💬                                            |
-|                                                                  |
-|              Hi [FirstName]! Welcome to Team Chat                |
-|       Connect with your team in real-time...                     |
-|                                                                  |
-|   +----------------+  +----------------+  +----------------+     |
-|   | [👤] Start a   |  | [#] Create a  |  | [💬] Send a    |     |
-|   | direct message |  | new space     |  | group message  |     |
-|   +----------------+  +----------------+  +----------------+     |
-|                                                                  |
-|   +----------------+  +----------------+  +----------------+     |
-|   | [📢] Post      |  | [📎] Share    |  | [🔍] Search    |     |
-|   | announcement   |  | a file        |  | messages       |     |
-|   +----------------+  +----------------+  +----------------+     |
-|                                                                  |
-|   [DMs] [Groups] [Spaces] [Mentions] [Files] [Threads]          |
-|                                                                  |
-|   Connect with your team members through messages and spaces.    |
-+------------------------------------------------------------------+
-```
-
-**New Implementation:**
+### New File: `src/types/linkPreview.ts`
 
 ```typescript
-import { useMemo } from "react";
-import { useCurrentEmployee } from "@/services/useCurrentEmployee";
-import { useOrganization } from "@/hooks/useOrganization";
-import {
-  MessageSquare,
-  Users,
-  Hash,
-  Sparkles,
-  Building2,
-  AtSign,
-  FileText,
-  MessagesSquare,
-  Megaphone,
-  Paperclip,
-  Search,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
+export type LinkPlatform = 
+  | 'youtube' 
+  | 'twitter' 
+  | 'tiktok' 
+  | 'instagram' 
+  | 'facebook' 
+  | 'spotify' 
+  | 'loom' 
+  | 'google-docs' 
+  | 'figma' 
+  | 'generic';
 
-interface ChatEmptyStateProps {
-  onNewChat: () => void;
-  onNewSpace: () => void;
+export interface LinkMetadata {
+  url: string;
+  platform: LinkPlatform;
+  title: string | null;
+  description: string | null;
+  image: string | null;
+  favicon: string | null;
+  siteName: string | null;
+  contentType: 'video' | 'article' | 'image' | 'audio' | 'document' | 'unknown';
+  embedUrl?: string; // For platforms that support embedding
+  author?: string;
+  publishedAt?: string;
 }
 
-const suggestions = [
-  {
-    icon: Users,
-    text: "Start a direct message",
-    color: "text-blue-600 dark:text-blue-400",
-    bgColor: "bg-blue-500/10",
-    action: "chat",
-  },
-  {
-    icon: Hash,
-    text: "Create a new space",
-    color: "text-purple-600 dark:text-purple-400",
-    bgColor: "bg-purple-500/10",
-    action: "space",
-  },
-  {
-    icon: MessagesSquare,
-    text: "Send a group message",
-    color: "text-green-600 dark:text-green-400",
-    bgColor: "bg-green-500/10",
-    action: "chat",
-  },
-  {
-    icon: Megaphone,
-    text: "Post an announcement",
-    color: "text-rose-600 dark:text-rose-400",
-    bgColor: "bg-rose-500/10",
-    action: "space",
-  },
-  {
-    icon: Paperclip,
-    text: "Share a file",
-    color: "text-amber-600 dark:text-amber-400",
-    bgColor: "bg-amber-500/10",
-    action: "chat",
-  },
-  {
-    icon: Search,
-    text: "Search messages",
-    color: "text-cyan-600 dark:text-cyan-400",
-    bgColor: "bg-cyan-500/10",
-    action: "chat",
-  },
-];
-
-const ChatEmptyState = ({ onNewChat, onNewSpace }: ChatEmptyStateProps) => {
-  const { currentOrg } = useOrganization();
-  const { data: currentEmployee } = useCurrentEmployee();
-  const firstName = currentEmployee?.profiles?.full_name?.split(' ')[0] || '';
-
-  const handleSuggestionClick = (action: string) => {
-    if (action === 'space') {
-      onNewSpace();
-    } else {
-      onNewChat();
-    }
-  };
-
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 py-8">
-      {/* Logo with overlay */}
-      <div className="relative mb-6">
-        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 flex items-center justify-center shadow-lg">
-          {currentOrg?.logo_url ? (
-            <img 
-              src={currentOrg.logo_url} 
-              alt={currentOrg.name} 
-              className="w-12 h-12 rounded-lg object-contain" 
-            />
-          ) : (
-            <Building2 className="w-10 h-10 text-primary" />
-          )}
-        </div>
-        <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-          <MessageSquare className="w-4 h-4 text-primary" />
-        </div>
-      </div>
-
-      {/* Personalized greeting */}
-      <h1 className="text-2xl font-bold text-center mb-2">
-        Hi{firstName ? ` ${firstName}` : ''}! Welcome to Team Chat
-      </h1>
-      <p className="text-muted-foreground text-center mb-1">
-        Connect with your team in real-time
-      </p>
-      {currentOrg && (
-        <p className="text-xs text-muted-foreground mb-8">
-          Part of {currentOrg.name}
-        </p>
-      )}
-
-      {/* Suggestion cards grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 w-full max-w-3xl">
-        {suggestions.map((suggestion, index) => {
-          const Icon = suggestion.icon;
-          return (
-            <Button
-              key={index}
-              variant="outline"
-              onClick={() => handleSuggestionClick(suggestion.action)}
-              className="h-auto p-4 flex items-start gap-3 text-left justify-start hover:border-primary/30 hover:bg-primary/5 transition-all group"
-            >
-              <div className={`shrink-0 w-8 h-8 rounded-lg ${suggestion.bgColor} flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                <Icon className={`w-4 h-4 ${suggestion.color}`} />
-              </div>
-              <span className="text-sm font-normal leading-snug">
-                {suggestion.text}
-              </span>
-            </Button>
-          );
-        })}
-      </div>
-
-      {/* Capability badges */}
-      <div className="mt-10 flex flex-wrap justify-center gap-2">
-        {["DMs", "Groups", "Spaces", "Mentions", "Files", "Threads"].map((cap) => (
-          <span 
-            key={cap} 
-            className="text-xs px-3 py-1 rounded-full bg-muted text-muted-foreground"
-          >
-            {cap}
-          </span>
-        ))}
-      </div>
-
-      {/* Help text */}
-      <p className="text-xs text-muted-foreground mt-4 text-center max-w-md">
-        Connect with your team members through direct messages, group chats, and topic-based spaces.
-      </p>
-    </div>
-  );
-};
-
-export default ChatEmptyState;
+export interface ExtractedLink {
+  url: string;
+  startIndex: number;
+  endIndex: number;
+  platform: LinkPlatform;
+}
 ```
 
 ---
 
-### Summary of Changes
+## Implementation Order
+
+| Phase | Component | Priority | Effort |
+|-------|-----------|----------|--------|
+| 1 | Auto-link detection in RichTextMessage | High | Low |
+| 2 | LinkPreviewRenderer orchestrator | High | Medium |
+| 3 | fetch-link-metadata edge function | High | Medium |
+| 4 | Generic Link Preview Card | High | Low |
+| 5 | YouTube Embed | High | Low |
+| 6 | Loom Embed | Medium | Low |
+| 7 | Spotify Embed | Medium | Low |
+| 8 | Twitter/X Preview | Medium | Medium |
+| 9 | Google Docs Preview | Medium | Low |
+| 10 | Figma Preview | Low | Low |
+| 11 | TikTok Preview | Low | Low |
+| 12 | Instagram Preview | Low | Low |
+| 13 | Facebook Preview | Low | Low |
+| 14 | Database cache table | Low | Low |
+| 15 | useLinkMetadata hook with caching | Medium | Medium |
+
+---
+
+## Files to Create
+
+| File | Purpose |
+|------|---------|
+| `src/types/linkPreview.ts` | Type definitions |
+| `src/components/chat/LinkPreviewRenderer.tsx` | Orchestrator component |
+| `src/components/chat/previews/YouTubeEmbed.tsx` | YouTube player |
+| `src/components/chat/previews/TwitterEmbed.tsx` | Twitter/X preview |
+| `src/components/chat/previews/TikTokPreview.tsx` | TikTok preview card |
+| `src/components/chat/previews/InstagramPreview.tsx` | Instagram preview |
+| `src/components/chat/previews/FacebookPreview.tsx` | Facebook preview |
+| `src/components/chat/previews/SpotifyEmbed.tsx` | Spotify player |
+| `src/components/chat/previews/LoomEmbed.tsx` | Loom player |
+| `src/components/chat/previews/GoogleDocPreview.tsx` | Google Docs preview |
+| `src/components/chat/previews/FigmaPreview.tsx` | Figma preview |
+| `src/components/chat/previews/GenericLinkCard.tsx` | Generic OpenGraph card |
+| `src/hooks/useLinkMetadata.ts` | Metadata fetching hook |
+| `supabase/functions/fetch-link-metadata/index.ts` | Edge function |
+
+---
+
+## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `ConversationView.tsx` | Add Star import, useChatFavorites hook, isFavorited computed value, add 3 desktop action buttons (Mute, Favorite, Search) with tooltips |
-| `ChatRightPanelEnhanced.tsx` | Update header with icon/description pattern, add ChevronUp import, update section triggers to use up/down chevron toggle, add border separators between sections |
-| `ChatEmptyState.tsx` | Complete rewrite with org logo, personalized greeting, 6 suggestion cards in grid, capability badges, and help text |
+| `src/components/chat/RichTextMessage.tsx` | Add URL detection and clickable link rendering |
+| `src/components/chat/MessageBubble.tsx` | Add LinkPreviewRenderer below message text |
+| `src/components/chat/ThreadView.tsx` | Add LinkPreviewRenderer for thread replies |
 
 ---
 
-### Dependencies
+## Security Considerations
 
-No new packages required. All components use existing:
-- `@/hooks/useChatFavorites`
-- `@/services/useCurrentEmployee`
-- `@/hooks/useOrganization`
-- Radix UI Collapsible, Tooltip
-- lucide-react icons
+1. **URL Validation**: Validate all URLs before fetching metadata
+2. **SSRF Prevention**: Edge function should not follow redirects to internal IPs
+3. **Content-Type Checking**: Only fetch HTML content for metadata
+4. **Rate Limiting**: Limit metadata fetch requests per user/org
+5. **Sanitization**: Sanitize all metadata before rendering (especially descriptions)
+6. **XSS Prevention**: Use DOMPurify for any HTML content
 
 ---
 
-### Visual Consistency
+## Performance Optimizations
 
-Following Ask AI patterns:
-- Gradient icon containers
-- Orange fill for favorites
-- Hover transitions on cards
-- Rounded-2xl containers
-- Muted capability badges
-- Personalized greetings with user's first name
-- Organization branding integration
+1. **Lazy Loading**: Only fetch metadata when link preview is in viewport
+2. **Caching**: 
+   - Local storage for recent previews
+   - Database cache for org-wide sharing
+   - React Query caching
+3. **Thumbnail Optimization**: Use smaller thumbnail sizes where possible
+4. **Debouncing**: Debounce metadata fetch requests
+5. **Intersection Observer**: Only render embeds when visible
+6. **Click-to-Load**: For heavy embeds (videos), show thumbnail first
+
+---
+
+## Testing Checklist
+
+- [ ] YouTube video URLs (various formats)
+- [ ] YouTube Shorts
+- [ ] Twitter/X post URLs
+- [ ] TikTok video URLs
+- [ ] Instagram posts, reels, stories
+- [ ] Facebook posts, videos
+- [ ] Spotify tracks, albums, playlists
+- [ ] Loom video URLs
+- [ ] Google Docs, Sheets, Slides
+- [ ] Figma file URLs
+- [ ] Generic website URLs
+- [ ] Broken/invalid URLs
+- [ ] Private/restricted content
+- [ ] URLs without OpenGraph tags
+- [ ] Mixed content (text + multiple links)
+- [ ] Mobile responsiveness
+- [ ] Dark mode compatibility
