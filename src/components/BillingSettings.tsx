@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useToast } from "@/hooks/use-toast";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import { format, parseISO, differenceInDays } from "date-fns";
 import {
   Card,
@@ -39,6 +40,7 @@ import {
   CalendarDays,
   ClipboardCheck,
 } from "lucide-react";
+import { AIUsageSection } from "./billing/AIUsageSection";
 
 interface Subscription {
   id: string;
@@ -98,6 +100,7 @@ const BillingSettings = () => {
   const { currentOrg } = useOrganization();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { isEnabled } = useFeatureFlags();
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -498,6 +501,11 @@ const BillingSettings = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* AI Usage Section */}
+      {isEnabled('ask-ai') && (
+        <AIUsageSection organizationId={currentOrg?.id} />
+      )}
 
       {/* Invoice History */}
       <Card>
