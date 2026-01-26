@@ -51,36 +51,11 @@ export const LeaveManagement = ({ employeeId, canManageBalance = false }: LeaveM
   const { data: balances = [], refetch: refetchBalances } = useQuery({
     queryKey: ["leave-type-balances-profile", employeeId, currentYear],
     queryFn: async () => {
-      // First try office_leave_types (new structure)
-      const { data: officeBalances, error: officeError } = await supabase
-        .from("leave_type_balances")
-        .select(`
-          balance,
-          office_leave_type:office_leave_types(
-            name,
-            category
-          )
-        `)
-        .eq("employee_id", employeeId)
-        .eq("year", currentYear)
-        .not("office_leave_type_id", "is", null);
-
-      if (!officeError && officeBalances && officeBalances.length > 0) {
-        return officeBalances
-          .filter((item: any) => item.office_leave_type)
-          .map((item: any) => ({
-            leave_type_name: item.office_leave_type.name,
-            category: item.office_leave_type.category,
-            balance: item.balance,
-          })) as LeaveBalance[];
-      }
-
-      // Fallback to legacy leave_types
       const { data, error } = await supabase
         .from("leave_type_balances")
         .select(`
           balance,
-          leave_type:leave_types!inner(
+          office_leave_type:office_leave_types(
             name,
             category
           )
@@ -90,11 +65,13 @@ export const LeaveManagement = ({ employeeId, canManageBalance = false }: LeaveM
 
       if (error) throw error;
       
-      return (data || []).map((item: any) => ({
-        leave_type_name: item.leave_type.name,
-        category: item.leave_type.category,
-        balance: item.balance,
-      })) as LeaveBalance[];
+      return (data || [])
+        .filter((item: any) => item.office_leave_type)
+        .map((item: any) => ({
+          leave_type_name: item.office_leave_type.name,
+          category: item.office_leave_type.category,
+          balance: item.balance,
+        })) as LeaveBalance[];
     },
   });
 
@@ -102,8 +79,7 @@ export const LeaveManagement = ({ employeeId, canManageBalance = false }: LeaveM
   const { data: previousYearBalances = [] } = useQuery({
     queryKey: ["leave-type-balances-profile", employeeId, previousYear],
     queryFn: async () => {
-      // First try office_leave_types
-      const { data: officeBalances, error: officeError } = await supabase
+      const { data, error } = await supabase
         .from("leave_type_balances")
         .select(`
           balance,
@@ -113,39 +89,17 @@ export const LeaveManagement = ({ employeeId, canManageBalance = false }: LeaveM
           )
         `)
         .eq("employee_id", employeeId)
-        .eq("year", previousYear)
-        .not("office_leave_type_id", "is", null);
-
-      if (!officeError && officeBalances && officeBalances.length > 0) {
-        return officeBalances
-          .filter((item: any) => item.office_leave_type)
-          .map((item: any) => ({
-            leave_type_name: item.office_leave_type.name,
-            category: item.office_leave_type.category,
-            balance: item.balance,
-          })) as LeaveBalance[];
-      }
-
-      // Fallback to legacy leave_types
-      const { data, error } = await supabase
-        .from("leave_type_balances")
-        .select(`
-          balance,
-          leave_type:leave_types!inner(
-            name,
-            category
-          )
-        `)
-        .eq("employee_id", employeeId)
         .eq("year", previousYear);
 
       if (error) throw error;
       
-      return (data || []).map((item: any) => ({
-        leave_type_name: item.leave_type.name,
-        category: item.leave_type.category,
-        balance: item.balance,
-      })) as LeaveBalance[];
+      return (data || [])
+        .filter((item: any) => item.office_leave_type)
+        .map((item: any) => ({
+          leave_type_name: item.office_leave_type.name,
+          category: item.office_leave_type.category,
+          balance: item.balance,
+        })) as LeaveBalance[];
     },
     enabled: balances.length === 0,
   });
