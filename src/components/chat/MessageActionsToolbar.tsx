@@ -155,14 +155,12 @@ const MessageActionsToolbar = ({
           onClick={onStar}
         />
 
-        {/* Pin - Conversation-level (only for own messages due to RLS) */}
-        {isOwn && (
-          <ToolbarButton
-            icon={isPinned ? PinOff : Pin}
-            label={isPinned ? "Unpin from conversation" : "Pin to conversation"}
-            onClick={onPin}
-          />
-        )}
+        {/* Pin - Conversation-level (any participant can pin) */}
+        <ToolbarButton
+          icon={isPinned ? PinOff : Pin}
+          label={isPinned ? "Unpin from conversation" : "Pin to conversation"}
+          onClick={onPin}
+        />
 
         {/* More actions */}
         <Popover open={showMoreMenu} onOpenChange={setShowMoreMenu}>
