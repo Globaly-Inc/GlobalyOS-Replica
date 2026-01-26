@@ -1663,12 +1663,12 @@ export const useProrationPreview = (employeeId: string | undefined, lastWorkingD
       
       const effectiveStart = employee.join_date > yearStart ? employee.join_date : yearStart;
       
-      // Get leave balances with leave types
+      // Get leave balances with office leave types
       const { data: balances } = await supabase
         .from("leave_type_balances")
         .select(`
-          id, balance, leave_type_id,
-          leave_type:leave_types!inner(id, name, default_days, category)
+          id, balance, office_leave_type_id,
+          leave_type:office_leave_types!inner(id, name, default_days, category)
         `)
         .eq("employee_id", employeeId)
         .eq("year", currentYear);
