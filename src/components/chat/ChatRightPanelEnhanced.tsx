@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   Collapsible,
   CollapsibleContent,
@@ -52,7 +53,12 @@ import {
   Camera,
   Loader2,
   Play,
+  ChevronLeft,
+  ChevronRight,
+  Download,
 } from "lucide-react";
+import { PDFViewer } from "@/components/feed/PDFViewer";
+import { VideoPlayer } from "@/components/feed/VideoPlayer";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { showErrorToast } from "@/lib/errorUtils";
@@ -131,6 +137,10 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showTransferAdminDialog, setShowTransferAdminDialog] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  
+  // Shared files lightbox state
+  const [filesLightboxOpen, setFilesLightboxOpen] = useState(false);
+  const [filesLightboxIndex, setFilesLightboxIndex] = useState(0);
   
   const { data: currentEmployee } = useCurrentEmployee();
   const updateRole = useUpdateSpaceMemberRole();
@@ -314,6 +324,26 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  // File type detection helpers for preview
+  const isImageFile = (fileType: string | null) => fileType?.startsWith('image/');
+  const isVideoFile = (fileType: string | null) => fileType?.startsWith('video/');
+  const isPdfFile = (fileType: string | null, fileName?: string) => 
+    fileType === 'application/pdf' || fileName?.toLowerCase().endsWith('.pdf');
+
+  const getFilePublicUrl = (filePath: string) => {
+    const { data } = supabase.storage.from('chat-attachments').getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
+  // Lightbox navigation
+  const currentLightboxFile = sharedFiles[filesLightboxIndex];
+  const goToPrevFile = () => {
+    setFilesLightboxIndex((prev) => (prev === 0 ? sharedFiles.length - 1 : prev - 1));
+  };
+  const goToNextFile = () => {
+    setFilesLightboxIndex((prev) => (prev === sharedFiles.length - 1 ? 0 : prev + 1));
   };
 
   const members = spaceId ? spaceMembers : conversationParticipants;
@@ -941,22 +971,20 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
               </div>
             ) : (
               <div className="grid grid-cols-3 gap-2">
-                {sharedFiles.map((file) => {
-                  const { data } = supabase.storage
-                    .from('chat-attachments')
-                    .getPublicUrl(file.file_path);
-                  const publicUrl = data.publicUrl;
-                  const fileIsImage = file.file_type?.startsWith('image/');
-                  const fileIsVideo = file.file_type?.startsWith('video/');
-                  const fileIsPdf = file.file_type === 'application/pdf' || file.file_name?.toLowerCase().endsWith('.pdf');
+                {sharedFiles.map((file, index) => {
+                  const publicUrl = getFilePublicUrl(file.file_path);
+                  const fileIsImage = isImageFile(file.file_type);
+                  const fileIsVideo = isVideoFile(file.file_type);
+                  const fileIsPdf = isPdfFile(file.file_type, file.file_name);
                   
                   return (
-                    <a
+                    <button
                       key={file.id}
-                      href={publicUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group relative aspect-square rounded-lg overflow-hidden bg-muted/50 hover:ring-2 hover:ring-primary/50 transition-all cursor-pointer"
+                      onClick={() => {
+                        setFilesLightboxIndex(index);
+                        setFilesLightboxOpen(true);
+                      }}
+                      className="group relative aspect-square rounded-lg overflow-hidden bg-muted/50 hover:ring-2 hover:ring-primary/50 transition-all cursor-pointer text-left"
                     >
                       {fileIsImage ? (
                         <img
@@ -975,9 +1003,9 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
                           <FileText className="h-6 w-6 text-muted-foreground" />
                         </div>
                       ) : fileIsPdf ? (
-                        <div className="w-full h-full flex flex-col items-center justify-center bg-red-50 dark:bg-red-950/20">
-                          <FileText className="h-6 w-6 text-red-500" />
-                          <span className="text-[9px] font-medium text-red-500 mt-1">PDF</span>
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-destructive/10">
+                          <FileText className="h-6 w-6 text-destructive" />
+                          <span className="text-[9px] font-medium text-destructive mt-1">PDF</span>
                         </div>
                       ) : (
                         <div className="w-full h-full flex flex-col items-center justify-center">
@@ -993,7 +1021,7 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
                         <p className="text-[10px] text-white truncate">{file.file_name}</p>
                         <p className="text-[8px] text-white/70">{formatFileSize(file.file_size)}</p>
                       </div>
-                    </a>
+                    </button>
                   );
                 })}
               </div>
@@ -1085,6 +1113,102 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Shared Files Lightbox */}
+      <Dialog open={filesLightboxOpen} onOpenChange={setFilesLightboxOpen}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-0">
+          <div className="relative flex items-center justify-center min-h-[60vh]">
+            {/* Close button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-4 right-4 z-50 text-white hover:bg-white/20"
+              onClick={() => setFilesLightboxOpen(false)}
+            >
+              <X className="h-5 w-5" />
+            </Button>
+
+            {/* Navigation buttons */}
+            {sharedFiles.length > 1 && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute left-4 z-50 text-white hover:bg-white/20 h-12 w-12"
+                  onClick={goToPrevFile}
+                >
+                  <ChevronLeft className="h-8 w-8" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-4 z-50 text-white hover:bg-white/20 h-12 w-12"
+                  onClick={goToNextFile}
+                >
+                  <ChevronRight className="h-8 w-8" />
+                </Button>
+              </>
+            )}
+
+            {/* Current file preview */}
+            <div className="p-8">
+              {currentLightboxFile && (
+                isImageFile(currentLightboxFile.file_type) ? (
+                  <img
+                    src={getFilePublicUrl(currentLightboxFile.file_path)}
+                    alt={currentLightboxFile.file_name}
+                    className="max-w-full max-h-[80vh] mx-auto rounded-lg"
+                  />
+                ) : isVideoFile(currentLightboxFile.file_type) ? (
+                  <video
+                    src={getFilePublicUrl(currentLightboxFile.file_path)}
+                    controls
+                    autoPlay
+                    className="max-w-full max-h-[80vh] mx-auto rounded-lg"
+                  />
+                ) : isPdfFile(currentLightboxFile.file_type, currentLightboxFile.file_name) ? (
+                  <PDFViewer
+                    fileUrl={getFilePublicUrl(currentLightboxFile.file_path)}
+                    mode="lightbox"
+                    className="min-h-[500px]"
+                  />
+                ) : (
+                  <div className="text-center text-white">
+                    <FileText className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-lg mb-2">{currentLightboxFile.file_name}</p>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {formatFileSize(currentLightboxFile.file_size)}
+                    </p>
+                    <Button
+                      variant="secondary"
+                      onClick={() => window.open(getFilePublicUrl(currentLightboxFile.file_path), '_blank')}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </Button>
+                  </div>
+                )
+              )}
+            </div>
+
+            {/* Dots indicator */}
+            {sharedFiles.length > 1 && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                {sharedFiles.map((_, idx) => (
+                  <button
+                    key={idx}
+                    className={cn(
+                      "w-2 h-2 rounded-full transition-colors",
+                      idx === filesLightboxIndex ? "bg-white" : "bg-white/40"
+                    )}
+                    onClick={() => setFilesLightboxIndex(idx)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
