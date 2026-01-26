@@ -357,6 +357,8 @@ export type Database = {
           allowed_models: string[] | null
           announcements_enabled: boolean
           attendance_enabled: boolean
+          auto_reindex_enabled: boolean | null
+          auto_reindex_hour: number | null
           calendar_enabled: boolean
           chat_enabled: boolean
           cost_alerts_enabled: boolean | null
@@ -366,6 +368,7 @@ export type Database = {
           general_queries_enabled: boolean | null
           id: string
           kpis_enabled: boolean
+          last_auto_reindex_at: string | null
           leave_enabled: boolean
           max_tokens_per_day_per_user: number | null
           max_tokens_per_query: number | null
@@ -382,6 +385,8 @@ export type Database = {
           allowed_models?: string[] | null
           announcements_enabled?: boolean
           attendance_enabled?: boolean
+          auto_reindex_enabled?: boolean | null
+          auto_reindex_hour?: number | null
           calendar_enabled?: boolean
           chat_enabled?: boolean
           cost_alerts_enabled?: boolean | null
@@ -391,6 +396,7 @@ export type Database = {
           general_queries_enabled?: boolean | null
           id?: string
           kpis_enabled?: boolean
+          last_auto_reindex_at?: string | null
           leave_enabled?: boolean
           max_tokens_per_day_per_user?: number | null
           max_tokens_per_query?: number | null
@@ -407,6 +413,8 @@ export type Database = {
           allowed_models?: string[] | null
           announcements_enabled?: boolean
           attendance_enabled?: boolean
+          auto_reindex_enabled?: boolean | null
+          auto_reindex_hour?: number | null
           calendar_enabled?: boolean
           chat_enabled?: boolean
           cost_alerts_enabled?: boolean | null
@@ -416,6 +424,7 @@ export type Database = {
           general_queries_enabled?: boolean | null
           id?: string
           kpis_enabled?: boolean
+          last_auto_reindex_at?: string | null
           leave_enabled?: boolean
           max_tokens_per_day_per_user?: number | null
           max_tokens_per_query?: number | null

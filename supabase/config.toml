@@ -251,3 +251,6 @@ verify_jwt = false
 
 [functions.create-welcome-post]
 verify_jwt = false
+
+[functions.auto-reindex-ai]
+verify_jwt = false
