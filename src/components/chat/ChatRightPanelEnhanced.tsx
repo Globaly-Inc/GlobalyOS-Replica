@@ -32,6 +32,7 @@ import {
   Link2,
   Plus,
   ChevronDown,
+  ChevronUp,
   Users,
   Info,
   FileText,
@@ -57,6 +58,7 @@ import {
   ChevronRight,
   Download,
   Search,
+  MessageSquare,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import MessageSearch from "./MessageSearch";
@@ -521,99 +523,94 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
-        {/* Left: Back button (mobile) + Title */}
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          {isMobileOverlay && (
-            <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={onClose}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-          )}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5">
-              {activeChat.type === 'space' && <span className="text-muted-foreground">#</span>}
-              <h2 className="font-semibold text-foreground truncate text-sm">{activeChat.name}</h2>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {activeChat.type === 'space' 
-                ? `${memberCount} members` 
-                : activeChat.isGroup 
-                ? 'Group' 
-                : 'Direct message'}
-            </p>
-          </div>
+      <div className="flex items-center gap-3 p-4 border-b border-border flex-shrink-0">
+        {isMobileOverlay && (
+          <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={onClose}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+        )}
+        <div className="w-9 h-9 rounded-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5">
+          <MessageSquare className="h-4 w-4 text-primary" />
         </div>
-        
-        {/* Right: Action buttons - Mute, Favorite, Search */}
-        <div className="flex items-center gap-0.5">
-          {/* Mute Button */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={activeChat.type === 'space' ? handleToggleSpaceMute : handleToggleMute}
-              >
-                {(activeChat.type === 'space' ? spaceNotificationSetting === 'mute' : isMuted) ? (
-                  <BellOff className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <Bell className="h-4 w-4" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {(activeChat.type === 'space' ? spaceNotificationSetting === 'mute' : isMuted)
-                ? 'Unmute notifications'
-                : 'Mute notifications'}
-            </TooltipContent>
-          </Tooltip>
-
-          {/* Favorite Button */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => toggleFavorite.mutate({
-                  conversationId: conversationId || undefined,
-                  spaceId: spaceId || undefined,
-                })}
-              >
-                <Star className={cn(
-                  "h-4 w-4",
-                  isFavorited && "fill-orange-500 text-orange-500"
-                )} />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {isFavorited ? 'Remove from favorites' : 'Add to favorites'}
-            </TooltipContent>
-          </Tooltip>
-
-          {/* Search Button */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn("h-8 w-8", showSearch && "bg-accent")}
-                onClick={() => setShowSearch(!showSearch)}
-              >
-                <Search className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Search messages</TooltipContent>
-          </Tooltip>
-          
-          {/* Close button for mobile only */}
-          {isMobileOverlay && (
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
-          )}
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-sm truncate">{activeChat.name}</h3>
+          <p className="text-xs text-muted-foreground">
+            {activeChat.type === 'space' 
+              ? `${memberCount} members` 
+              : activeChat.isGroup 
+              ? 'Group chat' 
+              : 'Direct message'}
+          </p>
         </div>
+        {isMobileOverlay && (
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+      
+      {/* Action buttons row */}
+      <div className="flex items-center justify-end gap-0.5 px-4 py-2 border-b border-border">
+        {/* Mute Button */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={activeChat.type === 'space' ? handleToggleSpaceMute : handleToggleMute}
+            >
+              {(activeChat.type === 'space' ? spaceNotificationSetting === 'mute' : isMuted) ? (
+                <BellOff className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <Bell className="h-4 w-4" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {(activeChat.type === 'space' ? spaceNotificationSetting === 'mute' : isMuted)
+              ? 'Unmute notifications'
+              : 'Mute notifications'}
+          </TooltipContent>
+        </Tooltip>
+
+        {/* Favorite Button */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => toggleFavorite.mutate({
+                conversationId: conversationId || undefined,
+                spaceId: spaceId || undefined,
+              })}
+            >
+              <Star className={cn(
+                "h-4 w-4",
+                isFavorited && "fill-orange-500 text-orange-500"
+              )} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+          </TooltipContent>
+        </Tooltip>
+
+        {/* Search Button */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("h-8 w-8", showSearch && "bg-accent")}
+              onClick={() => setShowSearch(!showSearch)}
+            >
+              <Search className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Search messages</TooltipContent>
+        </Tooltip>
       </div>
 
       {/* Message Search Panel */}
@@ -638,12 +635,16 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
       <ScrollArea className="flex-1">
         {/* About Section */}
         <Collapsible open={aboutOpen} onOpenChange={setAboutOpen}>
-          <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-3 hover:bg-accent/50 transition-colors">
-            <div className="flex items-center gap-2">
+          <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-3 hover:bg-muted/50 transition-colors">
+            <h4 className="text-sm font-medium flex items-center gap-2">
               <Info className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium text-sm">About</span>
-            </div>
-            <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", aboutOpen && "rotate-180")} />
+              About
+            </h4>
+            {aboutOpen ? (
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            )}
           </CollapsibleTrigger>
           <CollapsibleContent className="px-4 pb-4">
             <div className="space-y-3 text-sm">
@@ -707,15 +708,17 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
           </CollapsibleContent>
         </Collapsible>
 
+        <div className="border-t border-border" />
+        
         {/* Members Section (for groups and spaces) */}
         {(activeChat.isGroup || activeChat.type === 'space') && (
           <Collapsible open={membersOpen} onOpenChange={setMembersOpen}>
-            <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-3 hover:bg-accent/50 transition-colors border-t border-border">
-              <div className="flex items-center gap-2">
+            <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-3 hover:bg-muted/50 transition-colors">
+              <h4 className="text-sm font-medium flex items-center gap-2">
                 <Users className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium text-sm">Members</span>
-                <span className="text-xs text-muted-foreground">({memberCount})</span>
-              </div>
+                Members
+                <span className="text-xs text-muted-foreground font-normal">({memberCount})</span>
+              </h4>
               <div className="flex items-center gap-1">
                 {isSpaceAdmin && (
                   <Button
@@ -730,7 +733,11 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
                     <Plus className="h-3.5 w-3.5 text-muted-foreground" />
                   </Button>
                 )}
-                <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", membersOpen && "rotate-180")} />
+                {membersOpen ? (
+                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                )}
               </div>
             </CollapsibleTrigger>
             <CollapsibleContent className="px-4 pb-4">
@@ -824,17 +831,23 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
           </Collapsible>
         )}
 
+        <div className="border-t border-border" />
+        
         {/* Pinned Messages Section */}
         <Collapsible open={pinnedOpen} onOpenChange={setPinnedOpen}>
-          <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-3 hover:bg-accent/50 transition-colors border-t border-border">
-            <div className="flex items-center gap-2">
+          <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-3 hover:bg-muted/50 transition-colors">
+            <h4 className="text-sm font-medium flex items-center gap-2">
               <Pin className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium text-sm">Pinned Messages</span>
+              Pinned Messages
               {pinnedMessages.length > 0 && (
-                <span className="text-xs text-muted-foreground">({pinnedMessages.length})</span>
+                <span className="text-xs text-muted-foreground font-normal">({pinnedMessages.length})</span>
               )}
-            </div>
-            <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", pinnedOpen && "rotate-180")} />
+            </h4>
+            {pinnedOpen ? (
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            )}
           </CollapsibleTrigger>
           <CollapsibleContent className="px-4 pb-4">
             {pinnedMessages.length === 0 ? (
@@ -873,17 +886,23 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
           </CollapsibleContent>
         </Collapsible>
 
+        <div className="border-t border-border" />
+
         {/* Shared Files Section */}
         <Collapsible open={filesOpen} onOpenChange={setFilesOpen}>
-          <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-3 hover:bg-accent/50 transition-colors border-t border-border">
-            <div className="flex items-center gap-2">
+          <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-3 hover:bg-muted/50 transition-colors">
+            <h4 className="text-sm font-medium flex items-center gap-2">
               <FileText className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium text-sm">Shared Files</span>
+              Shared Files
               {sharedFiles.length > 0 && (
-                <span className="text-xs text-muted-foreground">({sharedFiles.length})</span>
+                <span className="text-xs text-muted-foreground font-normal">({sharedFiles.length})</span>
               )}
-            </div>
-            <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", filesOpen && "rotate-180")} />
+            </h4>
+            {filesOpen ? (
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            )}
           </CollapsibleTrigger>
           <CollapsibleContent className="px-4 pb-4">
             {sharedFiles.length === 0 ? (

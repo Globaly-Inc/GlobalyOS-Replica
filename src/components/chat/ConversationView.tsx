@@ -38,7 +38,10 @@ import {
   Bell,
   LogOut,
   Info,
+  Star,
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useChatFavorites, useToggleFavorite } from "@/hooks/useChatFavorites";
 import { format, isToday, isYesterday, differenceInMinutes } from "date-fns";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -146,6 +149,10 @@ const ConversationView = ({
   const updateSpaceNotification = useUpdateSpaceNotification();
   const loadOlderMessages = useLoadOlderMessages();
   
+  // Favorites hooks
+  const { data: favorites = [] } = useChatFavorites();
+  const toggleFavorite = useToggleFavorite();
+  
   const [otherParticipant, setOtherParticipant] = useState<OtherParticipant | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [showSearch, setShowSearch] = useState(false);
@@ -215,6 +222,12 @@ const ConversationView = ({
   const currentMembership = spaceMembers.find(m => m.employee_id === currentEmployee?.id);
   const isSpaceAdmin = currentMembership?.role === 'admin';
   const spaceNotificationSetting = currentMembership?.notification_setting || 'all';
+  
+  // Check if this chat is favorited
+  const isFavorited = favorites.some(f => 
+    (conversationId && f.conversation_id === conversationId) || 
+    (spaceId && f.space_id === spaceId)
+  );
   
   // Count admins and get non-admin members for transfer
   const adminCount = spaceMembers.filter(m => m.role === 'admin').length;
@@ -733,8 +746,65 @@ const ConversationView = ({
               </>
             )}
             
-            
-            {/* Desktop: No dropdown - moved to right sidebar */}
+            {/* Desktop: Action buttons - Mute, Favorite, Search */}
+            {!isMobile && (
+              <div className="flex items-center gap-0.5">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9"
+                      onClick={activeChat.type === 'space' ? handleToggleSpaceMute : handleToggleMute}
+                    >
+                      {(activeChat.type === 'space' ? spaceNotificationSetting === 'mute' : isMuted) ? (
+                        <BellOff className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Bell className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {(activeChat.type === 'space' ? spaceNotificationSetting === 'mute' : isMuted)
+                      ? 'Unmute notifications'
+                      : 'Mute notifications'}
+                  </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9"
+                      onClick={() => toggleFavorite.mutate({
+                        conversationId: conversationId || undefined,
+                        spaceId: spaceId || undefined,
+                      })}
+                    >
+                      <Star className={cn("h-4 w-4", isFavorited && "fill-orange-500 text-orange-500")} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+                  </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={cn("h-9 w-9", showSearch && "bg-accent")}
+                      onClick={() => setShowSearch(!showSearch)}
+                    >
+                      <Search className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Search messages</TooltipContent>
+                </Tooltip>
+              </div>
+            )}
           </div>
         </div>
 
