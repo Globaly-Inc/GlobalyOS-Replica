@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useRelativeTime } from "@/hooks/useRelativeTime";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -18,7 +19,8 @@ import {
   Clock,
   RefreshCw,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Database
 } from "lucide-react";
 
 interface AIKnowledgeSettingsProps {
@@ -47,6 +49,25 @@ const defaultSettings: AISettings = {
   leave_enabled: true,
   attendance_enabled: true,
 };
+
+// Map settings keys to database source_type values
+const sourceTypeMapping: Record<string, string> = {
+  wiki_enabled: 'wiki_page',
+  chat_enabled: 'chat_message',
+  team_directory_enabled: 'team_member',
+  announcements_enabled: 'announcement',
+  kpis_enabled: 'kpi',
+  calendar_enabled: 'calendar_event',
+  leave_enabled: 'leave_record',
+  attendance_enabled: 'attendance',
+};
+
+interface IndexStats {
+  [sourceType: string]: {
+    count: number;
+    lastUpdated: string | null;
+  };
+}
 
 const knowledgeSources = [
   {
@@ -109,17 +130,50 @@ const knowledgeSources = [
 
 export const AIKnowledgeSettings = ({ organizationId }: AIKnowledgeSettingsProps) => {
   const { toast } = useToast();
+  const { getShortRelativeTime } = useRelativeTime();
   const [settings, setSettings] = useState<AISettings>(defaultSettings);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [reindexing, setReindexing] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [indexStats, setIndexStats] = useState<IndexStats>({});
 
   useEffect(() => {
     if (organizationId) {
       loadSettings();
+      loadIndexStats();
     }
   }, [organizationId]);
+
+  const loadIndexStats = async () => {
+    if (!organizationId) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("knowledge_embeddings")
+        .select("source_type, updated_at")
+        .eq("organization_id", organizationId);
+      
+      if (error) throw error;
+      
+      // Aggregate counts and find max updated_at per source_type
+      const stats: IndexStats = {};
+      data?.forEach((row) => {
+        if (!stats[row.source_type]) {
+          stats[row.source_type] = { count: 0, lastUpdated: null };
+        }
+        stats[row.source_type].count++;
+        if (!stats[row.source_type].lastUpdated || 
+            row.updated_at > stats[row.source_type].lastUpdated!) {
+          stats[row.source_type].lastUpdated = row.updated_at;
+        }
+      });
+      
+      setIndexStats(stats);
+    } catch (error: any) {
+      console.error("Error loading index stats:", error);
+    }
+  };
 
   const loadSettings = async () => {
     if (!organizationId) return;
@@ -210,6 +264,9 @@ export const AIKnowledgeSettings = ({ organizationId }: AIKnowledgeSettingsProps
         title: "Re-indexing started",
         description: "AI knowledge base is being updated. This may take a few minutes.",
       });
+      
+      // Refresh stats after a short delay to show updated counts
+      setTimeout(() => loadIndexStats(), 3000);
     } catch (error: any) {
       toast({
         title: "Error re-indexing",
@@ -247,6 +304,8 @@ export const AIKnowledgeSettings = ({ organizationId }: AIKnowledgeSettingsProps
           {knowledgeSources.map((source) => {
             const Icon = source.icon;
             const isEnabled = settings[source.key] as boolean;
+            const sourceType = sourceTypeMapping[source.key];
+            const stats = indexStats[sourceType];
             
             return (
               <div
@@ -257,16 +316,31 @@ export const AIKnowledgeSettings = ({ organizationId }: AIKnowledgeSettingsProps
                   <div className="mt-0.5 p-2 rounded-md bg-primary/10">
                     <Icon className="h-4 w-4 text-primary" />
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <Label htmlFor={source.key} className="text-sm font-medium cursor-pointer">
                       {source.label}
                     </Label>
                     <p className="text-sm text-muted-foreground">
                       {source.description}
                     </p>
-                    <Badge variant="outline" className="text-xs font-normal">
-                      Access: {source.accessNote}
-                    </Badge>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className="text-xs font-normal">
+                        Access: {source.accessNote}
+                      </Badge>
+                    </div>
+                    {/* Index stats */}
+                    <div className="flex items-center gap-3 pt-1 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Database className="h-3 w-3" />
+                        {stats?.count ?? 0} records
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {stats?.lastUpdated 
+                          ? getShortRelativeTime(stats.lastUpdated) 
+                          : "Not yet indexed"}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <Switch
