@@ -21,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Smile, Bookmark, MoreHorizontal, Pencil, Trash2, Pin, Reply, Copy, Link } from "lucide-react";
+import { Smile, Bookmark, BookmarkCheck, MoreHorizontal, Pencil, Trash2, Pin, PinOff, Reply, Copy, Link } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import EmojiPicker from "@/components/ui/EmojiPicker";
@@ -29,8 +29,10 @@ import EmojiPicker from "@/components/ui/EmojiPicker";
 interface MessageActionsToolbarProps {
   messageId: string;
   messageContent: string;
+  isStarred: boolean;
   isPinned: boolean;
   isOwn: boolean;
+  onStar: () => void;
   onPin: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -77,8 +79,10 @@ const ToolbarButton = ({
 const MessageActionsToolbar = ({
   messageId,
   messageContent,
+  isStarred,
   isPinned,
   isOwn,
+  onStar,
   onPin,
   onEdit,
   onDelete,
@@ -144,12 +148,21 @@ const MessageActionsToolbar = ({
           />
         )}
 
-        {/* Bookmark/Pin */}
+        {/* Star/Bookmark - Personal */}
         <ToolbarButton
-          icon={isPinned ? Pin : Bookmark}
-          label={isPinned ? "Unpin message" : "Pin message"}
-          onClick={onPin}
+          icon={isStarred ? BookmarkCheck : Bookmark}
+          label={isStarred ? "Remove from starred" : "Add to starred"}
+          onClick={onStar}
         />
+
+        {/* Pin - Conversation-level (only for own messages due to RLS) */}
+        {isOwn && (
+          <ToolbarButton
+            icon={isPinned ? PinOff : Pin}
+            label={isPinned ? "Unpin from conversation" : "Pin to conversation"}
+            onClick={onPin}
+          />
+        )}
 
         {/* More actions */}
         <Popover open={showMoreMenu} onOpenChange={setShowMoreMenu}>

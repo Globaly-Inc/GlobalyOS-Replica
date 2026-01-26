@@ -23,7 +23,7 @@ import {
 import {
   MessageSquarePlus,
   AtSign,
-  Star,
+  Bookmark,
   Hash,
   Users,
   ChevronDown,
@@ -356,7 +356,7 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
                   : "hover:bg-muted/60 text-foreground/80"
               )}
             >
-              <Star className="h-4 w-4" />
+              <Bookmark className="h-4 w-4" />
               Starred
             </button>
           </div>

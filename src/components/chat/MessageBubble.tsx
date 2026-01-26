@@ -1,5 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { Bookmark, Pin } from "lucide-react";
 import AttachmentRenderer from "./AttachmentRenderer";
 import MessageActionsToolbar from "./MessageActionsToolbar";
 import MessageReactions from "./MessageReactions";
@@ -33,12 +34,13 @@ interface MessageBubbleProps {
   onCancelEdit: () => void;
   onSaveEdit: (content: string) => void;
   onDelete: () => void;
+  onStar: () => void;
   onPin: () => void;
   onReact: (emoji: string) => void;
   onReply?: () => void;
   replyCount?: number;
   isEditPending: boolean;
-  isPinned?: boolean; // Optional override for personal star status
+  isStarred: boolean;
 }
 
 const MessageBubble = ({
@@ -53,15 +55,14 @@ const MessageBubble = ({
   onCancelEdit,
   onSaveEdit,
   onDelete,
+  onStar,
   onPin,
   onReact,
   onReply,
   replyCount,
   isEditPending,
-  isPinned,
+  isStarred,
 }: MessageBubbleProps) => {
-  // Use provided isPinned (personal star) or fall back to message.is_pinned
-  const isStarred = isPinned !== undefined ? isPinned : message.is_pinned;
   const senderName = message.sender?.profiles?.full_name || "Unknown";
 
   const getInitials = (name: string) => {
@@ -116,9 +117,13 @@ const MessageBubble = ({
               <MessageDeliveryStatus status={message.status || 'sent'} />
             )}
             {message.is_pinned && (
-              <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+              <span className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-0.5">
+                <Pin className="h-3 w-3" />
                 Pinned
               </span>
+            )}
+            {isStarred && (
+              <Bookmark className="h-3 w-3 text-blue-500 fill-blue-500" />
             )}
           </div>
         )}
@@ -182,8 +187,10 @@ const MessageBubble = ({
         <MessageActionsToolbar
           messageId={message.id}
           messageContent={message.content}
-          isPinned={isStarred}
+          isStarred={isStarred}
+          isPinned={message.is_pinned}
           isOwn={isOwn}
+          onStar={onStar}
           onPin={onPin}
           onEdit={onEdit}
           onDelete={onDelete}

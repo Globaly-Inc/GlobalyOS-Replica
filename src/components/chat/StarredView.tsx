@@ -1,4 +1,4 @@
-import { ArrowLeft, Star } from "lucide-react";
+import { ArrowLeft, Bookmark } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -63,12 +63,12 @@ const StarredView = ({ onNavigateToChat, onBack }: StarredViewProps) => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
         )}
-        <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-amber-500/10 text-amber-500">
-          <Star className="h-5 w-5" />
+        <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-blue-500/10 text-blue-500">
+          <Bookmark className="h-5 w-5" />
         </div>
         <div>
           <h2 className="text-lg font-semibold">Starred</h2>
-          <p className="text-sm text-muted-foreground">Pinned messages from your chats</p>
+          <p className="text-sm text-muted-foreground">Your bookmarked messages</p>
         </div>
       </div>
 
@@ -79,9 +79,9 @@ const StarredView = ({ onNavigateToChat, onBack }: StarredViewProps) => {
             <div className="text-center text-muted-foreground py-8">Loading...</div>
           ) : messages.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
-              <Star className="h-12 w-12 mx-auto mb-3 opacity-30" />
+              <Bookmark className="h-12 w-12 mx-auto mb-3 opacity-30" />
               <p>No starred messages</p>
-              <p className="text-sm mt-1">Pin important messages to find them easily</p>
+              <p className="text-sm mt-1">Bookmark important messages to find them easily</p>
             </div>
           ) : (
             messages.map((message: any) => (
@@ -108,7 +108,7 @@ const StarredView = ({ onNavigateToChat, onBack }: StarredViewProps) => {
                       <Badge variant="secondary" className="text-xs">
                         {getChatName(message)}
                       </Badge>
-                      <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
+                      <Bookmark className="h-3.5 w-3.5 text-blue-500 fill-blue-500" />
                     </div>
                     <p className="text-sm text-muted-foreground line-clamp-2">
                       {message.content}
