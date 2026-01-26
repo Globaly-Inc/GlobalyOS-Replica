@@ -1,87 +1,149 @@
-# Plan: Prevent Multiple Current Positions
 
-## Problem Summary
-Currently, when adding a new position entry, users can check "Present (Current)" even when there's already a current position. While there IS a confirmation dialog (lines 257-262), the user wants to prevent this option entirely - the "Present (Current)" checkbox should be disabled when:
-1. Adding a new position AND there's already a current position
-2. Editing a historical position (not the current one) AND there's already a current position
 
-The checkbox should only be enabled when:
-1. Adding a new position AND there's NO current position
-2. Editing the CURRENT position itself
+## Plan: Remove Upload Dialog and Open File Picker Directly
 
-## Solution
+### Problem
+Currently, clicking "Upload file", "Upload image", or "Upload video" opens an intermediate dialog with drag-and-drop functionality. The user wants to skip this dialog and open the operating system's file picker (Finder on Mac, File Explorer on Windows) directly.
 
-### File: `src/components/dialogs/PositionDialog.tsx`
+---
 
-**1. Add logic to determine if "Present (Current)" should be disabled (around line 99)**
+### Solution Overview
 
-```tsx
-const currentPosition = existingPositions.find(p => p.is_current);
+Replace the `openUploadDialog()` function with a new `triggerFilePicker()` function that:
+1. Sets the appropriate file type filter
+2. Programmatically clicks a hidden file input to open the OS file picker
+3. Adds selected files directly to the composer's file list
 
-// Determine if "Present (Current)" checkbox should be disabled
-// Only allow setting as current if:
-// - There's no current position yet, OR
-// - We're editing the current position itself
-const isEditingCurrentPosition = isEditing && entry?.is_current;
-const hasOtherCurrentPosition = currentPosition && currentPosition.id !== entry?.id;
-const disableCurrentCheckbox = hasOtherCurrentPosition;
+---
+
+### Implementation Details
+
+**File:** `src/components/chat/MessageComposer.tsx`
+
+#### 1. Remove Dialog-Related State and Imports
+
+Remove these as they will no longer be needed:
+- `uploadDialogOpen` state (line 87)
+- `isDragging` state (line 90)  
+- `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle` imports (lines 11-15)
+- `Upload` icon import (line 29) - only used in dialog
+
+#### 2. Replace `openUploadDialog` Function
+
+**Current (line 349-353):**
+```typescript
+const openUploadDialog = (type: "file" | "image" | "video") => {
+  setUploadType(type);
+  setSelectedFiles([]);
+  setUploadDialogOpen(true);
+};
 ```
 
-**2. Update the checkbox UI (lines 619-628)**
-
-- Disable the checkbox when `disableCurrentCheckbox` is true
-- Add a tooltip or helper text explaining why it's disabled
-- Visually indicate the disabled state
-
-```tsx
-<div className="flex items-center gap-2">
-  <Checkbox
-    id="is_current"
-    checked={formData.is_current}
-    onCheckedChange={handleCurrentToggle}
-    disabled={disableCurrentCheckbox}
-  />
-  <Label 
-    htmlFor="is_current" 
-    className={cn(
-      "text-sm font-normal cursor-pointer",
-      disableCurrentCheckbox && "opacity-50 cursor-not-allowed"
-    )}
-  >
-    Present (Current)
-  </Label>
-  {disableCurrentCheckbox && (
-    <span className="text-xs text-muted-foreground">
-      (End current position first)
-    </span>
-  )}
-</div>
+**Replace with:**
+```typescript
+const triggerFilePicker = (type: "file" | "image" | "video") => {
+  setUploadType(type);
+  // Trigger the hidden file input after state update
+  setTimeout(() => {
+    fileInputRef.current?.click();
+  }, 0);
+};
 ```
 
-**3. Remove the confirmation dialog logic (lines 257-262, 666-683)**
+#### 3. Move Hidden File Input Outside Dialog
 
-Since we're preventing the action entirely, the confirmation dialog for replacing current position becomes unnecessary and can be removed:
-- Remove the `confirmDialogOpen` and `pendingSubmit` state variables
-- Remove the confirmation check in `handleSubmit`
-- Remove the `AlertDialog` component
+Move the `<input type="file">` element from inside the Dialog (line 690-697) to somewhere always rendered in the component (e.g., near the top of the return statement).
 
-**4. Simplify handleCurrentToggle**
+```typescript
+{/* Hidden file input for direct file picker */}
+<input
+  ref={fileInputRef}
+  type="file"
+  multiple
+  accept={
+    uploadType === "image" 
+      ? ALLOWED_IMAGE_TYPES.join(",") 
+      : uploadType === "video" 
+      ? ALLOWED_VIDEO_TYPES.join(",") 
+      : ALLOWED_FILE_TYPES.join(",")
+  }
+  onChange={(e) => {
+    handleFileSelect(e.target.files);
+    // Reset input value so same file can be selected again
+    e.target.value = '';
+  }}
+  className="hidden"
+/>
+```
 
-The toggle handler remains the same but will only be called when the checkbox is enabled.
+#### 4. Update Button Click Handlers
 
-## Files to Modify
+**Change from (lines 581-604):**
+```typescript
+onClick={() => openUploadDialog("file")}
+onClick={() => openUploadDialog("image")}
+onClick={() => openUploadDialog("video")}
+```
 
-| File | Change |
+**To:**
+```typescript
+onClick={() => triggerFilePicker("file")}
+onClick={() => triggerFilePicker("image")}
+onClick={() => triggerFilePicker("video")}
+```
+
+#### 5. Remove Entire Upload Dialog Section
+
+Delete the entire Dialog component (lines 669-764):
+```typescript
+{/* Upload Dialog */}
+<Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+  ...
+</Dialog>
+```
+
+#### 6. Remove Drag-and-Drop Handlers
+
+These functions are only used in the dialog and can be removed:
+- `handleDragEnter` (lines 385-389)
+- `handleDragLeave` (lines 391-395)
+- `handleDragOver` (lines 397-400)
+- `handleDrop` (lines 402-407)
+- `confirmUpload` (lines 420-422)
+
+---
+
+### Summary of Changes
+
+| What | Action |
 |------|--------|
-| `src/components/dialogs/PositionDialog.tsx` | Disable "Present (Current)" checkbox when another current position exists, remove confirmation dialog |
+| `uploadDialogOpen` state | Remove |
+| `isDragging` state | Remove |
+| `openUploadDialog` function | Replace with `triggerFilePicker` |
+| Dialog imports | Remove (`Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle`) |
+| `Upload` icon import | Remove |
+| Drag-and-drop handlers | Remove (`handleDragEnter`, `handleDragLeave`, `handleDragOver`, `handleDrop`) |
+| `confirmUpload` function | Remove |
+| Hidden file input | Move outside dialog, always render |
+| Button click handlers | Update to call `triggerFilePicker` |
+| Entire Dialog component | Remove (lines 669-764) |
 
-## Expected Result
+---
 
-- When adding a new position with an existing current position: "Present (Current)" checkbox is disabled with helper text "(End current position first)"
-- When editing a historical position: Same behavior - checkbox disabled
-- When editing the current position: Checkbox enabled (can toggle it off to convert to historical)
-- When adding first position (no history): Checkbox enabled
-- Cleaner UX without confusing confirmation dialogs
+### User Experience After Changes
 
-## Critical Files for Implementation
-- `src/components/dialogs/PositionDialog.tsx` - Main dialog with checkbox logic to modify
+1. User clicks + button → Popover appears with options
+2. User clicks "Upload file" / "Upload image" / "Upload video"
+3. **OS file picker opens immediately**
+4. User selects files
+5. Files appear in the preview area above the message input (existing behavior)
+6. User can send the message with attachments
+
+---
+
+### Technical Notes
+
+- The `setTimeout(..., 0)` ensures the file input's `accept` attribute is updated before the click is triggered
+- Resetting `e.target.value = ''` allows the same file to be selected again if needed
+- The Popover will automatically close when clicking an option (existing behavior)
+
