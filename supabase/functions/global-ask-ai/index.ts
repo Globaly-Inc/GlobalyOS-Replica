@@ -118,6 +118,66 @@ async function logUsage(supabase: any, params: {
   }
 }
 
+// ========================================
+// VECTOR SEARCH INTEGRATION
+// ========================================
+async function searchKnowledgeEmbeddings(
+  supabase: any,
+  lovableApiKey: string,
+  question: string,
+  organizationId: string,
+  role: string,
+  employeeId?: string
+): Promise<Array<{ source_type: string; title: string; content: string; similarity: number }>> {
+  try {
+    // Generate embedding for the question
+    const embeddingResponse = await fetch("https://ai.gateway.lovable.dev/v1/embeddings", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${lovableApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "text-embedding-3-small",
+        input: question,
+      }),
+    });
+
+    if (!embeddingResponse.ok) {
+      console.error("Failed to generate embedding:", await embeddingResponse.text());
+      return [];
+    }
+
+    const embeddingData = await embeddingResponse.json();
+    const queryEmbedding = embeddingData.data?.[0]?.embedding;
+
+    if (!queryEmbedding) {
+      console.error("No embedding returned");
+      return [];
+    }
+
+    // Search for similar content using the match function
+    const { data: matches, error } = await supabase.rpc('match_knowledge_embeddings', {
+      query_embedding: queryEmbedding,
+      match_threshold: 0.7,
+      match_count: 10,
+      org_id: organizationId,
+      user_role: role,
+      p_employee_id: employeeId || null,
+    });
+
+    if (error) {
+      console.error("Vector search error:", error);
+      return [];
+    }
+
+    return matches || [];
+  } catch (error) {
+    console.error("Error in vector search:", error);
+    return [];
+  }
+}
+
 serve(async (req) => {
   const startTime = Date.now();
   
@@ -214,7 +274,7 @@ serve(async (req) => {
     // Get current employee - separate queries to avoid inner join failures
     const { data: employeeData, error: empError } = await supabase
       .from("employees")
-      .select("id, position, department, manager_id, office_id, start_date, status, user_id")
+      .select("id, position, department, manager_id, office_id, status, user_id")
       .eq("user_id", user.id)
       .eq("organization_id", organizationId)
       .maybeSingle();
@@ -277,14 +337,13 @@ serve(async (req) => {
       if (deterministicIntent === "leave_balance") {
         console.log("=== DETERMINISTIC LEAVE BALANCE ===");
         
-        // Strategy: Try office_leave_types first (new schema), then fall back to leave_types
+        // Use office_leave_types exclusively (legacy leave_types has been dropped)
         let leaveBalances: Array<{ name: string; balance: number; category: string }> = [];
         let balanceYear = currentYear;
-        let dataSource = "";
 
-        // First: Try office_leave_types if employee has an office
+        // Get balances from office_leave_types
         if (currentEmployee.office_id) {
-          console.log("Trying office_leave_types for office:", currentEmployee.office_id);
+          console.log("Fetching office_leave_types for office:", currentEmployee.office_id);
           
           const { data: officeBalances, error: officeError } = await supabase
             .from("leave_type_balances")
@@ -301,7 +360,6 @@ serve(async (req) => {
           console.log("Office balances query result:", { 
             count: officeBalances?.length, 
             error: officeError?.message,
-            data: officeBalances 
           });
           
           if (officeBalances && officeBalances.length > 0) {
@@ -310,93 +368,34 @@ serve(async (req) => {
               balance: b.balance,
               category: b.office_leave_types?.category || "N/A"
             }));
-            dataSource = "office_leave_types";
           }
         }
 
-        // Second: Try legacy leave_types if no office balances found
-        if (leaveBalances.length === 0) {
-          console.log("Trying legacy leave_types");
-          
-          const { data: legacyBalances, error: legacyError } = await supabase
-            .from("leave_type_balances")
-            .select(`
-              balance, 
-              year,
-              leave_type_id,
-              leave_types!inner(name, category)
-            `)
-            .eq("employee_id", currentEmployee.id)
-            .eq("year", currentYear)
-            .not("leave_type_id", "is", null);
-          
-          console.log("Legacy balances query result:", { 
-            count: legacyBalances?.length, 
-            error: legacyError?.message,
-            data: legacyBalances 
-          });
-          
-          if (legacyBalances && legacyBalances.length > 0) {
-            leaveBalances = legacyBalances.map((b: any) => ({
-              name: b.leave_types?.name || "Unknown",
-              balance: b.balance,
-              category: b.leave_types?.category || "N/A"
-            }));
-            dataSource = "leave_types";
-          }
-        }
-
-        // Third: Try previous year if current year has no data
-        if (leaveBalances.length === 0) {
+        // Try previous year if current year has no data
+        if (leaveBalances.length === 0 && currentEmployee.office_id) {
           console.log("Trying previous year:", currentYear - 1);
           balanceYear = currentYear - 1;
           
-          // Try office first
-          if (currentEmployee.office_id) {
-            const { data: prevOfficeBalances } = await supabase
-              .from("leave_type_balances")
-              .select(`
-                balance, year,
-                office_leave_types!inner(name, category)
-              `)
-              .eq("employee_id", currentEmployee.id)
-              .eq("year", balanceYear)
-              .not("office_leave_type_id", "is", null);
-            
-            if (prevOfficeBalances && prevOfficeBalances.length > 0) {
-              leaveBalances = prevOfficeBalances.map((b: any) => ({
-                name: b.office_leave_types?.name || "Unknown",
-                balance: b.balance,
-                category: b.office_leave_types?.category || "N/A"
-              }));
-              dataSource = "office_leave_types (prev year)";
-            }
-          }
+          const { data: prevOfficeBalances } = await supabase
+            .from("leave_type_balances")
+            .select(`
+              balance, year,
+              office_leave_types!inner(name, category)
+            `)
+            .eq("employee_id", currentEmployee.id)
+            .eq("year", balanceYear)
+            .not("office_leave_type_id", "is", null);
           
-          // Then legacy
-          if (leaveBalances.length === 0) {
-            const { data: prevLegacyBalances } = await supabase
-              .from("leave_type_balances")
-              .select(`
-                balance, year,
-                leave_types!inner(name, category)
-              `)
-              .eq("employee_id", currentEmployee.id)
-              .eq("year", balanceYear)
-              .not("leave_type_id", "is", null);
-            
-            if (prevLegacyBalances && prevLegacyBalances.length > 0) {
-              leaveBalances = prevLegacyBalances.map((b: any) => ({
-                name: b.leave_types?.name || "Unknown",
-                balance: b.balance,
-                category: b.leave_types?.category || "N/A"
-              }));
-              dataSource = "leave_types (prev year)";
-            }
+          if (prevOfficeBalances && prevOfficeBalances.length > 0) {
+            leaveBalances = prevOfficeBalances.map((b: any) => ({
+              name: b.office_leave_types?.name || "Unknown",
+              balance: b.balance,
+              category: b.office_leave_types?.category || "N/A"
+            }));
           }
         }
 
-        console.log("Final leave balances:", { count: leaveBalances.length, dataSource, balanceYear });
+        console.log("Final leave balances:", { count: leaveBalances.length, balanceYear });
 
         // Build deterministic answer
         const profile = currentEmployee.profiles as any;
@@ -714,8 +713,8 @@ serve(async (req) => {
       leave_enabled: aiSettings?.leave_enabled ?? true,
       attendance_enabled: aiSettings?.attendance_enabled ?? true,
       general_ai_enabled: aiSettings?.general_ai_enabled ?? true,
-      default_model: aiSettings?.default_model || "google/gemini-2.5-flash",
-      allowed_models: aiSettings?.allowed_models || ["google/gemini-2.5-flash", "google/gemini-2.5-pro"],
+      default_model: aiSettings?.default_model || "google/gemini-3-flash-preview",
+      allowed_models: aiSettings?.allowed_models || ["google/gemini-2.5-flash", "google/gemini-2.5-pro", "google/gemini-3-flash-preview"],
     };
 
     // Determine which model to use
@@ -725,6 +724,26 @@ serve(async (req) => {
 
     // Detect query type
     const queryType = detectQueryType(question);
+
+    // ========================================
+    // VECTOR SEARCH FOR SEMANTIC CONTEXT
+    // ========================================
+    let vectorContext = "";
+    const vectorMatches = await searchKnowledgeEmbeddings(
+      supabase,
+      lovableApiKey,
+      question,
+      organizationId,
+      role,
+      currentEmployee?.id
+    );
+
+    if (vectorMatches.length > 0) {
+      console.log("Vector search found", vectorMatches.length, "relevant chunks");
+      vectorContext = vectorMatches
+        .map(match => `[${match.source_type}${match.title ? `: ${match.title}` : ''}]\n${match.content}`)
+        .join("\n\n---\n\n");
+    }
 
     // ========================================
     // ORGANIZATION BUSINESS CONTEXT
@@ -772,7 +791,6 @@ serve(async (req) => {
     const companySize = organization?.company_size || "Not specified";
     const companyName = organization?.legal_business_name || organization?.name || "the organization";
     const companyCountry = organization?.country || "Not specified";
-    const companyTimezone = organization?.timezone || "Not specified";
 
     // ========================================
     // PERSONAL DATA CONTEXT (Always available to self)
@@ -780,12 +798,12 @@ serve(async (req) => {
     let userPersonalContext = "";
 
     if (currentEmployee) {
-      // User's leave balances - using both office and legacy tables
+      // User's leave balances - using office_leave_types only
       if (settings.leave_enabled) {
         let leaveBalances: Array<{ name: string; balance: number; category: string }> = [];
         let balanceYear = currentYear;
 
-        // Try office_leave_types first
+        // Get balances from office_leave_types
         if (currentEmployee.office_id) {
           const { data: officeBalances } = await supabase
             .from("leave_type_balances")
@@ -799,24 +817,6 @@ serve(async (req) => {
               name: b.office_leave_types?.name || "Unknown",
               balance: b.balance,
               category: b.office_leave_types?.category || "N/A"
-            }));
-          }
-        }
-
-        // Fallback to legacy
-        if (leaveBalances.length === 0) {
-          const { data: legacyBalances } = await supabase
-            .from("leave_type_balances")
-            .select(`balance, year, leave_types!inner(name, category)`)
-            .eq("employee_id", currentEmployee.id)
-            .eq("year", currentYear)
-            .not("leave_type_id", "is", null);
-          
-          if (legacyBalances && legacyBalances.length > 0) {
-            leaveBalances = legacyBalances.map((b: any) => ({
-              name: b.leave_types?.name || "Unknown",
-              balance: b.balance,
-              category: b.leave_types?.category || "N/A"
             }));
           }
         }
@@ -920,23 +920,23 @@ KPI STATUS SUMMARY: ${Object.entries(kpiStatusSummary).map(([s, c]) => `${s}: ${
       if (directReports && directReports.length > 0) {
         const directReportIds = directReports.map(dr => dr.id);
         
-        // Get leave balances for direct reports
+        // Get leave balances for direct reports (office_leave_types only)
         if (settings.leave_enabled) {
           const { data: teamLeaveBalances } = await supabase
             .from("leave_type_balances")
             .select(`
               employee_id, balance,
-              leave_types(name),
               office_leave_types(name)
             `)
             .in("employee_id", directReportIds)
-            .eq("year", currentYear);
+            .eq("year", currentYear)
+            .not("office_leave_type_id", "is", null);
 
           // Group by employee
           const teamLeaveMap: Record<string, string[]> = {};
           teamLeaveBalances?.forEach((lb: any) => {
             if (!teamLeaveMap[lb.employee_id]) teamLeaveMap[lb.employee_id] = [];
-            const typeName = lb.office_leave_types?.name || lb.leave_types?.name || "Unknown";
+            const typeName = lb.office_leave_types?.name || "Unknown";
             teamLeaveMap[lb.employee_id].push(`${typeName}: ${lb.balance}`);
           });
 
@@ -1226,6 +1226,8 @@ ${hrContactsContext ? `## HR CONTACTS:\n${hrContactsContext}` : ""}
 
 ${orgStructureContext ? `## ORG STRUCTURE:\n${orgStructureContext}` : ""}
 
+${vectorContext ? `## RELEVANT KNOWLEDGE (from semantic search):\n${vectorContext}` : ""}
+
 ${queryType === "internal" ? `
 ## WIKI:
 ${wikiContext || "No wiki content."}
@@ -1302,6 +1304,15 @@ Be helpful, accurate, and concise.`;
     const data = await response.json();
     const answer = data.choices?.[0]?.message?.content || "I couldn't generate a response. Please try again.";
 
+    // Build sources from vector matches for citation
+    const sources = vectorMatches.length > 0 
+      ? vectorMatches.slice(0, 5).map(m => ({
+          type: m.source_type,
+          title: m.title,
+          similarity: m.similarity
+        }))
+      : undefined;
+
     // Calculate usage metrics
     const endTime = Date.now();
     const latencyMs = endTime - startTime;
@@ -1355,6 +1366,7 @@ Be helpful, accurate, and concise.`;
 
     return new Response(JSON.stringify({ 
       answer,
+      sources,
       usage: {
         model,
         query_type: queryType,
