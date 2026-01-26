@@ -809,13 +809,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "attendance_leave_adjustments_leave_type_id_fkey"
-            columns: ["leave_type_id"]
-            isOneToOne: false
-            referencedRelation: "leave_types"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "attendance_leave_adjustments_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
@@ -5178,71 +5171,6 @@ export type Database = {
           },
           {
             foreignKeyName: "leave_type_balances_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      leave_types: {
-        Row: {
-          applies_to_all_offices: boolean
-          applies_to_employment_types: string[] | null
-          applies_to_gender: string | null
-          carry_forward_mode: string
-          category: string
-          created_at: string
-          default_days: number | null
-          description: string | null
-          id: string
-          is_active: boolean
-          is_system: boolean
-          max_negative_days: number | null
-          min_days_advance: number
-          name: string
-          organization_id: string
-          updated_at: string
-        }
-        Insert: {
-          applies_to_all_offices?: boolean
-          applies_to_employment_types?: string[] | null
-          applies_to_gender?: string | null
-          carry_forward_mode?: string
-          category?: string
-          created_at?: string
-          default_days?: number | null
-          description?: string | null
-          id?: string
-          is_active?: boolean
-          is_system?: boolean
-          max_negative_days?: number | null
-          min_days_advance?: number
-          name: string
-          organization_id: string
-          updated_at?: string
-        }
-        Update: {
-          applies_to_all_offices?: boolean
-          applies_to_employment_types?: string[] | null
-          applies_to_gender?: string | null
-          carry_forward_mode?: string
-          category?: string
-          created_at?: string
-          default_days?: number | null
-          description?: string | null
-          id?: string
-          is_active?: boolean
-          is_system?: boolean
-          max_negative_days?: number | null
-          min_days_advance?: number
-          name?: string
-          organization_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "leave_types_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"

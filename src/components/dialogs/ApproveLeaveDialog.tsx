@@ -124,8 +124,7 @@ export const ApproveLeaveDialog = ({
         }
       }
 
-      // Fallback to legacy leave_types - but return empty since leave_type_id is removed
-      // All balances should now use office_leave_types
+      // No office leave types found - return empty
       return [];
     },
     enabled: !!request?.employee?.id && !!currentOrg?.id && open,

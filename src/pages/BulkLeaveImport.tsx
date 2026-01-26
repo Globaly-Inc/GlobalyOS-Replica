@@ -580,15 +580,22 @@ const BulkLeaveImport = () => {
       })));
     }
 
-    // Load leave types
+    // Load leave types from office_leave_types (org-wide deduplicated by name)
     const { data: ltData } = await supabase
-      .from('leave_types')
+      .from('office_leave_types')
       .select('id, name')
       .eq('organization_id', currentOrg.id)
       .eq('is_active', true);
 
     if (ltData) {
-      setLeaveTypes(ltData);
+      // Deduplicate by name for org-wide display
+      const uniqueTypes = new Map<string, { id: string; name: string }>();
+      ltData.forEach((lt: { id: string; name: string }) => {
+        if (!uniqueTypes.has(lt.name.toLowerCase())) {
+          uniqueTypes.set(lt.name.toLowerCase(), lt);
+        }
+      });
+      setLeaveTypes(Array.from(uniqueTypes.values()));
     }
   };
 

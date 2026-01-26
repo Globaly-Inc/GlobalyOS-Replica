@@ -209,66 +209,22 @@ export const BulkLeaveImportDialog = () => {
         ]) || []
       );
 
-      // Get leave types
-      const { data: leaveTypes } = await supabase
-        .from('leave_types')
-        .select('id, name')
-        .eq('organization_id', currentOrg.id);
+      // BulkLeaveImportDialog no longer uses leave_types lookup
+      // Leave requests are inserted with leave_type name only
+      // The office_leave_type_id resolution happens during approval or via trigger
 
-      const leaveTypeMap = new Map(
-        leaveTypes?.map(lt => [lt.name.toLowerCase(), lt.id]) || []
-      );
-
-      // Process opening balances first
+      // Process opening balances first - no longer supported
       const openingBalances = parsedRecords.filter(r => r.isOpeningBalance);
       const leaveRequests = parsedRecords.filter(r => !r.isOpeningBalance);
 
-      // Group opening balances by employee
-      const balancesByEmployee = new Map<string, Map<string, number>>();
+      // Report opening balances as not supported
       for (const record of openingBalances) {
-        const empKey = record.employee_name.toLowerCase();
-        if (!balancesByEmployee.has(empKey)) {
-          balancesByEmployee.set(empKey, new Map());
-        }
-        balancesByEmployee.get(empKey)!.set(record.leave_type.toLowerCase(), record.leave_day);
-      }
-
-      // Import opening balances
-      for (const [empName, balances] of balancesByEmployee) {
-        const employeeId = employeeMap.get(empName);
-        if (!employeeId) {
-          importResults.push({
-            employee_name: empName,
-            record_type: 'Opening Balance',
-            success: false,
-            error: 'Employee not found',
-          });
-          continue;
-        }
-
-        for (const [leaveTypeName, balance] of balances) {
-          const leaveTypeId = leaveTypeMap.get(leaveTypeName);
-          if (!leaveTypeId) {
-            importResults.push({
-              employee_name: empName,
-              record_type: `Balance: ${leaveTypeName}`,
-              success: false,
-              error: 'Leave type not found',
-            });
-            continue;
-          }
-
-          // Skip balance upsert - BulkLeaveImportDialog now only supports leave requests
-          // Opening balances should be handled via the office_leave_types system
-          importResults.push({
-            employee_name: empName,
-            record_type: `Balance: ${leaveTypeName} (${balance} days)`,
-            success: false,
-            error: 'Opening balance import not supported. Use Leave Balance Init instead.',
-          });
-
-          // Skip duplicate result - already added above
-        }
+        importResults.push({
+          employee_name: record.employee_name,
+          record_type: `Balance: ${record.leave_type} (${record.leave_day} days)`,
+          success: false,
+          error: 'Opening balance import not supported. Use Leave Balance Init instead.',
+        });
       }
 
       // Import leave requests
