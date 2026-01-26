@@ -7,6 +7,7 @@ import MessageReactions from "./MessageReactions";
 import EditMessageInput from "./EditMessageInput";
 import RichTextMessage from "./RichTextMessage";
 import MessageDeliveryStatus from "./MessageDeliveryStatus";
+import LinkPreviewRenderer from "./LinkPreviewRenderer";
 
 import type { ChatMessage } from "@/types/chat";
 import { format } from "date-fns";
@@ -145,6 +146,14 @@ const MessageBubble = ({
                   <span className="text-xs text-muted-foreground ml-1">(edited)</span>
                 )}
               </div>
+            )}
+
+            {/* Link previews */}
+            {message.content && (
+              <LinkPreviewRenderer 
+                content={message.content} 
+                messageId={message.id}
+              />
             )}
 
             {/* Attachments */}

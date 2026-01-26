@@ -19,6 +19,7 @@ import { useChatNotificationPreferences } from "@/hooks/useChatNotificationPrefe
 import { useNotificationSound } from "@/hooks/useNotificationSound";
 import RichTextMessage from "./RichTextMessage";
 import AttachmentRenderer from "./AttachmentRenderer";
+import LinkPreviewRenderer from "./LinkPreviewRenderer";
 import type { ChatMessage } from "@/types/chat";
 
 interface ThreadViewProps {
@@ -259,6 +260,13 @@ const ThreadView = ({
                         <div className="text-sm text-foreground">
                           <RichTextMessage content={reply.content} />
                         </div>
+                      )}
+                      {reply.content && (
+                        <LinkPreviewRenderer 
+                          content={reply.content} 
+                          messageId={reply.id}
+                          maxPreviews={2}
+                        />
                       )}
                       {reply.attachments && reply.attachments.length > 0 && (
                         <div className="mt-2">
