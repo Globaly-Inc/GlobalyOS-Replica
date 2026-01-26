@@ -45,7 +45,7 @@ import {
   AlertTriangle,
   Eye,
 } from 'lucide-react';
-import { formatDistanceToNow, isPast, differenceInHours, format } from 'date-fns';
+import { isPast, differenceInHours, format } from 'date-fns';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { Post, useDeletePost, useTogglePinPost, useAcknowledgePost, useTargetEmployeesCount } from '@/services/useSocialFeed';
 import { PostMedia } from './PostMedia';
@@ -55,7 +55,7 @@ import { PostComments } from './PostComments';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useCurrentEmployee } from '@/services/useCurrentEmployee';
 import { OrgLink } from '@/components/OrgLink';
-import { cn } from '@/lib/utils';
+import { cn, formatSmartDateTime } from '@/lib/utils';
 import { useCommentCount } from '@/services/usePostStats';
 import { useReactionsRealtime, useCommentsRealtime } from '@/services/useSocialFeedRealtime';
 import { DeletePostDialog } from '@/components/dialogs/DeletePostDialog';
@@ -248,7 +248,7 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
               {/* Row 2: Time */}
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="text-muted-foreground text-sm">
-                  {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
+                  {formatSmartDateTime(post.created_at, 3)}
                 </span>
               </div>
             </div>

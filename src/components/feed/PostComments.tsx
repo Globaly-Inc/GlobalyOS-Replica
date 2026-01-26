@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, Trash2, Send, Loader2, Smile } from 'lucide-react';
 import { GifPicker } from './GifPicker';
-import { formatDistanceToNow } from 'date-fns';
+import { formatSmartDateTime } from '@/lib/utils';
 import { OrgLink } from '@/components/OrgLink';
 import { CommentReactions } from './CommentReactions';
 import { cn } from '@/lib/utils';
@@ -150,7 +150,7 @@ export const PostComments = ({ postId }: PostCommentsProps) => {
                       {comment.employee?.profiles?.full_name || 'Unknown'}
                     </OrgLink>
                     <span className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+                      {formatSmartDateTime(comment.created_at, 3)}
                     </span>
                   </div>
                   <p className="text-sm mt-0.5 whitespace-pre-wrap break-words">
