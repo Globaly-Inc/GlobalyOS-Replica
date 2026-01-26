@@ -22,10 +22,21 @@ const MODEL_RATES: Record<string, number> = {
 // ========================================
 // DETERMINISTIC INTENT DETECTION
 // ========================================
-type DeterministicIntent = "leave_balance" | "kpi_performance" | "hr_contacts" | null;
+type DeterministicIntent = "leave_balance" | "kpi_performance" | "hr_contacts" | "my_projects" | null;
 
 function detectDeterministicIntent(question: string): DeterministicIntent {
   const lowerQ = question.toLowerCase();
+  
+  // Projects intent
+  const projectKeywords = [
+    "my project", "my projects", "assigned to", "assigned project",
+    "what project", "which project", "project list", "working on",
+    "project assignment", "project i'm on", "projects am i",
+    "assigned to me", "my team project", "project am i assigned"
+  ];
+  if (projectKeywords.some(kw => lowerQ.includes(kw))) {
+    return "my_projects";
+  }
   
   // Leave balance intent
   const leaveKeywords = [
@@ -682,6 +693,83 @@ serve(async (req) => {
           usage: {
             model: "deterministic",
             query_type: "hr_contacts",
+            tokens: 0,
+            latency_ms: endTime - startTime
+          }
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // ========================================
+      // DETERMINISTIC: MY PROJECTS
+      // ========================================
+      if (deterministicIntent === "my_projects") {
+        console.log("=== DETERMINISTIC MY PROJECTS ===");
+        
+        // Fetch projects assigned to current employee
+        const { data: employeeProjects, error: projectError } = await supabase
+          .from("employee_projects")
+          .select(`
+            project_id,
+            projects!inner(id, name, description, color, status)
+          `)
+          .eq("employee_id", currentEmployee.id);
+        
+        if (projectError) {
+          console.error("Error fetching employee projects:", projectError);
+        }
+        
+        console.log("Projects found:", employeeProjects?.length);
+        
+        const profile = currentEmployee.profiles as any;
+        const userName = profile?.full_name?.split(' ')[0] || "there";
+        
+        if (employeeProjects && employeeProjects.length > 0) {
+          const projects = employeeProjects
+            .map((ep: any) => ep.projects)
+            .filter(Boolean);
+          
+          deterministicAnswer = `Hi ${userName}! You are currently assigned to **${projects.length} project${projects.length > 1 ? 's' : ''}**:\n\n`;
+          
+          projects.forEach((p: any, idx: number) => {
+            const statusEmoji = p.status === 'active' ? '🟢' : p.status === 'on_hold' ? '🟡' : p.status === 'completed' ? '✅' : '⚪';
+            deterministicAnswer += `${idx + 1}. ${statusEmoji} **${p.name}**`;
+            if (p.description) {
+              deterministicAnswer += `\n   ${p.description.substring(0, 100)}${p.description.length > 100 ? '...' : ''}`;
+            }
+            if (p.status) {
+              deterministicAnswer += `\n   Status: ${p.status.replace('_', ' ')}`;
+            }
+            deterministicAnswer += '\n\n';
+          });
+          
+          deterministicAnswer += "Let me know if you need more details about any specific project!";
+        } else {
+          deterministicAnswer = `Hi ${userName}! Based on current records, you don't have any projects assigned to you yet.\n\n`;
+          deterministicAnswer += "This could mean:\n";
+          deterministicAnswer += "• You haven't been assigned to any projects\n";
+          deterministicAnswer += "• Project assignments haven't been set up in the system\n\n";
+          deterministicAnswer += "If you believe this is an error, please contact your manager or the project management team to get assigned to relevant projects.";
+        }
+        
+        const endTime = Date.now();
+        await logUsage(supabase, {
+          organizationId,
+          userId: user.id,
+          employeeId: currentEmployee.id,
+          conversationId,
+          queryType: "deterministic_projects",
+          promptLength: question.length,
+          responseLength: deterministicAnswer.length,
+          latencyMs: endTime - startTime,
+        });
+        
+        return new Response(JSON.stringify({ 
+          answer: deterministicAnswer,
+          usage: {
+            model: "deterministic",
+            query_type: "my_projects",
             tokens: 0,
             latency_ms: endTime - startTime
           }

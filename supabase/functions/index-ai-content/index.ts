@@ -11,6 +11,7 @@ const SOURCE_TYPES = [
   'wiki_page',
   'chat_message', 
   'team_member',
+  'project',
   'announcement',
   'kpi',
   'calendar_event',
@@ -251,7 +252,50 @@ serve(async (req) => {
         }
         completedSources.push('team_member');
 
-        // 4. Index Updates/Announcements
+        // 4. Index Projects (with employee assignments)
+        await updateProgress(org.id, 'project', completedSources, indexedCount);
+        if (settings.team_directory_enabled) {
+          // Fetch all projects with their assigned employees
+          const { data: projects } = await supabase
+            .from("projects")
+            .select(`
+              id, name, description, color, status, updated_at,
+              employee_projects(employee_id)
+            `)
+            .eq("organization_id", org.id);
+
+          for (const project of projects || []) {
+            try {
+              const assignedIds = (project.employee_projects || [])
+                .map((ep: any) => ep.employee_id);
+              
+              await supabase.from("ai_content_index").upsert({
+                organization_id: org.id,
+                content_type: "project",
+                source_id: project.id,
+                source_table: "projects",
+                title: project.name,
+                content: `Project: ${project.name}. ${project.description || ""}. Status: ${project.status || "active"}. ${assignedIds.length} team members assigned.`,
+                access_scope: assignedIds.length > 0 ? "employee" : "company",
+                access_entities: assignedIds.length > 0 ? assignedIds : null,
+                metadata: { 
+                  project_id: project.id, 
+                  assigned_employees: assignedIds,
+                  status: project.status 
+                },
+                last_updated: project.updated_at || new Date().toISOString()
+              }, { onConflict: "organization_id,source_table,source_id" });
+              
+              indexedCount++;
+            } catch (e) {
+              console.error("Error indexing project:", e);
+              errorCount++;
+            }
+          }
+        }
+        completedSources.push('project');
+
+        // 5. Index Updates/Announcements
         await updateProgress(org.id, 'announcement', completedSources, indexedCount);
         if (settings.announcements_enabled) {
           const { data: updates } = await supabase
