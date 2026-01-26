@@ -45,7 +45,6 @@ import { cn } from "@/lib/utils";
 import { 
   useMessages, 
   useLoadOlderMessages,
-  useTogglePinMessage, 
   useTypingUsers, 
   useMarkAsRead,
   useEditMessage,
@@ -61,6 +60,7 @@ import {
   useLeaveSpace,
   useUpdateSpaceNotification,
 } from "@/services/useChat";
+import { useMessageStars, useToggleMessageStar } from "@/hooks/useMessageStars";
 import { useChatInfiniteScroll } from "@/hooks/useChatInfiniteScroll";
 
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
@@ -132,7 +132,8 @@ const ConversationView = ({
   const { shouldPlayChatSound, preferences: chatPreferences } = useChatNotificationPreferences();
   const { playNotificationSound } = useNotificationSound();
   
-  const togglePin = useTogglePinMessage();
+  const { data: messageStars = [] } = useMessageStars();
+  const toggleStar = useToggleMessageStar();
   const editMessage = useEditMessage();
   const deleteMessage = useDeleteMessage();
   const toggleReaction = useToggleReaction();
@@ -818,6 +819,9 @@ const ConversationView = ({
                         
                         const messageReactions = reactions[message.id] || {};
 
+                        // Check if this message is starred by current user
+                        const isStarred = messageStars.some(s => s.message_id === message.id);
+
                         return (
                           <MessageBubble
                             key={message.id}
@@ -835,10 +839,8 @@ const ConversationView = ({
                               setEditingMessageId(null);
                             }}
                             onDelete={() => deleteMessage.mutate(message.id)}
-                            onPin={() => togglePin.mutate({ 
-                              messageId: message.id, 
-                              isPinned: message.is_pinned 
-                            })}
+                            onPin={() => toggleStar.mutate(message.id)}
+                            isPinned={isStarred}
                             onReact={(emoji) => toggleReaction.mutate({ 
                               messageId: message.id, 
                               emoji 
