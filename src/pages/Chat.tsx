@@ -9,8 +9,9 @@ import MentionsView from "@/components/chat/MentionsView";
 import StarredView from "@/components/chat/StarredView";
 import MobileChatHome from "@/components/chat/MobileChatHome";
 import QuickSwitcher from "@/components/chat/QuickSwitcher";
+import ThreadView from "@/components/chat/ThreadView";
 import { useChatKeyboardShortcuts } from "@/hooks/useChatKeyboardShortcuts";
-import type { ActiveChat } from "@/types/chat";
+import type { ActiveChat, ChatMessage } from "@/types/chat";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const Chat = () => {
@@ -21,6 +22,7 @@ const Chat = () => {
   const [createSpaceOpen, setCreateSpaceOpen] = useState(false);
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
   const [recentChats, setRecentChats] = useState<ActiveChat[]>([]);
+  const [activeThreadMessage, setActiveThreadMessage] = useState<ChatMessage | null>(null);
   const isMobile = useIsMobile();
 
   // Keyboard shortcuts
@@ -31,10 +33,11 @@ const Chat = () => {
     enabled: !isMobile,
   });
 
-  // Reset mobile right panel when chat changes
+  // Reset mobile right panel and thread when chat changes
   useEffect(() => {
     setShowMobileRightPanel(false);
-  }, [activeChat]);
+    setActiveThreadMessage(null);
+  }, [activeChat?.id]);
 
   // Track recent chats
   useEffect(() => {
@@ -80,6 +83,8 @@ const Chat = () => {
           onBack={handleBack}
           onToggleRightPanel={() => {}}
           highlightMessageId={highlightMessageId}
+          onOpenThread={setActiveThreadMessage}
+          activeThreadMessage={activeThreadMessage}
         />
       );
     }
@@ -123,6 +128,8 @@ const Chat = () => {
                 onBack={handleBack}
                 onToggleRightPanel={() => setShowMobileRightPanel(true)}
                 highlightMessageId={highlightMessageId}
+                onOpenThread={setActiveThreadMessage}
+                activeThreadMessage={activeThreadMessage}
               />
             </div>
             {/* Mobile Right Panel Overlay */}
@@ -172,13 +179,22 @@ const Chat = () => {
         {renderMainContent()}
       </div>
 
-      {/* Right Panel - Enhanced with all info (always visible on desktop) */}
+      {/* Right Panel - Thread OR Info (desktop) */}
       {showRightPanelCondition && (
-        <ChatRightPanelEnhanced
-          activeChat={activeChat}
-          onClose={() => {}}
-          onBack={handleBack}
-        />
+        activeThreadMessage ? (
+          <ThreadView
+            parentMessage={activeThreadMessage}
+            conversationId={activeChat.type === 'conversation' ? activeChat.id : null}
+            spaceId={activeChat.type === 'space' ? activeChat.id : null}
+            onClose={() => setActiveThreadMessage(null)}
+          />
+        ) : (
+          <ChatRightPanelEnhanced
+            activeChat={activeChat}
+            onClose={() => {}}
+            onBack={handleBack}
+          />
+        )
       )}
 
       {/* Dialogs */}

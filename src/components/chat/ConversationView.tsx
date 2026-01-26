@@ -96,6 +96,8 @@ interface ConversationViewProps {
   onBack: () => void;
   onToggleRightPanel: () => void;
   highlightMessageId?: string;
+  onOpenThread?: (message: ChatMessage) => void;
+  activeThreadMessage?: ChatMessage | null;
 }
 
 // Check if two messages should be grouped (same sender within 5 minutes)
@@ -111,7 +113,14 @@ const shouldGroupMessages = (currentMsg: ChatMessage, prevMsg: ChatMessage | nul
   return timeDiff < 5;
 };
 
-const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMessageId }: ConversationViewProps) => {
+const ConversationView = ({ 
+  activeChat, 
+  onBack, 
+  onToggleRightPanel, 
+  highlightMessageId,
+  onOpenThread,
+  activeThreadMessage: externalActiveThreadMessage,
+}: ConversationViewProps) => {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<{ addFiles: (files: File[]) => void } | null>(null);
   const initialScrollDoneRef = useRef(false);
@@ -143,7 +152,10 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
   const [showEditGroupDialog, setShowEditGroupDialog] = useState(false);
   const [groupIconUrl, setGroupIconUrl] = useState<string | null>(activeChat.iconUrl || null);
   const [groupName, setGroupName] = useState(activeChat.name);
-  const [activeThreadMessage, setActiveThreadMessage] = useState<ChatMessage | null>(null);
+  // Use internal state for mobile, external for desktop
+  const [internalActiveThreadMessage, setInternalActiveThreadMessage] = useState<ChatMessage | null>(null);
+  const activeThreadMessage = isMobile ? internalActiveThreadMessage : externalActiveThreadMessage;
+  const setActiveThreadMessage = isMobile ? setInternalActiveThreadMessage : (onOpenThread || (() => {}));
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showTransferAdminDialog, setShowTransferAdminDialog] = useState(false);
@@ -924,17 +936,7 @@ const ConversationView = ({ activeChat, onBack, onToggleRightPanel, highlightMes
         )}
         </div>
         
-        {/* Thread View Panel - Desktop */}
-        {activeThreadMessage && !isMobile && (
-          <div className="w-[350px] h-full flex-shrink-0">
-            <ThreadView
-              parentMessage={activeThreadMessage}
-              conversationId={conversationId}
-              spaceId={spaceId}
-              onClose={() => setActiveThreadMessage(null)}
-            />
-          </div>
-        )}
+        {/* Thread View Panel - Desktop: Now rendered in parent Chat.tsx */}
         
         {/* Thread View Sheet - Mobile */}
         <Sheet open={!!activeThreadMessage && isMobile} onOpenChange={(open) => !open && setActiveThreadMessage(null)}>
