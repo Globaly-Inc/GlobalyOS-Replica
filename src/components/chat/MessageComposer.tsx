@@ -8,12 +8,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   Plus,
   Send,
   Smile,
@@ -26,7 +20,6 @@ import {
   Image,
   X,
   FileIcon,
-  Upload,
   AtSign,
   Video,
 } from "lucide-react";
@@ -84,10 +77,8 @@ interface MentionedMember {
 const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
   ({ conversationId, spaceId }, ref) => {
   const [message, setMessage] = useState("");
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [uploadType, setUploadType] = useState<"file" | "image" | "video">("file");
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
-  const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
   const [showMentions, setShowMentions] = useState(false);
@@ -346,10 +337,12 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
     textarea.focus();
   };
 
-  const openUploadDialog = (type: "file" | "image" | "video") => {
+  const triggerFilePicker = (type: "file" | "image" | "video") => {
     setUploadType(type);
-    setSelectedFiles([]);
-    setUploadDialogOpen(true);
+    // Trigger the hidden file input after state update
+    setTimeout(() => {
+      fileInputRef.current?.click();
+    }, 0);
   };
 
   const handleFileSelect = useCallback((files: FileList | null) => {
@@ -382,30 +375,6 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
     setSelectedFiles(prev => [...prev, ...newFiles]);
   }, [uploadType]);
 
-  const handleDragEnter = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-    handleFileSelect(e.dataTransfer.files);
-  };
-
   const removeFile = (index: number) => {
     setSelectedFiles(prev => {
       const newFiles = [...prev];
@@ -417,16 +386,6 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
     });
   };
 
-  const confirmUpload = () => {
-    setUploadDialogOpen(false);
-  };
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
-
   const canSend = message.trim() || selectedFiles.length > 0;
 
   return (
@@ -434,6 +393,26 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
       "border-t border-border bg-card flex-shrink-0",
       isMobile && "shadow-[0_-2px_10px_-3px_rgba(0,0,0,0.1)]"
     )}>
+      {/* Hidden file input for direct file picker */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept={
+          uploadType === "image" 
+            ? ALLOWED_IMAGE_TYPES.join(",") 
+            : uploadType === "video" 
+            ? ALLOWED_VIDEO_TYPES.join(",") 
+            : ALLOWED_FILE_TYPES.join(",")
+        }
+        onChange={(e) => {
+          handleFileSelect(e.target.files);
+          // Reset input value so same file can be selected again
+          e.target.value = '';
+        }}
+        className="hidden"
+      />
+
       {/* Upload Progress */}
       <UploadProgress files={uploadingFiles} />
       
@@ -581,7 +560,7 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
                   <Button 
                     variant="ghost" 
                     className="w-full justify-start gap-2 h-9"
-                    onClick={() => openUploadDialog("file")}
+                    onClick={() => triggerFilePicker("file")}
                   >
                     <Paperclip className="h-4 w-4" />
                     Upload file
@@ -589,7 +568,7 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
                   <Button 
                     variant="ghost" 
                     className="w-full justify-start gap-2 h-9"
-                    onClick={() => openUploadDialog("image")}
+                    onClick={() => triggerFilePicker("image")}
                   >
                     <Image className="h-4 w-4" />
                     Upload image
@@ -597,7 +576,7 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
                   <Button 
                     variant="ghost" 
                     className="w-full justify-start gap-2 h-9"
-                    onClick={() => openUploadDialog("video")}
+                    onClick={() => triggerFilePicker("video")}
                   >
                     <Video className="h-4 w-4" />
                     Upload video
@@ -665,103 +644,6 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
           </div>
         </div>
       </div>
-
-      {/* Upload Dialog */}
-      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-            <DialogTitle>
-              {uploadType === "image" ? "Upload Images" : uploadType === "video" ? "Upload Videos" : "Upload Files"}
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div
-            className={cn(
-              "border-2 border-dashed rounded-lg p-8 text-center transition-colors",
-              isDragging 
-                ? "border-primary bg-primary/5" 
-                : "border-border hover:border-primary/50"
-            )}
-            onDragEnter={handleDragEnter}
-            onDragLeave={handleDragLeave}
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept={uploadType === "image" ? ALLOWED_IMAGE_TYPES.join(",") : uploadType === "video" ? ALLOWED_VIDEO_TYPES.join(",") : ALLOWED_FILE_TYPES.join(",")}
-              onChange={(e) => handleFileSelect(e.target.files)}
-              className="hidden"
-            />
-            
-            <Upload className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-            <p className="text-sm text-muted-foreground mb-2">
-              Drag and drop {uploadType === "image" ? "images" : uploadType === "video" ? "videos" : "files"} here, or
-            </p>
-            <Button 
-              variant="outline" 
-              onClick={() => fileInputRef.current?.click()}
-            >
-              Browse files
-            </Button>
-            <p className="text-xs text-muted-foreground mt-3">
-              Max file size: 50MB
-            </p>
-          </div>
-
-          {/* Preview selected files */}
-          {selectedFiles.length > 0 && (
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-              {selectedFiles.map((sf, index) => (
-                <div 
-                  key={index} 
-                  className="flex items-center gap-3 p-2 bg-muted/50 rounded-md"
-                >
-                  {sf.preview ? (
-                    <img 
-                      src={sf.preview} 
-                      alt={sf.file.name}
-                      className="h-10 w-10 object-cover rounded"
-                    />
-                  ) : (
-                    <div className="h-10 w-10 flex items-center justify-center bg-muted rounded">
-                      <FileIcon className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{sf.file.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatFileSize(sf.file.size)}
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 flex-shrink-0"
-                    onClick={() => removeFile(index)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={confirmUpload}
-              disabled={selectedFiles.length === 0}
-            >
-              Add to message
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 });
