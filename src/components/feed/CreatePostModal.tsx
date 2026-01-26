@@ -24,6 +24,8 @@ import {
 import { PdfThumbnailPreview } from './PdfThumbnailPreview';
 import { cn } from '@/lib/utils';
 import { useOrganization } from '@/hooks/useOrganization';
+import { useUserRole } from '@/hooks/useUserRole';
+import { useCurrentEmployee } from '@/services/useCurrentEmployee';
 import { AIWritingAssist } from '@/components/AIWritingAssist';
 import { PostVisibilitySelector, AccessScope } from '@/components/feed/PostVisibilitySelector';
 import { useCreatePost, useUpdatePost, PostType, Post } from '@/services/useSocialFeed';
@@ -85,6 +87,8 @@ export const CreatePostModal = ({
 }: CreatePostModalProps) => {
   const { toast } = useToast();
   const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+  const { isHR } = useUserRole();
   const createPost = useCreatePost();
   const updatePost = useUpdatePost();
   
@@ -1066,6 +1070,8 @@ export const CreatePostModal = ({
                 onDepartmentsChange={setSelectedDepartments}
                 selectedProjectIds={selectedProjectIds}
                 onProjectIdsChange={setSelectedProjectIds}
+                currentEmployeeOfficeId={currentEmployee?.office_id}
+                canPostToAllOffices={isHR}
               />
 
               {/* Acknowledgment Required (for update/announcement/executive - Owner/Admin/HR only) */}

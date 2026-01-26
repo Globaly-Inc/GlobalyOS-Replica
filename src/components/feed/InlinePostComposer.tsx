@@ -27,6 +27,7 @@ import { GifPicker } from './GifPicker';
 import { cn } from '@/lib/utils';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useCurrentEmployee } from '@/services/useCurrentEmployee';
+import { useUserRole } from '@/hooks/useUserRole';
 import { PostVisibilitySelector, AccessScope } from '@/components/feed/PostVisibilitySelector';
 import { useCreatePost, PostType } from '@/services/useSocialFeed';
 import { AIWritingAssist } from '@/components/AIWritingAssist';
@@ -67,6 +68,7 @@ export const InlinePostComposer = ({
   const { toast } = useToast();
   const { currentOrg } = useOrganization();
   const { data: currentEmployee } = useCurrentEmployee();
+  const { isHR } = useUserRole();
   const createPost = useCreatePost();
   
   const [isExpanded, setIsExpanded] = useState(false);
@@ -727,6 +729,8 @@ export const InlinePostComposer = ({
                   onDepartmentsChange={setSelectedDepartments}
                   selectedProjectIds={selectedProjectIds}
                   onProjectIdsChange={setSelectedProjectIds}
+                  currentEmployeeOfficeId={currentEmployee?.office_id}
+                  canPostToAllOffices={isHR}
                 />
               </div>
             </>

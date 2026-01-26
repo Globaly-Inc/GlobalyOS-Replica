@@ -30,6 +30,8 @@ interface PostVisibilitySelectorProps {
   onDepartmentsChange: (depts: string[]) => void;
   selectedProjectIds: string[];
   onProjectIdsChange: (ids: string[]) => void;
+  currentEmployeeOfficeId?: string | null;
+  canPostToAllOffices?: boolean;
 }
 
 const SCOPE_OPTIONS: { value: AccessScope; label: string; icon: typeof Globe }[] = [
@@ -48,6 +50,8 @@ export const PostVisibilitySelector = ({
   onDepartmentsChange,
   selectedProjectIds,
   onProjectIdsChange,
+  currentEmployeeOfficeId,
+  canPostToAllOffices = false,
 }: PostVisibilitySelectorProps) => {
   const { currentOrg } = useOrganization();
   const [offices, setOffices] = useState<Office[]>([]);
@@ -161,18 +165,40 @@ export const PostVisibilitySelector = ({
     }
   };
 
+  // Filter offices based on permissions
+  const availableOffices = useMemo(() => {
+    if (canPostToAllOffices) {
+      return offices; // Owner/Admin/HR see all offices
+    }
+    // Regular members: only their own office
+    if (currentEmployeeOfficeId) {
+      return offices.filter(o => o.id === currentEmployeeOfficeId);
+    }
+    return []; // No office assigned = can't post to specific offices
+  }, [offices, canPostToAllOffices, currentEmployeeOfficeId]);
+
+  // Filter scope options based on available offices
+  const availableScopeOptions = useMemo(() => {
+    return SCOPE_OPTIONS.filter(option => {
+      if (option.value === 'offices') {
+        return availableOffices.length > 0;
+      }
+      return true;
+    });
+  }, [availableOffices]);
+
   // Filter items based on search query
   const filteredItems = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
     if (!query) {
-      return { offices, departments, projects };
+      return { offices: availableOffices, departments, projects };
     }
     return {
-      offices: offices.filter(o => o.name.toLowerCase().includes(query)),
+      offices: availableOffices.filter(o => o.name.toLowerCase().includes(query)),
       departments: departments.filter(d => d.toLowerCase().includes(query)),
       projects: projects.filter(p => p.name.toLowerCase().includes(query)),
     };
-  }, [searchQuery, offices, departments, projects]);
+  }, [searchQuery, availableOffices, departments, projects]);
 
   const getItemsForScope = () => {
     switch (accessScope) {
@@ -208,7 +234,7 @@ export const PostVisibilitySelector = ({
         <PopoverContent className="w-72 p-0" align="start">
           {/* Scope Selection */}
           <div className="p-2 border-b space-y-0.5">
-            {SCOPE_OPTIONS.map(option => {
+            {availableScopeOptions.map(option => {
               const Icon = option.icon;
               const isSelected = accessScope === option.value;
               return (
