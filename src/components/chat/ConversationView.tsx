@@ -79,7 +79,7 @@ import AddSpaceMembersDialog from "./AddSpaceMembersDialog";
 import SpaceSettingsDialog from "./SpaceSettingsDialog";
 import EditGroupChatDialog from "./EditGroupChatDialog";
 import TransferAdminDialog from "./TransferAdminDialog";
-import type { ActiveChat, ChatMessage, ChatSpaceMember } from "@/types/chat";
+import type { ActiveChat, ChatMessage, ChatSpaceMember, ChatAttachment } from "@/types/chat";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { showErrorToast } from "@/lib/errorUtils";
@@ -404,9 +404,16 @@ const ConversationView = ({
         async (payload) => {
           const newMessage = payload.new as any;
           
-          // Skip if it's our own optimistic message (temp id)
+          // Get optimistic attachments before removing temp message (for own messages)
+          let optimisticAttachments: ChatAttachment[] = [];
           if (newMessage.sender_id === currentEmployee?.id) {
-            // Just remove temp messages and let the real one through
+            const previousMessages = queryClient.getQueryData<ChatMessage[]>(
+              ['chat-messages', conversationId, spaceId]
+            );
+            const optimisticMessage = previousMessages?.find(m => m.id.startsWith('temp-'));
+            optimisticAttachments = optimisticMessage?.attachments || [];
+            
+            // Remove temp messages
             queryClient.setQueryData<ChatMessage[]>(
               ['chat-messages', conversationId, spaceId],
               (old) => old?.filter(m => !m.id.startsWith('temp-')) || []
@@ -434,17 +441,30 @@ const ConversationView = ({
             .eq('id', newMessage.sender_id)
             .single();
 
+          // For own messages, also fetch attachments from DB as backup
+          let fetchedAttachments: ChatAttachment[] = [];
+          if (newMessage.sender_id === currentEmployee?.id) {
+            const { data } = await supabase
+              .from('chat_attachments')
+              .select('*')
+              .eq('message_id', newMessage.id);
+            fetchedAttachments = (data || []) as ChatAttachment[];
+          }
+
+          // Use fetched attachments if available, otherwise use optimistic ones
+          const attachmentsToUse = fetchedAttachments.length > 0 ? fetchedAttachments : optimisticAttachments;
+
           // Merge new message into cache
           queryClient.setQueryData<ChatMessage[]>(
             ['chat-messages', conversationId, spaceId],
             (old) => {
-              if (!old) return [{ ...newMessage, sender: senderData, attachments: [] }];
+              if (!old) return [{ ...newMessage, sender: senderData, attachments: attachmentsToUse }];
               // Check if message already exists
               const exists = old.some(m => m.id === newMessage.id);
               if (exists) return old;
               // Remove any temp messages and add real one
               const filtered = old.filter(m => !m.id.startsWith('temp-'));
-              return [...filtered, { ...newMessage, sender: senderData, attachments: [] }];
+              return [...filtered, { ...newMessage, sender: senderData, attachments: attachmentsToUse }];
             }
           );
         }
