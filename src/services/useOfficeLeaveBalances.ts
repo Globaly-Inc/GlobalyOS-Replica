@@ -76,45 +76,10 @@ export const useEmployeeLeaveTypes = (
         }
       }
 
-      // Fallback: If no office leave types, use org-level leave_types
+      // No office leave types found - return empty array
+      // Employees should have office_leave_types configured via their office
       if (leaveTypes.length === 0) {
-        const { data: orgTypes, error: orgError } = await supabase
-          .from('leave_types')
-          .select('id, name, category, description, default_days, min_days_advance, max_negative_days, applies_to_gender, applies_to_employment_types, applies_to_all_offices, is_active, is_system, created_at, updated_at, carry_forward_mode')
-          .eq('organization_id', currentOrg.id)
-          .eq('is_active', true)
-          .order('name');
-
-        if (orgError) throw orgError;
-
-        // Filter by office if applies_to_all_offices is false
-        if (orgTypes) {
-          const filteredOrgTypes: OfficeLeaveType[] = [];
-
-          for (const type of orgTypes) {
-            if (type.applies_to_all_offices) {
-              filteredOrgTypes.push({
-                id: type.id,
-                office_id: employee.office_id || '',
-                organization_id: currentOrg.id,
-                name: type.name,
-                category: type.category as 'paid' | 'unpaid',
-                description: type.description,
-                default_days: type.default_days || 0,
-                min_days_advance: type.min_days_advance,
-                max_negative_days: type.max_negative_days || 0,
-                applies_to_gender: (type.applies_to_gender || 'all') as 'all' | 'male' | 'female',
-                applies_to_employment_types: type.applies_to_employment_types,
-                carry_forward_mode: type.carry_forward_mode || 'none',
-                is_active: type.is_active,
-                is_system: type.is_system,
-                created_at: type.created_at,
-                updated_at: type.updated_at,
-            });
-            }
-          }
-          leaveTypes = filteredOrgTypes;
-        }
+        return [];
       }
 
       // Filter by gender and employment type

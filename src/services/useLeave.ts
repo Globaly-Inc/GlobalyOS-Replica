@@ -20,32 +20,24 @@ import type {
   HalfDayType,
 } from '@/types';
 
-// Fetch leave types for organization (legacy org-level)
+// Legacy useLeaveTypes removed - use useOfficeLeaveTypesQuery instead
 // For office-aware types, use useEmployeeLeaveTypes from useOfficeLeaveBalances.ts
+
+/**
+ * @deprecated Use useOfficeLeaveTypesQuery instead
+ * This hook returns empty array as leave_types table has been dropped
+ */
 export const useLeaveTypes = (activeOnly = true) => {
   const { currentOrg } = useOrganization();
 
   return useQuery({
-    queryKey: ['leave-types', currentOrg?.id, activeOnly],
+    queryKey: ['leave-types-deprecated', currentOrg?.id, activeOnly],
     queryFn: async (): Promise<LeaveType[]> => {
-      if (!currentOrg?.id) return [];
-
-      let query = supabase
-        .from('leave_types')
-        .select('*')
-        .eq('organization_id', currentOrg.id)
-        .order('name');
-
-      if (activeOnly) {
-        query = query.eq('is_active', true);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      return data as LeaveType[];
+      // Leave types table has been dropped - return empty
+      // Use useOfficeLeaveTypesQuery for office-specific leave types
+      return [];
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes - leave types rarely change
+    staleTime: 5 * 60 * 1000,
     enabled: !!currentOrg?.id,
   });
 };

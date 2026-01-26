@@ -47,16 +47,9 @@ export const useEmployeeLeaveTypesQuery = (employeeId: string | undefined) => {
         }
       }
 
-      // Fallback to legacy leave_types
-      const { data: legacyTypes, error } = await supabase
-        .from("leave_types")
-        .select("id, name, category, max_negative_days")
-        .eq("organization_id", currentOrg.id)
-        .eq("is_active", true)
-        .order("name");
-
-      if (error) throw error;
-      return legacyTypes || [];
+      // No office leave types found - return empty array
+      // Employees should have office_leave_types configured via their office
+      return [];
     },
     enabled: !!currentOrg?.id,
   });

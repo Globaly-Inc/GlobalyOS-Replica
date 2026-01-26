@@ -106,20 +106,32 @@ export const ManageLeaveTypesDialog = ({
   const loadPreviousYearBalances = async () => {
     if (!currentOrg) return;
 
+    // Get employee's office first
+    const { data: employee } = await supabase
+      .from("employees")
+      .select("office_id")
+      .eq("id", employeeId)
+      .maybeSingle();
+
+    if (!employee?.office_id) {
+      setPreviousYearBalances([]);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("leave_type_balances")
       .select(`
-        leave_type_id,
+        office_leave_type_id,
         balance,
-        leave_type:leave_types!inner(
+        office_leave_type:office_leave_types!inner(
           id,
           name,
           category
         )
       `)
       .eq("employee_id", employeeId)
-      .eq("organization_id", currentOrg.id)
-      .eq("year", previousYear);
+      .eq("year", previousYear)
+      .not("office_leave_type_id", "is", null);
 
     if (error) {
       console.error("Error loading previous year balances:", error);
@@ -127,9 +139,9 @@ export const ManageLeaveTypesDialog = ({
     }
 
     const mapped = (data || []).map((item: any) => ({
-      leave_type_id: item.leave_type_id,
-      leave_type_name: item.leave_type.name,
-      category: item.leave_type.category,
+      leave_type_id: item.office_leave_type_id,
+      leave_type_name: item.office_leave_type.name,
+      category: item.office_leave_type.category,
       balance: item.balance,
     }));
 
@@ -143,17 +155,17 @@ export const ManageLeaveTypesDialog = ({
       .from("leave_type_balances")
       .select(`
         id,
-        leave_type_id,
+        office_leave_type_id,
         balance,
-        leave_type:leave_types!inner(
+        office_leave_type:office_leave_types!inner(
           id,
           name,
           category
         )
       `)
       .eq("employee_id", employeeId)
-      .eq("organization_id", currentOrg.id)
-      .eq("year", currentYear);
+      .eq("year", currentYear)
+      .not("office_leave_type_id", "is", null);
 
     if (error) {
       console.error("Error loading assigned types:", error);
@@ -162,9 +174,9 @@ export const ManageLeaveTypesDialog = ({
 
     const mapped = (data || []).map((item: any) => ({
       id: item.id,
-      leave_type_id: item.leave_type_id,
-      leave_type_name: item.leave_type.name,
-      category: item.leave_type.category,
+      leave_type_id: item.office_leave_type_id,
+      leave_type_name: item.office_leave_type.name,
+      category: item.office_leave_type.category,
       balance: item.balance,
     }));
 
@@ -174,10 +186,22 @@ export const ManageLeaveTypesDialog = ({
   const loadAllLeaveTypes = async () => {
     if (!currentOrg) return;
 
+    // Get employee's office first
+    const { data: employee } = await supabase
+      .from("employees")
+      .select("office_id")
+      .eq("id", employeeId)
+      .maybeSingle();
+
+    if (!employee?.office_id) {
+      setAvailableTypes([]);
+      return;
+    }
+
     const { data, error } = await supabase
-      .from("leave_types")
+      .from("office_leave_types")
       .select("id, name, category")
-      .eq("organization_id", currentOrg.id)
+      .eq("office_id", employee.office_id)
       .eq("is_active", true)
       .order("name");
 
@@ -222,7 +246,7 @@ export const ManageLeaveTypesDialog = ({
         employee_id: employeeId,
         organization_id: currentOrg.id,
         leave_type: selectedLeaveType.name,
-        leave_type_id: selectedType,
+        office_leave_type_id: selectedType,
         change_amount: balance,
         previous_balance: 0,
         new_balance: balance,
@@ -348,15 +372,15 @@ export const ManageLeaveTypesDialog = ({
       if (!currentEmployee) throw new Error("Employee not found");
       const creatorEmployeeId = currentEmployee.id;
 
-      // Get leave type details for carry-forward rules
+      // Get office leave type details for carry-forward rules
       const leaveTypeIds = previousYearBalances.map(b => b.leave_type_id);
-      const { data: leaveTypes } = await supabase
-        .from("leave_types")
+      const { data: officeLeaveTypes } = await supabase
+        .from("office_leave_types")
         .select("id, name, default_days, carry_forward_mode")
         .in("id", leaveTypeIds)
         .eq("is_active", true);
 
-      const leaveTypeMap = new Map((leaveTypes || []).map(lt => [lt.id, lt]));
+      const leaveTypeMap = new Map((officeLeaveTypes || []).map(lt => [lt.id, lt]));
       
       let created = 0;
       let skipped = 0;
@@ -391,7 +415,7 @@ export const ManageLeaveTypesDialog = ({
           employee_id: employeeId,
           organization_id: currentOrg.id,
           leave_type: prevBalance.leave_type_name,
-          leave_type_id: prevBalance.leave_type_id,
+          office_leave_type_id: prevBalance.leave_type_id,
           change_amount: defaultDays,
           previous_balance: 0,
           new_balance: defaultDays,
@@ -415,7 +439,7 @@ export const ManageLeaveTypesDialog = ({
             employee_id: employeeId,
             organization_id: currentOrg.id,
             leave_type: prevBalance.leave_type_name,
-            leave_type_id: prevBalance.leave_type_id,
+            office_leave_type_id: prevBalance.leave_type_id,
             change_amount: carriedForward,
             previous_balance: defaultDays,
             new_balance: defaultDays + carriedForward,

@@ -52,7 +52,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganization } from "@/hooks/useOrganization";
-import { LeaveSettings } from "./LeaveSettings";
+// LeaveSettings removed - leave types are now managed per-office in Office Settings
 import { AttendanceSettings } from "./AttendanceSettings";
 import { useEmploymentTypes, useCreateEmploymentType, useUpdateEmploymentType, useDeleteEmploymentType } from "@/hooks/useEmploymentTypes";
 
@@ -170,9 +170,9 @@ export const FieldsSettings = () => {
 
       setDepartments(deptList);
 
-      // Load leave types count
+      // Load leave types count from office_leave_types
       const { count: leaveCount, error: leaveError } = await supabase
-        .from("leave_types")
+        .from("office_leave_types")
         .select("*", { count: "exact", head: true })
         .eq("organization_id", currentOrg.id);
 
@@ -732,7 +732,11 @@ export const FieldsSettings = () => {
             </TabsContent>
 
             <TabsContent value="leave-types" className="space-y-4">
-              <LeaveSettings embedded />
+              <div className="text-center py-8">
+                <p className="text-muted-foreground mb-4">
+                  Leave types are now managed per-office. Go to <strong>Offices & Structure</strong> → select an office → <strong>Leave Types</strong> to configure.
+                </p>
+              </div>
             </TabsContent>
 
             <TabsContent value="employment-types" className="space-y-4">
