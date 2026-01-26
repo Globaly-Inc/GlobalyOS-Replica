@@ -617,7 +617,7 @@ const ConversationView = ({
           activeThreadMessage ? "flex-1" : "w-full"
         )}>
         {/* Header */}
-        <div className="flex items-center justify-between px-3 md:px-4 py-2 md:py-3 border-b border-border bg-card flex-shrink-0">
+        <div className="flex items-center justify-between px-3 md:px-4 py-2 md:py-3 border-b border-border/50 bg-card/80 backdrop-blur-md flex-shrink-0">
           <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
             <Button 
               variant="ghost" 
