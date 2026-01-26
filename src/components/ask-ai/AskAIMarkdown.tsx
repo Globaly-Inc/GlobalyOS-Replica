@@ -35,10 +35,13 @@ export const AskAIMarkdown = ({ content, className }: AskAIMarkdownProps) => {
         "prose prose-sm dark:prose-invert max-w-none",
         // Headings - clear hierarchy with good spacing
         "prose-headings:font-semibold prose-headings:tracking-tight",
-        "prose-h1:text-xl prose-h1:mt-6 prose-h1:mb-4",
-        "prose-h2:text-lg prose-h2:mt-6 prose-h2:mb-3",
-        "prose-h3:text-base prose-h3:mt-5 prose-h3:mb-2",
-        "prose-h4:text-sm prose-h4:mt-4 prose-h4:mb-2",
+        "prose-h1:text-xl prose-h1:mt-8 prose-h1:mb-4",
+        "prose-h2:text-lg prose-h2:mt-10 prose-h2:mb-4",
+        "prose-h3:text-base prose-h3:mt-8 prose-h3:mb-3",
+        "prose-h4:text-sm prose-h4:mt-6 prose-h4:mb-2",
+        // Visual separator for section headings
+        "[&_h2]:pt-4 [&_h2]:border-t [&_h2]:border-border/40",
+        "[&_h3]:pt-3",
         // Paragraphs - extra spacing between paragraphs for better readability
         "prose-p:my-5 prose-p:leading-7 prose-p:text-foreground",
         // Make first paragraph have no top margin
@@ -46,11 +49,16 @@ export const AskAIMarkdown = ({ content, className }: AskAIMarkdownProps) => {
         // Extra spacing between sections
         "[&_p+p]:mt-6",
         "[&_ul+p]:mt-6 [&_ol+p]:mt-6 [&_blockquote+p]:mt-6",
+        // Spacing after headings before content
+        "[&_h3+p]:mt-3 [&_h3+ul]:mt-3 [&_h3+ol]:mt-3",
+        "[&_h2+p]:mt-4 [&_h2+ul]:mt-4 [&_h2+ol]:mt-4",
         // Lists - clean spacing with extra gap after
         "prose-ul:my-5 prose-ol:my-5",
         "prose-ul:pl-5 prose-ol:pl-5",
-        "prose-li:my-2 prose-li:leading-7",
+        "prose-li:my-2.5 prose-li:leading-7",
         "prose-li:marker:text-muted-foreground",
+        // Better spacing for lists after paragraphs
+        "[&_p+ul]:mt-5 [&_p+ol]:mt-5",
         // Nested list spacing
         "[&_ul_ul]:my-3 [&_ol_ol]:my-3",
         // Code - inline and blocks
@@ -58,11 +66,11 @@ export const AskAIMarkdown = ({ content, className }: AskAIMarkdownProps) => {
         "prose-code:before:content-none prose-code:after:content-none",
         "prose-code:text-foreground prose-code:font-medium",
         // Code blocks
-        "prose-pre:bg-muted prose-pre:p-4 prose-pre:rounded-lg prose-pre:overflow-x-auto prose-pre:my-4",
+        "prose-pre:bg-muted prose-pre:p-4 prose-pre:rounded-lg prose-pre:overflow-x-auto prose-pre:my-6",
         "prose-pre:border prose-pre:border-border",
         // Blockquotes - prominent but subtle
         "prose-blockquote:border-l-4 prose-blockquote:border-primary/40",
-        "prose-blockquote:pl-4 prose-blockquote:py-2 prose-blockquote:my-4",
+        "prose-blockquote:pl-4 prose-blockquote:py-2 prose-blockquote:my-6",
         "prose-blockquote:italic prose-blockquote:text-muted-foreground",
         "prose-blockquote:bg-muted/30 prose-blockquote:rounded-r-lg prose-blockquote:pr-4",
         // Links
@@ -71,13 +79,13 @@ export const AskAIMarkdown = ({ content, className }: AskAIMarkdownProps) => {
         // Strong/Bold
         "prose-strong:font-semibold prose-strong:text-foreground",
         // Tables - clean and readable
-        "prose-table:border prose-table:border-border prose-table:my-4",
+        "prose-table:border prose-table:border-border prose-table:my-6",
         "prose-th:border prose-th:border-border prose-th:p-3 prose-th:bg-muted prose-th:text-left prose-th:font-semibold",
         "prose-td:border prose-td:border-border prose-td:p-3",
         // Horizontal rules
-        "prose-hr:my-6 prose-hr:border-border",
+        "prose-hr:my-8 prose-hr:border-border",
         // Images
-        "prose-img:rounded-lg prose-img:my-4",
+        "prose-img:rounded-lg prose-img:my-6",
         className
       )}
       dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
