@@ -347,14 +347,21 @@ export type Database = {
           attendance_enabled: boolean
           calendar_enabled: boolean
           chat_enabled: boolean
+          cost_alerts_enabled: boolean | null
           created_at: string | null
           default_model: string | null
           general_ai_enabled: boolean | null
+          general_queries_enabled: boolean | null
           id: string
           kpis_enabled: boolean
           leave_enabled: boolean
+          max_tokens_per_day_per_user: number | null
+          max_tokens_per_query: number | null
+          monthly_token_budget: number | null
           organization_id: string
+          owner_restricted_models: string[] | null
           projects_enabled: boolean
+          streaming_enabled: boolean | null
           team_directory_enabled: boolean
           updated_at: string | null
           wiki_enabled: boolean
@@ -365,14 +372,21 @@ export type Database = {
           attendance_enabled?: boolean
           calendar_enabled?: boolean
           chat_enabled?: boolean
+          cost_alerts_enabled?: boolean | null
           created_at?: string | null
           default_model?: string | null
           general_ai_enabled?: boolean | null
+          general_queries_enabled?: boolean | null
           id?: string
           kpis_enabled?: boolean
           leave_enabled?: boolean
+          max_tokens_per_day_per_user?: number | null
+          max_tokens_per_query?: number | null
+          monthly_token_budget?: number | null
           organization_id: string
+          owner_restricted_models?: string[] | null
           projects_enabled?: boolean
+          streaming_enabled?: boolean | null
           team_directory_enabled?: boolean
           updated_at?: string | null
           wiki_enabled?: boolean
@@ -383,14 +397,21 @@ export type Database = {
           attendance_enabled?: boolean
           calendar_enabled?: boolean
           chat_enabled?: boolean
+          cost_alerts_enabled?: boolean | null
           created_at?: string | null
           default_model?: string | null
           general_ai_enabled?: boolean | null
+          general_queries_enabled?: boolean | null
           id?: string
           kpis_enabled?: boolean
           leave_enabled?: boolean
+          max_tokens_per_day_per_user?: number | null
+          max_tokens_per_query?: number | null
+          monthly_token_budget?: number | null
           organization_id?: string
+          owner_restricted_models?: string[] | null
           projects_enabled?: boolean
+          streaming_enabled?: boolean | null
           team_directory_enabled?: boolean
           updated_at?: string | null
           wiki_enabled?: boolean
@@ -3869,6 +3890,62 @@ export type Database = {
             columns: ["subscription_id"]
             isOneToOne: false
             referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_embeddings: {
+        Row: {
+          access_entities: string[] | null
+          access_level: string
+          chunk_index: number | null
+          content: string
+          created_at: string | null
+          embedding: string | null
+          id: string
+          metadata: Json | null
+          organization_id: string
+          source_id: string
+          source_type: string
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          access_entities?: string[] | null
+          access_level?: string
+          chunk_index?: number | null
+          content: string
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          metadata?: Json | null
+          organization_id: string
+          source_id: string
+          source_type: string
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          access_entities?: string[] | null
+          access_level?: string
+          chunk_index?: number | null
+          content?: string
+          created_at?: string | null
+          embedding?: string | null
+          id?: string
+          metadata?: Json | null
+          organization_id?: string
+          source_id?: string
+          source_type?: string
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_embeddings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -9326,6 +9403,226 @@ export type Database = {
         }
         Relationships: []
       }
+      token_balances: {
+        Row: {
+          available_tokens: number | null
+          created_at: string | null
+          id: string
+          included_tokens: number | null
+          last_reset_at: string | null
+          organization_id: string
+          period_start: string | null
+          purchased_tokens: number | null
+          updated_at: string | null
+          used_tokens_this_period: number | null
+        }
+        Insert: {
+          available_tokens?: number | null
+          created_at?: string | null
+          id?: string
+          included_tokens?: number | null
+          last_reset_at?: string | null
+          organization_id: string
+          period_start?: string | null
+          purchased_tokens?: number | null
+          updated_at?: string | null
+          used_tokens_this_period?: number | null
+        }
+        Update: {
+          available_tokens?: number | null
+          created_at?: string | null
+          id?: string
+          included_tokens?: number | null
+          last_reset_at?: string | null
+          organization_id?: string
+          period_start?: string | null
+          purchased_tokens?: number | null
+          updated_at?: string | null
+          used_tokens_this_period?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "token_balances_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      token_packages: {
+        Row: {
+          bonus_percentage: number | null
+          created_at: string | null
+          currency: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          is_popular: boolean | null
+          name: string
+          price_cents: number
+          sort_order: number | null
+          tokens: number
+        }
+        Insert: {
+          bonus_percentage?: number | null
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_popular?: boolean | null
+          name: string
+          price_cents: number
+          sort_order?: number | null
+          tokens: number
+        }
+        Update: {
+          bonus_percentage?: number | null
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_popular?: boolean | null
+          name?: string
+          price_cents?: number
+          sort_order?: number | null
+          tokens?: number
+        }
+        Relationships: []
+      }
+      token_purchases: {
+        Row: {
+          amount_cents: number
+          bonus_tokens: number | null
+          completed_at: string | null
+          currency: string | null
+          id: string
+          organization_id: string
+          package_id: string | null
+          payment_method: string | null
+          payment_reference: string | null
+          purchased_at: string | null
+          purchased_by: string | null
+          status: string | null
+          tokens_purchased: number
+        }
+        Insert: {
+          amount_cents: number
+          bonus_tokens?: number | null
+          completed_at?: string | null
+          currency?: string | null
+          id?: string
+          organization_id: string
+          package_id?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          purchased_at?: string | null
+          purchased_by?: string | null
+          status?: string | null
+          tokens_purchased: number
+        }
+        Update: {
+          amount_cents?: number
+          bonus_tokens?: number | null
+          completed_at?: string | null
+          currency?: string | null
+          id?: string
+          organization_id?: string
+          package_id?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          purchased_at?: string | null
+          purchased_by?: string | null
+          status?: string | null
+          tokens_purchased?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "token_purchases_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "token_purchases_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "token_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "token_purchases_purchased_by_fkey"
+            columns: ["purchased_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      token_usage_daily: {
+        Row: {
+          completion_tokens: number | null
+          date: string
+          employee_id: string | null
+          estimated_cost_cents: number | null
+          id: string
+          model: string
+          organization_id: string
+          prompt_tokens: number | null
+          query_count: number | null
+          total_tokens: number | null
+        }
+        Insert: {
+          completion_tokens?: number | null
+          date?: string
+          employee_id?: string | null
+          estimated_cost_cents?: number | null
+          id?: string
+          model: string
+          organization_id: string
+          prompt_tokens?: number | null
+          query_count?: number | null
+          total_tokens?: number | null
+        }
+        Update: {
+          completion_tokens?: number | null
+          date?: string
+          employee_id?: string | null
+          estimated_cost_cents?: number | null
+          id?: string
+          model?: string
+          organization_id?: string
+          prompt_tokens?: number | null
+          query_count?: number | null
+          total_tokens?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "token_usage_daily_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "token_usage_daily_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "token_usage_daily_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       update_departments: {
         Row: {
           created_at: string | null
@@ -11972,6 +12269,10 @@ export type Database = {
         }
         Returns: Json
       }
+      deduct_ai_tokens: {
+        Args: { model_name?: string; org_id: string; tokens_used: number }
+        Returns: Json
+      }
       delete_wiki_folder_recursive: {
         Args: { _folder_id: string }
         Returns: boolean
@@ -12207,6 +12508,26 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: { _user_id?: string }; Returns: boolean }
+      match_knowledge_embeddings: {
+        Args: {
+          employee_id?: string
+          manager_employee_ids?: string[]
+          match_count?: number
+          match_threshold?: number
+          org_id?: string
+          query_embedding: string
+          user_role?: string
+        }
+        Returns: {
+          content: string
+          id: string
+          metadata: Json
+          similarity: number
+          source_id: string
+          source_type: string
+          title: string
+        }[]
+      }
       owns_comment: { Args: { _comment_id: string }; Returns: boolean }
       owns_post: { Args: { _post_id: string }; Returns: boolean }
       owns_update: { Args: { _update_id: string }; Returns: boolean }
@@ -12224,6 +12545,7 @@ export type Database = {
         Args: { _feature: string; _organization_id: string; _quantity?: number }
         Returns: undefined
       }
+      reset_monthly_token_usage: { Args: never; Returns: undefined }
       seed_default_workflow_data: {
         Args: { org_id: string }
         Returns: undefined
