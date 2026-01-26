@@ -473,20 +473,9 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
         newLeaveTypeData = officeType;
       }
 
-      // Fallback to legacy leave_types
-      if (!newLeaveTypeData) {
-        const { data: legacyType } = await supabase
-          .from("leave_types")
-          .select("id")
-          .eq("organization_id", currentOrg?.id)
-          .ilike("name", newLeaveType)
-          .maybeSingle();
-        newLeaveTypeData = legacyType;
-      }
-      
       if (newLeaveTypeData) {
         updateData.leave_type = newLeaveType;
-        updateData.leave_type_id = newLeaveTypeData.id;
+        updateData.office_leave_type_id = newLeaveTypeData.id;
       } else {
         toast.error(`Could not find leave type: ${newLeaveType}`);
         setProcessing(null);

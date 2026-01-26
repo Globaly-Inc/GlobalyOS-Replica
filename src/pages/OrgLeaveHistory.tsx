@@ -326,15 +326,21 @@ const OrgLeaveHistory = () => {
       const startOfPrevPeriod = format(prevPeriod.startDate, 'yyyy-MM-dd');
       const endOfPrevPeriod = format(prevPeriod.endDate, 'yyyy-MM-dd');
 
-      // Fetch leave types from database for name normalization and stats display
+      // Fetch office leave types from database for name normalization and stats display
       const { data: leaveTypesData } = await supabase
-        .from("leave_types")
-        .select("id, name, is_active")
+        .from("office_leave_types")
+        .select("id, name, is_active, office_id")
         .eq("organization_id", currentOrg.id)
         .eq("is_active", true);
       
-      // Store all active leave types for stats cards
-      setAllLeaveTypes((leaveTypesData || []).map((lt: { id: string; name: string }) => ({ id: lt.id, name: lt.name })));
+      // Store all active leave types for stats cards (deduplicated by name)
+      const uniqueLeaveTypes = new Map<string, { id: string; name: string }>();
+      (leaveTypesData || []).forEach((lt: { id: string; name: string }) => {
+        if (!uniqueLeaveTypes.has(lt.name.toLowerCase())) {
+          uniqueLeaveTypes.set(lt.name.toLowerCase(), { id: lt.id, name: lt.name });
+        }
+      });
+      setAllLeaveTypes(Array.from(uniqueLeaveTypes.values()));
       
       // Note: Missing balance count is now handled by useMissingBalances hook in InitializeYearBalancesButton
       
