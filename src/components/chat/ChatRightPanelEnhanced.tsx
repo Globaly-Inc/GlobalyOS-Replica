@@ -51,6 +51,7 @@ import {
   LogOut,
   Camera,
   Loader2,
+  Play,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -939,21 +940,62 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
                 <p className="text-sm text-muted-foreground">No files shared yet</p>
               </div>
             ) : (
-              <div className="space-y-2">
-                {sharedFiles.map((file) => (
-                  <div 
-                    key={file.id}
-                    className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted cursor-pointer"
-                  >
-                    <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm truncate">{file.file_name}</p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {formatFileSize(file.file_size)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+              <div className="grid grid-cols-3 gap-2">
+                {sharedFiles.map((file) => {
+                  const { data } = supabase.storage
+                    .from('chat-attachments')
+                    .getPublicUrl(file.file_path);
+                  const publicUrl = data.publicUrl;
+                  const fileIsImage = file.file_type?.startsWith('image/');
+                  const fileIsVideo = file.file_type?.startsWith('video/');
+                  const fileIsPdf = file.file_type === 'application/pdf' || file.file_name?.toLowerCase().endsWith('.pdf');
+                  
+                  return (
+                    <a
+                      key={file.id}
+                      href={publicUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group relative aspect-square rounded-lg overflow-hidden bg-muted/50 hover:ring-2 hover:ring-primary/50 transition-all cursor-pointer"
+                    >
+                      {fileIsImage ? (
+                        <img
+                          src={publicUrl}
+                          alt={file.file_name}
+                          loading="lazy"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : fileIsVideo ? (
+                        <div className="w-full h-full flex items-center justify-center bg-muted">
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="h-8 w-8 rounded-full bg-black/60 flex items-center justify-center">
+                              <Play className="h-4 w-4 text-white ml-0.5" />
+                            </div>
+                          </div>
+                          <FileText className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                      ) : fileIsPdf ? (
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-red-50 dark:bg-red-950/20">
+                          <FileText className="h-6 w-6 text-red-500" />
+                          <span className="text-[9px] font-medium text-red-500 mt-1">PDF</span>
+                        </div>
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center">
+                          <FileText className="h-6 w-6 text-muted-foreground" />
+                          <span className="text-[9px] text-muted-foreground mt-1 uppercase">
+                            {file.file_name?.split('.').pop() || 'FILE'}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* Hover overlay with filename */}
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <p className="text-[10px] text-white truncate">{file.file_name}</p>
+                        <p className="text-[8px] text-white/70">{formatFileSize(file.file_size)}</p>
+                      </div>
+                    </a>
+                  );
+                })}
               </div>
             )}
           </CollapsibleContent>
