@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useRelativeTime } from "@/hooks/useRelativeTime";
@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { 
   Sparkles, 
   BookOpen, 
@@ -20,7 +21,8 @@ import {
   RefreshCw,
   Loader2,
   AlertCircle,
-  Database
+  Database,
+  CheckCircle2
 } from "lucide-react";
 
 interface AIKnowledgeSettingsProps {
@@ -67,6 +69,13 @@ interface IndexStats {
     count: number;
     lastUpdated: string | null;
   };
+}
+
+interface ReindexProgress {
+  currentSource: string | null;
+  sourcesCompleted: string[];
+  totalSources: number;
+  recordsIndexed: number;
 }
 
 const knowledgeSources = [
@@ -128,6 +137,18 @@ const knowledgeSources = [
   },
 ];
 
+// Friendly names for source types
+const sourceTypeLabels: Record<string, string> = {
+  wiki_page: "Wiki Content",
+  chat_message: "Chat History",
+  team_member: "Team Directory",
+  announcement: "Announcements",
+  kpi: "KPIs",
+  calendar_event: "Calendar",
+  leave_record: "Leave Info",
+  attendance: "Attendance",
+};
+
 export const AIKnowledgeSettings = ({ organizationId }: AIKnowledgeSettingsProps) => {
   const { toast } = useToast();
   const { getShortRelativeTime } = useRelativeTime();
@@ -137,6 +158,8 @@ export const AIKnowledgeSettings = ({ organizationId }: AIKnowledgeSettingsProps
   const [reindexing, setReindexing] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [indexStats, setIndexStats] = useState<IndexStats>({});
+  const [reindexProgress, setReindexProgress] = useState<ReindexProgress | null>(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (organizationId) {
@@ -144,6 +167,66 @@ export const AIKnowledgeSettings = ({ organizationId }: AIKnowledgeSettingsProps
       loadIndexStats();
     }
   }, [organizationId]);
+
+  // Polling for reindex progress
+  useEffect(() => {
+    if (reindexing && organizationId) {
+      pollingRef.current = setInterval(pollReindexProgress, 1500);
+    } else {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    }
+    
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+    };
+  }, [reindexing, organizationId]);
+
+  const pollReindexProgress = async () => {
+    if (!organizationId) return;
+    
+    try {
+      const { data } = await supabase
+        .from("ai_indexing_status")
+        .select("status, current_source, sources_completed, total_sources, records_indexed")
+        .eq("organization_id", organizationId)
+        .maybeSingle();
+      
+      if (data) {
+        setReindexProgress({
+          currentSource: data.current_source,
+          sourcesCompleted: data.sources_completed || [],
+          totalSources: data.total_sources || 8,
+          recordsIndexed: data.records_indexed || 0,
+        });
+        
+        if (data.status === "completed" || data.status === "failed") {
+          setReindexing(false);
+          setReindexProgress(null);
+          loadIndexStats();
+          
+          if (data.status === "completed") {
+            toast({
+              title: "Re-indexing complete",
+              description: `Successfully indexed ${data.records_indexed || 0} records.`,
+            });
+          } else {
+            toast({
+              title: "Re-indexing failed",
+              description: "Some content may not have been indexed. Please try again.",
+              variant: "destructive",
+            });
+          }
+        }
+      }
+    } catch (error: any) {
+      console.error("Error polling reindex progress:", error);
+    }
+  };
 
   const loadIndexStats = async () => {
     if (!organizationId) return;
@@ -164,7 +247,7 @@ export const AIKnowledgeSettings = ({ organizationId }: AIKnowledgeSettingsProps
         }
         stats[row.source_type].count++;
         if (!stats[row.source_type].lastUpdated || 
-            row.updated_at > stats[row.source_type].lastUpdated!) {
+            row.updated_at > stats[row.source_type].lastUpdated) {
           stats[row.source_type].lastUpdated = row.updated_at;
         }
       });
@@ -253,29 +336,41 @@ export const AIKnowledgeSettings = ({ organizationId }: AIKnowledgeSettingsProps
     if (!organizationId) return;
 
     setReindexing(true);
+    setReindexProgress({
+      currentSource: null,
+      sourcesCompleted: [],
+      totalSources: 8,
+      recordsIndexed: 0,
+    });
+    
     try {
       const { error } = await supabase.functions.invoke("index-ai-content", {
         body: { organization_id: organizationId },
       });
 
       if (error) throw error;
-
-      toast({
-        title: "Re-indexing started",
-        description: "AI knowledge base is being updated. This may take a few minutes.",
-      });
-      
-      // Refresh stats after a short delay to show updated counts
-      setTimeout(() => loadIndexStats(), 3000);
+      // Success handling is done in pollReindexProgress when status becomes "completed"
     } catch (error: any) {
+      setReindexing(false);
+      setReindexProgress(null);
       toast({
         title: "Error re-indexing",
         description: error.message,
         variant: "destructive",
       });
-    } finally {
-      setReindexing(false);
     }
+  };
+
+  const getCardStatus = (sourceType: string): 'waiting' | 'indexing' | 'complete' | null => {
+    if (!reindexing || !reindexProgress) return null;
+    
+    if (reindexProgress.sourcesCompleted.includes(sourceType)) {
+      return 'complete';
+    }
+    if (reindexProgress.currentSource === sourceType) {
+      return 'indexing';
+    }
+    return 'waiting';
   };
 
   if (loading) {
@@ -287,6 +382,10 @@ export const AIKnowledgeSettings = ({ organizationId }: AIKnowledgeSettingsProps
       </Card>
     );
   }
+
+  const progressPercentage = reindexProgress 
+    ? (reindexProgress.sourcesCompleted.length / reindexProgress.totalSources) * 100 
+    : 0;
 
   return (
     <Card>
@@ -306,6 +405,7 @@ export const AIKnowledgeSettings = ({ organizationId }: AIKnowledgeSettingsProps
             const isEnabled = settings[source.key] as boolean;
             const sourceType = sourceTypeMapping[source.key];
             const stats = indexStats[sourceType];
+            const cardStatus = getCardStatus(sourceType);
             
             return (
               <div
@@ -341,6 +441,29 @@ export const AIKnowledgeSettings = ({ organizationId }: AIKnowledgeSettingsProps
                           : "Not yet indexed"}
                       </span>
                     </div>
+                    {/* Reindex status per card */}
+                    {cardStatus && (
+                      <div className="pt-1">
+                        {cardStatus === 'indexing' && (
+                          <span className="flex items-center gap-1.5 text-xs text-primary font-medium">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Indexing...
+                          </span>
+                        )}
+                        {cardStatus === 'complete' && (
+                          <span className="flex items-center gap-1.5 text-xs text-green-600 font-medium">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Complete
+                          </span>
+                        )}
+                        {cardStatus === 'waiting' && (
+                          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            Waiting...
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <Switch
@@ -359,6 +482,26 @@ export const AIKnowledgeSettings = ({ organizationId }: AIKnowledgeSettingsProps
             Changes take effect on next AI index. Use "Re-index Now" to update immediately.
           </p>
         </div>
+
+        {/* Overall progress bar */}
+        {reindexing && reindexProgress && (
+          <div className="space-y-2 p-4 rounded-lg border border-border bg-muted/30">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium">
+                {reindexProgress.currentSource
+                  ? `Indexing ${sourceTypeLabels[reindexProgress.currentSource] || reindexProgress.currentSource}...`
+                  : "Starting..."}
+              </span>
+              <span className="text-muted-foreground">
+                {reindexProgress.sourcesCompleted.length}/{reindexProgress.totalSources} sources
+              </span>
+            </div>
+            <Progress value={progressPercentage} className="h-2" />
+            <p className="text-xs text-muted-foreground">
+              {reindexProgress.recordsIndexed} records indexed
+            </p>
+          </div>
+        )}
 
         <div className="flex items-center gap-3 pt-2">
           <Button 
