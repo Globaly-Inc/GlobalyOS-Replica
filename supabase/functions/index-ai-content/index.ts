@@ -6,6 +6,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Source types in order of indexing
+const SOURCE_TYPES = [
+  'wiki_page',
+  'chat_message', 
+  'team_member',
+  'announcement',
+  'kpi',
+  'calendar_event',
+  'leave_record',
+  'attendance',
+];
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -45,19 +57,29 @@ serve(async (req) => {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+    // Helper to update progress
+    const updateProgress = async (orgId: string, currentSource: string, sourcesCompleted: string[], recordsIndexed: number) => {
+      await supabase
+        .from("ai_indexing_status")
+        .upsert({
+          organization_id: orgId,
+          status: "running",
+          current_source: currentSource,
+          sources_completed: sourcesCompleted,
+          total_sources: SOURCE_TYPES.length,
+          records_indexed: recordsIndexed,
+          updated_at: new Date().toISOString()
+        }, { onConflict: "organization_id" });
+    };
+
     for (const org of organizations || []) {
       let indexedCount = 0;
       let errorCount = 0;
+      const completedSources: string[] = [];
 
       try {
-        // Update status to running
-        await supabase
-          .from("ai_indexing_status")
-          .upsert({
-            organization_id: org.id,
-            status: "running",
-            updated_at: new Date().toISOString()
-          }, { onConflict: "organization_id" });
+        // Update status to running with initial progress
+        await updateProgress(org.id, SOURCE_TYPES[0], [], 0);
 
         // Fetch AI settings for this org
         const { data: aiSettings } = await supabase
@@ -79,6 +101,7 @@ serve(async (req) => {
         };
 
         // 1. Index Wiki Pages
+        await updateProgress(org.id, 'wiki_page', completedSources, indexedCount);
         if (settings.wiki_enabled) {
           const { data: wikiPages } = await supabase
             .from("wiki_pages")
@@ -108,8 +131,10 @@ serve(async (req) => {
             }
           }
         }
+        completedSources.push('wiki_page');
 
         // 2. Index Chat Messages (last 30 days, summarized per conversation/space)
+        await updateProgress(org.id, 'chat_message', completedSources, indexedCount);
         if (settings.chat_enabled) {
           const { data: chatMessages } = await supabase
             .from("chat_messages")
@@ -186,8 +211,10 @@ serve(async (req) => {
             }
           }
         }
+        completedSources.push('chat_message');
 
         // 3. Index Employees (public info only)
+        await updateProgress(org.id, 'team_member', completedSources, indexedCount);
         if (settings.team_directory_enabled) {
           const { data: employees } = await supabase
             .from("employees")
@@ -222,8 +249,10 @@ serve(async (req) => {
             }
           }
         }
+        completedSources.push('team_member');
 
         // 4. Index Updates/Announcements
+        await updateProgress(org.id, 'announcement', completedSources, indexedCount);
         if (settings.announcements_enabled) {
           const { data: updates } = await supabase
             .from("updates")
@@ -254,8 +283,10 @@ serve(async (req) => {
             }
           }
         }
+        completedSources.push('announcement');
 
         // 5. Index KPIs
+        await updateProgress(org.id, 'kpi', completedSources, indexedCount);
         if (settings.kpis_enabled) {
           const { data: kpis } = await supabase
             .from("kpis")
@@ -288,8 +319,10 @@ serve(async (req) => {
             }
           }
         }
+        completedSources.push('kpi');
 
         // 6. Index Calendar Events
+        await updateProgress(org.id, 'calendar_event', completedSources, indexedCount);
         if (settings.calendar_enabled) {
           const { data: events } = await supabase
             .from("calendar_events")
@@ -317,8 +350,10 @@ serve(async (req) => {
             }
           }
         }
+        completedSources.push('calendar_event');
 
         // 7. Index Leave Requests (approved ones, summarized)
+        await updateProgress(org.id, 'leave_record', completedSources, indexedCount);
         if (settings.leave_enabled) {
           const { data: leaveRequests } = await supabase
             .from("leave_requests")
@@ -349,8 +384,10 @@ serve(async (req) => {
             }
           }
         }
+        completedSources.push('leave_record');
 
         // 8. Index Attendance (aggregated per employee for last 30 days)
+        await updateProgress(org.id, 'attendance', completedSources, indexedCount);
         if (settings.attendance_enabled) {
           const { data: attendance } = await supabase
             .from("attendance_records")
@@ -396,6 +433,7 @@ serve(async (req) => {
             }
           }
         }
+        completedSources.push('attendance');
 
         // Update status to completed
         await supabase
@@ -403,6 +441,10 @@ serve(async (req) => {
           .upsert({
             organization_id: org.id,
             status: "completed",
+            current_source: null,
+            sources_completed: completedSources,
+            total_sources: SOURCE_TYPES.length,
+            records_indexed: indexedCount,
             last_full_index: new Date().toISOString(),
             last_wiki_index: settings.wiki_enabled ? new Date().toISOString() : null,
             last_chat_index: settings.chat_enabled ? new Date().toISOString() : null,
@@ -426,6 +468,9 @@ serve(async (req) => {
           .upsert({
             organization_id: org.id,
             status: "failed",
+            current_source: null,
+            sources_completed: completedSources,
+            records_indexed: indexedCount,
             updated_at: new Date().toISOString()
           }, { onConflict: "organization_id" });
 
@@ -439,21 +484,18 @@ serve(async (req) => {
     }
 
     console.log("Indexing complete:", results);
-
-    return new Response(JSON.stringify({ 
-      success: true, 
-      results,
-      timestamp: new Date().toISOString()
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    
+    return new Response(
+      JSON.stringify({ success: true, results }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
 
   } catch (error: unknown) {
     console.error("Error in index-ai-content:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    return new Response(
+      JSON.stringify({ error: errorMessage }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 });

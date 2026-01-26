@@ -234,6 +234,7 @@ export type Database = {
       ai_indexing_status: {
         Row: {
           created_at: string | null
+          current_source: string | null
           id: string
           last_chat_index: string | null
           last_full_index: string | null
@@ -241,11 +242,15 @@ export type Database = {
           last_wiki_index: string | null
           next_scheduled_index: string | null
           organization_id: string
+          records_indexed: number | null
+          sources_completed: string[] | null
           status: string | null
+          total_sources: number | null
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
+          current_source?: string | null
           id?: string
           last_chat_index?: string | null
           last_full_index?: string | null
@@ -253,11 +258,15 @@ export type Database = {
           last_wiki_index?: string | null
           next_scheduled_index?: string | null
           organization_id: string
+          records_indexed?: number | null
+          sources_completed?: string[] | null
           status?: string | null
+          total_sources?: number | null
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
+          current_source?: string | null
           id?: string
           last_chat_index?: string | null
           last_full_index?: string | null
@@ -265,7 +274,10 @@ export type Database = {
           last_wiki_index?: string | null
           next_scheduled_index?: string | null
           organization_id?: string
+          records_indexed?: number | null
+          sources_completed?: string[] | null
           status?: string | null
+          total_sources?: number | null
           updated_at?: string | null
         }
         Relationships: [
