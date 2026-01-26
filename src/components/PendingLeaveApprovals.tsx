@@ -126,98 +126,66 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
     }
   }, [currentOrg?.id]);
 
-  // Batch fetch all leave types for the organization - office-aware
-  const fetchLeaveTypesMap = async (employeeId?: string): Promise<Map<string, { id: string; name: string; max_negative_days: number }>> => {
-    if (!currentOrg) return new Map();
-
-    let officeId: string | null = null;
-
-    // Get employee's office if provided
-    if (employeeId) {
-      const { data: emp } = await supabase
-        .from("employees")
-        .select("office_id")
-        .eq("id", employeeId)
-        .maybeSingle();
-      officeId = emp?.office_id || null;
-    }
-
-    const map = new Map();
-
-    // Try office_leave_types first
-    if (officeId) {
-      const { data: officeTypes } = await supabase
-        .from("office_leave_types")
-        .select("id, name, max_negative_days")
-        .eq("office_id", officeId)
-        .eq("is_active", true);
-
-      if (officeTypes && officeTypes.length > 0) {
-        officeTypes.forEach(lt => {
-          map.set(lt.name.toLowerCase(), lt);
-        });
-        return map;
-      }
-    }
-
-    // Fallback to legacy leave_types
-    const { data: leaveTypes } = await supabase
-      .from("leave_types")
-      .select("id, name, max_negative_days")
-      .eq("organization_id", currentOrg.id)
-      .eq("is_active", true);
-
-    (leaveTypes || []).forEach(lt => {
-      map.set(lt.name.toLowerCase(), lt);
-    });
-    return map;
-  };
-
-  // Batch fetch all balances for multiple employees at once
-  const fetchBalancesBatch = async (
-    employeeIds: string[],
-    leaveTypeNames: string[],
-    leaveTypesMap: Map<string, { id: string; name: string; max_negative_days: number }>,
+  // Batch fetch balances with office-aware leave type resolution
+  const fetchBalancesBatchOfficeAware = async (
+    requests: Array<{ employeeId: string; officeId: string | null; leaveType: string }>,
     requestYear: number
   ): Promise<Map<string, LeaveBalance>> => {
-    if (!currentOrg || employeeIds.length === 0) return new Map();
+    if (!currentOrg || requests.length === 0) return new Map();
     
-    // Get unique leave type IDs we need
-    const leaveTypeIds = [...new Set(leaveTypeNames.map(name => 
-      leaveTypesMap.get(name.toLowerCase())?.id
-    ).filter(Boolean))] as string[];
+    // Get unique office IDs (filter out nulls)
+    const officeIds = [...new Set(requests.map(r => r.officeId).filter(Boolean))] as string[];
+    
+    if (officeIds.length === 0) return new Map();
+
+    // Fetch all office_leave_types for these offices in one query
+    const { data: officeLeaveTypes } = await supabase
+      .from("office_leave_types")
+      .select("id, name, max_negative_days, office_id")
+      .in("office_id", officeIds)
+      .eq("is_active", true);
+
+    // Build map: "officeId:leaveTypeName" -> leave type info
+    const officeLeaveTypesMap = new Map<string, { id: string; name: string; max_negative_days: number; office_id: string }>();
+    (officeLeaveTypes || []).forEach(lt => {
+      officeLeaveTypesMap.set(`${lt.office_id}:${lt.name.toLowerCase()}`, lt);
+    });
+
+    // Get all office_leave_type_ids we need
+    const leaveTypeIds = requests
+      .map(r => r.officeId ? officeLeaveTypesMap.get(`${r.officeId}:${r.leaveType.toLowerCase()}`)?.id : null)
+      .filter(Boolean) as string[];
 
     if (leaveTypeIds.length === 0) return new Map();
 
-    // Single batch query for all balances using request year (office-aware)
+    // Fetch balances using correct office_leave_type_ids
     const { data: balances } = await supabase
       .from("leave_type_balances")
       .select("employee_id, office_leave_type_id, balance")
-      .in("employee_id", employeeIds)
-      .in("office_leave_type_id", leaveTypeIds)
+      .in("employee_id", [...new Set(requests.map(r => r.employeeId))])
+      .in("office_leave_type_id", [...new Set(leaveTypeIds)])
       .eq("year", requestYear);
 
-    // Create a map: "employeeId:leaveTypeName" -> LeaveBalance
+    // Build result map
     const balanceMap = new Map<string, LeaveBalance>();
-    
-    employeeIds.forEach(empId => {
-      leaveTypeNames.forEach(ltName => {
-        const leaveType = leaveTypesMap.get(ltName.toLowerCase());
-        if (!leaveType) return;
-        
-        const balance = (balances || []).find(
-          (b: any) => b.employee_id === empId && b.office_leave_type_id === leaveType.id
-        );
-        
-        const currentBalance = balance?.balance || 0;
-        const maxNegative = leaveType.max_negative_days || 0;
-        
-        balanceMap.set(`${empId}:${ltName.toLowerCase()}`, {
-          leaveTypeName: leaveType.name,
-          currentBalance,
-          maxNegative,
-          availableBalance: currentBalance + maxNegative,
-        });
+    requests.forEach(req => {
+      if (!req.officeId) return;
+      
+      const leaveType = officeLeaveTypesMap.get(`${req.officeId}:${req.leaveType.toLowerCase()}`);
+      if (!leaveType) return;
+
+      const balance = (balances || []).find(
+        (b: any) => b.employee_id === req.employeeId && b.office_leave_type_id === leaveType.id
+      );
+
+      const currentBalance = balance?.balance || 0;
+      const maxNegative = leaveType.max_negative_days || 0;
+
+      balanceMap.set(`${req.employeeId}:${req.leaveType.toLowerCase()}`, {
+        leaveTypeName: leaveType.name,
+        currentBalance,
+        maxNegative,
+        availableBalance: currentBalance + maxNegative,
       });
     });
 
@@ -278,14 +246,11 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
       return;
     }
 
-    // Fetch leave types map once for batch processing
-    const leaveTypesMap = await fetchLeaveTypesMap();
-
     // Get pending requests - either as manager or HR
     let requests: PendingLeaveRequest[] = [];
     let hrBackupRequests: PendingLeaveRequest[] = [];
 
-    // As manager, get direct reports' pending requests FIRST
+    // As manager, get direct reports' pending requests FIRST (include office_id)
     const { data: directReportRequests } = await supabase
       .from("leave_requests")
       .select(`
@@ -299,6 +264,7 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
         employee:employees!leave_requests_employee_id_fkey(
           id,
           manager_id,
+          office_id,
           profiles!inner(
             full_name,
             avatar_url
@@ -314,22 +280,20 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
       req.employee?.manager_id === currentEmployee.id
     );
 
-    // Collect all employee IDs and leave type names for batch fetching
-    const employeeIdsForBalance = managerRequests.map((req: any) => req.employee.id);
-    const leaveTypeNamesForBalance = managerRequests.map((req: any) => req.leave_type);
-
     // Get the year from first request (all requests in batch should be from same year context)
     const requestYear = managerRequests.length > 0 
       ? new Date(managerRequests[0].start_date).getFullYear() 
       : new Date().getFullYear();
 
-    // Batch fetch balances for manager requests
-    const balanceMap = await fetchBalancesBatch(
-      [...new Set(employeeIdsForBalance)],
-      [...new Set(leaveTypeNamesForBalance)],
-      leaveTypesMap,
-      requestYear
-    );
+    // Build request info with office_id for batch fetching
+    const managerRequestsInfo = managerRequests.map((req: any) => ({
+      employeeId: req.employee.id,
+      officeId: req.employee.office_id,
+      leaveType: req.leave_type,
+    }));
+
+    // Batch fetch balances for manager requests using office-aware function
+    const balanceMap = await fetchBalancesBatchOfficeAware(managerRequestsInfo, requestYear);
 
     // Build requests with balances
     for (const req of managerRequests) {
@@ -355,6 +319,7 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
           employee:employees!leave_requests_employee_id_fkey(
             id,
             manager_id,
+            office_id,
             profiles!inner(
               full_name,
               avatar_url
@@ -399,22 +364,20 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
           (managerProfiles || []).map((m: any) => [m.id, m.profiles?.full_name || "Manager"])
         );
 
-        // Collect additional employee IDs for balance fetching
-        const additionalEmployeeIds = additionalRequests.map((req: any) => req.employee.id);
-        const additionalLeaveTypes = additionalRequests.map((req: any) => req.leave_type);
-
         // Get the year from first additional request
         const additionalRequestYear = additionalRequests.length > 0 
           ? new Date(additionalRequests[0].start_date).getFullYear() 
           : new Date().getFullYear();
 
-        // Batch fetch balances for additional requests
-        const additionalBalanceMap = await fetchBalancesBatch(
-          [...new Set(additionalEmployeeIds)],
-          [...new Set(additionalLeaveTypes)],
-          leaveTypesMap,
-          additionalRequestYear
-        );
+        // Build request info with office_id for batch fetching
+        const additionalRequestsInfo = additionalRequests.map((req: any) => ({
+          employeeId: req.employee.id,
+          officeId: req.employee.office_id,
+          leaveType: req.leave_type,
+        }));
+
+        // Batch fetch balances for additional requests using office-aware function
+        const additionalBalanceMap = await fetchBalancesBatchOfficeAware(additionalRequestsInfo, additionalRequestYear);
 
         for (const req of additionalRequests) {
           const emp = req.employee as any;

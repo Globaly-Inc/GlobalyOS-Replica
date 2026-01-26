@@ -55,17 +55,8 @@ export const useOfficeLeaveTypesMap = () => {
       }
     }
 
-    // Fallback to legacy leave_types
-    const { data: leaveTypes } = await supabase
-      .from("leave_types")
-      .select("id, name, max_negative_days")
-      .eq("organization_id", currentOrg.id)
-      .eq("is_active", true);
-
-    (leaveTypes || []).forEach(lt => {
-      map.set(lt.name.toLowerCase(), lt);
-    });
-
+    // Return empty map if no office or no office leave types found
+    // (Legacy leave_types table has been deprecated)
     return map;
   }, [currentOrg]);
 
@@ -108,17 +99,9 @@ export const useOfficeLeaveTypesMap = () => {
       });
     }
 
-    // Fetch legacy leave_types as fallback
-    const { data: legacyTypes } = await supabase
-      .from("leave_types")
-      .select("id, name, max_negative_days")
-      .eq("organization_id", currentOrg.id)
-      .eq("is_active", true);
-
+    // Return empty map for employees without office types
+    // (Legacy leave_types table has been deprecated)
     const legacyMap = new Map<string, LeaveTypeInfo>();
-    (legacyTypes || []).forEach(lt => {
-      legacyMap.set(lt.name.toLowerCase(), lt);
-    });
 
     // Build result map per employee
     const result = new Map<string, Map<string, LeaveTypeInfo>>();
@@ -176,16 +159,9 @@ export const useOfficeLeaveTypesMap = () => {
       if (officeType) return officeType;
     }
 
-    // Fallback to legacy
-    const { data: legacyType } = await supabase
-      .from("leave_types")
-      .select("id, name, max_negative_days")
-      .eq("organization_id", currentOrg.id)
-      .ilike("name", leaveTypeName)
-      .eq("is_active", true)
-      .maybeSingle();
-
-    return legacyType || null;
+    // Return null if not found in office leave types
+    // (Legacy leave_types table has been deprecated)
+    return null;
   }, [currentOrg]);
 
   return {
