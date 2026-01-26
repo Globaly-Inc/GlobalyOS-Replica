@@ -1547,35 +1547,30 @@ export const useMentionedMessages = () => {
   });
 };
 
-// Fetch all starred/pinned messages for current user
+// Fetch all starred messages for current user (personal stars, not is_pinned)
 export const useStarredMessages = () => {
   const { currentOrg } = useOrganization();
   const { data: currentEmployee } = useCurrentEmployee();
 
   return useQuery({
-    queryKey: ['chat-starred-messages', currentOrg?.id, currentEmployee?.id],
+    queryKey: ['starred-messages', currentOrg?.id, currentEmployee?.id],
     queryFn: async () => {
       if (!currentOrg?.id || !currentEmployee?.id) return [];
 
-      // Get pinned messages from conversations the user is part of
-      const { data: participantConvs } = await supabase
-        .from('chat_participants')
-        .select('conversation_id')
+      // Get message IDs from the user's personal stars
+      const { data: stars, error: starsError } = await supabase
+        .from('chat_message_stars')
+        .select('message_id')
         .eq('employee_id', currentEmployee.id)
         .eq('organization_id', currentOrg.id);
 
-      const { data: memberSpaces } = await supabase
-        .from('chat_space_members')
-        .select('space_id')
-        .eq('employee_id', currentEmployee.id)
-        .eq('organization_id', currentOrg.id);
+      if (starsError) throw starsError;
+      if (!stars || stars.length === 0) return [];
 
-      const convIds = participantConvs?.map(p => p.conversation_id) || [];
-      const spaceIds = memberSpaces?.map(s => s.space_id) || [];
+      const messageIds = stars.map(s => s.message_id);
 
-      if (!convIds.length && !spaceIds.length) return [];
-
-      let query = supabase
+      // Fetch the actual messages with sender info
+      const { data: messages, error } = await supabase
         .from('chat_messages')
         .select(`
           *,
@@ -1606,20 +1601,9 @@ export const useStarredMessages = () => {
             name
           )
         `)
-        .eq('is_pinned', true)
+        .in('id', messageIds)
         .eq('organization_id', currentOrg.id)
         .order('created_at', { ascending: false });
-
-      // Filter by conversations or spaces user has access to
-      if (convIds.length && spaceIds.length) {
-        query = query.or(`conversation_id.in.(${convIds.join(',')}),space_id.in.(${spaceIds.join(',')})`);
-      } else if (convIds.length) {
-        query = query.in('conversation_id', convIds);
-      } else if (spaceIds.length) {
-        query = query.in('space_id', spaceIds);
-      }
-
-      const { data: messages, error } = await query;
 
       if (error) throw error;
 

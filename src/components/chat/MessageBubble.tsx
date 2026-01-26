@@ -38,6 +38,7 @@ interface MessageBubbleProps {
   onReply?: () => void;
   replyCount?: number;
   isEditPending: boolean;
+  isPinned?: boolean; // Optional override for personal star status
 }
 
 const MessageBubble = ({
@@ -57,7 +58,10 @@ const MessageBubble = ({
   onReply,
   replyCount,
   isEditPending,
+  isPinned,
 }: MessageBubbleProps) => {
+  // Use provided isPinned (personal star) or fall back to message.is_pinned
+  const isStarred = isPinned !== undefined ? isPinned : message.is_pinned;
   const senderName = message.sender?.profiles?.full_name || "Unknown";
 
   const getInitials = (name: string) => {
@@ -178,7 +182,7 @@ const MessageBubble = ({
         <MessageActionsToolbar
           messageId={message.id}
           messageContent={message.content}
-          isPinned={message.is_pinned}
+          isPinned={isStarred}
           isOwn={isOwn}
           onPin={onPin}
           onEdit={onEdit}
