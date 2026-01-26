@@ -141,7 +141,7 @@ const AttachmentRenderer = ({ attachments, isOwn }: AttachmentRendererProps) => 
         <img
           src={publicUrl}
           alt={attachment.file_name}
-          loading="lazy"
+          loading="eager"
           className={cn(
             "object-cover",
             isInLightbox
