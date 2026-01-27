@@ -29,6 +29,7 @@ import {
   ChevronDown,
   ChevronRight,
   Plus,
+  Search,
   Settings,
   BellOff,
   FolderCog,
@@ -465,14 +466,26 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
               {spacesExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
               Spaces
             </button>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-5 w-5"
-              onClick={onNewSpace}
-            >
-              <Plus className="h-3 w-3" />
-            </Button>
+            <div className="flex items-center gap-0.5">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-5 w-5"
+                onClick={() => setBrowseSpacesOpen(true)}
+                title="Browse spaces"
+              >
+                <Search className="h-3 w-3" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-5 w-5"
+                onClick={onNewSpace}
+                title="Create space"
+              >
+                <Plus className="h-3 w-3" />
+              </Button>
+            </div>
           </div>
           
           {spacesExpanded && (
