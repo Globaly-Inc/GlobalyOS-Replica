@@ -619,18 +619,6 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
                 Browse spaces
               </Button>
 
-              {/* Manage All Spaces - Only for Owner/Admin */}
-              {(isOwner || isAdmin) && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="w-full justify-start gap-2.5 text-muted-foreground hover:text-foreground"
-                  onClick={() => setManageSpacesOpen(true)}
-                >
-                  <FolderCog className="h-4 w-4" />
-                  Manage all spaces
-                </Button>
-              )}
             </div>
           )}
         </div>
