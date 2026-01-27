@@ -619,13 +619,6 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
                 </>
               )}
 
-              {/* Group chat: Show creation info */}
-              {activeChat.type === 'conversation' && activeChat.isGroup && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Users className="h-4 w-4 flex-shrink-0" />
-                  <span>{memberCount} members</span>
-                </div>
-              )}
             </div>
           </CollapsibleContent>
         </Collapsible>
