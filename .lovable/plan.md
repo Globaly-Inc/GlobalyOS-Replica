@@ -1,248 +1,95 @@
 
-# Implementation Plan: Stripe Webhook Secret, Webhook URL, PlanSelector Integration, and Invoice PDF Generation
+
+# Plan: Make Conversation View Full Width (Hide Right Panel)
 
 ## Overview
-
-This plan covers four key deliverables to complete the Stripe billing integration:
-1. Add `STRIPE_WEBHOOK_SECRET` as a project secret
-2. Provide Stripe Dashboard webhook configuration instructions
-3. Integrate the `PlanSelector` component into `BillingSettings.tsx`
-4. Create an edge function for invoice PDF generation
+Add a toggle to expand the conversation view to full width by hiding the right side panel. Users can switch between expanded and normal view.
 
 ---
 
-## Current State Analysis
+## Changes Required
 
-| Component | Status |
-|-----------|--------|
-| `stripe-webhook` edge function | Complete - already checks for `STRIPE_WEBHOOK_SECRET` |
-| `create-checkout-session` edge function | Complete |
-| `create-portal-session` edge function | Complete |
-| `PlanSelector` component | Complete - not yet integrated |
-| `BillingSettings.tsx` | Shows plan info, usage, invoices - missing plan selection |
-| Invoice PDF generation | Missing |
-| `STRIPE_SECRET_KEY` secret | Configured |
-| `STRIPE_WEBHOOK_SECRET` secret | Missing |
+### 1. Add State in `Chat.tsx`
+- Add a new state variable `isFullWidth` to control whether the right panel is visible
+- This state will be toggled by a button in the ConversationView header
 
----
+### 2. Update ConversationView Props
+- Pass a new prop `isFullWidth` and `onToggleFullWidth` to ConversationView
+- This allows the conversation view to display a toggle button and know its current state
 
-## Implementation Details
+### 3. Add Toggle Button in ConversationView Header
+- Add an "Expand/Collapse" button in the header actions (desktop only)
+- Use icons like `Maximize2`/`Minimize2` or `PanelRightClose`/`PanelRight` from lucide-react
+- Tooltip: "Expand view" / "Show details panel"
 
-### 1. Add STRIPE_WEBHOOK_SECRET Secret
-
-Use the `add_secret` tool to prompt you to enter the webhook signing secret from Stripe Dashboard.
-
-**Secret name:** `STRIPE_WEBHOOK_SECRET`
-
-**Where to find it:**
-1. Go to Stripe Dashboard > Developers > Webhooks
-2. Click on your endpoint (or create one)
-3. Click "Reveal" under Signing secret
-4. Copy the value starting with `whsec_`
+### 4. Conditionally Hide Right Panel
+- Modify the `showRightPanelCondition` in `Chat.tsx` to also check `!isFullWidth`
+- When `isFullWidth` is true, the right panel (ChatRightPanelEnhanced or ThreadView) won't render
+- The ConversationView with `flex-1` will automatically take the full remaining width
 
 ---
 
-### 2. Stripe Dashboard Webhook Configuration
+## Visual Layout
 
-**Webhook Endpoint URL:**
+**Normal Mode:**
 ```text
-https://rygowmzkvxgnxagqlyxf.supabase.co/functions/v1/stripe-webhook
+┌──────────┬──────────────────────────┬────────┐
+│ Sidebar  │   ConversationView       │ Right  │
+│  (w-72)  │      (flex-1)            │ Panel  │
+│          │                          │ (w-80) │
+└──────────┴──────────────────────────┴────────┘
 ```
 
-**Events to subscribe:**
-- `checkout.session.completed`
-- `customer.created`
-- `customer.subscription.created`
-- `customer.subscription.updated`
-- `customer.subscription.deleted`
-- `invoice.payment_succeeded`
-- `invoice.payment_failed`
-- `payment_intent.succeeded`
-- `payment_method.attached`
-
-**Setup Steps:**
-1. Go to Stripe Dashboard > Developers > Webhooks
-2. Click "Add endpoint"
-3. Enter the URL above
-4. Select the events listed
-5. Click "Add endpoint"
-6. Copy the signing secret and add it as the `STRIPE_WEBHOOK_SECRET`
-
----
-
-### 3. Integrate PlanSelector into BillingSettings
-
-**File to modify:** `src/components/BillingSettings.tsx`
-
-**Changes:**
-1. Import the `PlanSelector` component
-2. Add a "Change Plan" dialog/section
-3. Add "Manage Billing" button to open Stripe Customer Portal
-4. Display saved payment methods from `organization_payment_methods` table
-
-**UI Flow:**
+**Full Width Mode:**
 ```text
-Current Plan Card
-├── Plan name + status badge
-├── Price display
-├── [Change Plan] button → Opens PlanSelector in dialog
-├── [Manage Billing] button → Opens Stripe Customer Portal
-└── Current period info
-
-Payment Method Card (updated)
-├── Display saved card (brand, last 4, expiry)
-├── [Update] button → Opens Stripe Portal
-└── "No payment method" state with Add button
-```
-
-**New imports:**
-```typescript
-import { PlanSelector } from "@/components/subscription/PlanSelector";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-```
-
-**Key additions:**
-- `useState` for dialog open state
-- Query for payment methods from `organization_payment_methods`
-- Handler for Stripe Portal redirect
-- Handler for plan selection callback
-
----
-
-### 4. Invoice PDF Generation Edge Function
-
-**New file:** `supabase/functions/generate-invoice-pdf/index.ts`
-
-**Functionality:**
-1. Fetch invoice data with organization branding
-2. Generate PDF using a Deno-compatible PDF library
-3. Store PDF in Supabase Storage bucket
-4. Return download URL
-
-**PDF Content:**
-```text
-┌─────────────────────────────────────────────┐
-│ [Organization Logo]     INVOICE             │
-│ GlobalyOS                                   │
-│                                             │
-│ Invoice #: INV-2024-001                     │
-│ Date: January 27, 2024                      │
-│ Due Date: February 10, 2024                 │
-│                                             │
-│ Bill To:                                    │
-│ [Organization Name]                         │
-│ [Billing Contact Email]                     │
-│                                             │
-│ ─────────────────────────────────────────── │
-│ Description              Qty    Amount      │
-│ ─────────────────────────────────────────── │
-│ Growth Plan (Annual)      1     $2,870.00   │
-│                                             │
-│ ─────────────────────────────────────────── │
-│ Subtotal:                       $2,870.00   │
-│ Tax (0%):                       $0.00       │
-│ Total:                          $2,870.00   │
-│ ─────────────────────────────────────────── │
-│                                             │
-│ Status: PAID (January 27, 2024)             │
-│                                             │
-│ Thank you for your business!                │
-│ support@globalyos.com                     │
-└─────────────────────────────────────────────┘
-```
-
-**PDF Library Options:**
-- Use `jspdf` via npm specifier in Deno
-- Or use `pdfkit` via esm.sh
-
-**Storage:**
-- Create `invoices` bucket in Supabase Storage
-- Store PDFs with path: `{organization_id}/{invoice_number}.pdf`
-- Return signed URL for download
-
-**Database updates:**
-- Add `pdf_url` column to `invoices` table to cache the generated PDF path
-
----
-
-## Files to Create/Modify
-
-| File | Action | Purpose |
-|------|--------|---------|
-| `supabase/functions/generate-invoice-pdf/index.ts` | Create | PDF generation edge function |
-| `supabase/config.toml` | Modify | Add function config |
-| `src/components/BillingSettings.tsx` | Modify | Integrate PlanSelector, portal, payment methods |
-| Database migration | Create | Add `pdf_url` to invoices, create storage bucket |
-
----
-
-## Database Migration
-
-```sql
--- Add pdf_url column to invoices table
-ALTER TABLE invoices ADD COLUMN IF NOT EXISTS pdf_url TEXT;
-
--- Create invoices storage bucket
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('invoices', 'invoices', false)
-ON CONFLICT (id) DO NOTHING;
-
--- RLS policy for invoice PDFs - org members can read their own invoices
-CREATE POLICY "Organization members can read invoice PDFs"
-ON storage.objects FOR SELECT
-TO authenticated
-USING (
-  bucket_id = 'invoices' AND
-  EXISTS (
-    SELECT 1 FROM organization_members om
-    WHERE om.user_id = auth.uid()
-    AND om.organization_id::text = (storage.foldername(name))[1]
-  )
-);
-
--- Only system can upload (via service role)
-CREATE POLICY "Service role can upload invoice PDFs"
-ON storage.objects FOR INSERT
-TO service_role
-WITH CHECK (bucket_id = 'invoices');
+┌──────────┬───────────────────────────────────┐
+│ Sidebar  │   ConversationView                │
+│  (w-72)  │      (flex-1 = full remaining)    │
+│          │                                   │
+└──────────┴───────────────────────────────────┘
 ```
 
 ---
 
-## Technical Considerations
+## Files to Modify
 
-### PDF Generation in Deno
-Since Deno edge functions run in a constrained environment, we'll use a lightweight approach:
-- Generate HTML invoice template
-- Use a headless browser service (optional) or
-- Use pure JavaScript PDF library like `jspdf`
-
-### Caching Strategy
-- Generate PDF on first download request
-- Store in Supabase Storage
-- Return cached URL on subsequent requests
-- Invalidate if invoice is updated
-
-### Security
-- Verify user belongs to organization before generating/downloading
-- Use signed URLs with expiration for downloads
-- Service role for storage operations
+| File | Changes |
+|------|---------|
+| `src/pages/Chat.tsx` | Add `isFullWidth` state, update right panel condition, pass props to ConversationView |
+| `src/components/chat/ConversationView.tsx` | Add optional `isFullWidth` and `onToggleFullWidth` props, add toggle button in header |
 
 ---
 
-## Implementation Order
+## Technical Details
 
-1. **Add STRIPE_WEBHOOK_SECRET secret** (requires user action)
-2. **Update BillingSettings.tsx** with PlanSelector integration
-3. **Create generate-invoice-pdf edge function**
-4. **Run database migration** for pdf_url column and storage bucket
-5. **Connect download button** to PDF generation endpoint
+### Chat.tsx Changes
+- Add state: `const [isFullWidth, setIsFullWidth] = useState(false);`
+- Update condition: `const showRightPanelCondition = activeChat && activeChat.type !== 'mentions' && activeChat.type !== 'starred' && !isMobile && !isFullWidth;`
+- Pass to ConversationView: `isFullWidth={isFullWidth} onToggleFullWidth={() => setIsFullWidth(prev => !prev)}`
+
+### ConversationView.tsx Changes
+- Add to props interface: `isFullWidth?: boolean; onToggleFullWidth?: () => void;`
+- Add button in desktop header actions area (around line 750+):
+```tsx
+{onToggleFullWidth && (
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <Button variant="ghost" size="icon" onClick={onToggleFullWidth}>
+        {isFullWidth ? <PanelRight className="h-4 w-4" /> : <PanelRightClose className="h-4 w-4" />}
+      </Button>
+    </TooltipTrigger>
+    <TooltipContent>
+      {isFullWidth ? "Show details panel" : "Expand view"}
+    </TooltipContent>
+  </Tooltip>
+)}
+```
 
 ---
 
-## User Actions Required
-
-1. **Add Webhook Secret**: You'll be prompted to enter the `STRIPE_WEBHOOK_SECRET` value
-2. **Configure Stripe Webhook**: Follow the Stripe Dashboard setup steps above
-3. **Optional**: Configure Stripe Customer Portal settings at stripe.com/dashboard/settings/billing/portal
+## User Experience
+- Click the expand button → right panel hides, conversation takes full width
+- Click again → right panel reappears
+- State resets when switching chats (optional, can keep preference)
+- Mobile is unaffected (already full width without right panel inline)
 
