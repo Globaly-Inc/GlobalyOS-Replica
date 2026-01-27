@@ -1,102 +1,156 @@
 
-# Fix PDF Display Size in Lightbox/Full Preview Mode
+# System-Wide PDF Full Preview Enhancement
 
-## Problem Analysis
+## Overview
 
-Looking at the screenshot, the PDF appears very small in the lightbox (full preview) mode. The issue stems from how the container sizing works:
+Update all PDF preview components to display PDFs at the same size as images in lightbox mode, with an enhanced page slider for better navigation.
 
-1. **AttachmentRenderer.tsx (line 288)**: The lightbox content is wrapped in `<div className="p-8">` which doesn't define explicit dimensions
-2. **PDFViewer.tsx (line 112)**: The className for lightbox is `"min-h-[500px]"` which only sets minimum height, not width
-3. **PDFViewer.tsx (line 145)**: The scale calculation uses `containerRef.current.clientWidth` but this is very small because the container has no defined width
+---
 
-The PDF scales based on container width, but in lightbox mode the container collapses to minimum content width, resulting in a tiny PDF.
+## Current State Analysis
+
+| Component | Image Lightbox | PDF Lightbox |
+|-----------|----------------|--------------|
+| AttachmentRenderer | `max-w-full max-h-[80vh]` | `w-[90vw] max-w-4xl` - **smaller** |
+| PostMedia | `max-w-full max-h-[80vh]` | `min-h-[500px]` - **inconsistent** |
+| ChatRightPanelEnhanced | `max-w-full max-h-[80vh]` | `min-h-[500px]` - **inconsistent** |
+| WikiFilePreview | Uses zoom + `max-h-full` | Uses iframe - **different system** |
 
 ---
 
 ## Solution
 
-Fix the lightbox PDF container to use appropriate dimensions that fill the available viewport space.
+### 1. Update PDFViewer Component for Consistent Sizing
 
-### File: `src/components/chat/AttachmentRenderer.tsx`
+**File: `src/components/feed/PDFViewer.tsx`**
 
-**Change 1**: Update the PDF wrapper in lightbox mode (line 107-115)
+**Changes:**
+- Increase lightbox scaling to match image sizing (`max-h-[80vh]` equivalent)
+- Make page slider more prominent in lightbox mode (larger track, cleaner styling)
+- Add download button to lightbox controls
 
-Current code:
-```tsx
-if (attachmentIsPdf) {
-  return (
-    <div className="w-full h-full group">
-      <PDFViewer
-        fileUrl={publicUrl}
-        mode={isInLightbox ? 'lightbox' : 'inline'}
-        onExpand={isInLightbox ? undefined : () => openLightbox(index)}
-        className={isInLightbox ? "min-h-[500px]" : "h-full"}
-      />
-    </div>
-  );
-}
+```text
+Lightbox mode improvements:
+- Scale calculation: use 80% of viewport height (matching images)
+- Controls: larger slider track, page number on left, download on right
+- Container: explicit `max-w-full` to match image behavior
 ```
 
-Updated code:
+### 2. Update AttachmentRenderer (Chat) 
+
+**File: `src/components/chat/AttachmentRenderer.tsx`**
+
+**Lines 107-120:**
+- Remove explicit width constraints (`w-[90vw] max-w-4xl`)
+- Let PDF expand to match image sizing pattern
+
 ```tsx
-if (attachmentIsPdf) {
-  return (
-    <div className={cn(
-      "group",
-      isInLightbox 
-        ? "w-[90vw] max-w-4xl" // Give explicit width in lightbox mode
-        : "w-full h-full"
-    )}>
-      <PDFViewer
-        fileUrl={publicUrl}
-        mode={isInLightbox ? 'lightbox' : 'inline'}
-        onExpand={isInLightbox ? undefined : () => openLightbox(index)}
-        className={isInLightbox ? "w-full" : "h-full"}
-      />
-    </div>
-  );
-}
+// Before
+isInLightbox ? "w-[90vw] max-w-4xl" : "w-full h-full"
+
+// After  
+isInLightbox ? "w-full flex items-center justify-center" : "w-full h-full"
 ```
 
-**Change 2**: Update the lightbox content wrapper (line 288) to center content properly
+### 3. Update PostMedia (Feed)
 
-Current code:
+**File: `src/components/feed/PostMedia.tsx`**
+
+**Lines 71-83:**
+- Update PDF wrapper to match image pattern
+- Pass consistent className for lightbox mode
+
 ```tsx
-<div className="p-8">
-  {mediaAttachments[currentIndex] && renderMediaItem(mediaAttachments[currentIndex], currentIndex, true)}
+// Before
+className={isInLightbox ? "min-h-[500px]" : "h-full"}
+
+// After
+className={isInLightbox ? "w-full max-w-5xl" : "h-full"}
+```
+
+**Line 207:**
+- Update lightbox content wrapper to center properly
+
+### 4. Update ChatRightPanelEnhanced (Shared Files Panel)
+
+**File: `src/components/chat/ChatRightPanelEnhanced.tsx`**
+
+**Lines 1087-1092:**
+- Update PDF lightbox wrapper to match image sizing
+- Remove fixed `min-h-[500px]` class
+
+```tsx
+// Before
+<PDFViewer
+  fileUrl={...}
+  mode="lightbox"
+  className="min-h-[500px]"
+/>
+
+// After
+<div className="w-full max-w-5xl mx-auto">
+  <PDFViewer
+    fileUrl={...}
+    mode="lightbox"
+    className="w-full"
+  />
 </div>
 ```
 
-Updated code:
+### 5. Update WikiFilePreview (Wiki Files)
+
+**File: `src/components/wiki/WikiFilePreview.tsx`**
+
+**Lines 269-276:**
+- Replace iframe with PDFViewer component for consistency
+- Add proper import for PDFViewer
+
 ```tsx
-<div className="p-4 sm:p-8 flex items-center justify-center w-full">
-  {mediaAttachments[currentIndex] && renderMediaItem(mediaAttachments[currentIndex], currentIndex, true)}
-</div>
+// Before (iframe-based)
+{isPdf && currentItem.file_url && (
+  <iframe
+    src={`${currentItem.file_url}#toolbar=1&navpanes=0`}
+    className="w-full h-full max-w-4xl"
+    title={currentItem.title}
+  />
+)}
+
+// After (PDFViewer-based)
+{isPdf && currentItem.file_url && (
+  <div className="w-full max-w-5xl h-full">
+    <PDFViewer
+      fileUrl={currentItem.file_url}
+      mode="lightbox"
+      className="w-full h-full"
+    />
+  </div>
+)}
 ```
 
-### File: `src/components/feed/PDFViewer.tsx`
+---
 
-**Change 3**: Update the lightbox scaling logic to use more viewport space (lines 151-155)
+## Enhanced Page Slider Design
 
-Current code:
-```tsx
-if (mode === 'lightbox') {
-  const maxHeight = Math.min(window.innerHeight * 0.7, 800);
-  const scaleX = containerWidth / viewport.width;
-  const scaleY = maxHeight / viewport.height;
-  scale = Math.min(scaleX, scaleY) * (window.devicePixelRatio || 1);
-}
+The PDFViewer controls will be updated to be more user-friendly:
+
+```text
++--------------------------------------------------+
+|                                                  |
+|              [PDF PAGE CONTENT]                  |
+|              Fills up to 80vh                    |
+|                                                  |
++--------------------------------------------------+
+| [◀] [━━━━━━━━━━●━━━━━━━━━━━━] [▶]   2 / 8   [⬇]  |
++--------------------------------------------------+
+      ↑                                        ↑
+   Larger slider track               Download button
+   (8px height in lightbox)
 ```
 
-Updated code:
-```tsx
-if (mode === 'lightbox') {
-  const maxHeight = window.innerHeight * 0.75; // Use 75% of viewport height
-  const scaleX = containerWidth / viewport.width;
-  const scaleY = maxHeight / viewport.height;
-  scale = Math.min(scaleX, scaleY) * (window.devicePixelRatio || 1);
-}
-```
+**PDFViewer.tsx control updates:**
+- Slider track height: 6px (inline) → 8px (lightbox)
+- Add download button in lightbox mode
+- Slightly larger navigation buttons in lightbox
 
 ---
 
@@ -104,15 +158,18 @@ if (mode === 'lightbox') {
 
 | File | Change |
 |------|--------|
-| `src/components/chat/AttachmentRenderer.tsx` | Give PDF wrapper explicit width in lightbox mode; improve content centering |
-| `src/components/feed/PDFViewer.tsx` | Remove 800px max height cap for better use of viewport |
+| `src/components/feed/PDFViewer.tsx` | Update scale to 80vh, enhance slider styling, add download button |
+| `src/components/chat/AttachmentRenderer.tsx` | Remove width constraints, use flex centering |
+| `src/components/feed/PostMedia.tsx` | Update PDF wrapper sizing |
+| `src/components/chat/ChatRightPanelEnhanced.tsx` | Add wrapper for consistent PDF sizing |
+| `src/components/wiki/WikiFilePreview.tsx` | Replace iframe with PDFViewer, add import |
 
 ---
 
 ## Result
 
 After these changes:
-- PDF in lightbox will use up to 90% of viewport width (capped at ~896px for readability)
-- Height will scale proportionally up to 75% of viewport height
-- The PDF will be centered and properly sized in the lightbox dialog
-- Inline (conversation) view remains unchanged
+- PDFs in lightbox mode will display at the same size as images (up to 80% viewport height)
+- Page slider will be more prominent and easier to use
+- All PDF preview locations will have consistent behavior
+- Download button available directly in the PDF lightbox controls
