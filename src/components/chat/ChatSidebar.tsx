@@ -35,9 +35,11 @@ import {
   MoreVertical,
   Archive,
   Trash2,
+  Megaphone,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useConversations, useSpaces, useUnreadCounts, useCreateConversation, useArchiveSpace, useDeleteSpace } from "@/services/useChat";
+import { useConversations, useSpaces, useUnreadCounts, useCreateConversation, useArchiveSpace, useDeleteSpace, useLeaveSpace } from "@/services/useChat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -69,7 +71,7 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
   const [deleteConfirmSpace, setDeleteConfirmSpace] = useState<ChatSpace | null>(null);
   
   const { data: conversations = [], isLoading: loadingConversations } = useConversations();
-  const { data: spaces = [], isLoading: loadingSpaces } = useSpaces();
+  const { data: spaces = [], isLoading: loadingSpaces, error: spacesError } = useSpaces();
   const { data: unreadCounts } = useUnreadCounts();
   const { data: currentEmployee } = useCurrentEmployee();
   const { currentOrg } = useOrganization();
@@ -78,6 +80,7 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
   const createConversation = useCreateConversation();
   const archiveSpace = useArchiveSpace();
   const deleteSpace = useDeleteSpace();
+  const leaveSpaceMutation = useLeaveSpace();
 
   // Fetch online statuses for all conversation participants
   useEffect(() => {
@@ -386,7 +389,11 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
           {dmExpanded && (
             <div className="space-y-0.5">
               {loadingConversations ? (
-                <p className="text-sm text-muted-foreground px-2">Loading...</p>
+                <div className="space-y-1 px-2">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="h-8 bg-muted/50 rounded-md animate-pulse" />
+                  ))}
+                </div>
               ) : conversations.length === 0 ? (
                 <p className="text-sm text-muted-foreground px-2">No conversations yet</p>
               ) : (
@@ -470,10 +477,24 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
           
           {spacesExpanded && (
             <div className="space-y-0.5">
-              {loadingSpaces ? (
-                <p className="text-sm text-muted-foreground px-2">Loading...</p>
+              {spacesError ? (
+                <div className="text-sm text-destructive px-2 py-2">
+                  Failed to load spaces
+                </div>
+              ) : loadingSpaces ? (
+                <div className="space-y-1 px-2">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="h-8 bg-muted/50 rounded-md animate-pulse" />
+                  ))}
+                </div>
               ) : spaces.length === 0 ? (
-                <p className="text-sm text-muted-foreground px-2">No spaces yet</p>
+                <div className="flex flex-col items-center py-4 text-center">
+                  <Hash className="h-8 w-8 text-muted-foreground/50 mb-2" />
+                  <p className="text-sm text-muted-foreground">No spaces yet</p>
+                  <Button variant="link" size="sm" onClick={onNewSpace}>
+                    Create your first space
+                  </Button>
+                </div>
               ) : (
                 spaces.map((space) => {
                   const isActive = activeChat?.type === 'space' && activeChat.id === space.id;
@@ -489,7 +510,8 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
                         onClick={() => onSelectChat({ 
                           type: 'space', 
                           id: space.id, 
-                          name: space.name 
+                          name: space.name,
+                          iconUrl: space.icon_url 
                         })}
                         className={cn(
                           "flex items-center gap-2.5 w-full px-2 py-1.5 rounded-md text-sm transition-colors pr-8",
@@ -499,8 +521,19 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
                           hasUnread && !isActive && "font-semibold text-foreground"
                         )}
                       >
-                        <Hash className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                        {space.icon_url ? (
+                          <img 
+                            src={space.icon_url} 
+                            alt="" 
+                            className="h-4 w-4 rounded flex-shrink-0" 
+                          />
+                        ) : (
+                          <Hash className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                        )}
                         <span className="truncate flex-1 text-left">{space.name}</span>
+                        {space.space_type === 'announcements' && (
+                          <Megaphone className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        )}
                         {hasUnread && (
                           <Badge 
                             variant="destructive" 
@@ -511,45 +544,66 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
                         )}
                       </button>
                       
-                      {/* Quick Actions - visible on hover for admins */}
-                      {canManage && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="absolute right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <MoreVertical className="h-3.5 w-3.5" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-40">
+                      {/* Quick Actions - visible on hover */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="absolute right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreVertical className="h-3.5 w-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                          {canManage ? (
+                            <>
+                              <DropdownMenuItem 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  archiveSpace.mutate(space.id, {
+                                    onSuccess: () => toast.success("Space archived"),
+                                    onError: () => toast.error("Failed to archive space")
+                                  });
+                                }}
+                              >
+                                <Archive className="h-4 w-4 mr-2" />
+                                Archive
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                className="text-destructive focus:text-destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeleteConfirmSpace(space);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </>
+                          ) : (
                             <DropdownMenuItem 
                               onClick={(e) => {
                                 e.stopPropagation();
-                                archiveSpace.mutate(space.id, {
-                                  onSuccess: () => toast.success("Space archived"),
-                                  onError: () => toast.error("Failed to archive space")
+                                leaveSpaceMutation.mutate(space.id, {
+                                  onSuccess: () => {
+                                    toast.success("Left space");
+                                    // If we left the active chat, clear selection
+                                    if (activeChat?.type === 'space' && activeChat.id === space.id) {
+                                      onSelectChat({ type: 'mentions', id: 'mentions', name: 'Mentions' });
+                                    }
+                                  },
+                                  onError: () => toast.error("Failed to leave space")
                                 });
                               }}
                             >
-                              <Archive className="h-4 w-4 mr-2" />
-                              Archive
+                              <LogOut className="h-4 w-4 mr-2" />
+                              Leave space
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="text-destructive focus:text-destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeleteConfirmSpace(space);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   );
                 })
