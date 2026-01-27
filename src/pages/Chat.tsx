@@ -188,7 +188,7 @@ const Chat = () => {
       {/* Main Content Column */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Top Bar - Spans full width above conversation + right panel */}
-        {activeChat && activeChat.type !== 'mentions' && activeChat.type !== 'starred' && (
+        {activeChat && activeChat.type !== 'mentions' && activeChat.type !== 'starred' && activeChat.type !== 'unread' && (
           <ChatHeader activeChat={activeChat} />
         )}
 
