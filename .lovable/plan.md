@@ -1,403 +1,220 @@
 
-# Country-Specific Default Leave Days in Templates
 
-## Overview
+# UI/UX Review: Country-Specific Default Leave Days Implementation
 
-Add the ability for Super Admins to configure country-specific default leave days per leave type template. These defaults will automatically be applied during organization onboarding when offices are set up based on their country.
+## Summary
 
----
-
-## Architecture
-
-The solution uses a **country overrides table** linked to global leave type templates, rather than duplicating entire leave type records per country.
-
-```text
-+------------------------+         +------------------------------------+
-| template_leave_types   |  1:N    | template_leave_type_country_defaults|
-+------------------------+ ------> +------------------------------------+
-| id                     |         | id                                  |
-| name                   |         | template_leave_type_id (FK)         |
-| country_code (null=    |         | country_code                        |
-|   global)              |         | default_days                        |
-| default_days (global   |         | created_at                          |
-|   fallback)            |         +------------------------------------+
-| ...                    |
-+------------------------+
-```
+After reviewing all user flows in the implementation, I've identified several UI/UX improvements and missing features that would enhance the overall experience for both Super Admins and organization users.
 
 ---
 
-## Implementation Details
+## Issues & Improvements
 
-### 1. Database Migration
+### 1. Super Admin UI - Template Leave Types Tab
 
-Create a new table `template_leave_type_country_defaults`:
+**Current State**: The country overrides section works but has some UX gaps.
 
-```sql
-CREATE TABLE public.template_leave_type_country_defaults (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  template_leave_type_id UUID NOT NULL 
-    REFERENCES public.template_leave_types(id) ON DELETE CASCADE,
-  country_code TEXT NOT NULL,
-  default_days INTEGER NOT NULL DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(template_leave_type_id, country_code)
-);
+**Improvements Needed**:
 
--- RLS policies
-ALTER TABLE public.template_leave_type_country_defaults ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Anyone can view template country defaults"
-ON public.template_leave_type_country_defaults FOR SELECT USING (true);
-
-CREATE POLICY "Super admins can manage template country defaults"
-ON public.template_leave_type_country_defaults FOR ALL 
-USING (public.is_super_admin());
-
--- Index for lookups
-CREATE INDEX idx_template_country_defaults_type 
-ON public.template_leave_type_country_defaults(template_leave_type_id);
-```
+| Issue | Solution |
+|-------|----------|
+| No visual feedback for country defaults being applied | Add a tooltip or info message showing "These defaults will be applied during onboarding based on office location" |
+| Country selector shows all countries even if already added | Filter out countries that already have an override |
+| No sorting of country overrides | Sort by country name alphabetically for easier scanning |
+| Missing flag emojis in the filter dropdown | Add flag emojis next to country names in the filter dropdown for visual consistency |
+| No bulk actions for country defaults | Add "Remove All Overrides" button for cleanup |
 
 ---
 
-### 2. Super Admin UI Updates
+### 2. Onboarding - OfficesStep
 
-**File: `src/components/super-admin/templates/TemplateLeaveTypesTab.tsx`**
+**Current State**: Country-specific defaults are fetched and applied when country changes, but the UX could be clearer.
 
-#### 2a. Add Interface and State
+**Improvements Needed**:
+
+| Issue | Solution |
+|-------|----------|
+| No visual indicator that leave defaults changed due to country | Show a subtle toast or inline notification: "Leave entitlements updated for [Country]" |
+| Leave types reset completely when country changes | Ask for confirmation if user has customized leave days before resetting |
+| No indication of which countries have special defaults | Add an info icon with tooltip: "This office uses country-specific leave entitlements" |
+| Template defaults loading race condition | The `useEffect` that re-applies template defaults (lines 386-398) overwrites ALL customizations when templates load - should only apply to non-customized values |
+
+---
+
+### 3. LeaveTypesCustomizer Component
+
+**Current State**: Compact and functional but missing some features.
+
+**Missing Features**:
+
+| Feature | Description |
+|---------|-------------|
+| Custom leave types removed | The code references `customTypes` and `addCustomType` but the UI for adding custom leave types was removed |
+| No description or help text | Users don't know what each leave type means |
+| No visual distinction for country-applied defaults | Could show a small country flag or badge when defaults come from country templates |
+
+---
+
+### 4. Post-Onboarding - OfficeLeaveSettings
+
+**Current State**: The "Copy from Templates" button doesn't use country-specific defaults.
+
+**Bug Found** (lines 251-299): 
+```typescript
+// Current code fetches templates but doesn't include country_defaults
+const { data: templates, error } = await supabase
+  .from('template_leave_types')
+  .select('*')  // Missing country_defaults join!
+  .or('country_code.is.null,country_code.eq.')
+  .eq('is_active', true)
+  .order('sort_order');
+```
+
+This means copying templates post-onboarding won't apply country-specific defaults.
+
+**Fix Required**: Update to use the same logic as `useCopyTemplatesToOffice` service.
+
+---
+
+### 5. Missing Features
+
+#### A. Country Defaults Preview
+- Super Admins should be able to preview what an organization in a specific country would see
+- Add a "Preview for Country" dropdown that shows the effective leave days
+
+#### B. Bulk Import/Export
+- No way to bulk import country defaults (e.g., from CSV)
+- Useful for setting up 50+ country overrides quickly
+
+#### C. Audit Trail
+- No logging of when country defaults were changed
+- Important for compliance in regulated industries
+
+#### D. Default Days Validation
+- No validation that country-specific days don't exceed reasonable limits
+- Could add min/max boundaries per leave type
+
+---
+
+## Recommended Changes
+
+### Priority 1 (High Impact)
+
+1. **Fix OfficeLeaveSettings.tsx** - Add country defaults to template copy function
+2. **Fix race condition in OfficesStep** - Preserve user customizations when templates load
+3. **Add country already-added filter** - Prevent duplicate country overrides
+
+### Priority 2 (Medium Impact)
+
+4. **Add visual feedback in onboarding** - Toast when country defaults apply
+5. **Sort country overrides alphabetically** - Easier to scan
+6. **Add flag emojis to filter dropdown** - Visual consistency
+
+### Priority 3 (Nice to Have)
+
+7. **Restore custom leave types UI** - Allow adding organization-specific types
+8. **Add "Preview for Country" feature** - Super Admin preview mode
+9. **Add confirmation dialog** - When changing country resets customized values
+
+---
+
+## Technical Implementation Notes
+
+### Fix 1: OfficeLeaveSettings.tsx `copyFromTemplates`
+
+Update to fetch country defaults and pass office country:
 
 ```typescript
-interface CountryDefault {
-  id?: string;
-  country_code: string;
-  default_days: number;
-}
-
-// Add state for country defaults
-const [countryDefaults, setCountryDefaults] = useState<CountryDefault[]>([]);
-const [showAddCountry, setShowAddCountry] = useState(false);
-const [newCountryCode, setNewCountryCode] = useState("");
-const [newCountryDays, setNewCountryDays] = useState(0);
-```
-
-#### 2b. Update Query to Fetch Country Defaults
-
-```typescript
-const { data: leaveTypes = [], isLoading } = useQuery({
-  queryKey: ["template-leave-types", countryFilter],
-  queryFn: async () => {
-    let query = supabase
-      .from("template_leave_types")
-      .select(`
-        *,
-        country_defaults:template_leave_type_country_defaults(*)
-      `)
-      .order("country_code", { nullsFirst: true })
-      .order("sort_order");
-    // ... filtering logic
-  },
-});
-```
-
-#### 2c. Show Override Count in Table
-
-Add a badge next to default_days showing count of country overrides:
-
-```tsx
-<TableCell>
-  {type.default_days}
-  {type.country_defaults?.length > 0 && (
-    <Badge variant="outline" className="ml-2 text-xs">
-      +{type.country_defaults.length} 🌍
-    </Badge>
-  )}
-</TableCell>
-```
-
-#### 2d. Add Country Overrides Section in Edit Dialog
-
-New section after "Default Days" field:
-
-```text
-+-- Country-Specific Default Days ------------------------+
-| These override the default days for specific countries  |
-|                                                         |
-| 🇦🇺 Australia       [20] days  [🗑️]                    |
-| 🇬🇧 United Kingdom  [28] days  [🗑️]                    |
-| 🇮🇳 India           [12] days  [🗑️]                    |
-|                                                         |
-| [+ Add Country Override]                                |
-+---------------------------------------------------------+
-
-When "Add" clicked:
-| [Country Selector ▼]  [Days Input] [✓] [✗]              |
-```
-
-#### 2e. Update Save Mutation
-
-After saving/updating the leave type, sync country defaults:
-
-```typescript
-// After leave type save succeeds
-if (editingType?.id) {
-  // Get existing defaults
-  const { data: existing } = await supabase
-    .from("template_leave_type_country_defaults")
-    .select("id, country_code")
-    .eq("template_leave_type_id", editingType.id);
+const copyFromTemplates = async () => {
+  // Get office country
+  const { data: officeData } = await supabase
+    .from('offices')
+    .select('country')
+    .eq('id', office.id)
+    .single();
   
-  // Delete removed ones
-  const currentCodes = countryDefaults.map(c => c.country_code);
-  const toDelete = existing?.filter(e => !currentCodes.includes(e.country_code));
-  if (toDelete?.length) {
-    await supabase
-      .from("template_leave_type_country_defaults")
-      .delete()
-      .in("id", toDelete.map(d => d.id));
-  }
+  const countryCode = officeData?.country;
   
-  // Upsert current ones
-  for (const cd of countryDefaults) {
-    await supabase
-      .from("template_leave_type_country_defaults")
-      .upsert({
-        template_leave_type_id: editingType.id,
-        country_code: cd.country_code,
-        default_days: cd.default_days,
-      }, { onConflict: "template_leave_type_id,country_code" });
-  }
-}
-```
-
----
-
-### 3. Onboarding Integration
-
-**File: `src/components/onboarding/wizard/OfficesStep.tsx`**
-
-#### 3a. Fetch Templates with Country Defaults on Mount
-
-When the OfficesStep loads, fetch global templates with their country defaults:
-
-```typescript
-const [templateDefaults, setTemplateDefaults] = useState<Map<string, Map<string, number>>>(new Map());
-
-useEffect(() => {
-  const fetchTemplates = async () => {
-    const { data } = await supabase
-      .from('template_leave_types')
-      .select(`
-        name,
-        default_days,
-        country_defaults:template_leave_type_country_defaults(country_code, default_days)
-      `)
-      .is('country_code', null)
-      .eq('is_active', true);
-    
-    if (data) {
-      const map = new Map<string, Map<string, number>>();
-      data.forEach(t => {
-        const countryMap = new Map<string, number>();
-        countryMap.set('_global', t.default_days || 0);
-        t.country_defaults?.forEach(cd => {
-          countryMap.set(cd.country_code, cd.default_days);
-        });
-        map.set(t.name, countryMap);
-      });
-      setTemplateDefaults(map);
-    }
-  };
-  fetchTemplates();
-}, []);
-```
-
-#### 3b. Update Leave Types When Office Country Changes
-
-When an office's country is changed (via address selection), update its leave type defaults:
-
-```typescript
-const handleAddressValueChange = (index: number, addressValue: AddressValue) => {
-  setOffices(offices.map((office, i) => {
-    if (i !== index) return office;
-    
-    const countryCode = addressValue.country;
-    
-    // Update leave types with country-specific defaults
-    const updatedLeaveTypes = (office.leave_types || []).map(lt => {
-      const templateMap = templateDefaults.get(lt.name);
-      if (!templateMap) return lt;
-      
-      // Use country-specific default if available, otherwise global
-      const countryDefault = templateMap.get(countryCode);
-      const globalDefault = templateMap.get('_global');
-      
-      return {
-        ...lt,
-        default_days: countryDefault ?? globalDefault ?? lt.default_days,
-      };
-    });
+  // Fetch templates WITH country defaults
+  const { data: templates } = await supabase
+    .from('template_leave_types')
+    .select(`
+      *,
+      country_defaults:template_leave_type_country_defaults(
+        country_code, 
+        default_days
+      )
+    `)
+    .is('country_code', null)
+    .eq('is_active', true)
+    .order('sort_order');
+  
+  // Apply country-specific defaults
+  templates.map(t => {
+    const countryOverride = countryCode && t.country_defaults
+      ? t.country_defaults.find(cd => cd.country_code === countryCode)
+      : null;
     
     return {
-      ...office,
-      // ... existing address updates
-      leave_types: updatedLeaveTypes,
-    };
-  }));
-};
-```
-
-#### 3c. Initialize New Offices with Country Defaults
-
-Update `getDefaultOfficeLeaveTypes` and `addOffice` to consider templates:
-
-```typescript
-const getDefaultOfficeLeaveTypes = (countryCode?: string): OfficeLeaveTypeConfig[] => {
-  return getDefaultLeaveTypesConfig().map(lt => {
-    const templateMap = templateDefaults.get(lt.name);
-    let defaultDays = lt.default_days;
-    
-    if (templateMap && countryCode) {
-      const countryDefault = templateMap.get(countryCode);
-      const globalDefault = templateMap.get('_global');
-      defaultDays = countryDefault ?? globalDefault ?? lt.default_days;
-    }
-    
-    return {
-      name: lt.name,
-      category: lt.category,
-      default_days: defaultDays,
-      is_enabled: lt.is_enabled,
+      ...t,
+      default_days: countryOverride?.default_days ?? t.default_days,
     };
   });
 };
 ```
 
----
+### Fix 2: OfficesStep.tsx race condition
 
-### 4. Post-Onboarding Template Copy
-
-**File: `src/services/useOfficeLeaveTypes.ts`**
-
-Update `useCopyTemplatesToOffice` to apply country-specific defaults:
+Add a "customized" flag to track user changes:
 
 ```typescript
-// Fetch templates with country defaults
-const { data: templates } = await supabase
-  .from('template_leave_types')
-  .select(`
-    *,
-    country_defaults:template_leave_type_country_defaults(
-      country_code, 
-      default_days
-    )
-  `)
-  .eq('is_active', true)
-  .is('country_code', null)
-  .order('sort_order');
+const [userCustomizedLeaveTypes, setUserCustomizedLeaveTypes] = useState<Set<number>>(new Set());
 
-// When inserting, check for country override
-templates.map(t => {
-  const countryOverride = t.country_defaults?.find(
-    cd => cd.country_code === countryCode
-  );
-  
-  return {
-    office_id: officeId,
-    organization_id: currentOrg.id,
-    name: t.name,
-    // Apply country-specific default if available
-    default_days: countryOverride?.default_days ?? t.default_days,
-    // ... other fields
-  };
-});
+// Only update leave types if not customized by user
+useEffect(() => {
+  if (templateDefaults.size > 0 && offices.length > 0) {
+    setOffices(prevOffices => prevOffices.map((office, officeIndex) => {
+      if (userCustomizedLeaveTypes.has(officeIndex)) {
+        return office; // Preserve user customizations
+      }
+      // ... rest of logic
+    }));
+  }
+}, [templateDefaults]);
+```
+
+### Fix 3: Filter already-added countries
+
+```tsx
+// In TemplateLeaveTypesTab.tsx
+const availableCountries = COUNTRIES.filter(
+  c => !countryDefaults.some(cd => cd.country_code === c.code)
+);
 ```
 
 ---
 
-## Files to Modify
+## Visual Mockups
 
-| File | Change |
-|------|--------|
-| **Database Migration** | Create `template_leave_type_country_defaults` table with RLS |
-| `src/components/super-admin/templates/TemplateLeaveTypesTab.tsx` | Add country overrides UI section, fetch with join, upsert on save |
-| `src/components/onboarding/wizard/OfficesStep.tsx` | Fetch template defaults on mount, apply country-specific defaults when country changes |
-| `src/components/onboarding/wizard/LeaveTypesCustomizer.tsx` | Accept optional `countryCode` prop for dynamic defaults (minor update) |
-| `src/services/useOfficeLeaveTypes.ts` | Update `useCopyTemplatesToOffice` to use country overrides |
+### Improvement: Country Override with Flag in Table
 
----
-
-## User Experience Flow
-
-### Super Admin Flow
-1. Navigate to Templates → Leave Types
-2. Click edit on "Annual Leave" (Global)
-3. See global default of 20 days
-4. Click "+ Add Country Override"
-5. Select "Australia" and enter 20 days
-6. Select "United Kingdom" and enter 28 days
-7. Save changes
-8. Table now shows "20 (+ 2 🌍)" indicating 2 country overrides
-
-### Organization Onboarding Flow
-1. User reaches Offices step
-2. First office auto-filled with org address (e.g., Australia)
-3. Leave types automatically show Australian defaults (e.g., Annual Leave = 20 days)
-4. User adds second office in UK
-5. UK office leave types automatically show UK defaults (e.g., Annual Leave = 28 days)
-6. User can still manually adjust any values before saving
-
----
-
-## Visual Preview
-
-### Super Admin Edit Dialog
 ```text
-+------------------------------------------------------------+
-|                    Edit Leave Type                    [X]  |
-+------------------------------------------------------------+
-| Country: [Global (All Countries) ▼]  Category: [Paid ▼]   |
-|                                                            |
-| Name: [Annual Leave                                   ]    |
-| Description: [Standard vacation leave...              ]    |
-|                                                            |
-| +-- Default Settings ------------------------------------+ |
-| | Default Days: [20]  Min Advance: [2]  Max Neg: [0]    | |
-| +--------------------------------------------------------+ |
-|                                                            |
-| +-- Country-Specific Default Days -----------------------+ |
-| | Override the default days for specific countries       | |
-| |                                                        | |
-| | 🇦🇺 Australia           [20] days     [🗑️]            | |
-| | 🇬🇧 United Kingdom      [28] days     [🗑️]            | |
-| | 🇩🇪 Germany             [24] days     [🗑️]            | |
-| | 🇮🇳 India               [12] days     [🗑️]            | |
-| |                                                        | |
-| | [+ Add Country Override]                               | |
-| +--------------------------------------------------------+ |
-|                                                            |
-|                              [Cancel]  [Save Changes]      |
-+------------------------------------------------------------+
+| Name            | Category | Default Days           | Status | Actions
+|-----------------|----------|------------------------|--------|--------
+| Annual Leave    | Paid     | 20 days               | Active | [✏️][🗑️]
+|                 |          | 🇦🇺 +20 🇬🇧 +28 🇩🇪 +24 |        |
 ```
 
-### Onboarding Office Leave Types (Country-Aware)
+### Improvement: Onboarding Feedback
+
 ```text
-+-- Leave Settings (Australia Office) -----------------------+
++-- Leave Settings (Head Office - Australia) ----------------+
+| [ℹ️ Using Australian statutory leave entitlements]         |
+|                                                            |
 | Year Starts: [Jan 1 ▼]                        [Toggle ✓]  |
 |                                                            |
-| ✓ Annual Leave        [paid]    [20] days   <- AU default |
+| ✓ Annual Leave        [paid]    [20] days   🇦🇺            |
 | ✓ Sick/Personal Leave [paid]    [10] days                 |
-| ✓ Long Service Leave  [paid]    [ 0] days                 |
-| ✓ Substitute Leave    [paid]    [ 0] days                 |
-| ✓ Unpaid Leave        [unpaid]  [ 0] days                 |
-+------------------------------------------------------------+
-
-+-- Leave Settings (UK Office) ------------------------------+
-| Year Starts: [Apr 1 ▼]                        [Toggle ✓]  |
-|                                                            |
-| ✓ Annual Leave        [paid]    [28] days   <- UK default |
-| ✓ Sick/Personal Leave [paid]    [10] days                 |
-| ...                                                        |
 +------------------------------------------------------------+
 ```
+
