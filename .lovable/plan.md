@@ -1,170 +1,252 @@
 
-# Add 3-Dot Menu for Admin's Own Row with Leave Group Option
+# Add System Event Logs in Chat Conversations
 
 ## Overview
 
-Currently, the 3-dot action menu is hidden for the admin's own row (`!isSelf` condition). This change will show a menu for admins on their own row with a "Leave Group" option that properly handles admin transfer when required.
+Add activity logs that appear inline with chat messages, showing events like member additions, removals, role changes, and departures. These will display as centered, styled system messages similar to date separators.
 
 ---
 
-## UI Preview
+## Visual Design
 
 ```text
-Current State:
-+------------------------------------------+
-| [Avatar] Amit Ranjitkar  [Admin]         |
-|          amit@globalyhub.com             |
-+------------------------------------------+
-
-After Change:
-+------------------------------------------+
-| [Avatar] Amit Ranjitkar  [Admin]   [...] |  <-- 3-dots appear on hover
-|          amit@globalyhub.com             |
-+------------------------------------------+
-
-Dropdown Menu (for admin's own row):
-+------------------------+
-| [LogOut] Leave Group   |
-+------------------------+
++------------------------------------------------------------------+
+| ─────────────── Today ─────────────────                          |
+|                                                                  |
+| [Avatar] Amit:  Hello everyone!                    10:30 AM      |
+|                                                                  |
+|          ⚙️ Sarah Smith was added by Amit Ranjitkar              |
+|                                                                  |
+| [Avatar] Sarah: Thanks for adding me!              10:35 AM      |
+|                                                                  |
+|          👑 Sarah Smith was made an admin                         |
+|                                                                  |
+|          🚪 John Doe left the group                               |
+|                                                                  |
+|          ❌ Mike was removed by Amit Ranjitkar                    |
+|                                                                  |
++------------------------------------------------------------------+
 ```
 
-**Behavior:**
-- If there are 2+ admins: Leaves immediately (with confirmation)
-- If sole admin: Opens Transfer Admin Dialog to select new admin before leaving
+**Event Types:**
+- `member_added` - "Sarah Smith was added by Amit Ranjitkar"
+- `member_removed` - "John Doe was removed by Amit Ranjitkar"
+- `member_left` - "John Doe left the group"
+- `admin_added` - "Sarah Smith was made an admin"
+- `admin_removed` - "Sarah Smith is no longer an admin"
 
 ---
 
-## Implementation
+## Database Schema Changes
 
-### File: `src/components/chat/ChatRightPanelEnhanced.tsx`
+### 1. Add `system_event` content type to chat_messages
 
-#### 1. Update dropdown visibility condition (line 708)
+The `content_type` column already exists - we'll add a new value `'system_event'`.
 
-**Current:**
-```typescript
-{canManageMembers && !isSelf && (
+### 2. Add `system_event_data` JSONB column for event metadata
+
+```sql
+ALTER TABLE chat_messages 
+ADD COLUMN system_event_data JSONB DEFAULT NULL;
 ```
 
-**New:**
+**Event Data Structure:**
 ```typescript
-{(canManageMembers || (isSelf && isGroupAdmin)) && (
+interface SystemEventData {
+  event_type: 'member_added' | 'member_removed' | 'member_left' | 'admin_added' | 'admin_removed';
+  target_employee_id: string;
+  target_name: string;
+  actor_employee_id?: string;  // Who performed the action
+  actor_name?: string;
+}
 ```
 
-This shows the menu for:
-- Admins viewing other members (existing)
-- Admins viewing their own row (new)
+---
 
-#### 2. Add context-aware dropdown content
+## TypeScript Type Updates
 
-Update the DropdownMenuContent to show different actions based on `isSelf`:
+### File: `src/types/chat.ts`
 
 ```typescript
-<DropdownMenuContent align="end" className="bg-popover border shadow-lg z-50">
-  {/* View Profile - always shown for non-self */}
-  {!isSelf && (
-    <DropdownMenuItem onClick={() => handleViewMember(member.employee_id)}>
-      <UserCircle className="h-4 w-4 mr-2" />
-      View Profile
-    </DropdownMenuItem>
-  )}
-  
-  {/* Admin management actions - only for non-self */}
-  {!isSelf && canManageMembers && (
-    <>
-      {isAdmin ? (
-        <DropdownMenuItem onClick={() => handleDemote(member)}>
-          <UserMinus className="h-4 w-4 mr-2" />
-          Remove Admin
-        </DropdownMenuItem>
-      ) : (
-        <DropdownMenuItem onClick={() => handlePromote(member)}>
-          <Crown className="h-4 w-4 mr-2" />
-          Make Admin
-        </DropdownMenuItem>
-      )}
-      <DropdownMenuItem 
-        onClick={() => handleRemove(member)}
-        className="text-destructive focus:text-destructive"
-      >
-        <UserMinus className="h-4 w-4 mr-2" />
-        {spaceId ? "Remove from Space" : "Remove from Group"}
-      </DropdownMenuItem>
-    </>
-  )}
-  
-  {/* Leave Group - only for self (group admin) */}
-  {isSelf && isGroupAdmin && (
-    <DropdownMenuItem 
-      onClick={handleAdminLeaveGroup}
-      className="text-destructive focus:text-destructive"
-    >
-      <LogOut className="h-4 w-4 mr-2" />
-      Leave Group
-    </DropdownMenuItem>
-  )}
-</DropdownMenuContent>
+// Add new event data type
+export interface SystemEventData {
+  event_type: 'member_added' | 'member_removed' | 'member_left' | 'admin_added' | 'admin_removed';
+  target_employee_id: string;
+  target_name: string;
+  actor_employee_id?: string;
+  actor_name?: string;
+}
+
+// Update ChatMessage interface
+export interface ChatMessage {
+  // ... existing fields
+  content_type: 'text' | 'file' | 'image' | 'call_log' | 'system_event';  // Add system_event
+  system_event_data?: SystemEventData;  // Add new field
+}
 ```
 
-#### 3. Add handler function for admin leaving group
+---
 
-Add a new handler function around line 430:
+## New Component: SystemEventMessage
+
+### File: `src/components/chat/SystemEventMessage.tsx`
+
+A centered, styled component that displays system events:
 
 ```typescript
-// Handle group admin leave - check if transfer is needed
-const handleAdminLeaveGroup = () => {
-  if (canGroupAdminLeaveDirectly) {
-    // 2+ admins exist, can leave directly (show confirmation)
-    setShowLeaveConfirm(true);
-  } else {
-    // Sole admin, must transfer first
-    setShowTransferGroupAdminDialog(true);
+interface SystemEventMessageProps {
+  eventData: SystemEventData;
+  timestamp: string;
+}
+
+const SystemEventMessage = ({ eventData, timestamp }: SystemEventMessageProps) => {
+  // Returns centered message with appropriate icon
+  // - UserPlus for member_added
+  // - UserMinus for member_removed
+  // - LogOut for member_left
+  // - Crown for admin_added/removed
+};
+```
+
+**Styling:**
+- Centered text with muted styling
+- Small icon prefix matching event type
+- Subtle background (similar to date separators)
+- Timestamp on hover or inline
+
+---
+
+## Service Hook Updates
+
+### File: `src/services/useChat.ts`
+
+Update mutation hooks to insert system event messages after performing their actions:
+
+### 1. `useAddGroupMembers` - Insert "member_added" event
+
+```typescript
+// After inserting members, create system event message
+for (const empId of employeeIds) {
+  const { data: emp } = await supabase
+    .from('employees')
+    .select('profiles:user_id(full_name)')
+    .eq('id', empId)
+    .single();
+
+  await supabase.from('chat_messages').insert({
+    organization_id: currentOrg.id,
+    conversation_id: conversationId,
+    sender_id: currentEmployee.id,
+    content: `${emp?.profiles?.full_name} was added`,
+    content_type: 'system_event',
+    system_event_data: {
+      event_type: 'member_added',
+      target_employee_id: empId,
+      target_name: emp?.profiles?.full_name || 'Unknown',
+      actor_employee_id: currentEmployee.id,
+      actor_name: currentEmployee.profiles?.full_name
+    }
+  });
+}
+```
+
+### 2. `useRemoveGroupMember` - Insert "member_removed" event
+
+### 3. `useLeaveConversation` - Insert "member_left" event
+
+### 4. `useUpdateGroupMemberRole` - Insert "admin_added" or "admin_removed" event
+
+---
+
+## UI Updates
+
+### File: `src/components/chat/ConversationView.tsx`
+
+Update message rendering to handle system events:
+
+```typescript
+{dateMessages.map((message, index) => {
+  // Check if this is a system event
+  if (message.content_type === 'system_event') {
+    return (
+      <SystemEventMessage
+        key={message.id}
+        eventData={message.system_event_data!}
+        timestamp={message.created_at}
+      />
+    );
+  }
+
+  // Regular message rendering...
+  return (
+    <MessageBubble ... />
+  );
+})}
+```
+
+### Update `shouldGroupMessages` function
+
+System events should break message grouping:
+
+```typescript
+const shouldGroupMessages = (currentMsg: ChatMessage, prevMsg: ChatMessage | null): boolean => {
+  if (!prevMsg) return false;
+  if (currentMsg.content_type === 'system_event' || prevMsg.content_type === 'system_event') return false;
+  // ... rest of logic
+};
+```
+
+---
+
+## Files to Create/Modify
+
+| File | Action | Description |
+|------|--------|-------------|
+| Database migration | Create | Add `system_event_data` JSONB column |
+| `src/types/chat.ts` | Modify | Add `SystemEventData` interface, update `content_type` |
+| `src/components/chat/SystemEventMessage.tsx` | Create | New component for rendering events |
+| `src/services/useChat.ts` | Modify | Add event logging to member management hooks |
+| `src/components/chat/ConversationView.tsx` | Modify | Handle `system_event` content type in rendering |
+
+---
+
+## Technical Details
+
+### Event Icons Mapping
+```typescript
+const eventIcons = {
+  member_added: UserPlus,
+  member_removed: UserMinus,
+  member_left: LogOut,
+  admin_added: Crown,
+  admin_removed: ShieldOff,
+};
+```
+
+### Message Text Templates
+```typescript
+const getEventText = (data: SystemEventData) => {
+  switch (data.event_type) {
+    case 'member_added':
+      return `${data.target_name} was added by ${data.actor_name}`;
+    case 'member_removed':
+      return `${data.target_name} was removed by ${data.actor_name}`;
+    case 'member_left':
+      return `${data.target_name} left the group`;
+    case 'admin_added':
+      return `${data.target_name} was made an admin`;
+    case 'admin_removed':
+      return `${data.target_name} is no longer an admin`;
   }
 };
 ```
 
 ---
 
-## User Flow
+## Security Considerations
 
-```text
-Admin clicks 3-dots on their own row
-          |
-          v
-    [Leave Group]
-          |
-          v
-   Are there 2+ admins?
-     /         \
-   Yes          No
-    |            |
-    v            v
- Leave       Transfer Admin
- Confirm     Dialog opens
- Dialog      (select new admin)
-    |            |
-    v            v
-  Leaves      Transfers admin
-  group       then leaves
-```
+1. **RLS Policies**: System event messages follow the same RLS as regular messages - only conversation participants can see them
 
----
+2. **Sender ID**: System events use the actor (person performing action) as `sender_id` to maintain data integrity
 
-## Files to Modify
-
-| File | Lines | Change |
-|------|-------|--------|
-| `src/components/chat/ChatRightPanelEnhanced.tsx` | ~708 | Update visibility condition |
-| `src/components/chat/ChatRightPanelEnhanced.tsx` | ~720-743 | Restructure dropdown content |
-| `src/components/chat/ChatRightPanelEnhanced.tsx` | ~430 | Add `handleAdminLeaveGroup` function |
-
----
-
-## Technical Details
-
-**Existing Components Used:**
-- `TransferGroupAdminDialog` - already implemented for admin transfer
-- `showLeaveConfirm` AlertDialog - already handles leave confirmation
-- `canGroupAdminLeaveDirectly` - already computed (true if 2+ admins)
-- `isGroupAdmin` - already computed from participant role
-
-**No new components needed** - this leverages existing dialogs and state management.
+3. **No Editing/Deletion**: System events should not be editable or deletable - handled in MessageBubble by checking `content_type`
