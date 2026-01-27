@@ -39,6 +39,8 @@ import {
   LogOut,
   Info,
   Star,
+  PanelRight,
+  PanelRightClose,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useChatFavorites, useToggleFavorite } from "@/hooks/useChatFavorites";
@@ -102,6 +104,8 @@ interface ConversationViewProps {
   highlightMessageId?: string;
   onOpenThread?: (message: ChatMessage) => void;
   activeThreadMessage?: ChatMessage | null;
+  isFullWidth?: boolean;
+  onToggleFullWidth?: () => void;
 }
 
 // Check if two messages should be grouped (same sender within 5 minutes)
@@ -124,6 +128,8 @@ const ConversationView = ({
   highlightMessageId,
   onOpenThread,
   activeThreadMessage: externalActiveThreadMessage,
+  isFullWidth,
+  onToggleFullWidth,
 }: ConversationViewProps) => {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<{ addFiles: (files: File[]) => void } | null>(null);
@@ -803,6 +809,28 @@ const ConversationView = ({
                   </TooltipTrigger>
                   <TooltipContent>Search messages</TooltipContent>
                 </Tooltip>
+
+                {onToggleFullWidth && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9"
+                        onClick={onToggleFullWidth}
+                      >
+                        {isFullWidth ? (
+                          <PanelRight className="h-4 w-4" />
+                        ) : (
+                          <PanelRightClose className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {isFullWidth ? "Show details panel" : "Expand view"}
+                    </TooltipContent>
+                  </Tooltip>
+                )}
               </div>
             )}
           </div>

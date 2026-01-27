@@ -23,6 +23,7 @@ const Chat = () => {
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
   const [recentChats, setRecentChats] = useState<ActiveChat[]>([]);
   const [activeThreadMessage, setActiveThreadMessage] = useState<ChatMessage | null>(null);
+  const [isFullWidth, setIsFullWidth] = useState(false);
   const isMobile = useIsMobile();
 
   // Keyboard shortcuts
@@ -85,6 +86,8 @@ const Chat = () => {
           highlightMessageId={highlightMessageId}
           onOpenThread={setActiveThreadMessage}
           activeThreadMessage={activeThreadMessage}
+          isFullWidth={isFullWidth}
+          onToggleFullWidth={() => setIsFullWidth(prev => !prev)}
         />
       );
     }
@@ -100,7 +103,8 @@ const Chat = () => {
   const showRightPanelCondition = activeChat && 
     activeChat.type !== 'mentions' && 
     activeChat.type !== 'starred' && 
-    !isMobile;
+    !isMobile &&
+    !isFullWidth;
 
   // Mobile view
   if (isMobile) {
