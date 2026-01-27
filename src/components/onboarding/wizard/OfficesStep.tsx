@@ -250,39 +250,101 @@ export function OfficesStep({
   const [isPersisting, setIsPersisting] = useState(false);
   const [expandedOffice, setExpandedOffice] = useState<string>('office-0');
   const [downloadingQR, setDownloadingQR] = useState<string | null>(null);
+  
+  // Template defaults: Map<leaveName, Map<countryCode, defaultDays>> - '_global' key for global default
+  const [templateDefaults, setTemplateDefaults] = useState<Map<string, Map<string, number>>>(new Map());
 
   // Check which features are enabled globally
   const hasAttendance = enabledFeatures.includes('attendance');
   const hasLeave = enabledFeatures.includes('leave');
 
-  // Get default leave types config for a new office
-  const getDefaultOfficeLeaveTypes = (): OfficeLeaveTypeConfig[] => {
-    return getDefaultLeaveTypesConfig().map(lt => ({
-      name: lt.name,
-      category: lt.category,
-      default_days: lt.default_days,
-      is_enabled: lt.is_enabled,
-    }));
+  // Fetch template leave types with country defaults on mount
+  useEffect(() => {
+    const fetchTemplateDefaults = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('template_leave_types')
+          .select(`
+            name,
+            default_days,
+            country_defaults:template_leave_type_country_defaults(country_code, default_days)
+          `)
+          .is('country_code', null)
+          .eq('is_active', true);
+        
+        if (error) {
+          console.error('Error fetching template defaults:', error);
+          return;
+        }
+        
+        if (data) {
+          const map = new Map<string, Map<string, number>>();
+          data.forEach((t: any) => {
+            const countryMap = new Map<string, number>();
+            countryMap.set('_global', t.default_days || 0);
+            t.country_defaults?.forEach((cd: { country_code: string; default_days: number }) => {
+              countryMap.set(cd.country_code, cd.default_days);
+            });
+            map.set(t.name, countryMap);
+          });
+          setTemplateDefaults(map);
+        }
+      } catch (err) {
+        console.error('Error fetching template defaults:', err);
+      }
+    };
+    
+    if (hasLeave) {
+      fetchTemplateDefaults();
+    }
+  }, [hasLeave]);
+
+  // Get default leave types config for a new office, applying country-specific defaults if available
+  const getDefaultOfficeLeaveTypes = (countryCode?: string): OfficeLeaveTypeConfig[] => {
+    return getDefaultLeaveTypesConfig().map(lt => {
+      let defaultDays = lt.default_days;
+      
+      // Check if we have template defaults for this leave type
+      const templateMap = templateDefaults.get(lt.name);
+      if (templateMap) {
+        // Use country-specific default if available, otherwise use global template default
+        if (countryCode && templateMap.has(countryCode)) {
+          defaultDays = templateMap.get(countryCode)!;
+        } else if (templateMap.has('_global')) {
+          defaultDays = templateMap.get('_global')!;
+        }
+      }
+      
+      return {
+        name: lt.name,
+        category: lt.category,
+        default_days: defaultDays,
+        is_enabled: lt.is_enabled,
+      };
+    });
   };
 
   // Initialize offices with defaults
   const getInitialOffices = (): Office[] => {
     if (initialOffices.length > 0 && initialOffices[0].address) {
-      return initialOffices.map(o => ({
-        ...o,
-        attendance_enabled: o.attendance_enabled ?? hasAttendance,
-        leave_enabled: o.leave_enabled ?? hasLeave,
-        timezone: o.timezone || getTimezoneForCountry(o.address_components?.country_code),
-        day_schedules: o.day_schedules || convertToDaySchedules(
-          (o as any).work_days, 
-          (o as any).work_start_time, 
-          (o as any).work_end_time
-        ),
-        public_holidays_enabled: o.public_holidays_enabled ?? true,
-        leave_year_start_month: o.leave_year_start_month || 1,
-        leave_year_start_day: o.leave_year_start_day || 1,
-        leave_types: o.leave_types || getDefaultOfficeLeaveTypes(),
-      }));
+      return initialOffices.map(o => {
+        const countryCode = o.address_components?.country_code;
+        return {
+          ...o,
+          attendance_enabled: o.attendance_enabled ?? hasAttendance,
+          leave_enabled: o.leave_enabled ?? hasLeave,
+          timezone: o.timezone || getTimezoneForCountry(countryCode),
+          day_schedules: o.day_schedules || convertToDaySchedules(
+            (o as any).work_days, 
+            (o as any).work_start_time, 
+            (o as any).work_end_time
+          ),
+          public_holidays_enabled: o.public_holidays_enabled ?? true,
+          leave_year_start_month: o.leave_year_start_month || 1,
+          leave_year_start_day: o.leave_year_start_day || 1,
+          leave_types: o.leave_types || getDefaultOfficeLeaveTypes(countryCode),
+        };
+      });
     }
     
     const orgAddress = organizationInfo?.business_address || '';
@@ -307,7 +369,7 @@ export function OfficesStep({
       public_holidays_enabled: true,
       leave_year_start_month: 1,
       leave_year_start_day: 1,
-      leave_types: getDefaultOfficeLeaveTypes(),
+      leave_types: getDefaultOfficeLeaveTypes(countryCode),
     }];
   };
 
@@ -319,6 +381,21 @@ export function OfficesStep({
       setOffices(getInitialOffices());
     }
   }, [organizationInfo]);
+  
+  // Re-apply template defaults when they are loaded, but only if leave types haven't been manually customized
+  useEffect(() => {
+    if (templateDefaults.size > 0 && offices.length > 0) {
+      setOffices(prevOffices => prevOffices.map(office => {
+        // Only update if leave_types match the old defaults (not yet customized)
+        const countryCode = office.address_components?.country_code;
+        const updatedLeaveTypes = getDefaultOfficeLeaveTypes(countryCode);
+        return {
+          ...office,
+          leave_types: updatedLeaveTypes,
+        };
+      }));
+    }
+  }, [templateDefaults]);
 
   const addOffice = () => {
     const newIndex = offices.length;
@@ -332,7 +409,7 @@ export function OfficesStep({
       public_holidays_enabled: true,
       leave_year_start_month: 1,
       leave_year_start_day: 1,
-      leave_types: getDefaultOfficeLeaveTypes(),
+      leave_types: getDefaultOfficeLeaveTypes(), // No country yet
     }]);
     setExpandedOffice(`office-${newIndex}`);
   };
@@ -428,7 +505,14 @@ export function OfficesStep({
       
       // Auto-update timezone when country changes
       const countryCode = addressValue.country;
+      const previousCountryCode = office.address_components?.country_code;
       const newTimezone = countryCode ? getTimezoneForCountry(countryCode) : office.timezone;
+      
+      // Update leave types with country-specific defaults when country changes
+      let updatedLeaveTypes = office.leave_types;
+      if (countryCode !== previousCountryCode && hasLeave) {
+        updatedLeaveTypes = getDefaultOfficeLeaveTypes(countryCode);
+      }
       
       return {
         ...office,
@@ -443,6 +527,7 @@ export function OfficesStep({
           lng: addressValue.lng,
         },
         timezone: newTimezone,
+        leave_types: updatedLeaveTypes,
       };
     }));
   };

@@ -9425,6 +9425,41 @@ export type Database = {
         }
         Relationships: []
       }
+      template_leave_type_country_defaults: {
+        Row: {
+          country_code: string
+          created_at: string | null
+          default_days: number
+          id: string
+          template_leave_type_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          country_code: string
+          created_at?: string | null
+          default_days?: number
+          id?: string
+          template_leave_type_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          country_code?: string
+          created_at?: string | null
+          default_days?: number
+          id?: string
+          template_leave_type_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_leave_type_country_default_template_leave_type_id_fkey"
+            columns: ["template_leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "template_leave_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       template_leave_types: {
         Row: {
           applies_to_employment_types: string[] | null
