@@ -11,15 +11,18 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Camera, X, Loader2, UserPlus, UserMinus, Search } from "lucide-react";
-import { useUpdateConversation, useConversationParticipants } from "@/services/useChat";
+import { 
+  useUpdateConversation, 
+  useConversationParticipants,
+  useAddGroupMembers,
+  useRemoveGroupMember
+} from "@/services/useChat";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useEmployees } from "@/services/useEmployees";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { showErrorToast } from "@/lib/errorUtils";
-import { cn } from "@/lib/utils";
-import { useQueryClient } from "@tanstack/react-query";
 
 interface EditGroupChatDialogProps {
   open: boolean;
@@ -52,7 +55,8 @@ const EditGroupChatDialog = ({
   const { data: employeesData = [] } = useEmployees();
   const { data: participants = [] } = useConversationParticipants(conversationId);
   const updateConversation = useUpdateConversation();
-  const queryClient = useQueryClient();
+  const addGroupMembers = useAddGroupMembers();
+  const removeGroupMember = useRemoveGroupMember();
 
   // Type assertion to handle Supabase type inference issues
   const employees = (employeesData as unknown) as Array<{
@@ -120,23 +124,18 @@ const EditGroupChatDialog = ({
   };
 
   const handleAddMember = async (employeeId: string) => {
-    if (!currentOrg?.id) return;
+    const employee = employees.find(e => e.id === employeeId);
+    const employeeName = employee?.profiles?.full_name || 'Unknown';
     
     try {
       setAddingMember(employeeId);
       
-      const { error } = await supabase
-        .from('chat_participants')
-        .insert({
-          conversation_id: conversationId,
-          employee_id: employeeId,
-          organization_id: currentOrg.id
-        });
+      await addGroupMembers.mutateAsync({
+        conversationId,
+        employeeIds: [employeeId],
+        employeeNames: [employeeName]
+      });
 
-      if (error) throw error;
-
-      queryClient.invalidateQueries({ queryKey: ['chat-conversation-participants', conversationId] });
-      queryClient.invalidateQueries({ queryKey: ['chat-conversations'] });
       toast.success("Member added");
     } catch (error) {
       showErrorToast(error, "Failed to add member", {
@@ -150,19 +149,18 @@ const EditGroupChatDialog = ({
   };
 
   const handleRemoveMember = async (employeeId: string) => {
+    const participant = participants.find(p => p.employee_id === employeeId);
+    const employeeName = participant?.employee?.profiles?.full_name || 'Unknown';
+    
     try {
       setRemovingMember(employeeId);
       
-      const { error } = await supabase
-        .from('chat_participants')
-        .delete()
-        .eq('conversation_id', conversationId)
-        .eq('employee_id', employeeId);
+      await removeGroupMember.mutateAsync({
+        conversationId,
+        employeeId,
+        employeeName
+      });
 
-      if (error) throw error;
-
-      queryClient.invalidateQueries({ queryKey: ['chat-conversation-participants', conversationId] });
-      queryClient.invalidateQueries({ queryKey: ['chat-conversations'] });
       toast.success("Member removed");
     } catch (error) {
       showErrorToast(error, "Failed to remove member", {
