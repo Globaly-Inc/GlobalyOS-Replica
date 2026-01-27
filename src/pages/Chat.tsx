@@ -7,6 +7,7 @@ import NewChatDialog from "@/components/chat/NewChatDialog";
 import CreateSpaceDialog from "@/components/chat/CreateSpaceDialog";
 import MentionsView from "@/components/chat/MentionsView";
 import StarredView from "@/components/chat/StarredView";
+import UnreadView from "@/components/chat/UnreadView";
 import MobileChatHome from "@/components/chat/MobileChatHome";
 import QuickSwitcher from "@/components/chat/QuickSwitcher";
 import ThreadView from "@/components/chat/ThreadView";
@@ -69,6 +70,10 @@ const Chat = () => {
   };
 
   const renderMainContent = () => {
+    if (activeChat?.type === 'unread') {
+      return <UnreadView onNavigateToChat={handleSelectChat} />;
+    }
+
     if (activeChat?.type === 'mentions') {
       return <MentionsView onNavigateToChat={handleSelectChat} />;
     }
@@ -101,6 +106,7 @@ const Chat = () => {
   const showRightPanelCondition = activeChat && 
     activeChat.type !== 'mentions' && 
     activeChat.type !== 'starred' && 
+    activeChat.type !== 'unread' &&
     !isMobile;
 
   // Mobile view
@@ -113,6 +119,10 @@ const Chat = () => {
             onNewChat={() => setNewChatOpen(true)}
             onNewSpace={() => setCreateSpaceOpen(true)}
           />
+        ) : activeChat.type === 'unread' ? (
+          <div className="flex-1 overflow-hidden">
+            <UnreadView onNavigateToChat={handleSelectChat} onBack={handleBack} />
+          </div>
         ) : activeChat.type === 'mentions' ? (
           <div className="flex-1 overflow-hidden">
             <MentionsView onNavigateToChat={handleSelectChat} onBack={handleBack} />

@@ -38,9 +38,10 @@ import {
   Trash2,
   Megaphone,
   LogOut,
+  MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useConversations, useSpaces, useUnreadCounts, useCreateConversation, useArchiveSpace, useDeleteSpace, useLeaveSpace } from "@/services/useChat";
+import { useConversations, useSpaces, useUnreadCounts, useCreateConversation, useArchiveSpace, useDeleteSpace, useLeaveSpace, useTotalUnreadCount } from "@/services/useChat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -70,6 +71,8 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
   const [browseSpacesOpen, setBrowseSpacesOpen] = useState(false);
   const [manageSpacesOpen, setManageSpacesOpen] = useState(false);
   const [deleteConfirmSpace, setDeleteConfirmSpace] = useState<ChatSpace | null>(null);
+  const [prevUnreadCount, setPrevUnreadCount] = useState(0);
+  const [hasNewMessages, setHasNewMessages] = useState(false);
   
   const { data: conversations = [], isLoading: loadingConversations } = useConversations();
   const { data: spaces = [], isLoading: loadingSpaces, error: spacesError } = useSpaces();
@@ -82,6 +85,17 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
   const archiveSpace = useArchiveSpace();
   const deleteSpace = useDeleteSpace();
   const leaveSpaceMutation = useLeaveSpace();
+  const { data: totalUnread = 0 } = useTotalUnreadCount();
+
+  // Detect when new messages arrive for pulsing effect
+  useEffect(() => {
+    if (totalUnread > prevUnreadCount && prevUnreadCount > 0) {
+      setHasNewMessages(true);
+      const timer = setTimeout(() => setHasNewMessages(false), 3000);
+      return () => clearTimeout(timer);
+    }
+    setPrevUnreadCount(totalUnread);
+  }, [totalUnread, prevUnreadCount]);
 
   // Fetch online statuses for all conversation participants
   useEffect(() => {
@@ -339,6 +353,28 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
             Shortcuts
           </p>
           <div className="space-y-0.5">
+            <button
+              onClick={() => onSelectChat({ type: 'unread', id: 'unread', name: 'Unread' })}
+              className={cn(
+                "flex items-center gap-2.5 w-full px-2 py-1.5 rounded-md text-sm transition-colors",
+                activeChat?.type === 'unread'
+                  ? "bg-primary/10 text-primary font-medium border-l-2 border-primary"
+                  : "hover:bg-muted/60 text-foreground/80"
+              )}
+            >
+              <div className="relative">
+                <MessageCircle className="h-4 w-4" />
+                {hasNewMessages && totalUnread > 0 && (
+                  <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-destructive animate-pulse-dot" />
+                )}
+              </div>
+              Unread
+              {totalUnread > 0 && (
+                <Badge variant="destructive" className="ml-auto h-5 min-w-[20px] px-1.5 text-[10px]">
+                  {totalUnread > 99 ? '99+' : totalUnread}
+                </Badge>
+              )}
+            </button>
             <button
               onClick={() => onSelectChat({ type: 'mentions', id: 'mentions', name: 'Mentions' })}
               className={cn(

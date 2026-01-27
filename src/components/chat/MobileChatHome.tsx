@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Plus, AtSign, Star, Hash, Users, MessageSquarePlus } from "lucide-react";
+import { Search, Plus, AtSign, Star, Hash, Users, MessageSquarePlus, MessageCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { format, isToday, isYesterday } from "date-fns";
 import type { ActiveChat, ChatConversation, ChatSpace } from "@/types/chat";
-import { useConversations, useSpaces, useOnlinePresence } from "@/services/useChat";
+import { useConversations, useSpaces, useOnlinePresence, useTotalUnreadCount } from "@/services/useChat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import {
   DropdownMenu,
@@ -28,6 +28,7 @@ const MobileChatHome = ({ onSelectChat, onNewChat, onNewSpace }: MobileChatHomeP
   const { data: spaces = [] } = useSpaces();
   const { data: currentEmployee } = useCurrentEmployee();
   const { data: onlineUsers = [] } = useOnlinePresence();
+  const { data: totalUnread = 0 } = useTotalUnreadCount();
 
   const isUserOnline = (employeeId: string) => {
     return onlineUsers.some(u => u.employee_id === employeeId && u.is_online);
@@ -166,6 +167,18 @@ const MobileChatHome = ({ onSelectChat, onNewChat, onNewSpace }: MobileChatHomeP
         {/* Shortcuts - Compact */}
         <div className="px-3 py-2 border-b border-border/20">
           <div className="flex gap-2">
+            <button
+              onClick={() => onSelectChat({ type: 'unread', id: 'unread', name: 'Unread' })}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-destructive/10 hover:bg-destructive/15 active:bg-destructive/20 text-destructive text-sm font-medium transition-colors relative"
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              Unread
+              {totalUnread > 0 && (
+                <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-destructive text-[10px] text-destructive-foreground font-bold flex items-center justify-center">
+                  {totalUnread > 99 ? '99+' : totalUnread}
+                </span>
+              )}
+            </button>
             <button
               onClick={() => onSelectChat({ type: 'mentions', id: 'mentions', name: 'Mentions' })}
               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary/10 hover:bg-primary/15 active:bg-primary/20 text-primary text-sm font-medium transition-colors"
