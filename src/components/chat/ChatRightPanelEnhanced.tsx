@@ -79,17 +79,21 @@ import {
   useLeaveSpace,
   useUpdateSpaceNotification,
   useUpdateSpace,
+  useUpdateGroupMemberRole,
+  useRemoveGroupMember,
 } from "@/services/useChat";
 import { useChatFavorites, useToggleFavorite } from "@/hooks/useChatFavorites";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { supabase } from "@/integrations/supabase/client";
-import type { ActiveChat, ChatSpace, ChatSpaceMember } from "@/types/chat";
+import type { ActiveChat, ChatSpace, ChatSpaceMember, ChatParticipant } from "@/types/chat";
 import { cn } from "@/lib/utils";
 import SpaceMembersDialog from "./SpaceMembersDialog";
 import AddSpaceMembersDialog from "./AddSpaceMembersDialog";
+import AddGroupMembersDialog from "./AddGroupMembersDialog";
 import AddResourceDialog from "./AddResourceDialog";
 import SpaceSettingsDialog from "./SpaceSettingsDialog";
 import TransferAdminDialog from "./TransferAdminDialog";
+import TransferGroupAdminDialog from "./TransferGroupAdminDialog";
 
 interface ChatRightPanelEnhancedProps {
   activeChat: ActiveChat;
@@ -142,6 +146,8 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showTransferAdminDialog, setShowTransferAdminDialog] = useState(false);
+  const [showTransferGroupAdminDialog, setShowTransferGroupAdminDialog] = useState(false);
+  const [showAddGroupMembersDialog, setShowAddGroupMembersDialog] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   
@@ -152,6 +158,8 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
   const { data: currentEmployee } = useCurrentEmployee();
   const updateRole = useUpdateSpaceMemberRole();
   const removeMember = useRemoveSpaceMember();
+  const updateGroupRole = useUpdateGroupMemberRole();
+  const removeGroupMember = useRemoveGroupMember();
   const muteConversation = useMuteConversation();
   const leaveConversation = useLeaveConversation();
   const leaveSpace = useLeaveSpace();
@@ -361,11 +369,27 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
   const isSpaceAdmin = currentMembership?.role === 'admin';
   const spaceNotificationSetting = currentMembership?.notification_setting || 'all';
   
-  // Count admins and get non-admin members for transfer
+  // Check if current user is a group admin
+  const currentGroupMembership = conversationParticipants.find(
+    p => p.employee_id === currentEmployee?.id
+  );
+  const isGroupAdmin = activeChat.isGroup && currentGroupMembership?.role === 'admin';
+  
+  // Combined admin check for UI
+  const canManageMembers = isSpaceAdmin || isGroupAdmin;
+  
+  // Count admins and get non-admin members for transfer (space)
   const adminCount = spaceMembers.filter(m => m.role === 'admin').length;
   const nonAdminMembers = spaceMembers.filter(m => 
     m.role !== 'admin' && m.employee_id !== currentEmployee?.id
   ) as ChatSpaceMember[];
+  
+  // Group admin counts (for leave logic)
+  const groupAdminCount = conversationParticipants.filter(p => p.role === 'admin').length;
+  const nonAdminGroupMembers = conversationParticipants.filter(
+    p => p.role !== 'admin' && p.employee_id !== currentEmployee?.id
+  ) as ChatParticipant[];
+  const canGroupAdminLeaveDirectly = groupAdminCount >= 2;
   
   // Can admin leave: either there are 2+ admins, or they transfer first
   const canAdminLeaveDirectly = adminCount >= 2;
@@ -390,7 +414,7 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
   const handleLeave = async () => {
     try {
       if (conversationId) {
-        await leaveConversation.mutateAsync(conversationId);
+        await leaveConversation.mutateAsync({ conversationId });
         onBack();
       } else if (spaceId) {
         await leaveSpace.mutateAsync(spaceId);
@@ -472,11 +496,19 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
   const handlePromote = async (member: any) => {
     const profile = member.employee?.profiles || member.employees?.profiles;
     try {
-      await updateRole.mutateAsync({
-        spaceId: spaceId!,
-        employeeId: member.employee_id,
-        role: 'admin'
-      });
+      if (spaceId) {
+        await updateRole.mutateAsync({
+          spaceId,
+          employeeId: member.employee_id,
+          role: 'admin'
+        });
+      } else if (conversationId) {
+        await updateGroupRole.mutateAsync({
+          conversationId,
+          employeeId: member.employee_id,
+          role: 'admin'
+        });
+      }
       toast.success(`${profile?.full_name || 'Member'} is now an admin`);
     } catch (error) {
       showErrorToast(error, "Failed to promote member");
@@ -486,11 +518,19 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
   const handleDemote = async (member: any) => {
     const profile = member.employee?.profiles || member.employees?.profiles;
     try {
-      await updateRole.mutateAsync({
-        spaceId: spaceId!,
-        employeeId: member.employee_id,
-        role: 'member'
-      });
+      if (spaceId) {
+        await updateRole.mutateAsync({
+          spaceId,
+          employeeId: member.employee_id,
+          role: 'member'
+        });
+      } else if (conversationId) {
+        await updateGroupRole.mutateAsync({
+          conversationId,
+          employeeId: member.employee_id,
+          role: 'member'
+        });
+      }
       toast.success(`${profile?.full_name || 'Member'} is now a regular member`);
     } catch (error) {
       showErrorToast(error, "Failed to change member role");
@@ -500,11 +540,19 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
   const handleRemove = async (member: any) => {
     const profile = member.employee?.profiles || member.employees?.profiles;
     try {
-      await removeMember.mutateAsync({
-        spaceId: spaceId!,
-        employeeId: member.employee_id
-      });
-      toast.success(`${profile?.full_name || 'Member'} has been removed from the space`);
+      if (spaceId) {
+        await removeMember.mutateAsync({
+          spaceId,
+          employeeId: member.employee_id
+        });
+        toast.success(`${profile?.full_name || 'Member'} has been removed from the space`);
+      } else if (conversationId) {
+        await removeGroupMember.mutateAsync({
+          conversationId,
+          employeeId: member.employee_id
+        });
+        toast.success(`${profile?.full_name || 'Member'} has been removed from the group`);
+      }
     } catch (error) {
       showErrorToast(error, "Failed to remove member");
     }
@@ -597,14 +645,18 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
                 <span className="text-xs text-muted-foreground font-normal">({memberCount})</span>
               </h4>
               <div className="flex items-center gap-1">
-                {isSpaceAdmin && (
+                {canManageMembers && (
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-6 w-6"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setShowAddMembersDialog(true);
+                      if (spaceId) {
+                        setShowAddMembersDialog(true);
+                      } else if (conversationId && activeChat.isGroup) {
+                        setShowAddGroupMembersDialog(true);
+                      }
                     }}
                   >
                     <Plus className="h-3.5 w-3.5 text-muted-foreground" />
@@ -652,8 +704,8 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
                         )}
                       </div>
                       
-                      {/* 3-dot menu - visible on hover for admins, cannot modify self */}
-                      {isSpaceAdmin && !isSelf && (
+                      {/* 3-dot menu - visible on hover for admins (space or group), cannot modify self */}
+                      {canManageMembers && !isSelf && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
@@ -686,7 +738,7 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
                               className="text-destructive focus:text-destructive"
                             >
                               <UserMinus className="h-4 w-4 mr-2" />
-                              Remove from Space
+                              {spaceId ? "Remove from Space" : "Remove from Group"}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -881,6 +933,30 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
             members={nonAdminMembers}
             onTransferComplete={() => {
               setShowTransferAdminDialog(false);
+              onBack();
+            }}
+          />
+        </>
+      )}
+
+      {/* Group Members Dialog */}
+      {conversationId && activeChat.isGroup && (
+        <>
+          <AddGroupMembersDialog
+            open={showAddGroupMembersDialog}
+            onOpenChange={setShowAddGroupMembersDialog}
+            conversationId={conversationId}
+            groupName={activeChat.name}
+            existingMemberIds={conversationParticipants.map(p => p.employee_id)}
+          />
+          <TransferGroupAdminDialog
+            open={showTransferGroupAdminDialog}
+            onOpenChange={setShowTransferGroupAdminDialog}
+            conversationId={conversationId}
+            groupName={activeChat.name}
+            members={conversationParticipants}
+            onTransferComplete={() => {
+              setShowTransferGroupAdminDialog(false);
               onBack();
             }}
           />

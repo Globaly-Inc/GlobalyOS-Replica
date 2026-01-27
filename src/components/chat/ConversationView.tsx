@@ -247,7 +247,7 @@ const ConversationView = ({
   const handleLeave = async () => {
     try {
       if (conversationId) {
-        await leaveConversation.mutateAsync(conversationId);
+        await leaveConversation.mutateAsync({ conversationId });
         onBack();
       } else if (spaceId) {
         await leaveSpace.mutateAsync(spaceId);
