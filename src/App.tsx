@@ -11,6 +11,7 @@ import { TimezoneProvider } from '@/hooks/useTimezone';
 import { useServiceWorkerUpdate } from '@/hooks/useServiceWorkerUpdate';
 import { UpdatePrompt } from '@/components/ui/UpdatePrompt';
 import { AppVersionBadge } from '@/components/ui/AppVersionBadge';
+import { NativeAppInitializer } from '@/components/NativeAppInitializer';
 import RouteTracker from '@/components/RouteTracker';
 import Landing from './pages/Landing';
 import { OrgProtectedRoute } from './components/OrgProtectedRoute';
@@ -137,6 +138,7 @@ const App = () => <QueryClientProvider client={queryClient}>
       <Sonner />
       <BrowserRouter>
         <RouteTracker />
+        <NativeAppInitializer />
         <AuthProvider>
           <TimezoneProvider>
             <OrganizationProvider>
