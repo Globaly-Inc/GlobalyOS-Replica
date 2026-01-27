@@ -549,69 +549,6 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
         )}
       </div>
       
-      {/* Action buttons row */}
-      <div className="flex items-center justify-end gap-0.5 px-4 py-2 border-b border-border">
-        {/* Mute Button */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={activeChat.type === 'space' ? handleToggleSpaceMute : handleToggleMute}
-            >
-              {(activeChat.type === 'space' ? spaceNotificationSetting === 'mute' : isMuted) ? (
-                <BellOff className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <Bell className="h-4 w-4" />
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            {(activeChat.type === 'space' ? spaceNotificationSetting === 'mute' : isMuted)
-              ? 'Unmute notifications'
-              : 'Mute notifications'}
-          </TooltipContent>
-        </Tooltip>
-
-        {/* Favorite Button */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => toggleFavorite.mutate({
-                conversationId: conversationId || undefined,
-                spaceId: spaceId || undefined,
-              })}
-            >
-              <Star className={cn(
-                "h-4 w-4",
-                isFavorited && "fill-orange-500 text-orange-500"
-              )} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            {isFavorited ? 'Remove from favorites' : 'Add to favorites'}
-          </TooltipContent>
-        </Tooltip>
-
-        {/* Search Button */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn("h-8 w-8", showSearch && "bg-accent")}
-              onClick={() => setShowSearch(!showSearch)}
-            >
-              <Search className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Search messages</TooltipContent>
-        </Tooltip>
-      </div>
 
       {/* Message Search Panel */}
       <MessageSearch
