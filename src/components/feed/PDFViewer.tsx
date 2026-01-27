@@ -149,7 +149,7 @@ export const PDFViewer = ({ fileUrl, mode, onExpand, className }: PDFViewerProps
       // For lightbox: constrain to viewport height as well
       let scale: number;
       if (mode === 'lightbox') {
-        const maxHeight = Math.min(window.innerHeight * 0.7, 800);
+        const maxHeight = window.innerHeight * 0.75;
         const scaleX = containerWidth / viewport.width;
         const scaleY = maxHeight / viewport.height;
         scale = Math.min(scaleX, scaleY) * (window.devicePixelRatio || 1);
