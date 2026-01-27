@@ -707,8 +707,6 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
             </CollapsibleContent>
           </Collapsible>
         )}
-
-        <div className="border-t border-border" />
         
         {/* Pinned Messages Section */}
         <Collapsible open={pinnedOpen} onOpenChange={setPinnedOpen}>
