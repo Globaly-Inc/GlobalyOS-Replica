@@ -117,15 +117,6 @@ const MessageBubble = ({
             {isOwn && (
               <MessageDeliveryStatus status={message.status || 'sent'} />
             )}
-            {message.is_pinned && (
-              <span className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-0.5">
-                <Pin className="h-3 w-3" />
-                Pinned
-              </span>
-            )}
-            {isStarred && (
-              <Bookmark className="h-3 w-3 text-blue-500 fill-blue-500" />
-            )}
           </div>
         )}
 
@@ -186,6 +177,24 @@ const MessageBubble = ({
               >
                 <span>{replyCount} {replyCount === 1 ? 'reply' : 'replies'}</span>
               </button>
+            )}
+
+            {/* Message status indicators - Pinned & Starred */}
+            {(message.is_pinned || isStarred) && (
+              <div className="flex items-center gap-2 mt-1.5">
+                {message.is_pinned && (
+                  <span className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-0.5">
+                    <Pin className="h-3 w-3" />
+                    Pinned
+                  </span>
+                )}
+                {isStarred && (
+                  <span className="text-xs text-blue-500 flex items-center gap-0.5">
+                    <Bookmark className="h-3 w-3 fill-blue-500" />
+                    Saved
+                  </span>
+                )}
+              </div>
             )}
           </>
         )}
