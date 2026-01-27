@@ -81,7 +81,7 @@ export const TopNav = ({ isAdmin }: TopNavProps) => {
   };
 
   return (
-    <nav className="flex items-center space-x-1 tour-feature-overview">
+    <nav className="flex items-center space-x-0.5 tour-feature-overview">
       {visibleItems.map((item) => (
         <OrgLink
           key={item.name}
