@@ -60,6 +60,7 @@ import { useCommentCount } from '@/services/usePostStats';
 import { useReactionsRealtime, useCommentsRealtime } from '@/services/useSocialFeedRealtime';
 import { DeletePostDialog } from '@/components/dialogs/DeletePostDialog';
 import { AcknowledgmentStatusModal } from './AcknowledgmentStatusModal';
+import { VisibilityBadge } from './VisibilityBadge';
 
 interface PostCardProps {
   post: Post;
@@ -245,11 +246,19 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
                   </Badge>
                 )}
               </div>
-              {/* Row 2: Time */}
-              <div className="flex items-center gap-2 mt-0.5">
+              {/* Row 2: Time + Visibility */}
+              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                 <span className="text-muted-foreground text-sm">
                   {formatSmartDateTime(post.created_at, 3)}
                 </span>
+                <span className="text-muted-foreground/50">·</span>
+                <VisibilityBadge
+                  accessScope={post.access_scope}
+                  offices={post.post_offices}
+                  departments={post.post_departments}
+                  projects={post.post_projects}
+                  className="h-5 py-0 px-1.5 text-[11px] border-0 bg-transparent"
+                />
               </div>
             </div>
           </div>
