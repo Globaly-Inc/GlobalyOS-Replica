@@ -59,6 +59,7 @@ import {
   Download,
   Search,
   MessageSquare,
+  Hash,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import MessageSearch from "./MessageSearch";
@@ -532,6 +533,36 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
+        </div>
+      )}
+
+      {/* Header - Matching Ask AI pattern */}
+      {!isMobileOverlay && (
+        <div className="flex items-center gap-2 p-4 border-b flex-shrink-0">
+          <div className={cn(
+            "w-8 h-8 rounded-full flex items-center justify-center",
+            activeChat.type === 'space' 
+              ? "bg-gradient-to-br from-primary/20 to-primary/5"
+              : activeChat.isGroup
+                ? "bg-gradient-to-br from-violet-500/20 to-violet-500/5"
+                : "bg-gradient-to-br from-sky-500/20 to-sky-500/5"
+          )}>
+            {activeChat.type === 'space' ? (
+              spaceIconUrl ? (
+                <img src={spaceIconUrl} alt="" className="w-full h-full rounded-full object-cover" />
+              ) : (
+                <Hash className="h-4 w-4 text-primary" />
+              )
+            ) : activeChat.isGroup ? (
+              <Users className="h-4 w-4 text-violet-500" />
+            ) : (
+              <MessageSquare className="h-4 w-4 text-sky-500" />
+            )}
+          </div>
+          <div>
+            <h3 className="font-semibold text-sm">Conversation Info</h3>
+            <p className="text-xs text-muted-foreground">Details & pinned items</p>
+          </div>
         </div>
       )}
 
