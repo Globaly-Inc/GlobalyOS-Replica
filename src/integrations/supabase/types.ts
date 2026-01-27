@@ -1975,6 +1975,7 @@ export type Database = {
           joined_at: string
           last_read_at: string | null
           organization_id: string
+          role: string
         }
         Insert: {
           conversation_id: string
@@ -1984,6 +1985,7 @@ export type Database = {
           joined_at?: string
           last_read_at?: string | null
           organization_id: string
+          role?: string
         }
         Update: {
           conversation_id?: string
@@ -1993,6 +1995,7 @@ export type Database = {
           joined_at?: string
           last_read_at?: string | null
           organization_id?: string
+          role?: string
         }
         Relationships: [
           {
@@ -12701,6 +12704,10 @@ export type Database = {
       }
       is_feature_enabled: {
         Args: { _feature_name: string; _org_id: string }
+        Returns: boolean
+      }
+      is_group_admin: {
+        Args: { p_conversation_id: string; p_employee_id: string }
         Returns: boolean
       }
       is_manager_of_employee: {

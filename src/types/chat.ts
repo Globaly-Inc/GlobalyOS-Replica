@@ -20,6 +20,7 @@ export interface ChatParticipant {
   joined_at: string;
   last_read_at: string | null;
   is_muted: boolean;
+  role: 'admin' | 'member';
   employee?: {
     id: string;
     user_id: string;

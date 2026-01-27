@@ -544,7 +544,7 @@ export const useCreateConversation = () => {
 
       if (convError) throw convError;
 
-      // Add all participants including creator
+      // Add all participants including creator (creator is admin for groups)
       const allParticipants = [...new Set([currentEmployee.id, ...participantIds])];
       const { error: partError } = await supabase
         .from('chat_participants')
@@ -552,7 +552,8 @@ export const useCreateConversation = () => {
           allParticipants.map(empId => ({
             conversation_id: conversation.id,
             employee_id: empId,
-            organization_id: currentOrg.id
+            organization_id: currentOrg.id,
+            role: empId === currentEmployee.id && isGroup ? 'admin' : 'member'
           }))
         );
 
@@ -1683,16 +1684,34 @@ export const useMuteConversation = () => {
   });
 };
 
-// Leave a group conversation
+// Leave a group conversation (with optional admin transfer)
 export const useLeaveConversation = () => {
   const queryClient = useQueryClient();
   const { data: currentEmployee } = useCurrentEmployee();
   const { currentOrg } = useOrganization();
 
   return useMutation({
-    mutationFn: async (conversationId: string) => {
+    mutationFn: async ({ 
+      conversationId, 
+      transferAdminTo 
+    }: { 
+      conversationId: string; 
+      transferAdminTo?: string 
+    }) => {
       if (!currentEmployee?.id) throw new Error('Not authenticated');
 
+      // If transferring admin, promote the new admin first
+      if (transferAdminTo) {
+        const { error: transferError } = await supabase
+          .from('chat_participants')
+          .update({ role: 'admin' })
+          .eq('conversation_id', conversationId)
+          .eq('employee_id', transferAdminTo);
+
+        if (transferError) throw transferError;
+      }
+
+      // Then remove self
       const { error } = await supabase
         .from('chat_participants')
         .delete()
@@ -1702,6 +1721,99 @@ export const useLeaveConversation = () => {
       if (error) throw error;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-conversations', currentOrg?.id] });
+      queryClient.invalidateQueries({ queryKey: ['chat-conversation-participants'] });
+    },
+  });
+};
+
+// Update group member role
+export const useUpdateGroupMemberRole = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ 
+      conversationId, 
+      employeeId, 
+      role 
+    }: { 
+      conversationId: string; 
+      employeeId: string; 
+      role: 'admin' | 'member' 
+    }) => {
+      const { error } = await supabase
+        .from('chat_participants')
+        .update({ role })
+        .eq('conversation_id', conversationId)
+        .eq('employee_id', employeeId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-conversation-participants'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-conversations'] });
+    },
+  });
+};
+
+// Remove member from group conversation
+export const useRemoveGroupMember = () => {
+  const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+
+  return useMutation({
+    mutationFn: async ({ 
+      conversationId, 
+      employeeId 
+    }: { 
+      conversationId: string; 
+      employeeId: string 
+    }) => {
+      const { error } = await supabase
+        .from('chat_participants')
+        .delete()
+        .eq('conversation_id', conversationId)
+        .eq('employee_id', employeeId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-conversation-participants'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-conversations', currentOrg?.id] });
+    },
+  });
+};
+
+// Add members to group conversation
+export const useAddGroupMembers = () => {
+  const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+
+  return useMutation({
+    mutationFn: async ({ 
+      conversationId, 
+      employeeIds 
+    }: { 
+      conversationId: string; 
+      employeeIds: string[] 
+    }) => {
+      if (!currentOrg?.id) throw new Error('Not authenticated');
+
+      const { error } = await supabase
+        .from('chat_participants')
+        .insert(
+          employeeIds.map(empId => ({
+            conversation_id: conversationId,
+            employee_id: empId,
+            organization_id: currentOrg.id,
+            role: 'member'
+          }))
+        );
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-conversation-participants'] });
       queryClient.invalidateQueries({ queryKey: ['chat-conversations', currentOrg?.id] });
     },
   });
