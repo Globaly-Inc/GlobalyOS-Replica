@@ -355,7 +355,9 @@ export const TemplateLeaveTypesTab = () => {
                   const country = COUNTRIES.find(c => c.code === code);
                   return (
                     <SelectItem key={code} value={code}>
-                      {country?.name || code}
+                      <span className="flex items-center gap-2">
+                        {getFlagEmoji(code)} {country?.name || code}
+                      </span>
                     </SelectItem>
                   );
                 })}
@@ -577,7 +579,14 @@ export const TemplateLeaveTypesTab = () => {
 
                 {countryDefaults.length > 0 && (
                   <div className="space-y-2">
-                    {countryDefaults.map((cd) => {
+                    {/* Sort country defaults alphabetically by country name */}
+                    {[...countryDefaults]
+                      .sort((a, b) => {
+                        const countryA = COUNTRIES.find(c => c.code === a.country_code)?.name || a.country_code;
+                        const countryB = COUNTRIES.find(c => c.code === b.country_code)?.name || b.country_code;
+                        return countryA.localeCompare(countryB);
+                      })
+                      .map((cd) => {
                       const country = COUNTRIES.find(c => c.code === cd.country_code);
                       return (
                         <div
@@ -619,6 +628,7 @@ export const TemplateLeaveTypesTab = () => {
                       valueType="code"
                       placeholder="Select country"
                       className="flex-1"
+                      excludeCountries={countryDefaults.map(cd => cd.country_code)}
                     />
                     <Input
                       type="number"

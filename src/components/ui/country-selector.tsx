@@ -19,6 +19,8 @@ export interface CountrySelectorProps {
   /** Whether the value should be stored as country code ('code') or country name ('name') */
   valueType?: 'code' | 'name';
   className?: string;
+  /** Country codes to exclude from the list */
+  excludeCountries?: string[];
 }
 
 export function CountrySelector({
@@ -29,6 +31,7 @@ export function CountrySelector({
   error = false,
   valueType = 'name',
   className,
+  excludeCountries = [],
 }: CountrySelectorProps) {
   const [open, setOpen] = useState(false);
 
@@ -77,7 +80,9 @@ export function CountrySelector({
           <CommandList>
             <CommandEmpty>No country found.</CommandEmpty>
             <CommandGroup className="max-h-[200px] overflow-auto">
-              {COUNTRIES.map((country) => (
+              {COUNTRIES
+                .filter(country => !excludeCountries.includes(country.code))
+                .map((country) => (
                 <CommandItem
                   key={country.code}
                   value={country.name}

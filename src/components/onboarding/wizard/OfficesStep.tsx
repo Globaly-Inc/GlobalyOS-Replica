@@ -253,6 +253,9 @@ export function OfficesStep({
   
   // Template defaults: Map<leaveName, Map<countryCode, defaultDays>> - '_global' key for global default
   const [templateDefaults, setTemplateDefaults] = useState<Map<string, Map<string, number>>>(new Map());
+  
+  // Track which offices have been manually customized (to prevent overwriting on template load)
+  const [customizedOffices, setCustomizedOffices] = useState<Set<number>>(new Set());
 
   // Check which features are enabled globally
   const hasAttendance = enabledFeatures.includes('attendance');
@@ -382,10 +385,15 @@ export function OfficesStep({
     }
   }, [organizationInfo]);
   
-  // Re-apply template defaults when they are loaded, but only if leave types haven't been manually customized
+  // Re-apply template defaults when they are loaded, but only for non-customized offices
   useEffect(() => {
     if (templateDefaults.size > 0 && offices.length > 0) {
-      setOffices(prevOffices => prevOffices.map(office => {
+      setOffices(prevOffices => prevOffices.map((office, index) => {
+        // Skip if office has been manually customized by user
+        if (customizedOffices.has(index)) {
+          return office;
+        }
+        
         // Only update if leave_types match the old defaults (not yet customized)
         const countryCode = office.address_components?.country_code;
         const updatedLeaveTypes = getDefaultOfficeLeaveTypes(countryCode);
@@ -512,6 +520,14 @@ export function OfficesStep({
       let updatedLeaveTypes = office.leave_types;
       if (countryCode !== previousCountryCode && hasLeave) {
         updatedLeaveTypes = getDefaultOfficeLeaveTypes(countryCode);
+        // Show toast notification for country-specific defaults
+        const countryName = countryCode ? getCountryNameFromCode(countryCode) : null;
+        if (countryName) {
+          toast({
+            title: "Leave entitlements updated",
+            description: `Using ${countryName} default leave settings`,
+          });
+        }
       }
       
       return {
@@ -1195,6 +1211,15 @@ export function OfficesStep({
 
                               {office.leave_enabled && (
                                 <>
+                              {/* Country-specific indicator */}
+                              {office.address_components?.country_code && (
+                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md w-fit">
+                                  <Info className="h-3 w-3" />
+                                  <span>
+                                    Using {getFlagEmoji(office.address_components.country_code)} {office.address_components.country || 'country'} default leave entitlements
+                                  </span>
+                                </div>
+                              )}
 
                               {/* Leave Types Customizer - Per Office */}
                               <LeaveTypesCustomizer
@@ -1206,6 +1231,8 @@ export function OfficesStep({
                                   is_custom: false,
                                 }))}
                                 onChange={(config) => {
+                                  // Mark this office as customized to prevent auto-update on template load
+                                  setCustomizedOffices(prev => new Set(prev).add(index));
                                   updateOffice(index, 'leave_types', config.map(lt => ({
                                     name: lt.name,
                                     category: lt.category,
