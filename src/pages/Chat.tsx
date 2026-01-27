@@ -10,6 +10,7 @@ import StarredView from "@/components/chat/StarredView";
 import MobileChatHome from "@/components/chat/MobileChatHome";
 import QuickSwitcher from "@/components/chat/QuickSwitcher";
 import ThreadView from "@/components/chat/ThreadView";
+import ChatHeader from "@/components/chat/ChatHeader";
 import { useChatKeyboardShortcuts } from "@/hooks/useChatKeyboardShortcuts";
 import type { ActiveChat, ChatMessage } from "@/types/chat";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -23,7 +24,6 @@ const Chat = () => {
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
   const [recentChats, setRecentChats] = useState<ActiveChat[]>([]);
   const [activeThreadMessage, setActiveThreadMessage] = useState<ChatMessage | null>(null);
-  const [isFullWidth, setIsFullWidth] = useState(false);
   const isMobile = useIsMobile();
 
   // Keyboard shortcuts
@@ -86,8 +86,6 @@ const Chat = () => {
           highlightMessageId={highlightMessageId}
           onOpenThread={setActiveThreadMessage}
           activeThreadMessage={activeThreadMessage}
-          isFullWidth={isFullWidth}
-          onToggleFullWidth={() => setIsFullWidth(prev => !prev)}
         />
       );
     }
@@ -103,8 +101,7 @@ const Chat = () => {
   const showRightPanelCondition = activeChat && 
     activeChat.type !== 'mentions' && 
     activeChat.type !== 'starred' && 
-    !isMobile &&
-    !isFullWidth;
+    !isMobile;
 
   // Mobile view
   if (isMobile) {
@@ -165,7 +162,7 @@ const Chat = () => {
     );
   }
 
-  // Desktop view
+  // Desktop view - restructured layout with header spanning full width
   return (
     <div className="flex h-full overflow-hidden bg-background">
       {/* Left Sidebar */}
@@ -178,28 +175,41 @@ const Chat = () => {
         />
       </div>
 
-      {/* Center - Main Content View */}
-      <div className="flex-1 min-w-0 h-full overflow-hidden">
-        {renderMainContent()}
-      </div>
+      {/* Main Content Column */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+        {/* Top Bar - Spans full width above conversation + right panel */}
+        {activeChat && activeChat.type !== 'mentions' && activeChat.type !== 'starred' && (
+          <ChatHeader activeChat={activeChat} />
+        )}
 
-      {/* Right Panel - Thread OR Info (desktop) */}
-      {showRightPanelCondition && (
-        activeThreadMessage ? (
-          <ThreadView
-            parentMessage={activeThreadMessage}
-            conversationId={activeChat.type === 'conversation' ? activeChat.id : null}
-            spaceId={activeChat.type === 'space' ? activeChat.id : null}
-            onClose={() => setActiveThreadMessage(null)}
-          />
-        ) : (
-          <ChatRightPanelEnhanced
-            activeChat={activeChat}
-            onClose={() => {}}
-            onBack={handleBack}
-          />
-        )
-      )}
+        {/* Content Row - Conversation + Right Panel */}
+        <div className="flex-1 flex min-w-0 overflow-hidden">
+          {/* Conversation View (no header on desktop) */}
+          <div className="flex-1 min-w-0 overflow-hidden">
+            {renderMainContent()}
+          </div>
+
+          {/* Right Panel */}
+          {showRightPanelCondition && (
+            <div className="w-80 flex-shrink-0 border-l border-border overflow-hidden">
+              {activeThreadMessage ? (
+                <ThreadView
+                  parentMessage={activeThreadMessage}
+                  conversationId={activeChat.type === 'conversation' ? activeChat.id : null}
+                  spaceId={activeChat.type === 'space' ? activeChat.id : null}
+                  onClose={() => setActiveThreadMessage(null)}
+                />
+              ) : (
+                <ChatRightPanelEnhanced
+                  activeChat={activeChat}
+                  onClose={() => {}}
+                  onBack={handleBack}
+                />
+              )}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Dialogs */}
       <NewChatDialog
