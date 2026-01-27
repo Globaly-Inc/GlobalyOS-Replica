@@ -430,6 +430,17 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
     }
   };
 
+  // Handle group admin leave - check if transfer is needed
+  const handleAdminLeaveGroup = () => {
+    if (canGroupAdminLeaveDirectly) {
+      // 2+ admins exist, can leave directly (show confirmation)
+      setShowLeaveConfirm(true);
+    } else {
+      // Sole admin, must transfer first
+      setShowTransferGroupAdminDialog(true);
+    }
+  };
+
   // Handle space icon upload
   const handleSpaceIconUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -704,8 +715,8 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
                         )}
                       </div>
                       
-                      {/* 3-dot menu - visible on hover for admins (space or group), cannot modify self */}
-                      {canManageMembers && !isSelf && (
+                      {/* 3-dot menu - visible on hover for admins (space or group), or for self if group admin */}
+                      {(canManageMembers || (isSelf && isGroupAdmin)) && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
@@ -718,28 +729,48 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="bg-popover border shadow-lg z-50">
-                            <DropdownMenuItem onClick={() => handleViewMember(member.employee_id)}>
-                              <UserCircle className="h-4 w-4 mr-2" />
-                              View Profile
-                            </DropdownMenuItem>
-                            {isAdmin ? (
-                              <DropdownMenuItem onClick={() => handleDemote(member)}>
-                                <UserMinus className="h-4 w-4 mr-2" />
-                                Remove Admin
-                              </DropdownMenuItem>
-                            ) : (
-                              <DropdownMenuItem onClick={() => handlePromote(member)}>
-                                <Crown className="h-4 w-4 mr-2" />
-                                Make Admin
+                            {/* View Profile - always shown for non-self */}
+                            {!isSelf && (
+                              <DropdownMenuItem onClick={() => handleViewMember(member.employee_id)}>
+                                <UserCircle className="h-4 w-4 mr-2" />
+                                View Profile
                               </DropdownMenuItem>
                             )}
-                            <DropdownMenuItem 
-                              onClick={() => handleRemove(member)}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              <UserMinus className="h-4 w-4 mr-2" />
-                              {spaceId ? "Remove from Space" : "Remove from Group"}
-                            </DropdownMenuItem>
+                            
+                            {/* Admin management actions - only for non-self */}
+                            {!isSelf && canManageMembers && (
+                              <>
+                                {isAdmin ? (
+                                  <DropdownMenuItem onClick={() => handleDemote(member)}>
+                                    <UserMinus className="h-4 w-4 mr-2" />
+                                    Remove Admin
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem onClick={() => handlePromote(member)}>
+                                    <Crown className="h-4 w-4 mr-2" />
+                                    Make Admin
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem 
+                                  onClick={() => handleRemove(member)}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <UserMinus className="h-4 w-4 mr-2" />
+                                  {spaceId ? "Remove from Space" : "Remove from Group"}
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            
+                            {/* Leave Group - only for self (group admin) */}
+                            {isSelf && isGroupAdmin && (
+                              <DropdownMenuItem 
+                                onClick={handleAdminLeaveGroup}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <LogOut className="h-4 w-4 mr-2" />
+                                Leave Group
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       )}
