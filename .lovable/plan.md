@@ -1,109 +1,237 @@
 
-# Plan: Add Header to Team Chat Right Panel
+# Plan: Fix Spaces Functionality and Improve UI/UX
 
-## Overview
-Add a header section to the Team Chat right side panel (`ChatRightPanelEnhanced.tsx`) that matches the Ask AI right panel design, with icons that adapt based on the chat type.
+## Problem Summary
 
----
+The Spaces feature is broken because of a **critical database issue**: the `is_org_admin_or_owner` function references `e.role` on the `employees` table, but this column doesn't exist. User roles are stored in the `organization_members` table instead. This causes all RLS policies for `chat_spaces` to fail with error `"column e.role does not exist"`.
 
-## Design Reference (Ask AI Right Panel)
-
-```tsx
-<div className="flex items-center gap-2 p-4 border-b">
-  <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5">
-    <Sparkles className="h-4 w-4 text-primary" />
-  </div>
-  <div>
-    <h3 className="font-semibold text-sm">Conversation Info</h3>
-    <p className="text-xs text-muted-foreground">Details & pinned items</p>
-  </div>
-</div>
+**Evidence from network logs:**
+```
+Status: 400
+Response: {"code":"42703","message":"column e.role does not exist"}
 ```
 
 ---
 
-## Icon Mapping by Chat Type
+## Root Cause Analysis
 
-| Chat Type | Icon | Gradient Color |
-|-----------|------|----------------|
-| Direct Message (1:1) | `MessageSquare` | `from-blue-500/20 to-blue-500/5` |
-| Group Conversation | `Users` | `from-purple-500/20 to-purple-500/5` |
-| Space | `Hash` (or custom space icon) | `from-primary/20 to-primary/5` |
+| Component | Issue |
+|-----------|-------|
+| `is_org_admin_or_owner()` function | References `e.role IN ('owner', 'admin')` on `employees` table |
+| `employees` table | Has NO `role` column - roles are in `organization_members` |
+| `chat_spaces` RLS policies | All depend on the broken function, causing SELECT/UPDATE/DELETE to fail |
+
+The spaces data exists in the database:
+- "GlobalyOS" (access_scope: projects)
+- "Development" (access_scope: members)  
+- "Agentcis All" (access_scope: projects)
+- "GlobalyOS" (access_scope: members)
 
 ---
 
-## Implementation
+## Fix Plan
 
-### File: `src/components/chat/ChatRightPanelEnhanced.tsx`
+### Phase 1: Database Fix (Critical)
 
-**Add a new header section** after the mobile close button and before the MessageSearch panel (around line 536).
+**1.1 Fix `is_org_admin_or_owner` function**
 
-**New header JSX:**
+Update the function to correctly query the `organization_members` table:
+
+```sql
+CREATE OR REPLACE FUNCTION public.is_org_admin_or_owner(
+  p_org_id uuid, 
+  p_employee_id uuid
+)
+RETURNS boolean
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_user_id uuid;
+BEGIN
+  -- Get user_id from employee
+  SELECT user_id INTO v_user_id
+  FROM employees
+  WHERE id = p_employee_id
+    AND organization_id = p_org_id;
+
+  IF v_user_id IS NULL THEN
+    RETURN FALSE;
+  END IF;
+
+  -- Check role in organization_members
+  RETURN EXISTS (
+    SELECT 1 FROM organization_members
+    WHERE user_id = v_user_id
+      AND organization_id = p_org_id
+      AND role IN ('owner', 'admin')
+  );
+END;
+$$;
+```
+
+**1.2 Verify RLS policies work correctly after fix**
+
+---
+
+### Phase 2: Code Quality Improvements
+
+**2.1 Error Handling Enhancement**
+
+In `useSpaces` hook, add proper error handling to show user-friendly messages:
+
+```typescript
+// In useSpaces hook - add error handling
+const { data: spaces = [], isLoading, error } = useSpaces();
+
+// In ChatSidebar - show error state
+{error && (
+  <div className="text-sm text-destructive px-2">
+    Failed to load spaces
+  </div>
+)}
+```
+
+**2.2 Remove Redundant RLS Policy**
+
+The policy `"Org members can create spaces"` appears to be a duplicate of `chat_spaces_insert`. One should be removed to avoid confusion:
+
+```sql
+DROP POLICY IF EXISTS "Org members can create spaces" ON chat_spaces;
+```
+
+---
+
+### Phase 3: UI/UX Improvements
+
+**3.1 Loading States**
+
+Add skeleton loaders for spaces list instead of text "Loading...":
 
 ```tsx
-{/* Header - Matching Ask AI pattern */}
-{!isMobileOverlay && (
-  <div className="flex items-center gap-2 p-4 border-b flex-shrink-0">
-    <div className={cn(
-      "w-8 h-8 rounded-full flex items-center justify-center",
-      activeChat.type === 'space' 
-        ? "bg-gradient-to-br from-primary/20 to-primary/5"
-        : activeChat.isGroup
-          ? "bg-gradient-to-br from-purple-500/20 to-purple-500/5"
-          : "bg-gradient-to-br from-blue-500/20 to-blue-500/5"
-    )}>
-      {activeChat.type === 'space' ? (
-        spaceIconUrl ? (
-          <img src={spaceIconUrl} alt="" className="w-full h-full rounded-full object-cover" />
-        ) : (
-          <Hash className="h-4 w-4 text-primary" />
-        )
-      ) : activeChat.isGroup ? (
-        <Users className="h-4 w-4 text-purple-600" />
-      ) : (
-        <MessageSquare className="h-4 w-4 text-blue-600" />
-      )}
-    </div>
-    <div>
-      <h3 className="font-semibold text-sm">Conversation Info</h3>
-      <p className="text-xs text-muted-foreground">Details & pinned items</p>
-    </div>
+{loadingSpaces ? (
+  <div className="space-y-1 px-2">
+    {[1, 2, 3].map(i => (
+      <div key={i} className="h-8 bg-muted/50 rounded-md animate-pulse" />
+    ))}
   </div>
+) : /* ... */}
+```
+
+**3.2 Empty State Enhancement**
+
+Replace plain text with a more engaging empty state:
+
+```tsx
+{spaces.length === 0 && !loadingSpaces && (
+  <div className="flex flex-col items-center py-4 text-center">
+    <Hash className="h-8 w-8 text-muted-foreground/50 mb-2" />
+    <p className="text-sm text-muted-foreground">No spaces yet</p>
+    <Button variant="link" size="sm" onClick={onNewSpace}>
+      Create your first space
+    </Button>
+  </div>
+)}
+```
+
+**3.3 Space Icons Display**
+
+Currently spaces with custom icons don't show them in the sidebar. Add icon support:
+
+```tsx
+{space.icon_url ? (
+  <img 
+    src={space.icon_url} 
+    alt="" 
+    className="h-4 w-4 rounded flex-shrink-0" 
+  />
+) : (
+  <Hash className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+)}
+```
+
+**3.4 Space Type Indicator**
+
+Show collaboration vs announcements type with a subtle badge:
+
+```tsx
+{space.space_type === 'announcements' && (
+  <Megaphone className="h-3 w-3 text-muted-foreground" />
 )}
 ```
 
 ---
 
-## Changes Summary
+### Phase 4: Feature Improvements
 
-| File | Change |
-|------|--------|
-| `src/components/chat/ChatRightPanelEnhanced.tsx` | Add `Hash` import from lucide-react, add header section matching Ask AI design with dynamic icon based on chat type |
+**4.1 Space Access Scope Display**
+
+Show what access scope a space has (company/offices/projects/members) in the sidebar on hover or in the right panel.
+
+**4.2 Quick Actions Enhancement**
+
+Current quick actions only show for admins. Add a "Leave space" option for regular members:
+
+```tsx
+{!canManage && (
+  <DropdownMenuItem onClick={() => handleLeaveSpace(space.id)}>
+    <LogOut className="h-4 w-4 mr-2" />
+    Leave space
+  </DropdownMenuItem>
+)}
+```
+
+**4.3 Search Spaces in Sidebar**
+
+For organizations with many spaces, add a quick filter/search within the Spaces section.
+
+**4.4 Recent Activity Indicator**
+
+Show a subtle indicator for spaces with recent activity (beyond just unread count).
 
 ---
 
-## Visual Result
+## Files to Modify
 
-```text
-┌────────────────────────────────────┐
-│ [🔵] Conversation Info             │  ← DM: Blue gradient + MessageSquare
-│      Details & pinned items        │
-├────────────────────────────────────┤
-│ ▼ About                            │
-│   ...                              │
+| File | Changes |
+|------|---------|
+| Database function `is_org_admin_or_owner` | Fix to use `organization_members` table |
+| `src/components/chat/ChatSidebar.tsx` | Loading skeletons, empty state, space icons, error handling |
+| `src/services/useChat.ts` | Ensure `useSpaces` returns proper error state |
+| RLS policies on `chat_spaces` | Remove duplicate policy |
+
+---
+
+## Technical Details
+
+### Current Broken Function
+```sql
+-- BROKEN: employees.role doesn't exist
+SELECT 1 FROM employees e
+WHERE e.id = p_employee_id
+  AND e.organization_id = p_org_id
+  AND e.role IN ('owner', 'admin')
 ```
 
-```text
-┌────────────────────────────────────┐
-│ [🟣] Conversation Info             │  ← Group: Purple gradient + Users
-│      Details & pinned items        │
-├────────────────────────────────────┤
+### Fixed Function
+```sql
+-- CORRECT: uses organization_members table
+SELECT 1 FROM organization_members
+WHERE user_id = (SELECT user_id FROM employees WHERE id = p_employee_id)
+  AND organization_id = p_org_id
+  AND role IN ('owner', 'admin')
 ```
 
-```text
-┌────────────────────────────────────┐
-│ [#] Conversation Info              │  ← Space: Primary gradient + Hash (or icon)
-│      Details & pinned items        │
-├────────────────────────────────────┤
-```
+---
 
+## Expected Outcome
+
+After implementing this plan:
+
+1. All existing spaces (including "GlobalyOS") will appear in the sidebar
+2. Users can create, join, and manage spaces without errors
+3. RLS policies will correctly enforce access control
+4. UI will have better loading states, empty states, and visual feedback
+5. Space icons and types will be properly displayed
