@@ -96,11 +96,13 @@ export interface CallLogData {
 }
 
 export interface SystemEventData {
-  event_type: 'member_added' | 'member_removed' | 'member_left' | 'admin_added' | 'admin_removed';
+  event_type: 'member_added' | 'member_removed' | 'member_left' | 'admin_added' | 'admin_removed' | 'group_name_changed' | 'group_photo_changed';
   target_employee_id: string;
   target_name: string;
   actor_employee_id?: string;
   actor_name?: string;
+  old_value?: string;
+  new_value?: string;
 }
 
 export type MessageDeliveryStatus = 'sending' | 'sent' | 'delivered' | 'read';

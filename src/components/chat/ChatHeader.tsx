@@ -77,6 +77,12 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
   const { data: spaceMembers = [] } = useSpaceMembers(spaceId);
   const { data: conversationParticipants = [] } = useConversationParticipants(activeChat.isGroup ? conversationId : null);
 
+  // Check if current user is a group admin
+  const currentGroupMembership = conversationParticipants.find(
+    p => p.employee_id === currentEmployee?.id
+  );
+  const isGroupAdmin = activeChat.isGroup && currentGroupMembership?.role === 'admin';
+
   // Check space notification setting
   const currentMembership = spaceMembers.find(m => m.employee_id === currentEmployee?.id);
   const spaceNotificationSetting = currentMembership?.notification_setting || 'all';
@@ -119,12 +125,43 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
       return;
     }
     
+    // Admin check
+    if (!isGroupAdmin) {
+      toast.error("Only group admins can change the group name");
+      setIsEditingName(false);
+      return;
+    }
+    
     setIsSavingName(true);
+    const previousName = groupName;
+    
     try {
       await updateConversation.mutateAsync({
         conversationId,
         name: editNameValue.trim()
       });
+      
+      // Log the change as a system event
+      if (currentOrg?.id && currentEmployee?.id) {
+        const actorName = currentEmployee?.profiles?.full_name || 'Someone';
+        await supabase.from('chat_messages').insert({
+          organization_id: currentOrg.id,
+          conversation_id: conversationId,
+          sender_id: currentEmployee.id,
+          content: `${actorName} changed the group name`,
+          content_type: 'system_event',
+          system_event_data: {
+            event_type: 'group_name_changed',
+            target_employee_id: currentEmployee.id,
+            target_name: actorName,
+            actor_employee_id: currentEmployee.id,
+            actor_name: actorName,
+            old_value: previousName,
+            new_value: editNameValue.trim()
+          }
+        });
+      }
+      
       setGroupName(editNameValue.trim());
       toast.success("Group name updated");
     } catch (error) {
@@ -144,6 +181,12 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !currentOrg?.id || !conversationId) return;
+
+    // Admin check
+    if (!isGroupAdmin) {
+      toast.error("Only group admins can change the group photo");
+      return;
+    }
 
     if (file.size > 5 * 1024 * 1024) {
       toast.error("Image must be less than 5MB");
@@ -174,6 +217,25 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
         conversationId,
         iconUrl: publicUrl
       });
+
+      // Log the change as a system event
+      if (currentEmployee?.id) {
+        const actorName = currentEmployee?.profiles?.full_name || 'Someone';
+        await supabase.from('chat_messages').insert({
+          organization_id: currentOrg.id,
+          conversation_id: conversationId,
+          sender_id: currentEmployee.id,
+          content: `${actorName} updated the group photo`,
+          content_type: 'system_event',
+          system_event_data: {
+            event_type: 'group_photo_changed',
+            target_employee_id: currentEmployee.id,
+            target_name: actorName,
+            actor_employee_id: currentEmployee.id,
+            actor_name: actorName
+          }
+        });
+      }
 
       setGroupIconUrl(publicUrl);
       toast.success("Group photo updated");
@@ -310,7 +372,7 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
               )}
             </div>
           ) : activeChat.type === 'conversation' && activeChat.isGroup ? (
-            // Group chat - show group icon with direct photo upload
+            // Group chat - show group icon with direct photo upload (admin only)
             <>
               <input
                 ref={fileInputRef}
@@ -320,8 +382,11 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
                 onChange={handlePhotoSelect}
               />
               <div 
-                className="relative h-10 w-10 rounded-full cursor-pointer group flex-shrink-0"
-                onClick={() => !isUploadingPhoto && fileInputRef.current?.click()}
+                className={cn(
+                  "relative h-10 w-10 rounded-full flex-shrink-0",
+                  isGroupAdmin ? "cursor-pointer group" : ""
+                )}
+                onClick={() => isGroupAdmin && !isUploadingPhoto && fileInputRef.current?.click()}
               >
                 {groupIconUrl ? (
                   <img 
@@ -334,13 +399,15 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
                     {getInitials(groupName || "GC")}
                   </div>
                 )}
-                <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  {isUploadingPhoto ? (
-                    <Loader2 className="h-4 w-4 text-white animate-spin" />
-                  ) : (
-                    <Camera className="h-4 w-4 text-white" />
-                  )}
-                </div>
+                {isGroupAdmin && (
+                  <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    {isUploadingPhoto ? (
+                      <Loader2 className="h-4 w-4 text-white animate-spin" />
+                    ) : (
+                      <Camera className="h-4 w-4 text-white" />
+                    )}
+                  </div>
+                )}
               </div>
             </>
           ) : (
@@ -356,10 +423,10 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
           
           <div className="flex-1 min-w-0">
             {activeChat.type === 'conversation' && activeChat.isGroup ? (
-              // Group chat info with inline editing
+              // Group chat info with inline editing (admin only)
               <div className="group/name">
-                {isEditingName ? (
-                  // Editing mode
+                {isEditingName && isGroupAdmin ? (
+                  // Editing mode (admin only)
                   <div className="flex items-center gap-1.5">
                     <Input
                       value={editNameValue}
@@ -390,8 +457,8 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
                       <X className="h-3 w-3" />
                     </button>
                   </div>
-                ) : (
-                  // Display mode
+                ) : isGroupAdmin ? (
+                  // Display mode for admins (editable)
                   <div 
                     className="cursor-pointer"
                     onClick={() => {
@@ -404,6 +471,11 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
                       <Pencil className="h-3 w-3 text-muted-foreground flex-shrink-0 opacity-0 group-hover/name:opacity-100 transition-opacity" />
                     </h2>
                   </div>
+                ) : (
+                  // Display mode for non-admins (read-only)
+                  <h2 className="font-semibold text-foreground text-base truncate">
+                    {groupName}
+                  </h2>
                 )}
                 <p className="text-xs text-muted-foreground truncate">
                   {conversationParticipants
