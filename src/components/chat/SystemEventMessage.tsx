@@ -1,4 +1,4 @@
-import { UserPlus, UserMinus, LogOut, Crown, ShieldOff } from "lucide-react";
+import { UserPlus, UserMinus, LogOut, Crown, ShieldOff, Pencil, Camera } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import type { SystemEventData } from "@/types/chat";
@@ -38,6 +38,20 @@ const eventConfig = {
     getText: (data: SystemEventData) => 
       `${data.target_name} is no longer an admin`,
     className: "text-muted-foreground",
+  },
+  group_name_changed: {
+    icon: Pencil,
+    getText: (data: SystemEventData) => 
+      data.old_value 
+        ? `${data.actor_name} changed the group name from "${data.old_value}" to "${data.new_value}"`
+        : `${data.actor_name} changed the group name to "${data.new_value}"`,
+    className: "text-blue-600 dark:text-blue-400",
+  },
+  group_photo_changed: {
+    icon: Camera,
+    getText: (data: SystemEventData) => 
+      `${data.actor_name} updated the group photo`,
+    className: "text-blue-600 dark:text-blue-400",
   },
 };
 
