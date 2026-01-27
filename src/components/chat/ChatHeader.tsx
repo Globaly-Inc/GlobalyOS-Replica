@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +40,8 @@ interface ChatHeaderProps {
 }
 
 const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
+  const navigate = useNavigate();
+  const { orgCode } = useParams();
   const { data: currentEmployee } = useCurrentEmployee();
   const { data: favorites = [] } = useChatFavorites();
   const toggleFavorite = useToggleFavorite();
@@ -203,9 +206,12 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-card/80 backdrop-blur-md flex-shrink-0">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           {activeChat.type === 'conversation' && !activeChat.isGroup ? (
-            // Direct message - show other participant
-            <div className="relative flex-shrink-0">
-              <Avatar className="h-10 w-10">
+            // Direct message - show other participant (clickable)
+            <div 
+              className="relative flex-shrink-0 cursor-pointer"
+              onClick={() => otherParticipant?.id && navigate(`/org/${orgCode}/team/${otherParticipant.id}`)}
+            >
+              <Avatar className="h-10 w-10 transition-opacity hover:opacity-80">
                 <AvatarImage src={otherParticipant?.avatar_url || undefined} alt={activeChat.name} />
                 <AvatarFallback className="text-xs bg-primary/10 text-primary">
                   {getInitials(activeChat.name)}
@@ -267,8 +273,11 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
                 </p>
               </div>
             ) : activeChat.type === 'conversation' ? (
-              // Direct message info
-              <div>
+              // Direct message info (clickable)
+              <div 
+                className="cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => otherParticipant?.id && navigate(`/org/${orgCode}/team/${otherParticipant.id}`)}
+              >
                 <div className="flex items-center gap-1.5">
                   <h2 className="font-semibold text-foreground text-base truncate">{activeChat.name}</h2>
                 </div>
