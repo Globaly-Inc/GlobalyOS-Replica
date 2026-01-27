@@ -38,12 +38,7 @@ import {
   Bell,
   LogOut,
   Info,
-  Star,
-  PanelRight,
-  PanelRightClose,
 } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useChatFavorites, useToggleFavorite } from "@/hooks/useChatFavorites";
 import { format, isToday, isYesterday, differenceInMinutes } from "date-fns";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -104,8 +99,6 @@ interface ConversationViewProps {
   highlightMessageId?: string;
   onOpenThread?: (message: ChatMessage) => void;
   activeThreadMessage?: ChatMessage | null;
-  isFullWidth?: boolean;
-  onToggleFullWidth?: () => void;
 }
 
 // Check if two messages should be grouped (same sender within 5 minutes)
@@ -128,8 +121,6 @@ const ConversationView = ({
   highlightMessageId,
   onOpenThread,
   activeThreadMessage: externalActiveThreadMessage,
-  isFullWidth,
-  onToggleFullWidth,
 }: ConversationViewProps) => {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<{ addFiles: (files: File[]) => void } | null>(null);
@@ -155,9 +146,6 @@ const ConversationView = ({
   const updateSpaceNotification = useUpdateSpaceNotification();
   const loadOlderMessages = useLoadOlderMessages();
   
-  // Favorites hooks
-  const { data: favorites = [] } = useChatFavorites();
-  const toggleFavorite = useToggleFavorite();
   
   const [otherParticipant, setOtherParticipant] = useState<OtherParticipant | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -229,11 +217,6 @@ const ConversationView = ({
   const isSpaceAdmin = currentMembership?.role === 'admin';
   const spaceNotificationSetting = currentMembership?.notification_setting || 'all';
   
-  // Check if this chat is favorited
-  const isFavorited = favorites.some(f => 
-    (conversationId && f.conversation_id === conversationId) || 
-    (spaceId && f.space_id === spaceId)
-  );
   
   // Count admins and get non-admin members for transfer
   const adminCount = spaceMembers.filter(m => m.role === 'admin').length;
@@ -622,238 +605,125 @@ const ConversationView = ({
           "flex flex-col h-full bg-background overflow-hidden",
           activeThreadMessage ? "flex-1" : "w-full"
         )}>
-        {/* Header */}
-        <div className="flex items-center justify-between px-3 md:px-4 py-2 md:py-3 border-b border-border/50 bg-card/80 backdrop-blur-md flex-shrink-0">
-          <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="md:hidden h-9 w-9 flex-shrink-0"
-              onClick={onBack}
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            
-            {activeChat.type === 'conversation' && !activeChat.isGroup ? (
-              // Direct message - show other participant
-              <div className="relative flex-shrink-0">
-                <Avatar className="h-9 w-9 md:h-10 md:w-10">
-                  <AvatarImage src={otherParticipant?.avatar_url || undefined} alt={activeChat.name} />
-                  <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                    {getInitials(activeChat.name)}
-                  </AvatarFallback>
-                </Avatar>
-                {otherParticipant?.is_online && (
-                  <span className="absolute bottom-0 right-0 h-2.5 w-2.5 md:h-3 md:w-3 rounded-full bg-green-500 border-2 border-card" />
-                )}
-              </div>
-            ) : activeChat.type === 'conversation' && activeChat.isGroup ? (
-              // Group chat - show group icon with edit option
-              <div 
-                className="relative h-9 w-9 md:h-10 md:w-10 rounded-full cursor-pointer group flex-shrink-0"
-                onClick={() => !isMobile && setShowEditGroupDialog(true)}
+        {/* Header - Only shown on mobile (desktop uses ChatHeader component) */}
+        {isMobile && (
+          <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 bg-card/80 backdrop-blur-md flex-shrink-0">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-9 w-9 flex-shrink-0"
+                onClick={onBack}
               >
-                {groupIconUrl ? (
-                  <img 
-                    src={groupIconUrl} 
-                    alt={groupName} 
-                    className="h-full w-full rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full w-full rounded-full bg-primary/10 text-primary font-semibold text-sm">
-                    {getInitials(groupName || "GC")}
-                  </div>
-                )}
-                {!isMobile && (
-                  <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Camera className="h-4 w-4 text-white" />
-                  </div>
-                )}
-              </div>
-            ) : (
-              // Space
-              <div className="flex items-center justify-center h-9 w-9 md:h-10 md:w-10 rounded bg-primary/10 text-primary font-semibold text-sm flex-shrink-0 overflow-hidden">
-                {space?.icon_url ? (
-                  <img src={space.icon_url} alt={activeChat.name} className="h-full w-full object-cover" />
-                ) : (
-                  activeChat.name.charAt(0).toUpperCase()
-                )}
-              </div>
-            )}
-            
-            <div className="flex-1 min-w-0">
-              {activeChat.type === 'conversation' && activeChat.isGroup ? (
-                // Group chat info
-                <div 
-                  className={!isMobile ? "cursor-pointer hover:opacity-80" : ""}
-                  onClick={() => !isMobile && setShowEditGroupDialog(true)}
-                >
-                  <h2 className="font-semibold text-foreground text-sm md:text-base flex items-center gap-1 truncate">
-                    {groupName}
-                    {!isMobile && <Pencil className="h-3 w-3 text-muted-foreground flex-shrink-0" />}
-                  </h2>
-                  {!isMobile && (
-                    <p className="text-xs text-muted-foreground truncate">
-                      {conversationParticipants
-                        .filter(p => p.employee_id !== currentEmployee?.id)
-                        .map(p => p.employee?.profiles?.full_name?.split(' ')[0])
-                        .filter(Boolean)
-                        .join(', ') || 'Group members'}
-                    </p>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              
+              {activeChat.type === 'conversation' && !activeChat.isGroup ? (
+                // Direct message - show other participant
+                <div className="relative flex-shrink-0">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={otherParticipant?.avatar_url || undefined} alt={activeChat.name} />
+                    <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                      {getInitials(activeChat.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  {otherParticipant?.is_online && (
+                    <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-card" />
                   )}
                 </div>
-              ) : activeChat.type === 'conversation' ? (
-                // Direct message info
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <h2 className="font-semibold text-foreground text-sm md:text-base truncate">{activeChat.name}</h2>
-                    {isMobile && otherParticipant?.is_online && (
-                      <span className="text-xs text-green-500">• Online</span>
-                    )}
-                  </div>
-                  {!isMobile && otherParticipant?.position && (
-                    <p className="text-xs text-muted-foreground">{otherParticipant.position}</p>
+              ) : activeChat.type === 'conversation' && activeChat.isGroup ? (
+                // Group chat - show group icon
+                <div className="relative h-9 w-9 rounded-full flex-shrink-0">
+                  {groupIconUrl ? (
+                    <img 
+                      src={groupIconUrl} 
+                      alt={groupName} 
+                      className="h-full w-full rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full w-full rounded-full bg-primary/10 text-primary font-semibold text-sm">
+                      {getInitials(groupName || "GC")}
+                    </div>
                   )}
                 </div>
               ) : (
-                // Space info
-                <div>
-                  <h2 className="font-semibold text-foreground text-sm md:text-base truncate">{activeChat.name}</h2>
-                  {!isMobile && (
-                    <p className="text-xs text-muted-foreground">
-                      {spaceMembers.length} member{spaceMembers.length !== 1 ? 's' : ''}
-                    </p>
+                // Space
+                <div className="flex items-center justify-center h-9 w-9 rounded bg-primary/10 text-primary font-semibold text-sm flex-shrink-0 overflow-hidden">
+                  {space?.icon_url ? (
+                    <img src={space.icon_url} alt={activeChat.name} className="h-full w-full object-cover" />
+                  ) : (
+                    activeChat.name.charAt(0).toUpperCase()
                   )}
                 </div>
               )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-0.5 md:gap-1 flex-shrink-0">
-            {/* Mobile: Show info button and more menu button */}
-            {isMobile && (
-              <>
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={onToggleRightPanel}
-                  className="h-9 w-9"
-                >
-                  <Info className="h-4 w-4" />
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={() => setShowMobileMenu(true)}
-                  className="h-9 w-9"
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </>
-            )}
-            
-            {/* Desktop: Action buttons - Mute, Favorite, Search */}
-            {!isMobile && (
-              <div className="flex items-center gap-0.5">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9"
-                      onClick={activeChat.type === 'space' ? handleToggleSpaceMute : handleToggleMute}
-                    >
-                      {(activeChat.type === 'space' ? spaceNotificationSetting === 'mute' : isMuted) ? (
-                        <BellOff className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <Bell className="h-4 w-4" />
+              
+              <div className="flex-1 min-w-0">
+                {activeChat.type === 'conversation' && activeChat.isGroup ? (
+                  // Group chat info
+                  <div>
+                    <h2 className="font-semibold text-foreground text-sm truncate">
+                      {groupName}
+                    </h2>
+                  </div>
+                ) : activeChat.type === 'conversation' ? (
+                  // Direct message info
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <h2 className="font-semibold text-foreground text-sm truncate">{activeChat.name}</h2>
+                      {otherParticipant?.is_online && (
+                        <span className="text-xs text-green-500">• Online</span>
                       )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {(activeChat.type === 'space' ? spaceNotificationSetting === 'mute' : isMuted)
-                      ? 'Unmute notifications'
-                      : 'Mute notifications'}
-                  </TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9"
-                      onClick={() => toggleFavorite.mutate({
-                        conversationId: conversationId || undefined,
-                        spaceId: spaceId || undefined,
-                      })}
-                    >
-                      <Star className={cn("h-4 w-4", isFavorited && "fill-orange-500 text-orange-500")} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {isFavorited ? 'Remove from favorites' : 'Add to favorites'}
-                  </TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className={cn("h-9 w-9", showSearch && "bg-accent")}
-                      onClick={() => setShowSearch(!showSearch)}
-                    >
-                      <Search className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Search messages</TooltipContent>
-                </Tooltip>
-
-                {onToggleFullWidth && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-9 w-9"
-                        onClick={onToggleFullWidth}
-                      >
-                        {isFullWidth ? (
-                          <PanelRight className="h-4 w-4" />
-                        ) : (
-                          <PanelRightClose className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {isFullWidth ? "Show details panel" : "Expand view"}
-                    </TooltipContent>
-                  </Tooltip>
+                    </div>
+                  </div>
+                ) : (
+                  // Space info
+                  <div>
+                    <h2 className="font-semibold text-foreground text-sm truncate">{activeChat.name}</h2>
+                  </div>
                 )}
               </div>
-            )}
-          </div>
-        </div>
+            </div>
 
-        {/* Message Search */}
-        <MessageSearch
-          conversationId={conversationId}
-          spaceId={spaceId}
-          isOpen={showSearch}
-          onClose={() => setShowSearch(false)}
-          onResultClick={(messageId) => {
-            // Scroll to the message
-            const messageElement = document.getElementById(`message-${messageId}`);
-            if (messageElement) {
-              messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              messageElement.classList.add('ring-2', 'ring-primary');
-              setTimeout(() => {
-                messageElement.classList.remove('ring-2', 'ring-primary');
-              }, 2000);
-            }
-          }}
-        />
+            <div className="flex items-center gap-0.5 flex-shrink-0">
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={onToggleRightPanel}
+                className="h-9 w-9"
+              >
+                <Info className="h-4 w-4" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => setShowMobileMenu(true)}
+                className="h-9 w-9"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Message Search (only for mobile - desktop uses ChatHeader) */}
+        {isMobile && (
+          <MessageSearch
+            conversationId={conversationId}
+            spaceId={spaceId}
+            isOpen={showSearch}
+            onClose={() => setShowSearch(false)}
+            onResultClick={(messageId) => {
+              const messageElement = document.getElementById(`message-${messageId}`);
+              if (messageElement) {
+                messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                messageElement.classList.add('ring-2', 'ring-primary');
+                setTimeout(() => {
+                  messageElement.classList.remove('ring-2', 'ring-primary');
+                }, 2000);
+              }
+            }}
+          />
+        )}
 
         {/* Messages */}
         <div className="flex-1 relative overflow-hidden">
