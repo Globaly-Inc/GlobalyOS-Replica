@@ -522,33 +522,18 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
         />
       )}
 
-      {/* Header */}
-      <div className="flex items-center gap-3 p-4 border-b border-border flex-shrink-0">
-        {isMobileOverlay && (
-          <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={onClose}>
+      {/* Mobile close button */}
+      {isMobileOverlay && (
+        <div className="flex items-center justify-between p-4 border-b border-border flex-shrink-0">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-        )}
-        <div className="w-9 h-9 rounded-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5">
-          <MessageSquare className="h-4 w-4 text-primary" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-sm truncate">{activeChat.name}</h3>
-          <p className="text-xs text-muted-foreground">
-            {activeChat.type === 'space' 
-              ? `${memberCount} members` 
-              : activeChat.isGroup 
-              ? 'Group chat' 
-              : 'Direct message'}
-          </p>
-        </div>
-        {isMobileOverlay && (
+          <span className="text-sm font-medium">Details</span>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
-        )}
-      </div>
-      
+        </div>
+      )}
 
       {/* Message Search Panel */}
       <MessageSearch
