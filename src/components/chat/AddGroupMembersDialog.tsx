@@ -104,10 +104,15 @@ const AddGroupMembersDialog = ({
       return;
     }
 
+    // Get the names of selected employees
+    const selectedEmployees = employees.filter(emp => selectedIds.includes(emp.id));
+    const employeeNames = selectedEmployees.map(emp => emp.profiles?.full_name || 'Unknown');
+
     try {
       await addMembers.mutateAsync({
         conversationId,
-        employeeIds: selectedIds
+        employeeIds: selectedIds,
+        employeeNames
       });
       toast.success(`Added ${selectedIds.length} member${selectedIds.length > 1 ? 's' : ''}`);
       setSelectedIds([]);
