@@ -11,7 +11,7 @@ import UnreadView from "@/components/chat/UnreadView";
 import MobileChatHome from "@/components/chat/MobileChatHome";
 import QuickSwitcher from "@/components/chat/QuickSwitcher";
 import ThreadView from "@/components/chat/ThreadView";
-
+import ChatHeader from "@/components/chat/ChatHeader";
 import { useChatKeyboardShortcuts } from "@/hooks/useChatKeyboardShortcuts";
 import type { ActiveChat, ChatMessage } from "@/types/chat";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -187,6 +187,10 @@ const Chat = () => {
 
       {/* Main Content Column */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+        {/* Top Bar - Spans full width above conversation + right panel */}
+        {activeChat && activeChat.type !== 'mentions' && activeChat.type !== 'starred' && (
+          <ChatHeader activeChat={activeChat} />
+        )}
 
         {/* Content Row - Conversation + Right Panel */}
         <div className="flex-1 flex min-w-0 overflow-hidden">
