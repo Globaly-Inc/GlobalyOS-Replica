@@ -61,7 +61,7 @@ const UnreadView = ({ onNavigateToChat, onBack }: UnreadViewProps) => {
   return (
     <div className="flex flex-col h-full bg-card">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-4 border-b border-border">
+      <div className="flex items-center gap-3 px-3 py-4 border-b border-border">
         {isMobile && onBack && (
           <Button variant="ghost" size="icon" onClick={onBack}>
             <ArrowLeft className="h-5 w-5" />
