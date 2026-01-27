@@ -1069,7 +1069,7 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
             )}
 
             {/* Current file preview */}
-            <div className="p-8">
+            <div className="p-4 sm:p-8 flex items-center justify-center w-full">
               {currentLightboxFile && (
                 isImageFile(currentLightboxFile.file_type) ? (
                   <img
@@ -1085,11 +1085,13 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
                     className="max-w-full max-h-[80vh] mx-auto rounded-lg"
                   />
                 ) : isPdfFile(currentLightboxFile.file_type, currentLightboxFile.file_name) ? (
-                  <PDFViewer
-                    fileUrl={getFilePublicUrl(currentLightboxFile.file_path)}
-                    mode="lightbox"
-                    className="min-h-[500px]"
-                  />
+                  <div className="w-full max-w-5xl mx-auto">
+                    <PDFViewer
+                      fileUrl={getFilePublicUrl(currentLightboxFile.file_path)}
+                      mode="lightbox"
+                      className="w-full"
+                    />
+                  </div>
                 ) : (
                   <div className="text-center text-white">
                     <FileText className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />

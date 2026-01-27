@@ -9,6 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 import { WikiSharedAvatars, SharedMember, SharedGroup } from "./WikiSharedAvatars";
 import { WikiMarkdownRenderer } from "./WikiMarkdownRenderer";
+import { PDFViewer } from "@/components/feed/PDFViewer";
 
 interface WikiPage {
   id: string;
@@ -268,11 +269,13 @@ export const WikiFilePreview = ({
 
           {/* PDF preview */}
           {isPdf && currentItem.file_url && (
-            <iframe
-              src={`${currentItem.file_url}#toolbar=1&navpanes=0`}
-              className="w-full h-full max-w-4xl"
-              title={currentItem.title}
-            />
+            <div className="w-full max-w-5xl h-full flex items-center justify-center">
+              <PDFViewer
+                fileUrl={currentItem.file_url}
+                mode="lightbox"
+                className="w-full"
+              />
+            </div>
           )}
 
           {/* Wiki page preview */}
