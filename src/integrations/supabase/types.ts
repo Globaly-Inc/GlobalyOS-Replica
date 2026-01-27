@@ -1134,6 +1134,44 @@ export type Database = {
           },
         ]
       }
+      billing_contacts: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          is_primary: boolean | null
+          name: string | null
+          organization_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: string
+          is_primary?: boolean | null
+          name?: string | null
+          organization_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          is_primary?: boolean | null
+          name?: string | null
+          organization_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_contacts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blog_keywords: {
         Row: {
           category: string | null
@@ -2572,6 +2610,69 @@ export type Database = {
             columns: ["test_run_id"]
             isOneToOne: false
             referencedRelation: "test_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_notes: {
+        Row: {
+          amount: number
+          applied_at: string | null
+          created_at: string | null
+          created_by: string | null
+          currency: string | null
+          id: string
+          invoice_id: string | null
+          organization_id: string
+          reason: string | null
+          status: string | null
+          stripe_credit_note_id: string | null
+          updated_at: string | null
+          voided_at: string | null
+        }
+        Insert: {
+          amount: number
+          applied_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          currency?: string | null
+          id?: string
+          invoice_id?: string | null
+          organization_id: string
+          reason?: string | null
+          status?: string | null
+          stripe_credit_note_id?: string | null
+          updated_at?: string | null
+          voided_at?: string | null
+        }
+        Update: {
+          amount?: number
+          applied_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          currency?: string | null
+          id?: string
+          invoice_id?: string | null
+          organization_id?: string
+          reason?: string | null
+          status?: string | null
+          stripe_credit_note_id?: string | null
+          updated_at?: string | null
+          voided_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_notes_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_notes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -6065,6 +6166,53 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "organization_members_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_payment_methods: {
+        Row: {
+          card_brand: string | null
+          card_exp_month: number | null
+          card_exp_year: number | null
+          card_last4: string | null
+          created_at: string | null
+          id: string
+          is_default: boolean | null
+          organization_id: string
+          stripe_payment_method_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          card_brand?: string | null
+          card_exp_month?: number | null
+          card_exp_year?: number | null
+          card_last4?: string | null
+          created_at?: string | null
+          id?: string
+          is_default?: boolean | null
+          organization_id: string
+          stripe_payment_method_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          card_brand?: string | null
+          card_exp_month?: number | null
+          card_exp_year?: number | null
+          card_last4?: string | null
+          created_at?: string | null
+          id?: string
+          is_default?: boolean | null
+          organization_id?: string
+          stripe_payment_method_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_payment_methods_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
