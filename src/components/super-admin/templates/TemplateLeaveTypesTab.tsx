@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,9 +41,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CalendarDays, Plus, Pencil, Trash2, Loader2, Globe } from "lucide-react";
+import { CalendarDays, Plus, Pencil, Trash2, Loader2, Globe, X, Check } from "lucide-react";
 import { toast } from "sonner";
-import { COUNTRIES } from "@/lib/countries";
+import { COUNTRIES, getFlagEmoji } from "@/lib/countries";
+import { CountrySelector } from "@/components/ui/country-selector";
+
+interface CountryDefault {
+  id?: string;
+  country_code: string;
+  default_days: number;
+}
 
 interface TemplateLeaveType {
   id: string;
@@ -60,6 +67,7 @@ interface TemplateLeaveType {
   sort_order: number;
   is_active: boolean;
   created_at: string;
+  country_defaults?: CountryDefault[];
 }
 
 const CARRY_FORWARD_MODES = [
@@ -94,12 +102,21 @@ export const TemplateLeaveTypesTab = () => {
     is_active: true,
   });
 
+  // Country defaults state
+  const [countryDefaults, setCountryDefaults] = useState<CountryDefault[]>([]);
+  const [showAddCountry, setShowAddCountry] = useState(false);
+  const [newCountryCode, setNewCountryCode] = useState("");
+  const [newCountryDays, setNewCountryDays] = useState(0);
+
   const { data: leaveTypes = [], isLoading } = useQuery({
     queryKey: ["template-leave-types", countryFilter],
     queryFn: async () => {
       let query = supabase
         .from("template_leave_types")
-        .select("*")
+        .select(`
+          *,
+          country_defaults:template_leave_type_country_defaults(*)
+        `)
         .order("country_code", { nullsFirst: true })
         .order("sort_order");
 
@@ -124,6 +141,8 @@ export const TemplateLeaveTypesTab = () => {
         country_code: data.country_code || null,
       };
 
+      let leaveTypeId = data.id;
+
       if (data.id) {
         const { error } = await supabase
           .from("template_leave_types")
@@ -131,10 +150,45 @@ export const TemplateLeaveTypesTab = () => {
           .eq("id", data.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
+        const { data: newType, error } = await supabase
           .from("template_leave_types")
-          .insert(payload);
+          .insert(payload)
+          .select("id")
+          .single();
         if (error) throw error;
+        leaveTypeId = newType.id;
+      }
+
+      // Sync country defaults for global templates
+      if (leaveTypeId && !payload.country_code) {
+        // Get existing defaults
+        const { data: existing } = await supabase
+          .from("template_leave_type_country_defaults")
+          .select("id, country_code")
+          .eq("template_leave_type_id", leaveTypeId);
+
+        // Delete removed ones
+        const currentCodes = countryDefaults.map(c => c.country_code);
+        const toDelete = existing?.filter(e => !currentCodes.includes(e.country_code)) || [];
+        
+        if (toDelete.length > 0) {
+          await supabase
+            .from("template_leave_type_country_defaults")
+            .delete()
+            .in("id", toDelete.map(d => d.id));
+        }
+
+        // Upsert current ones
+        for (const cd of countryDefaults) {
+          const { error } = await supabase
+            .from("template_leave_type_country_defaults")
+            .upsert({
+              template_leave_type_id: leaveTypeId,
+              country_code: cd.country_code,
+              default_days: cd.default_days,
+            }, { onConflict: "template_leave_type_id,country_code" });
+          if (error) console.error("Error upserting country default:", error);
+        }
       }
     },
     onSuccess: () => {
@@ -181,7 +235,11 @@ export const TemplateLeaveTypesTab = () => {
       sort_order: 0,
       is_active: true,
     });
+    setCountryDefaults([]);
     setEditingType(null);
+    setShowAddCountry(false);
+    setNewCountryCode("");
+    setNewCountryDays(0);
   };
 
   const openEdit = (type: TemplateLeaveType) => {
@@ -200,6 +258,8 @@ export const TemplateLeaveTypesTab = () => {
       sort_order: type.sort_order,
       is_active: type.is_active,
     });
+    // Load country defaults
+    setCountryDefaults(type.country_defaults || []);
     setDialogOpen(true);
   };
 
@@ -231,8 +291,40 @@ export const TemplateLeaveTypesTab = () => {
     }
   };
 
+  // Country defaults handlers
+  const addCountryDefault = () => {
+    if (!newCountryCode) {
+      toast.error("Please select a country");
+      return;
+    }
+    if (countryDefaults.some(cd => cd.country_code === newCountryCode)) {
+      toast.error("This country already has a default");
+      return;
+    }
+    setCountryDefaults([
+      ...countryDefaults,
+      { country_code: newCountryCode, default_days: newCountryDays }
+    ]);
+    setShowAddCountry(false);
+    setNewCountryCode("");
+    setNewCountryDays(0);
+  };
+
+  const updateCountryDefaultDays = (countryCode: string, days: number) => {
+    setCountryDefaults(countryDefaults.map(cd =>
+      cd.country_code === countryCode ? { ...cd, default_days: days } : cd
+    ));
+  };
+
+  const removeCountryDefault = (countryCode: string) => {
+    setCountryDefaults(countryDefaults.filter(cd => cd.country_code !== countryCode));
+  };
+
   // Get unique countries from data
   const countriesInData = [...new Set(leaveTypes.map(t => t.country_code).filter(Boolean))] as string[];
+
+  // Check if this is a global template (country-specific defaults only apply to global)
+  const isGlobalTemplate = !formData.country_code;
 
   return (
     <>
@@ -303,6 +395,7 @@ export const TemplateLeaveTypesTab = () => {
                   const country = type.country_code
                     ? COUNTRIES.find(c => c.code === type.country_code)?.name || type.country_code
                     : "Global";
+                  const countryOverridesCount = type.country_defaults?.length || 0;
                   return (
                     <TableRow key={type.id}>
                       <TableCell className="font-medium">{type.name}</TableCell>
@@ -320,7 +413,16 @@ export const TemplateLeaveTypesTab = () => {
                           {type.category}
                         </Badge>
                       </TableCell>
-                      <TableCell>{type.default_days}</TableCell>
+                      <TableCell>
+                        <span className="flex items-center gap-1.5">
+                          {type.default_days}
+                          {countryOverridesCount > 0 && (
+                            <Badge variant="outline" className="text-xs px-1.5 py-0 h-5">
+                              +{countryOverridesCount} 🌍
+                            </Badge>
+                          )}
+                        </span>
+                      </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground capitalize">
                           {type.carry_forward_mode.replace("_", " ")}
@@ -462,6 +564,107 @@ export const TemplateLeaveTypesTab = () => {
                 />
               </div>
             </div>
+
+            {/* Country-Specific Default Days Section - Only for Global templates */}
+            {isGlobalTemplate && (
+              <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                <div>
+                  <Label className="text-sm font-medium">Country-Specific Default Days</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Override the default days for specific countries
+                  </p>
+                </div>
+
+                {countryDefaults.length > 0 && (
+                  <div className="space-y-2">
+                    {countryDefaults.map((cd) => {
+                      const country = COUNTRIES.find(c => c.code === cd.country_code);
+                      return (
+                        <div
+                          key={cd.country_code}
+                          className="flex items-center gap-3 p-2 bg-background rounded border"
+                        >
+                          <span className="text-lg">{getFlagEmoji(cd.country_code)}</span>
+                          <span className="flex-1 text-sm font-medium">
+                            {country?.name || cd.country_code}
+                          </span>
+                          <Input
+                            type="number"
+                            value={cd.default_days}
+                            onChange={(e) => updateCountryDefaultDays(cd.country_code, Number(e.target.value))}
+                            className="w-20 h-8 text-center"
+                            min={0}
+                          />
+                          <span className="text-xs text-muted-foreground">days</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => removeCountryDefault(cd.country_code)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {showAddCountry ? (
+                  <div className="flex items-center gap-2 p-2 bg-background rounded border">
+                    <CountrySelector
+                      value={newCountryCode}
+                      onChange={setNewCountryCode}
+                      valueType="code"
+                      placeholder="Select country"
+                      className="flex-1"
+                    />
+                    <Input
+                      type="number"
+                      value={newCountryDays}
+                      onChange={(e) => setNewCountryDays(Number(e.target.value))}
+                      placeholder="Days"
+                      className="w-20 h-9 text-center"
+                      min={0}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 text-primary"
+                      onClick={addCountryDefault}
+                    >
+                      <Check className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9"
+                      onClick={() => {
+                        setShowAddCountry(false);
+                        setNewCountryCode("");
+                        setNewCountryDays(0);
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAddCountry(true)}
+                    className="w-full"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Country Override
+                  </Button>
+                )}
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

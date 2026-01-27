@@ -203,44 +203,53 @@ export const useCopyTemplatesToOffice = () => {
     mutationFn: async ({ officeId, countryCode }: { officeId: string; countryCode?: string }) => {
       if (!currentOrg?.id) throw new Error('Not authenticated');
 
-      // Fetch templates (global + country-specific)
-      let query = supabase
+      // Fetch global templates with country defaults
+      const { data: templates, error: fetchError } = await supabase
         .from('template_leave_types')
-        .select('*')
+        .select(`
+          *,
+          country_defaults:template_leave_type_country_defaults(
+            country_code, 
+            default_days
+          )
+        `)
         .eq('is_active', true)
+        .is('country_code', null)
         .order('sort_order');
 
-      if (countryCode) {
-        query = query.or(`country_code.is.null,country_code.eq.${countryCode}`);
-      } else {
-        query = query.is('country_code', null);
-      }
-
-      const { data: templates, error: fetchError } = await query;
       if (fetchError) throw fetchError;
 
       if (!templates || templates.length === 0) {
         throw new Error('No templates available');
       }
 
-      // Insert as office leave types
+      // Insert as office leave types with country-specific defaults
       const { error: insertError } = await supabase
         .from('office_leave_types')
         .insert(
-          templates.map(t => ({
-            office_id: officeId,
-            organization_id: currentOrg.id,
-            name: t.name,
-            category: t.category,
-            description: t.description,
-            default_days: t.default_days,
-            min_days_advance: t.min_days_advance,
-            max_negative_days: t.max_negative_days,
-            applies_to_gender: t.applies_to_gender,
-            applies_to_employment_types: t.applies_to_employment_types,
-            carry_forward_mode: t.carry_forward_mode,
-            is_active: true,
-          }))
+          templates.map(t => {
+            // Check for country-specific default
+            const countryOverride = countryCode && t.country_defaults
+              ? (t.country_defaults as Array<{ country_code: string; default_days: number }>)
+                  .find(cd => cd.country_code === countryCode)
+              : null;
+            
+            return {
+              office_id: officeId,
+              organization_id: currentOrg.id,
+              name: t.name,
+              category: t.category,
+              description: t.description,
+              // Apply country-specific default if available, otherwise use global template default
+              default_days: countryOverride?.default_days ?? t.default_days,
+              min_days_advance: t.min_days_advance,
+              max_negative_days: t.max_negative_days,
+              applies_to_gender: t.applies_to_gender,
+              applies_to_employment_types: t.applies_to_employment_types,
+              carry_forward_mode: t.carry_forward_mode,
+              is_active: true,
+            };
+          })
         );
 
       if (insertError) throw insertError;
