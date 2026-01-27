@@ -845,17 +845,6 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
           </CollapsibleContent>
         </Collapsible>
 
-        {/* Add Resources */}
-        <div className="px-4 py-3 border-t border-border">
-          <Button 
-            variant="ghost" 
-            className="w-full justify-start gap-2 text-primary"
-            onClick={() => setShowAddResourceDialog(true)}
-          >
-            <Plus className="h-4 w-4" />
-            Add Resources
-          </Button>
-        </div>
       </ScrollArea>
 
       {/* Dialogs */}
