@@ -60,21 +60,23 @@ const UnreadView = ({ onNavigateToChat, onBack }: UnreadViewProps) => {
 
   return (
     <div className="flex flex-col h-full bg-card">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-4 border-b border-border">
-        {isMobile && onBack && (
-          <Button variant="ghost" size="icon" onClick={onBack}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        )}
-        <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-destructive/10 text-destructive">
-          <MessageCircle className="h-5 w-5" />
+      {/* Header - only show on mobile */}
+      {isMobile && (
+        <div className="flex items-center gap-3 px-4 py-4 border-b border-border">
+          {onBack && (
+            <Button variant="ghost" size="icon" onClick={onBack}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          )}
+          <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-destructive/10 text-destructive">
+            <MessageCircle className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold">Unread</h2>
+            <p className="text-sm text-muted-foreground">Messages you haven't read yet</p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-lg font-semibold">Unread</h2>
-          <p className="text-sm text-muted-foreground">Messages you haven't read yet</p>
-        </div>
-      </div>
+      )}
 
       {/* Content */}
       <ScrollArea className="flex-1">

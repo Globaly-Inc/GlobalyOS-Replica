@@ -56,21 +56,23 @@ const StarredView = ({ onNavigateToChat, onBack }: StarredViewProps) => {
 
   return (
     <div className="flex flex-col h-full bg-card">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-2 py-4 border-b border-border">
-        {isMobile && onBack && (
-          <Button variant="ghost" size="icon" onClick={onBack}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        )}
-        <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-blue-500/10 text-blue-500">
-          <Bookmark className="h-5 w-5" />
+      {/* Header - only show on mobile */}
+      {isMobile && (
+        <div className="flex items-center gap-3 px-4 py-4 border-b border-border">
+          {onBack && (
+            <Button variant="ghost" size="icon" onClick={onBack}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          )}
+          <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-blue-500/10 text-blue-500">
+            <Bookmark className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold">Starred</h2>
+            <p className="text-sm text-muted-foreground">Your bookmarked messages</p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-lg font-semibold">Starred</h2>
-          <p className="text-sm text-muted-foreground">Your bookmarked messages</p>
-        </div>
-      </div>
+      )}
 
       {/* Content */}
       <ScrollArea className="flex-1">
