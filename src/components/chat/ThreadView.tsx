@@ -282,34 +282,34 @@ const ThreadView = ({
               })}
             </div>
           )}
+
+          {/* Reply composer - inside scroll area */}
+          <div className="pt-3 mt-2">
+            <div className="flex gap-2">
+              <Textarea
+                value={replyContent}
+                onChange={(e) => setReplyContent(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Reply..."
+                className="min-h-[40px] max-h-[120px] resize-none text-sm"
+                rows={1}
+              />
+              <Button
+                size="icon"
+                className="h-10 w-10 flex-shrink-0"
+                onClick={handleSendReply}
+                disabled={!replyContent.trim() || isSending}
+              >
+                {isSending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          </div>
         </div>
       </ScrollArea>
-
-      {/* Reply composer */}
-      <div className="p-3 border-t border-border">
-        <div className="flex gap-2">
-          <Textarea
-            value={replyContent}
-            onChange={(e) => setReplyContent(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Reply..."
-            className="min-h-[40px] max-h-[120px] resize-none text-sm"
-            rows={1}
-          />
-          <Button
-            size="icon"
-            className="h-10 w-10 flex-shrink-0"
-            onClick={handleSendReply}
-            disabled={!replyContent.trim() || isSending}
-          >
-            {isSending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
-      </div>
     </div>
   );
 };
