@@ -589,7 +589,7 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
         
         {/* Members Section (for groups and spaces) */}
         {(activeChat.isGroup || activeChat.type === 'space') && (
-          <Collapsible open={membersOpen} onOpenChange={setMembersOpen}>
+          <Collapsible open={membersOpen} onOpenChange={setMembersOpen} className="border-b border-border">
             <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-3 hover:bg-muted/50 transition-colors">
               <h4 className="text-sm font-medium flex items-center gap-2">
                 <Users className="h-4 w-4 text-muted-foreground" />
