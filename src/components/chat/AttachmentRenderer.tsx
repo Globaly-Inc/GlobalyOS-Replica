@@ -104,12 +104,17 @@ const AttachmentRenderer = ({ attachments, isOwn }: AttachmentRendererProps) => 
     // PDF rendering
     if (attachmentIsPdf) {
       return (
-        <div className="w-full h-full group">
+        <div className={cn(
+          "group",
+          isInLightbox 
+            ? "w-[90vw] max-w-4xl" 
+            : "w-full h-full"
+        )}>
           <PDFViewer
             fileUrl={publicUrl}
             mode={isInLightbox ? 'lightbox' : 'inline'}
             onExpand={isInLightbox ? undefined : () => openLightbox(index)}
-            className={isInLightbox ? "min-h-[500px]" : "h-full"}
+            className={isInLightbox ? "w-full" : "h-full"}
           />
         </div>
       );
@@ -285,7 +290,7 @@ const AttachmentRenderer = ({ attachments, isOwn }: AttachmentRendererProps) => 
             )}
 
             {/* Current media */}
-            <div className="p-8">
+            <div className="p-4 sm:p-8 flex items-center justify-center w-full">
               {mediaAttachments[currentIndex] && renderMediaItem(mediaAttachments[currentIndex], currentIndex, true)}
             </div>
 
