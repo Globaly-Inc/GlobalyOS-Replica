@@ -1,0 +1,65 @@
+import { UserPlus, UserMinus, LogOut, Crown, ShieldOff } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import type { SystemEventData } from "@/types/chat";
+
+interface SystemEventMessageProps {
+  eventData: SystemEventData;
+  timestamp: string;
+}
+
+const eventConfig = {
+  member_added: {
+    icon: UserPlus,
+    getText: (data: SystemEventData) => 
+      `${data.target_name} was added${data.actor_name ? ` by ${data.actor_name}` : ''}`,
+    className: "text-emerald-600 dark:text-emerald-400",
+  },
+  member_removed: {
+    icon: UserMinus,
+    getText: (data: SystemEventData) => 
+      `${data.target_name} was removed${data.actor_name ? ` by ${data.actor_name}` : ''}`,
+    className: "text-destructive",
+  },
+  member_left: {
+    icon: LogOut,
+    getText: (data: SystemEventData) => 
+      `${data.target_name} left the group`,
+    className: "text-muted-foreground",
+  },
+  admin_added: {
+    icon: Crown,
+    getText: (data: SystemEventData) => 
+      `${data.target_name} was made an admin`,
+    className: "text-amber-600 dark:text-amber-400",
+  },
+  admin_removed: {
+    icon: ShieldOff,
+    getText: (data: SystemEventData) => 
+      `${data.target_name} is no longer an admin`,
+    className: "text-muted-foreground",
+  },
+};
+
+const SystemEventMessage = ({ eventData, timestamp }: SystemEventMessageProps) => {
+  const config = eventConfig[eventData.event_type];
+  
+  if (!config) return null;
+
+  const Icon = config.icon;
+  const text = config.getText(eventData);
+  const time = format(new Date(timestamp), "h:mm a");
+
+  return (
+    <div className="flex items-center justify-center py-2 px-4">
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/50 text-xs">
+        <Icon className={cn("h-3.5 w-3.5", config.className)} />
+        <span className="text-muted-foreground">{text}</span>
+        <span className="text-muted-foreground/60">·</span>
+        <span className="text-muted-foreground/60">{time}</span>
+      </div>
+    </div>
+  );
+};
+
+export default SystemEventMessage;

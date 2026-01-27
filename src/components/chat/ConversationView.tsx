@@ -79,6 +79,7 @@ import AddSpaceMembersDialog from "./AddSpaceMembersDialog";
 import SpaceSettingsDialog from "./SpaceSettingsDialog";
 import EditGroupChatDialog from "./EditGroupChatDialog";
 import TransferAdminDialog from "./TransferAdminDialog";
+import SystemEventMessage from "./SystemEventMessage";
 import type { ActiveChat, ChatMessage, ChatSpaceMember, ChatAttachment } from "@/types/chat";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -105,6 +106,8 @@ interface ConversationViewProps {
 const shouldGroupMessages = (currentMsg: ChatMessage, prevMsg: ChatMessage | null): boolean => {
   if (!prevMsg) return false;
   if (currentMsg.sender_id !== prevMsg.sender_id) return false;
+  // System events break message grouping
+  if (currentMsg.content_type === 'system_event' || prevMsg.content_type === 'system_event') return false;
   
   const timeDiff = differenceInMinutes(
     new Date(currentMsg.created_at),
@@ -791,6 +794,17 @@ const ConversationView = ({
 
                     <div className="space-y-1">
                       {dateMessages.map((message, index) => {
+                        // Handle system event messages differently
+                        if (message.content_type === 'system_event' && message.system_event_data) {
+                          return (
+                            <SystemEventMessage
+                              key={message.id}
+                              eventData={message.system_event_data}
+                              timestamp={message.created_at}
+                            />
+                          );
+                        }
+                        
                         const isOwn = message.sender_id === currentEmployee?.id;
                         const prevMessage = index > 0 ? dateMessages[index - 1] : null;
                         const nextMessage = index < dateMessages.length - 1 ? dateMessages[index + 1] : null;

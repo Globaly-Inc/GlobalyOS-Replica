@@ -1887,6 +1887,7 @@ export type Database = {
           sender_id: string
           space_id: string | null
           status: string
+          system_event_data: Json | null
           updated_at: string
         }
         Insert: {
@@ -1903,6 +1904,7 @@ export type Database = {
           sender_id: string
           space_id?: string | null
           status?: string
+          system_event_data?: Json | null
           updated_at?: string
         }
         Update: {
@@ -1919,6 +1921,7 @@ export type Database = {
           sender_id?: string
           space_id?: string | null
           status?: string
+          system_event_data?: Json | null
           updated_at?: string
         }
         Relationships: [

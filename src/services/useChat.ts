@@ -1698,7 +1698,9 @@ export const useLeaveConversation = () => {
       conversationId: string; 
       transferAdminTo?: string 
     }) => {
-      if (!currentEmployee?.id) throw new Error('Not authenticated');
+      if (!currentEmployee?.id || !currentOrg?.id) throw new Error('Not authenticated');
+
+      const leavingEmployeeName = currentEmployee.profiles?.full_name || 'Someone';
 
       // If transferring admin, promote the new admin first
       if (transferAdminTo) {
@@ -1710,6 +1712,20 @@ export const useLeaveConversation = () => {
 
         if (transferError) throw transferError;
       }
+
+      // Insert system event message for member leaving
+      await supabase.from('chat_messages').insert({
+        organization_id: currentOrg.id,
+        conversation_id: conversationId,
+        sender_id: currentEmployee.id,
+        content: `${leavingEmployeeName} left the group`,
+        content_type: 'system_event',
+        system_event_data: {
+          event_type: 'member_left',
+          target_employee_id: currentEmployee.id,
+          target_name: leavingEmployeeName
+        }
+      });
 
       // Then remove self
       const { error } = await supabase
@@ -1723,6 +1739,7 @@ export const useLeaveConversation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat-conversations', currentOrg?.id] });
       queryClient.invalidateQueries({ queryKey: ['chat-conversation-participants'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-messages'] });
     },
   });
 };
@@ -1730,17 +1747,23 @@ export const useLeaveConversation = () => {
 // Update group member role
 export const useUpdateGroupMemberRole = () => {
   const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
 
   return useMutation({
     mutationFn: async ({ 
       conversationId, 
-      employeeId, 
+      employeeId,
+      employeeName,
       role 
     }: { 
       conversationId: string; 
-      employeeId: string; 
+      employeeId: string;
+      employeeName: string;
       role: 'admin' | 'member' 
     }) => {
+      if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
+
       const { error } = await supabase
         .from('chat_participants')
         .update({ role })
@@ -1748,10 +1771,32 @@ export const useUpdateGroupMemberRole = () => {
         .eq('employee_id', employeeId);
 
       if (error) throw error;
+
+      // Insert system event message for role change
+      const eventType = role === 'admin' ? 'admin_added' : 'admin_removed';
+      const actorName = currentEmployee.profiles?.full_name || 'Someone';
+
+      await supabase.from('chat_messages').insert({
+        organization_id: currentOrg.id,
+        conversation_id: conversationId,
+        sender_id: currentEmployee.id,
+        content: role === 'admin' 
+          ? `${employeeName} was made an admin`
+          : `${employeeName} is no longer an admin`,
+        content_type: 'system_event',
+        system_event_data: {
+          event_type: eventType,
+          target_employee_id: employeeId,
+          target_name: employeeName,
+          actor_employee_id: currentEmployee.id,
+          actor_name: actorName
+        }
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat-conversation-participants'] });
       queryClient.invalidateQueries({ queryKey: ['chat-conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-messages'] });
     },
   });
 };
@@ -1760,15 +1805,38 @@ export const useUpdateGroupMemberRole = () => {
 export const useRemoveGroupMember = () => {
   const queryClient = useQueryClient();
   const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
 
   return useMutation({
     mutationFn: async ({ 
       conversationId, 
-      employeeId 
+      employeeId,
+      employeeName
     }: { 
       conversationId: string; 
-      employeeId: string 
+      employeeId: string;
+      employeeName: string;
     }) => {
+      if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
+
+      // Insert system event message for member removal first (before delete)
+      const actorName = currentEmployee.profiles?.full_name || 'Someone';
+
+      await supabase.from('chat_messages').insert({
+        organization_id: currentOrg.id,
+        conversation_id: conversationId,
+        sender_id: currentEmployee.id,
+        content: `${employeeName} was removed by ${actorName}`,
+        content_type: 'system_event',
+        system_event_data: {
+          event_type: 'member_removed',
+          target_employee_id: employeeId,
+          target_name: employeeName,
+          actor_employee_id: currentEmployee.id,
+          actor_name: actorName
+        }
+      });
+
       const { error } = await supabase
         .from('chat_participants')
         .delete()
@@ -1780,6 +1848,7 @@ export const useRemoveGroupMember = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat-conversation-participants'] });
       queryClient.invalidateQueries({ queryKey: ['chat-conversations', currentOrg?.id] });
+      queryClient.invalidateQueries({ queryKey: ['chat-messages'] });
     },
   });
 };
@@ -1788,16 +1857,19 @@ export const useRemoveGroupMember = () => {
 export const useAddGroupMembers = () => {
   const queryClient = useQueryClient();
   const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
 
   return useMutation({
     mutationFn: async ({ 
       conversationId, 
-      employeeIds 
+      employeeIds,
+      employeeNames
     }: { 
       conversationId: string; 
-      employeeIds: string[] 
+      employeeIds: string[];
+      employeeNames: string[];
     }) => {
-      if (!currentOrg?.id) throw new Error('Not authenticated');
+      if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
 
       const { error } = await supabase
         .from('chat_participants')
@@ -1811,10 +1883,34 @@ export const useAddGroupMembers = () => {
         );
 
       if (error) throw error;
+
+      // Insert system event messages for each added member
+      const actorName = currentEmployee.profiles?.full_name || 'Someone';
+      
+      for (let i = 0; i < employeeIds.length; i++) {
+        const empId = employeeIds[i];
+        const empName = employeeNames[i] || 'Someone';
+
+        await supabase.from('chat_messages').insert({
+          organization_id: currentOrg.id,
+          conversation_id: conversationId,
+          sender_id: currentEmployee.id,
+          content: `${empName} was added by ${actorName}`,
+          content_type: 'system_event',
+          system_event_data: {
+            event_type: 'member_added',
+            target_employee_id: empId,
+            target_name: empName,
+            actor_employee_id: currentEmployee.id,
+            actor_name: actorName
+          }
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat-conversation-participants'] });
       queryClient.invalidateQueries({ queryKey: ['chat-conversations', currentOrg?.id] });
+      queryClient.invalidateQueries({ queryKey: ['chat-messages'] });
     },
   });
 };

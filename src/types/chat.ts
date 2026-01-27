@@ -95,6 +95,14 @@ export interface CallLogData {
   ai_summary?: string;
 }
 
+export interface SystemEventData {
+  event_type: 'member_added' | 'member_removed' | 'member_left' | 'admin_added' | 'admin_removed';
+  target_employee_id: string;
+  target_name: string;
+  actor_employee_id?: string;
+  actor_name?: string;
+}
+
 export type MessageDeliveryStatus = 'sending' | 'sent' | 'delivered' | 'read';
 
 export interface ChatMessage {
@@ -104,8 +112,9 @@ export interface ChatMessage {
   space_id: string | null;
   sender_id: string;
   content: string;
-  content_type: 'text' | 'file' | 'image' | 'call_log';
+  content_type: 'text' | 'file' | 'image' | 'call_log' | 'system_event';
   call_log_data?: CallLogData;
+  system_event_data?: SystemEventData;
   is_pinned: boolean;
   reply_to_id: string | null;
   created_at: string;

@@ -506,6 +506,7 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
 
   const handlePromote = async (member: any) => {
     const profile = member.employee?.profiles || member.employees?.profiles;
+    const memberName = profile?.full_name || 'Member';
     try {
       if (spaceId) {
         await updateRole.mutateAsync({
@@ -517,10 +518,11 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
         await updateGroupRole.mutateAsync({
           conversationId,
           employeeId: member.employee_id,
+          employeeName: memberName,
           role: 'admin'
         });
       }
-      toast.success(`${profile?.full_name || 'Member'} is now an admin`);
+      toast.success(`${memberName} is now an admin`);
     } catch (error) {
       showErrorToast(error, "Failed to promote member");
     }
@@ -528,6 +530,7 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
 
   const handleDemote = async (member: any) => {
     const profile = member.employee?.profiles || member.employees?.profiles;
+    const memberName = profile?.full_name || 'Member';
     try {
       if (spaceId) {
         await updateRole.mutateAsync({
@@ -539,10 +542,11 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
         await updateGroupRole.mutateAsync({
           conversationId,
           employeeId: member.employee_id,
+          employeeName: memberName,
           role: 'member'
         });
       }
-      toast.success(`${profile?.full_name || 'Member'} is now a regular member`);
+      toast.success(`${memberName} is now a regular member`);
     } catch (error) {
       showErrorToast(error, "Failed to change member role");
     }
@@ -550,19 +554,21 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
 
   const handleRemove = async (member: any) => {
     const profile = member.employee?.profiles || member.employees?.profiles;
+    const memberName = profile?.full_name || 'Member';
     try {
       if (spaceId) {
         await removeMember.mutateAsync({
           spaceId,
           employeeId: member.employee_id
         });
-        toast.success(`${profile?.full_name || 'Member'} has been removed from the space`);
+        toast.success(`${memberName} has been removed from the space`);
       } else if (conversationId) {
         await removeGroupMember.mutateAsync({
           conversationId,
-          employeeId: member.employee_id
+          employeeId: member.employee_id,
+          employeeName: memberName
         });
-        toast.success(`${profile?.full_name || 'Member'} has been removed from the group`);
+        toast.success(`${memberName} has been removed from the group`);
       }
     } catch (error) {
       showErrorToast(error, "Failed to remove member");
