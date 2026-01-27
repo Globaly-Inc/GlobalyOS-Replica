@@ -71,12 +71,15 @@ export const PostMedia = ({ media }: PostMediaProps) => {
     // PDF rendering
     if (isPdf) {
       return (
-        <div className="w-full h-full group">
+        <div className={cn(
+          "group",
+          isInLightbox ? "w-full max-w-5xl mx-auto" : "w-full h-full"
+        )}>
           <PDFViewer
             fileUrl={item.file_url}
             mode={isInLightbox ? 'lightbox' : 'inline'}
             onExpand={isInLightbox ? undefined : () => openLightbox(index)}
-            className={isInLightbox ? "min-h-[500px]" : "h-full"}
+            className="w-full"
           />
         </div>
       );
@@ -204,7 +207,7 @@ export const PostMedia = ({ media }: PostMediaProps) => {
             )}
 
             {/* Current media */}
-            <div className="p-8">
+            <div className="p-4 sm:p-8 flex items-center justify-center w-full">
               {renderMediaItem(media[currentIndex], currentIndex, true)}
             </div>
 

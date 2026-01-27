@@ -107,14 +107,14 @@ const AttachmentRenderer = ({ attachments, isOwn }: AttachmentRendererProps) => 
         <div className={cn(
           "group",
           isInLightbox 
-            ? "w-[90vw] max-w-4xl" 
+            ? "w-full max-w-5xl mx-auto" 
             : "w-full h-full"
         )}>
           <PDFViewer
             fileUrl={publicUrl}
             mode={isInLightbox ? 'lightbox' : 'inline'}
             onExpand={isInLightbox ? undefined : () => openLightbox(index)}
-            className={isInLightbox ? "w-full" : "h-full"}
+            className="w-full"
           />
         </div>
       );

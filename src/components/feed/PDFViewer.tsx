@@ -7,7 +7,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { ChevronLeft, ChevronRight, Maximize2, Loader2, FileText } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Maximize2, Loader2, FileText, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // Types for pdfjs-dist (loaded dynamically)
@@ -149,7 +149,8 @@ export const PDFViewer = ({ fileUrl, mode, onExpand, className }: PDFViewerProps
       // For lightbox: constrain to viewport height as well
       let scale: number;
       if (mode === 'lightbox') {
-        const maxHeight = window.innerHeight * 0.75;
+        // Match image sizing: up to 80% of viewport height
+        const maxHeight = window.innerHeight * 0.8;
         const scaleX = containerWidth / viewport.width;
         const scaleY = maxHeight / viewport.height;
         scale = Math.min(scaleX, scaleY) * (window.devicePixelRatio || 1);
@@ -310,11 +311,11 @@ export const PDFViewer = ({ fileUrl, mode, onExpand, className }: PDFViewerProps
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 shrink-0"
+          className={cn("shrink-0", mode === 'lightbox' ? "h-9 w-9" : "h-7 w-7")}
           onClick={goToPrevious}
           disabled={currentPage <= 1}
         >
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeft className={mode === 'lightbox' ? "h-5 w-5" : "h-4 w-4"} />
         </Button>
 
         <div className="flex-1 px-2">
@@ -324,26 +325,38 @@ export const PDFViewer = ({ fileUrl, mode, onExpand, className }: PDFViewerProps
             max={totalPages}
             step={1}
             onValueChange={handleSliderChange}
-            className="cursor-pointer"
+            className={cn("cursor-pointer", mode === 'lightbox' && "[&_[data-slot=track]]:h-2 [&_[data-slot=range]]:h-2")}
           />
         </div>
 
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 shrink-0"
+          className={cn("shrink-0", mode === 'lightbox' ? "h-9 w-9" : "h-7 w-7")}
           onClick={goToNext}
           disabled={currentPage >= totalPages}
         >
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className={mode === 'lightbox' ? "h-5 w-5" : "h-4 w-4"} />
         </Button>
 
         <span className={cn(
-          "text-xs text-muted-foreground whitespace-nowrap tabular-nums",
-          mode === 'lightbox' && "text-sm"
+          "text-muted-foreground whitespace-nowrap tabular-nums",
+          mode === 'lightbox' ? "text-sm min-w-[60px] text-center" : "text-xs"
         )}>
           {currentPage} / {totalPages}
         </span>
+
+        {/* Download button in lightbox mode */}
+        {mode === 'lightbox' && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 shrink-0 ml-2"
+            onClick={() => window.open(fileUrl, '_blank')}
+          >
+            <Download className="h-5 w-5" />
+          </Button>
+        )}
       </div>
     </div>
   );
