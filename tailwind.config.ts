@@ -138,6 +138,10 @@ export default {
           "0%, 100%": { transform: "translateY(0) rotate(-1deg)" },
           "50%": { transform: "translateY(-8px) rotate(1deg)" },
         },
+        "pulse-dot": {
+          "0%, 100%": { transform: "scale(1)", opacity: "1" },
+          "50%": { transform: "scale(1.2)", opacity: "0.8" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -151,6 +155,7 @@ export default {
         "float-particle": "float-particle 3s ease-in-out infinite",
         "twinkle": "twinkle 2s ease-in-out infinite",
         "phone-float": "phone-float 4s ease-in-out infinite",
+        "pulse-dot": "pulse-dot 1.5s ease-in-out infinite",
       },
     },
   },

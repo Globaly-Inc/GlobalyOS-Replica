@@ -1811,3 +1811,95 @@ export const usePublicSpaces = () => {
     enabled: !!currentOrg?.id && !!currentEmployee?.id,
   });
 };
+
+// Hook to fetch all unread messages across conversations and spaces
+export const useUnreadMessages = () => {
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+
+  return useQuery({
+    queryKey: ['unread-messages', currentOrg?.id, currentEmployee?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id || !currentEmployee?.id) return [];
+
+      // Step 1: Get all conversation participations with last_read_at
+      const { data: participations } = await supabase
+        .from('chat_participants')
+        .select('conversation_id, last_read_at')
+        .eq('employee_id', currentEmployee.id)
+        .eq('organization_id', currentOrg.id);
+
+      // Step 2: Get all space memberships with last_read_at  
+      const { data: memberships } = await supabase
+        .from('chat_space_members')
+        .select('space_id, last_read_at')
+        .eq('employee_id', currentEmployee.id)
+        .eq('organization_id', currentOrg.id);
+
+      const unreadMessages: any[] = [];
+
+      // Step 3: Fetch unread messages from conversations
+      for (const p of participations || []) {
+        let query = supabase
+          .from('chat_messages')
+          .select(`
+            *,
+            employees:sender_id (id, user_id, position, profiles:user_id (full_name, avatar_url)),
+            chat_conversations:conversation_id (id, name, is_group)
+          `)
+          .eq('conversation_id', p.conversation_id)
+          .neq('sender_id', currentEmployee.id)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (p.last_read_at) {
+          query = query.gt('created_at', p.last_read_at);
+        }
+
+        const { data } = await query;
+        if (data) {
+          unreadMessages.push(...data.map(msg => ({
+            ...msg,
+            sender: msg.employees,
+            conversation: msg.chat_conversations,
+          })));
+        }
+      }
+
+      // Step 4: Fetch unread messages from spaces
+      for (const m of memberships || []) {
+        let query = supabase
+          .from('chat_messages')
+          .select(`
+            *,
+            employees:sender_id (id, user_id, position, profiles:user_id (full_name, avatar_url)),
+            chat_spaces:space_id (id, name, icon_url)
+          `)
+          .eq('space_id', m.space_id)
+          .neq('sender_id', currentEmployee.id)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (m.last_read_at) {
+          query = query.gt('created_at', m.last_read_at);
+        }
+
+        const { data } = await query;
+        if (data) {
+          unreadMessages.push(...data.map(msg => ({
+            ...msg,
+            sender: msg.employees,
+            space: msg.chat_spaces,
+          })));
+        }
+      }
+
+      // Sort by created_at descending (newest first)
+      return unreadMessages.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+    },
+    enabled: !!currentOrg?.id && !!currentEmployee?.id,
+    refetchInterval: 30000,
+  });
+};
