@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Search,
   Bell,
@@ -9,7 +10,11 @@ import {
   Star,
   Pencil,
   Camera,
+  Check,
+  X,
+  Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useChatFavorites, useToggleFavorite } from "@/hooks/useChatFavorites";
@@ -19,7 +24,9 @@ import {
   useConversationParticipants,
   useMuteConversation,
   useUpdateSpaceNotification,
+  useUpdateConversation,
 } from "@/services/useChat";
+import { useOrganization } from "@/hooks/useOrganization";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { supabase } from "@/integrations/supabase/client";
 import MessageSearch from "./MessageSearch";
@@ -54,6 +61,14 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
   const [groupIconUrl, setGroupIconUrl] = useState<string | null>(activeChat.iconUrl || null);
   const [groupName, setGroupName] = useState(activeChat.name);
   const [isMuted, setIsMuted] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editNameValue, setEditNameValue] = useState(groupName);
+  const [isSavingName, setIsSavingName] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const updateConversation = useUpdateConversation();
+  const { currentOrg } = useOrganization();
 
   const conversationId = activeChat.type === 'conversation' ? activeChat.id : null;
   const spaceId = activeChat.type === 'space' ? activeChat.id : null;
@@ -94,6 +109,79 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
     if (spaceId) {
       const newSetting = spaceNotificationSetting === 'mute' ? 'all' : 'mute';
       await updateSpaceNotification.mutateAsync({ spaceId, setting: newSetting });
+    }
+  };
+
+  // Inline name editing handlers
+  const handleSaveGroupName = async () => {
+    if (!conversationId || editNameValue.trim() === groupName) {
+      setIsEditingName(false);
+      return;
+    }
+    
+    setIsSavingName(true);
+    try {
+      await updateConversation.mutateAsync({
+        conversationId,
+        name: editNameValue.trim()
+      });
+      setGroupName(editNameValue.trim());
+      toast.success("Group name updated");
+    } catch (error) {
+      toast.error("Failed to update group name");
+    } finally {
+      setIsSavingName(false);
+      setIsEditingName(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditNameValue(groupName);
+    setIsEditingName(false);
+  };
+
+  // Direct photo upload handler
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentOrg?.id || !conversationId) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be less than 5MB");
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `${currentOrg.id}/group-icons/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('chat-attachments')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('chat-attachments')
+        .getPublicUrl(filePath);
+
+      await updateConversation.mutateAsync({
+        conversationId,
+        iconUrl: publicUrl
+      });
+
+      setGroupIconUrl(publicUrl);
+      toast.success("Group photo updated");
+    } catch (error) {
+      toast.error("Failed to update group photo");
+    } finally {
+      setIsUploadingPhoto(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -222,26 +310,39 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
               )}
             </div>
           ) : activeChat.type === 'conversation' && activeChat.isGroup ? (
-            // Group chat - show group icon with edit option
-            <div 
-              className="relative h-10 w-10 rounded-full cursor-pointer group flex-shrink-0"
-              onClick={() => setShowEditGroupDialog(true)}
-            >
-              {groupIconUrl ? (
-                <img 
-                  src={groupIconUrl} 
-                  alt={groupName} 
-                  className="h-full w-full rounded-full object-cover"
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full w-full rounded-full bg-primary/10 text-primary font-semibold text-sm">
-                  {getInitials(groupName || "GC")}
+            // Group chat - show group icon with direct photo upload
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePhotoSelect}
+              />
+              <div 
+                className="relative h-10 w-10 rounded-full cursor-pointer group flex-shrink-0"
+                onClick={() => !isUploadingPhoto && fileInputRef.current?.click()}
+              >
+                {groupIconUrl ? (
+                  <img 
+                    src={groupIconUrl} 
+                    alt={groupName} 
+                    className="h-full w-full rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full w-full rounded-full bg-primary/10 text-primary font-semibold text-sm">
+                    {getInitials(groupName || "GC")}
+                  </div>
+                )}
+                <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  {isUploadingPhoto ? (
+                    <Loader2 className="h-4 w-4 text-white animate-spin" />
+                  ) : (
+                    <Camera className="h-4 w-4 text-white" />
+                  )}
                 </div>
-              )}
-              <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <Camera className="h-4 w-4 text-white" />
               </div>
-            </div>
+            </>
           ) : (
             // Space
             <div className="flex items-center justify-center h-10 w-10 rounded bg-primary/10 text-primary font-semibold text-sm flex-shrink-0 overflow-hidden">
@@ -255,15 +356,55 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
           
           <div className="flex-1 min-w-0">
             {activeChat.type === 'conversation' && activeChat.isGroup ? (
-              // Group chat info
-              <div 
-                className="cursor-pointer hover:opacity-80"
-                onClick={() => setShowEditGroupDialog(true)}
-              >
-                <h2 className="font-semibold text-foreground text-base flex items-center gap-1 truncate">
-                  {groupName}
-                  <Pencil className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                </h2>
+              // Group chat info with inline editing
+              <div className="group/name">
+                {isEditingName ? (
+                  // Editing mode
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      value={editNameValue}
+                      onChange={(e) => setEditNameValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSaveGroupName();
+                        if (e.key === 'Escape') handleCancelEdit();
+                      }}
+                      className="h-7 text-base font-semibold py-0 px-2 w-auto min-w-[120px]"
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleSaveGroupName}
+                      disabled={isSavingName}
+                      className="p-1 rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                    >
+                      {isSavingName ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Check className="h-3 w-3" />
+                      )}
+                    </button>
+                    <button
+                      onClick={handleCancelEdit}
+                      disabled={isSavingName}
+                      className="p-1 rounded bg-muted hover:bg-muted/80 transition-colors disabled:opacity-50"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  // Display mode
+                  <div 
+                    className="cursor-pointer"
+                    onClick={() => {
+                      setEditNameValue(groupName);
+                      setIsEditingName(true);
+                    }}
+                  >
+                    <h2 className="font-semibold text-foreground text-base flex items-center gap-1 truncate">
+                      {groupName}
+                      <Pencil className="h-3 w-3 text-muted-foreground flex-shrink-0 opacity-0 group-hover/name:opacity-100 transition-opacity" />
+                    </h2>
+                  </div>
+                )}
                 <p className="text-xs text-muted-foreground truncate">
                   {conversationParticipants
                     .filter(p => p.employee_id !== currentEmployee?.id)
