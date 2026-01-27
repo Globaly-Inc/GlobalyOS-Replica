@@ -621,16 +621,6 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
                   );
                 })
               )}
-              
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="w-full justify-start gap-2.5 text-muted-foreground hover:text-foreground mt-1"
-                onClick={() => setBrowseSpacesOpen(true)}
-              >
-                <Plus className="h-4 w-4" />
-                Browse spaces
-              </Button>
 
             </div>
           )}
