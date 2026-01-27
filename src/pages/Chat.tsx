@@ -12,6 +12,7 @@ import MobileChatHome from "@/components/chat/MobileChatHome";
 import QuickSwitcher from "@/components/chat/QuickSwitcher";
 import ThreadView from "@/components/chat/ThreadView";
 import ChatHeader from "@/components/chat/ChatHeader";
+import SpecialViewHeader from "@/components/chat/SpecialViewHeader";
 import { useChatKeyboardShortcuts } from "@/hooks/useChatKeyboardShortcuts";
 import type { ActiveChat, ChatMessage } from "@/types/chat";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -190,6 +191,9 @@ const Chat = () => {
         {/* Top Bar - Spans full width above conversation + right panel */}
         {activeChat && activeChat.type !== 'mentions' && activeChat.type !== 'starred' && activeChat.type !== 'unread' && (
           <ChatHeader activeChat={activeChat} />
+        )}
+        {activeChat && (activeChat.type === 'mentions' || activeChat.type === 'starred' || activeChat.type === 'unread') && (
+          <SpecialViewHeader type={activeChat.type} />
         )}
 
         {/* Content Row - Conversation + Right Panel */}
