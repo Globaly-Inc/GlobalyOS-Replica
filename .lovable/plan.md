@@ -1,245 +1,317 @@
 
-
-# Restrict Group Editing to Admins and Add Change Logs
+# Country-Specific Default Leave Days in Templates
 
 ## Overview
 
-Restrict the ability to edit group name and photo to group admins only, and add system event logs when these changes are made (similar to member change logs).
+Add the ability for Super Admins to configure country-specific default leave days per leave type template. These defaults will automatically be applied during organization onboarding when offices are set up based on their country.
 
 ---
 
-## Changes Required
+## Architecture
 
-### 1. Extend SystemEventData Type
+The solution uses a **country overrides table** linked to global leave type templates, rather than duplicating entire leave type records per country.
 
-**File: `src/types/chat.ts`**
+```text
++------------------------+         +------------------------------------+
+| template_leave_types   |  1:N    | template_leave_type_country_defaults|
++------------------------+ ------> +------------------------------------+
+| id                     |         | id                                  |
+| name                   |         | template_leave_type_id (FK)         |
+| country_code (null=    |         | country_code                        |
+|   global)              |         | default_days                        |
+| default_days (global   |         | created_at                          |
+|   fallback)            |         +------------------------------------+
+| ...                    |
++------------------------+
+```
 
-Add new event types for group changes:
+---
+
+## Implementation Details
+
+### 1. Database Migration
+
+Create a new table `template_leave_type_country_defaults`:
+
+```sql
+CREATE TABLE public.template_leave_type_country_defaults (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  template_leave_type_id UUID NOT NULL 
+    REFERENCES public.template_leave_types(id) ON DELETE CASCADE,
+  country_code TEXT NOT NULL,
+  default_days INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(template_leave_type_id, country_code)
+);
+
+-- RLS policies
+ALTER TABLE public.template_leave_type_country_defaults ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view template country defaults"
+ON public.template_leave_type_country_defaults FOR SELECT USING (true);
+
+CREATE POLICY "Super admins can manage template country defaults"
+ON public.template_leave_type_country_defaults FOR ALL 
+USING (public.is_super_admin());
+
+-- Index for lookups
+CREATE INDEX idx_template_country_defaults_type 
+ON public.template_leave_type_country_defaults(template_leave_type_id);
+```
+
+---
+
+### 2. Super Admin UI Updates
+
+**File: `src/components/super-admin/templates/TemplateLeaveTypesTab.tsx`**
+
+#### 2a. Add Interface and State
 
 ```typescript
-// Line 99 - Update the event_type union
-export interface SystemEventData {
-  event_type: 
-    | 'member_added' 
-    | 'member_removed' 
-    | 'member_left' 
-    | 'admin_added' 
-    | 'admin_removed'
-    | 'group_name_changed'    // NEW
-    | 'group_photo_changed';  // NEW
-  target_employee_id: string;
-  target_name: string;
-  actor_employee_id?: string;
-  actor_name?: string;
-  old_value?: string;  // NEW - for storing previous name
-  new_value?: string;  // NEW - for storing new name
+interface CountryDefault {
+  id?: string;
+  country_code: string;
+  default_days: number;
+}
+
+// Add state for country defaults
+const [countryDefaults, setCountryDefaults] = useState<CountryDefault[]>([]);
+const [showAddCountry, setShowAddCountry] = useState(false);
+const [newCountryCode, setNewCountryCode] = useState("");
+const [newCountryDays, setNewCountryDays] = useState(0);
+```
+
+#### 2b. Update Query to Fetch Country Defaults
+
+```typescript
+const { data: leaveTypes = [], isLoading } = useQuery({
+  queryKey: ["template-leave-types", countryFilter],
+  queryFn: async () => {
+    let query = supabase
+      .from("template_leave_types")
+      .select(`
+        *,
+        country_defaults:template_leave_type_country_defaults(*)
+      `)
+      .order("country_code", { nullsFirst: true })
+      .order("sort_order");
+    // ... filtering logic
+  },
+});
+```
+
+#### 2c. Show Override Count in Table
+
+Add a badge next to default_days showing count of country overrides:
+
+```tsx
+<TableCell>
+  {type.default_days}
+  {type.country_defaults?.length > 0 && (
+    <Badge variant="outline" className="ml-2 text-xs">
+      +{type.country_defaults.length} 🌍
+    </Badge>
+  )}
+</TableCell>
+```
+
+#### 2d. Add Country Overrides Section in Edit Dialog
+
+New section after "Default Days" field:
+
+```text
++-- Country-Specific Default Days ------------------------+
+| These override the default days for specific countries  |
+|                                                         |
+| 🇦🇺 Australia       [20] days  [🗑️]                    |
+| 🇬🇧 United Kingdom  [28] days  [🗑️]                    |
+| 🇮🇳 India           [12] days  [🗑️]                    |
+|                                                         |
+| [+ Add Country Override]                                |
++---------------------------------------------------------+
+
+When "Add" clicked:
+| [Country Selector ▼]  [Days Input] [✓] [✗]              |
+```
+
+#### 2e. Update Save Mutation
+
+After saving/updating the leave type, sync country defaults:
+
+```typescript
+// After leave type save succeeds
+if (editingType?.id) {
+  // Get existing defaults
+  const { data: existing } = await supabase
+    .from("template_leave_type_country_defaults")
+    .select("id, country_code")
+    .eq("template_leave_type_id", editingType.id);
+  
+  // Delete removed ones
+  const currentCodes = countryDefaults.map(c => c.country_code);
+  const toDelete = existing?.filter(e => !currentCodes.includes(e.country_code));
+  if (toDelete?.length) {
+    await supabase
+      .from("template_leave_type_country_defaults")
+      .delete()
+      .in("id", toDelete.map(d => d.id));
+  }
+  
+  // Upsert current ones
+  for (const cd of countryDefaults) {
+    await supabase
+      .from("template_leave_type_country_defaults")
+      .upsert({
+        template_leave_type_id: editingType.id,
+        country_code: cd.country_code,
+        default_days: cd.default_days,
+      }, { onConflict: "template_leave_type_id,country_code" });
+  }
 }
 ```
 
 ---
 
-### 2. Update SystemEventMessage Component
+### 3. Onboarding Integration
 
-**File: `src/components/chat/SystemEventMessage.tsx`**
+**File: `src/components/onboarding/wizard/OfficesStep.tsx`**
 
-Add new event configurations for group changes:
+#### 3a. Fetch Templates with Country Defaults on Mount
+
+When the OfficesStep loads, fetch global templates with their country defaults:
 
 ```typescript
-const eventConfig = {
-  // ... existing events ...
-  
-  group_name_changed: {
-    icon: Pencil,  // Import from lucide-react
-    getText: (data: SystemEventData) => 
-      data.old_value 
-        ? `${data.actor_name} changed the group name from "${data.old_value}" to "${data.new_value}"`
-        : `${data.actor_name} changed the group name to "${data.new_value}"`,
-    className: "text-blue-600 dark:text-blue-400",
-  },
-  group_photo_changed: {
-    icon: Camera,  // Import from lucide-react
-    getText: (data: SystemEventData) => 
-      `${data.actor_name} updated the group photo`,
-    className: "text-blue-600 dark:text-blue-400",
-  },
+const [templateDefaults, setTemplateDefaults] = useState<Map<string, Map<string, number>>>(new Map());
+
+useEffect(() => {
+  const fetchTemplates = async () => {
+    const { data } = await supabase
+      .from('template_leave_types')
+      .select(`
+        name,
+        default_days,
+        country_defaults:template_leave_type_country_defaults(country_code, default_days)
+      `)
+      .is('country_code', null)
+      .eq('is_active', true);
+    
+    if (data) {
+      const map = new Map<string, Map<string, number>>();
+      data.forEach(t => {
+        const countryMap = new Map<string, number>();
+        countryMap.set('_global', t.default_days || 0);
+        t.country_defaults?.forEach(cd => {
+          countryMap.set(cd.country_code, cd.default_days);
+        });
+        map.set(t.name, countryMap);
+      });
+      setTemplateDefaults(map);
+    }
+  };
+  fetchTemplates();
+}, []);
+```
+
+#### 3b. Update Leave Types When Office Country Changes
+
+When an office's country is changed (via address selection), update its leave type defaults:
+
+```typescript
+const handleAddressValueChange = (index: number, addressValue: AddressValue) => {
+  setOffices(offices.map((office, i) => {
+    if (i !== index) return office;
+    
+    const countryCode = addressValue.country;
+    
+    // Update leave types with country-specific defaults
+    const updatedLeaveTypes = (office.leave_types || []).map(lt => {
+      const templateMap = templateDefaults.get(lt.name);
+      if (!templateMap) return lt;
+      
+      // Use country-specific default if available, otherwise global
+      const countryDefault = templateMap.get(countryCode);
+      const globalDefault = templateMap.get('_global');
+      
+      return {
+        ...lt,
+        default_days: countryDefault ?? globalDefault ?? lt.default_days,
+      };
+    });
+    
+    return {
+      ...office,
+      // ... existing address updates
+      leave_types: updatedLeaveTypes,
+    };
+  }));
+};
+```
+
+#### 3c. Initialize New Offices with Country Defaults
+
+Update `getDefaultOfficeLeaveTypes` and `addOffice` to consider templates:
+
+```typescript
+const getDefaultOfficeLeaveTypes = (countryCode?: string): OfficeLeaveTypeConfig[] => {
+  return getDefaultLeaveTypesConfig().map(lt => {
+    const templateMap = templateDefaults.get(lt.name);
+    let defaultDays = lt.default_days;
+    
+    if (templateMap && countryCode) {
+      const countryDefault = templateMap.get(countryCode);
+      const globalDefault = templateMap.get('_global');
+      defaultDays = countryDefault ?? globalDefault ?? lt.default_days;
+    }
+    
+    return {
+      name: lt.name,
+      category: lt.category,
+      default_days: defaultDays,
+      is_enabled: lt.is_enabled,
+    };
+  });
 };
 ```
 
 ---
 
-### 3. Update ChatHeader.tsx to Check Admin Role
+### 4. Post-Onboarding Template Copy
 
-**File: `src/components/chat/ChatHeader.tsx`**
+**File: `src/services/useOfficeLeaveTypes.ts`**
 
-**3a. Add isGroupAdmin check (after line 78):**
-
-```typescript
-// Check if current user is a group admin
-const currentGroupMembership = conversationParticipants.find(
-  p => p.employee_id === currentEmployee?.id
-);
-const isGroupAdmin = activeChat.isGroup && currentGroupMembership?.role === 'admin';
-```
-
-**3b. Update handleSaveGroupName to log changes (lines 116-136):**
-
-Add logging before the toast and add admin check:
+Update `useCopyTemplatesToOffice` to apply country-specific defaults:
 
 ```typescript
-const handleSaveGroupName = async () => {
-  if (!conversationId || editNameValue.trim() === groupName) {
-    setIsEditingName(false);
-    return;
-  }
+// Fetch templates with country defaults
+const { data: templates } = await supabase
+  .from('template_leave_types')
+  .select(`
+    *,
+    country_defaults:template_leave_type_country_defaults(
+      country_code, 
+      default_days
+    )
+  `)
+  .eq('is_active', true)
+  .is('country_code', null)
+  .order('sort_order');
+
+// When inserting, check for country override
+templates.map(t => {
+  const countryOverride = t.country_defaults?.find(
+    cd => cd.country_code === countryCode
+  );
   
-  // Admin check
-  if (!isGroupAdmin) {
-    toast.error("Only group admins can change the group name");
-    setIsEditingName(false);
-    return;
-  }
-  
-  setIsSavingName(true);
-  const previousName = groupName;
-  
-  try {
-    await updateConversation.mutateAsync({
-      conversationId,
-      name: editNameValue.trim()
-    });
-    
-    // Log the change as a system event
-    const actorName = currentEmployee?.profiles?.full_name || 'Someone';
-    await supabase.from('chat_messages').insert({
-      organization_id: currentOrg.id,
-      conversation_id: conversationId,
-      sender_id: currentEmployee.id,
-      content: `${actorName} changed the group name`,
-      content_type: 'system_event',
-      system_event_data: {
-        event_type: 'group_name_changed',
-        target_employee_id: currentEmployee.id,
-        target_name: actorName,
-        actor_employee_id: currentEmployee.id,
-        actor_name: actorName,
-        old_value: previousName,
-        new_value: editNameValue.trim()
-      }
-    });
-    
-    setGroupName(editNameValue.trim());
-    toast.success("Group name updated");
-  } catch (error) {
-    toast.error("Failed to update group name");
-  } finally {
-    setIsSavingName(false);
-    setIsEditingName(false);
-  }
-};
-```
-
-**3c. Update handlePhotoSelect to log changes (lines 144-186):**
-
-Add admin check and logging:
-
-```typescript
-const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0];
-  if (!file || !currentOrg?.id || !conversationId) return;
-
-  // Admin check
-  if (!isGroupAdmin) {
-    toast.error("Only group admins can change the group photo");
-    return;
-  }
-
-  // ... existing validation code ...
-
-  setIsUploadingPhoto(true);
-  try {
-    // ... existing upload code ...
-
-    await updateConversation.mutateAsync({
-      conversationId,
-      iconUrl: publicUrl
-    });
-
-    // Log the change as a system event
-    const actorName = currentEmployee?.profiles?.full_name || 'Someone';
-    await supabase.from('chat_messages').insert({
-      organization_id: currentOrg.id,
-      conversation_id: conversationId,
-      sender_id: currentEmployee.id,
-      content: `${actorName} updated the group photo`,
-      content_type: 'system_event',
-      system_event_data: {
-        event_type: 'group_photo_changed',
-        target_employee_id: currentEmployee.id,
-        target_name: actorName,
-        actor_employee_id: currentEmployee.id,
-        actor_name: actorName
-      }
-    });
-
-    setGroupIconUrl(publicUrl);
-    toast.success("Group photo updated");
-  } catch (error) {
-    toast.error("Failed to update group photo");
-  } finally {
-    // ... existing cleanup ...
-  }
-};
-```
-
-**3d. Hide edit UI for non-admins (lines 312-345, 360-415):**
-
-Wrap the photo upload hover overlay to only show for admins:
-
-```tsx
-// Photo section (line 322-344) - only show camera overlay for admins
-<div 
-  className={cn(
-    "relative h-10 w-10 rounded-full flex-shrink-0",
-    isGroupAdmin ? "cursor-pointer group" : ""
-  )}
-  onClick={() => isGroupAdmin && !isUploadingPhoto && fileInputRef.current?.click()}
->
-  {/* Avatar content */}
-  {isGroupAdmin && (
-    <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-      {isUploadingPhoto ? (
-        <Loader2 className="h-4 w-4 text-white animate-spin" />
-      ) : (
-        <Camera className="h-4 w-4 text-white" />
-      )}
-    </div>
-  )}
-</div>
-```
-
-For name section (lines 360-415), only show pencil icon and allow editing for admins:
-
-```tsx
-{isGroupAdmin ? (
-  // Editable view for admins
-  <div 
-    className="cursor-pointer"
-    onClick={() => {
-      setEditNameValue(groupName);
-      setIsEditingName(true);
-    }}
-  >
-    <h2 className="font-semibold text-foreground text-base flex items-center gap-1 truncate">
-      {groupName}
-      <Pencil className="h-3 w-3 text-muted-foreground flex-shrink-0 opacity-0 group-hover/name:opacity-100 transition-opacity" />
-    </h2>
-  </div>
-) : (
-  // Read-only view for non-admins
-  <h2 className="font-semibold text-foreground text-base truncate">
-    {groupName}
-  </h2>
-)}
+  return {
+    office_id: officeId,
+    organization_id: currentOrg.id,
+    name: t.name,
+    // Apply country-specific default if available
+    default_days: countryOverride?.default_days ?? t.default_days,
+    // ... other fields
+  };
+});
 ```
 
 ---
@@ -248,34 +320,84 @@ For name section (lines 360-415), only show pencil icon and allow editing for ad
 
 | File | Change |
 |------|--------|
-| `src/types/chat.ts` | Add `group_name_changed` and `group_photo_changed` event types, add `old_value`/`new_value` fields |
-| `src/components/chat/SystemEventMessage.tsx` | Add event configurations for new event types with Pencil/Camera icons |
-| `src/components/chat/ChatHeader.tsx` | Add isGroupAdmin check, hide edit UI for non-admins, add logging for name/photo changes |
+| **Database Migration** | Create `template_leave_type_country_defaults` table with RLS |
+| `src/components/super-admin/templates/TemplateLeaveTypesTab.tsx` | Add country overrides UI section, fetch with join, upsert on save |
+| `src/components/onboarding/wizard/OfficesStep.tsx` | Fetch template defaults on mount, apply country-specific defaults when country changes |
+| `src/components/onboarding/wizard/LeaveTypesCustomizer.tsx` | Accept optional `countryCode` prop for dynamic defaults (minor update) |
+| `src/services/useOfficeLeaveTypes.ts` | Update `useCopyTemplatesToOffice` to use country overrides |
 
 ---
 
-## Visual Result
+## User Experience Flow
 
-**For Group Admins:**
-- Can hover over group photo to see camera overlay and update it
-- Can click group name to edit it inline with pencil icon shown on hover
-- Changes are logged in conversation
+### Super Admin Flow
+1. Navigate to Templates → Leave Types
+2. Click edit on "Annual Leave" (Global)
+3. See global default of 20 days
+4. Click "+ Add Country Override"
+5. Select "Australia" and enter 20 days
+6. Select "United Kingdom" and enter 28 days
+7. Save changes
+8. Table now shows "20 (+ 2 🌍)" indicating 2 country overrides
 
-**For Regular Members:**
-- Group photo shows without hover effect (non-clickable)
-- Group name displays without pencil icon (non-editable)
-- Can see the system event logs when admins make changes
+### Organization Onboarding Flow
+1. User reaches Offices step
+2. First office auto-filled with org address (e.g., Australia)
+3. Leave types automatically show Australian defaults (e.g., Annual Leave = 20 days)
+4. User adds second office in UK
+5. UK office leave types automatically show UK defaults (e.g., Annual Leave = 28 days)
+6. User can still manually adjust any values before saving
 
-**System Event Log Examples:**
+---
 
+## Visual Preview
+
+### Super Admin Edit Dialog
 ```text
-+-------------------------------------------------------+
-| [Pencil] John changed the group name from             |
-|          "Team Alpha" to "Team Beta"  · 2:30 PM       |
-+-------------------------------------------------------+
-
-+-------------------------------------------------------+
-| [Camera] Sarah updated the group photo  · 2:35 PM     |
-+-------------------------------------------------------+
++------------------------------------------------------------+
+|                    Edit Leave Type                    [X]  |
++------------------------------------------------------------+
+| Country: [Global (All Countries) ▼]  Category: [Paid ▼]   |
+|                                                            |
+| Name: [Annual Leave                                   ]    |
+| Description: [Standard vacation leave...              ]    |
+|                                                            |
+| +-- Default Settings ------------------------------------+ |
+| | Default Days: [20]  Min Advance: [2]  Max Neg: [0]    | |
+| +--------------------------------------------------------+ |
+|                                                            |
+| +-- Country-Specific Default Days -----------------------+ |
+| | Override the default days for specific countries       | |
+| |                                                        | |
+| | 🇦🇺 Australia           [20] days     [🗑️]            | |
+| | 🇬🇧 United Kingdom      [28] days     [🗑️]            | |
+| | 🇩🇪 Germany             [24] days     [🗑️]            | |
+| | 🇮🇳 India               [12] days     [🗑️]            | |
+| |                                                        | |
+| | [+ Add Country Override]                               | |
+| +--------------------------------------------------------+ |
+|                                                            |
+|                              [Cancel]  [Save Changes]      |
++------------------------------------------------------------+
 ```
 
+### Onboarding Office Leave Types (Country-Aware)
+```text
++-- Leave Settings (Australia Office) -----------------------+
+| Year Starts: [Jan 1 ▼]                        [Toggle ✓]  |
+|                                                            |
+| ✓ Annual Leave        [paid]    [20] days   <- AU default |
+| ✓ Sick/Personal Leave [paid]    [10] days                 |
+| ✓ Long Service Leave  [paid]    [ 0] days                 |
+| ✓ Substitute Leave    [paid]    [ 0] days                 |
+| ✓ Unpaid Leave        [unpaid]  [ 0] days                 |
++------------------------------------------------------------+
+
++-- Leave Settings (UK Office) ------------------------------+
+| Year Starts: [Apr 1 ▼]                        [Toggle ✓]  |
+|                                                            |
+| ✓ Annual Leave        [paid]    [28] days   <- UK default |
+| ✓ Sick/Personal Leave [paid]    [10] days                 |
+| ...                                                        |
++------------------------------------------------------------+
+```
