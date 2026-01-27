@@ -1,361 +1,248 @@
 
-# Subscription Management System Analysis and Recommendations
+# Implementation Plan: Stripe Webhook Secret, Webhook URL, PlanSelector Integration, and Invoice PDF Generation
 
-## Executive Summary
+## Overview
 
-GlobalyOS has a well-structured foundation for subscription management with essential database tables, Super Admin tooling, and basic billing workflows already in place. However, to implement a complete subscription system with Stripe integration, feature-based limitations, and self-service billing, several critical components are missing.
+This plan covers four key deliverables to complete the Stripe billing integration:
+1. Add `STRIPE_WEBHOOK_SECRET` as a project secret
+2. Provide Stripe Dashboard webhook configuration instructions
+3. Integrate the `PlanSelector` component into `BillingSettings.tsx`
+4. Create an edge function for invoice PDF generation
 
 ---
 
-## Current Implementation Status
+## Current State Analysis
 
-### What's Already Built
+| Component | Status |
+|-----------|--------|
+| `stripe-webhook` edge function | Complete - already checks for `STRIPE_WEBHOOK_SECRET` |
+| `create-checkout-session` edge function | Complete |
+| `create-portal-session` edge function | Complete |
+| `PlanSelector` component | Complete - not yet integrated |
+| `BillingSettings.tsx` | Shows plan info, usage, invoices - missing plan selection |
+| Invoice PDF generation | Missing |
+| `STRIPE_SECRET_KEY` secret | Configured |
+| `STRIPE_WEBHOOK_SECRET` secret | Missing |
 
-| Component | Status | Details |
-|-----------|--------|---------|
-| Database Schema | Complete | `subscriptions`, `subscription_plans`, `plan_limits`, `invoices`, `payments`, `usage_records`, `coupons`, `dunning_logs` tables |
-| Plan Management (Super Admin) | Complete | CRUD for plans via `PlanManagement.tsx`, feature limits via `FeatureLimitsEditor.tsx` |
-| Coupon Management | Complete | `CouponManagement.tsx` with applicable plans, discounts, usage tracking |
-| Trial Management | Complete | Trial tracking, extension UI (`EditTrialDialog`), expiration processing |
-| Dunning Process | Complete | 7-day dunning flow with `process-dunning` and `process-trial-expirations` edge functions |
-| Manual Invoicing | Complete | `OrgBillingTab.tsx`, `CreateInvoiceDialog.tsx` for Super Admin manual billing |
-| Manual Payments | Complete | Record bank transfers, cheques, cash; link to invoices |
-| User Billing Settings | Partial | `BillingSettings.tsx` shows plan info, usage metrics, invoice history |
-| Feature Flags | Complete | `organization_features` table with `useFeatureFlags` hook for gating features |
+---
 
-### Database Schema Summary
+## Implementation Details
 
+### 1. Add STRIPE_WEBHOOK_SECRET Secret
+
+Use the `add_secret` tool to prompt you to enter the webhook signing secret from Stripe Dashboard.
+
+**Secret name:** `STRIPE_WEBHOOK_SECRET`
+
+**Where to find it:**
+1. Go to Stripe Dashboard > Developers > Webhooks
+2. Click on your endpoint (or create one)
+3. Click "Reveal" under Signing secret
+4. Copy the value starting with `whsec_`
+
+---
+
+### 2. Stripe Dashboard Webhook Configuration
+
+**Webhook Endpoint URL:**
 ```text
-subscription_plans
-├── id, name, slug, description, tagline
-├── monthly_price, annual_price, currency
-├── trial_days, is_active, is_public, is_popular
-├── feature_highlights (JSON array)
-└── stripe_monthly_price_id, stripe_annual_price_id (placeholders)
-
-subscriptions
-├── id, organization_id, plan, status, billing_cycle
-├── trial_starts_at, trial_ends_at, current_period_start/end
-├── cancel_at_period_end, canceled_at
-├── stripe_subscription_id, stripe_customer_id (placeholders)
-├── payment_method_type
-└── dunning_started_at, dunning_ends_at, dunning_attempts
-
-invoices
-├── id, organization_id, subscription_id, invoice_number
-├── status, amount, currency, due_date, paid_at
-├── billing_period_start/end, line_items (JSON)
-└── stripe_invoice_id (placeholder)
-
-payments
-├── id, organization_id, invoice_id, amount, currency
-├── payment_method, status, reference_number, notes
-├── stripe_payment_id (placeholder)
-└── processed_by, processed_at
-
-plan_limits
-├── id, plan (slug), feature, feature_name
-├── monthly_limit, overage_rate, unit
-└── is_active, sort_order
+https://rygowmzkvxgnxagqlyxf.supabase.co/functions/v1/stripe-webhook
 ```
 
----
-
-## Missing Components for Full Implementation
-
-### Phase 1: Stripe Integration (Critical)
-
-#### 1.1 Stripe Webhook Handler
-**Missing**: Edge function to handle Stripe events
-
-**Required Events**:
-- `customer.subscription.created/updated/deleted`
-- `invoice.payment_succeeded/failed`
-- `payment_intent.succeeded/failed`
-- `customer.created`
+**Events to subscribe:**
 - `checkout.session.completed`
+- `customer.created`
+- `customer.subscription.created`
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+- `invoice.payment_succeeded`
+- `invoice.payment_failed`
+- `payment_intent.succeeded`
+- `payment_method.attached`
 
-```text
-supabase/functions/stripe-webhook/index.ts
-├── Verify webhook signature
-├── Handle subscription lifecycle events
-├── Sync payment status to `payments` table
-├── Update invoice status on payment
-└── Trigger dunning on payment failure
-```
-
-#### 1.2 Stripe Checkout Session Creator
-**Missing**: Edge function to create Stripe Checkout sessions
-
-```text
-supabase/functions/create-checkout-session/index.ts
-├── Create Stripe customer (if not exists)
-├── Create checkout session with price ID
-├── Apply coupon if provided
-├── Return checkout URL
-└── Support both monthly and annual billing
-```
-
-#### 1.3 Customer Portal Session Creator
-**Missing**: Edge function for Stripe Customer Portal
-
-```text
-supabase/functions/create-portal-session/index.ts
-├── Retrieve or create Stripe customer
-├── Create portal session
-├── Return portal URL for self-service management
-```
-
-#### 1.4 Payment Method Charging
-**Missing**: `charge-payment-method` edge function (referenced in DunningSection but doesn't exist)
-
-```text
-supabase/functions/charge-payment-method/index.ts
-├── Retrieve stored payment method from Stripe
-├── Create PaymentIntent
-├── Confirm payment
-├── Update invoice and subscription status
-└── Record payment in `payments` table
-```
+**Setup Steps:**
+1. Go to Stripe Dashboard > Developers > Webhooks
+2. Click "Add endpoint"
+3. Enter the URL above
+4. Select the events listed
+5. Click "Add endpoint"
+6. Copy the signing secret and add it as the `STRIPE_WEBHOOK_SECRET`
 
 ---
 
-### Phase 2: User-Facing Subscription Flows
+### 3. Integrate PlanSelector into BillingSettings
 
-#### 2.1 Plan Selection & Upgrade Flow
-**Missing**: Self-service plan upgrade/downgrade UI for organization owners
+**File to modify:** `src/components/BillingSettings.tsx`
 
+**Changes:**
+1. Import the `PlanSelector` component
+2. Add a "Change Plan" dialog/section
+3. Add "Manage Billing" button to open Stripe Customer Portal
+4. Display saved payment methods from `organization_payment_methods` table
+
+**UI Flow:**
 ```text
-src/components/subscription/
-├── PlanSelector.tsx           # Visual plan comparison with pricing
-├── UpgradeDialog.tsx          # Confirm upgrade, redirect to Stripe Checkout
-├── DowngradeDialog.tsx        # Warning about feature loss, schedule downgrade
-├── BillingCycleToggle.tsx     # Monthly/Annual switch with savings display
-└── PlanComparisonTable.tsx    # Feature-by-feature comparison
+Current Plan Card
+├── Plan name + status badge
+├── Price display
+├── [Change Plan] button → Opens PlanSelector in dialog
+├── [Manage Billing] button → Opens Stripe Customer Portal
+└── Current period info
+
+Payment Method Card (updated)
+├── Display saved card (brand, last 4, expiry)
+├── [Update] button → Opens Stripe Portal
+└── "No payment method" state with Add button
 ```
 
-**User Flow**:
-1. Owner clicks "Change Plan" in Settings → Billing
-2. Sees current plan highlighted with available plans
-3. Selects new plan and billing cycle
-4. For upgrades: Redirect to Stripe Checkout
-5. For downgrades: Show warning, schedule for period end
-
-#### 2.2 Payment Method Management
-**Missing**: UI for adding/updating payment methods
-
-```text
-src/components/subscription/
-├── PaymentMethodForm.tsx      # Add new card via Stripe Elements
-├── PaymentMethodList.tsx      # Show saved payment methods
-└── SetDefaultPaymentMethod.tsx # Change default payment method
-```
-
-#### 2.3 Invoice Download & PDF Generation
-**Missing**: PDF invoice generation
-
-```text
-supabase/functions/generate-invoice-pdf/index.ts
-├── Fetch invoice data with line items
-├── Generate PDF with company branding
-├── Store in Supabase Storage
-└── Return download URL
-```
-
----
-
-### Phase 3: Feature Limitation Enforcement
-
-#### 3.1 Usage Tracking Hook
-**Missing**: Real-time usage checking hook
-
+**New imports:**
 ```typescript
-// src/hooks/useUsageLimits.ts
-export function useUsageLimits() {
-  // Returns current usage vs limits
-  // Provides `canUse(feature)` function
-  // Emits warnings at 80%, 90%, 100% thresholds
-}
+import { PlanSelector } from "@/components/subscription/PlanSelector";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 ```
 
-#### 3.2 Feature Gate Components
-**Missing**: UI components to block actions when limits exceeded
-
-```text
-src/components/subscription/
-├── UsageLimitWarning.tsx      # "You've used 80% of AI queries"
-├── UpgradePrompt.tsx          # "Upgrade to Growth for more features"
-├── FeatureGate.tsx            # Wrapper that blocks action + shows upgrade CTA
-└── LimitReachedDialog.tsx     # Modal when user hits limit
-```
-
-#### 3.3 Server-Side Limit Enforcement
-**Missing**: Edge function middleware for limit checking
-
-```text
-// In relevant edge functions (e.g., global-ask-ai):
-- Check current usage against plan_limits
-- Return 402 Payment Required if exceeded
-- Suggest upgrade in error response
-```
+**Key additions:**
+- `useState` for dialog open state
+- Query for payment methods from `organization_payment_methods`
+- Handler for Stripe Portal redirect
+- Handler for plan selection callback
 
 ---
 
-### Phase 4: Billing Automation
+### 4. Invoice PDF Generation Edge Function
 
-#### 4.1 Subscription Renewal Processing
-**Missing**: Edge function for renewal invoicing
+**New file:** `supabase/functions/generate-invoice-pdf/index.ts`
 
+**Functionality:**
+1. Fetch invoice data with organization branding
+2. Generate PDF using a Deno-compatible PDF library
+3. Store PDF in Supabase Storage bucket
+4. Return download URL
+
+**PDF Content:**
 ```text
-supabase/functions/process-subscription-renewals/index.ts
-├── Find subscriptions with current_period_end approaching
-├── Generate renewal invoice
-├── Attempt charge via Stripe
-├── Handle success: Update period, send receipt
-└── Handle failure: Enter dunning
+┌─────────────────────────────────────────────┐
+│ [Organization Logo]     INVOICE             │
+│ GlobalyOS                                   │
+│                                             │
+│ Invoice #: INV-2024-001                     │
+│ Date: January 27, 2024                      │
+│ Due Date: February 10, 2024                 │
+│                                             │
+│ Bill To:                                    │
+│ [Organization Name]                         │
+│ [Billing Contact Email]                     │
+│                                             │
+│ ─────────────────────────────────────────── │
+│ Description              Qty    Amount      │
+│ ─────────────────────────────────────────── │
+│ Growth Plan (Annual)      1     $2,870.00   │
+│                                             │
+│ ─────────────────────────────────────────── │
+│ Subtotal:                       $2,870.00   │
+│ Tax (0%):                       $0.00       │
+│ Total:                          $2,870.00   │
+│ ─────────────────────────────────────────── │
+│                                             │
+│ Status: PAID (January 27, 2024)             │
+│                                             │
+│ Thank you for your business!                │
+│ support@globalyos.com                     │
+└─────────────────────────────────────────────┘
 ```
 
-#### 4.2 Proration Calculation
-**Missing**: Logic for mid-cycle plan changes
+**PDF Library Options:**
+- Use `jspdf` via npm specifier in Deno
+- Or use `pdfkit` via esm.sh
 
-```text
-supabase/functions/calculate-proration/index.ts
-├── Calculate remaining days in current period
-├── Calculate credit for unused time
-├── Calculate prorated charge for new plan
-└── Generate adjustment invoice or credit
-```
+**Storage:**
+- Create `invoices` bucket in Supabase Storage
+- Store PDFs with path: `{organization_id}/{invoice_number}.pdf`
+- Return signed URL for download
 
-#### 4.3 Billing Email Notifications
-**Missing**: Automated billing emails
-
-| Email Type | Trigger |
-|------------|---------|
-| Payment Receipt | Invoice paid |
-| Payment Failed | Invoice payment failure |
-| Trial Ending Soon | 3 days before trial ends |
-| Trial Ended | Trial expiration |
-| Subscription Canceled | Plan cancellation |
-| Renewal Reminder | 7 days before renewal |
-| Usage Warning | At 80%, 90% of limits |
+**Database updates:**
+- Add `pdf_url` column to `invoices` table to cache the generated PDF path
 
 ---
 
-### Phase 5: Super Admin Enhancements
+## Files to Create/Modify
 
-#### 5.1 Revenue Analytics Dashboard
-**Missing**: Financial reporting
-
-```text
-src/pages/super-admin/SuperAdminRevenue.tsx
-├── MRR (Monthly Recurring Revenue)
-├── ARR (Annual Recurring Revenue)
-├── Churn rate and cohort analysis
-├── Revenue by plan breakdown
-├── Payment success/failure rates
-└── Outstanding invoice totals
-```
-
-#### 5.2 Subscription Lifecycle Timeline
-**Partial**: `subscription_timeline` table exists, needs UI
-
-```text
-src/components/super-admin/SubscriptionTimeline.tsx
-├── Visual timeline of subscription events
-├── Trial → Active → Dunning → Canceled flow
-├── Payment attempts and outcomes
-└── Admin actions (extend trial, change plan)
-```
+| File | Action | Purpose |
+|------|--------|---------|
+| `supabase/functions/generate-invoice-pdf/index.ts` | Create | PDF generation edge function |
+| `supabase/config.toml` | Modify | Add function config |
+| `src/components/BillingSettings.tsx` | Modify | Integrate PlanSelector, portal, payment methods |
+| Database migration | Create | Add `pdf_url` to invoices, create storage bucket |
 
 ---
 
-## Database Schema Additions Required
-
-### New Tables Needed
+## Database Migration
 
 ```sql
--- Organization payment methods (Stripe references)
-CREATE TABLE organization_payment_methods (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id UUID REFERENCES organizations(id) NOT NULL,
-  stripe_payment_method_id TEXT NOT NULL,
-  card_brand TEXT,
-  card_last4 TEXT,
-  card_exp_month INTEGER,
-  card_exp_year INTEGER,
-  is_default BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT now()
+-- Add pdf_url column to invoices table
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS pdf_url TEXT;
+
+-- Create invoices storage bucket
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('invoices', 'invoices', false)
+ON CONFLICT (id) DO NOTHING;
+
+-- RLS policy for invoice PDFs - org members can read their own invoices
+CREATE POLICY "Organization members can read invoice PDFs"
+ON storage.objects FOR SELECT
+TO authenticated
+USING (
+  bucket_id = 'invoices' AND
+  EXISTS (
+    SELECT 1 FROM organization_members om
+    WHERE om.user_id = auth.uid()
+    AND om.organization_id::text = (storage.foldername(name))[1]
+  )
 );
 
--- Billing contacts
-CREATE TABLE billing_contacts (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id UUID REFERENCES organizations(id) NOT NULL,
-  email TEXT NOT NULL,
-  name TEXT,
-  is_primary BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- Credit notes for refunds/adjustments
-CREATE TABLE credit_notes (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id UUID REFERENCES organizations(id) NOT NULL,
-  invoice_id UUID REFERENCES invoices(id),
-  amount NUMERIC NOT NULL,
-  currency TEXT DEFAULT 'USD',
-  reason TEXT,
-  status TEXT DEFAULT 'issued',
-  created_at TIMESTAMPTZ DEFAULT now()
-);
+-- Only system can upload (via service role)
+CREATE POLICY "Service role can upload invoice PDFs"
+ON storage.objects FOR INSERT
+TO service_role
+WITH CHECK (bucket_id = 'invoices');
 ```
-
----
-
-## Implementation Roadmap
-
-### Immediate Priority (Stripe-Ready)
-1. Create `stripe-webhook` edge function
-2. Create `create-checkout-session` edge function
-3. Create `create-portal-session` edge function
-4. Add `organization_payment_methods` table
-5. Enable Stripe integration via Lovable
-
-### Short-Term (Self-Service Billing)
-1. Build plan selection UI for organization owners
-2. Implement payment method management
-3. Add invoice PDF generation
-4. Create billing email templates
-
-### Medium-Term (Limit Enforcement)
-1. Build `useUsageLimits` hook
-2. Add feature gate components
-3. Update edge functions with limit checking
-4. Add usage warning notifications
-
-### Long-Term (Analytics & Automation)
-1. Build revenue analytics dashboard
-2. Implement proration calculations
-3. Add subscription renewal automation
-4. Create cohort analysis tools
 
 ---
 
 ## Technical Considerations
 
-### Stripe Integration Notes
-- Use Stripe Billing for subscription management
-- Store Stripe IDs in existing columns (`stripe_subscription_id`, `stripe_customer_id`, etc.)
-- Use webhooks as source of truth for subscription status
-- Enable Customer Portal for self-service card updates
+### PDF Generation in Deno
+Since Deno edge functions run in a constrained environment, we'll use a lightweight approach:
+- Generate HTML invoice template
+- Use a headless browser service (optional) or
+- Use pure JavaScript PDF library like `jspdf`
 
-### Security Requirements
-- Verify Stripe webhook signatures
-- RLS policies on billing tables (owner/admin only)
-- Audit logging for all billing operations
-- PCI compliance via Stripe Elements (no raw card data)
+### Caching Strategy
+- Generate PDF on first download request
+- Store in Supabase Storage
+- Return cached URL on subsequent requests
+- Invalidate if invoice is updated
 
-### Multi-Tenant Isolation
-- All billing queries scoped by `organization_id`
-- Payment methods belong to organizations, not users
-- Invoices and payments isolated per tenant
+### Security
+- Verify user belongs to organization before generating/downloading
+- Use signed URLs with expiration for downloads
+- Service role for storage operations
+
+---
+
+## Implementation Order
+
+1. **Add STRIPE_WEBHOOK_SECRET secret** (requires user action)
+2. **Update BillingSettings.tsx** with PlanSelector integration
+3. **Create generate-invoice-pdf edge function**
+4. **Run database migration** for pdf_url column and storage bucket
+5. **Connect download button** to PDF generation endpoint
+
+---
+
+## User Actions Required
+
+1. **Add Webhook Secret**: You'll be prompted to enter the `STRIPE_WEBHOOK_SECRET` value
+2. **Configure Stripe Webhook**: Follow the Stripe Dashboard setup steps above
+3. **Optional**: Configure Stripe Customer Portal settings at stripe.com/dashboard/settings/billing/portal
+
