@@ -1,161 +1,528 @@
 
-# Inactive Team Members: Complete Exclusion from Chat Features
+# System Event Logs for Spaces
 
 ## Overview
-Implement comprehensive filtering to exclude inactive team members from all chat-related features, including automatic removal from existing groups and spaces when a team member becomes inactive.
+Add system event logging to Spaces (similar to group chats) to track and display member changes, admin role changes, space name changes, and space photo changes.
 
 ---
 
 ## Current State Analysis
 
-### Existing Filtering
-| Component | Filters Inactive? | Notes |
-|-----------|-------------------|-------|
-| `NewChatDialog.tsx` | **No** | Uses `useEmployees()` with no status filter |
-| `AddGroupMembersDialog.tsx` | **Yes** | Already filters `.eq('status', 'active')` |
-| `AccessScopeSelector.tsx` | **Yes** | Already filters `.eq('status', 'active')` |
-| Auto-sync triggers (DB) | **Partial** | Removes from auto-sync spaces but NOT from conversations/groups |
+### What Works (Group Chats)
+| Action | Logs System Event? | Where |
+|--------|-------------------|-------|
+| Add member to group | Yes | `useAddGroupMembers` |
+| Remove member from group | Yes | `useRemoveGroupMember` |
+| Member leaves group | Yes | `useLeaveConversation` |
+| Promote to admin | Yes | `useUpdateGroupMemberRole` |
+| Demote from admin | Yes | `useUpdateGroupMemberRole` |
+| Change group name | Yes | `ChatHeader.tsx` |
+| Change group photo | Yes | `ChatHeader.tsx` |
 
-### Missing Features
-1. `NewChatDialog.tsx` shows all employees including inactive
-2. No trigger to remove inactive members from **chat conversations/groups**
-3. Existing auto-sync trigger only handles spaces, not group chats
+### What's Missing (Spaces)
+| Action | Logs System Event? | Where |
+|--------|-------------------|-------|
+| Add member to space | **No** | `useAddSpaceMembers` |
+| Remove member from space | **No** | `useRemoveSpaceMember` |
+| Member leaves space | **No** | `useLeaveSpace` |
+| Promote to admin | **No** | `useUpdateSpaceMemberRole` |
+| Demote from admin | **No** | `useUpdateSpaceMemberRole` |
+| Change space name | **No** | `useUpdateSpace` |
+| Change space photo | **No** | `useUpdateSpace` |
 
 ---
 
 ## Implementation Plan
 
-### Part 1: Filter Inactive Members in NewChatDialog
+### Part 1: Update Types to Support Space Events
 
-**File:** `src/components/chat/NewChatDialog.tsx`
+**File:** `src/types/chat.ts`
 
-Currently uses `useEmployees()` without status filtering. Need to filter to only show active employees.
+Expand the `SystemEventData` event types to include space-specific events:
 
-**Change (line 56):**
 ```tsx
-// Before
-const filteredEmployees = employees.filter(emp => {
-  if (emp.id === currentEmployee?.id) return false;
-  const name = emp.profiles?.full_name || "";
-  const email = emp.profiles?.email || "";
-  return (
-    name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+// Current
+event_type: 'member_added' | 'member_removed' | 'member_left' | 'admin_added' | 'admin_removed' | 'group_name_changed' | 'group_photo_changed';
+
+// New (add space variants)
+event_type: 
+  | 'member_added' 
+  | 'member_removed' 
+  | 'member_left' 
+  | 'admin_added' 
+  | 'admin_removed' 
+  | 'group_name_changed' 
+  | 'group_photo_changed'
+  | 'space_name_changed'
+  | 'space_photo_changed';
+```
+
+---
+
+### Part 2: Update SystemEventMessage Component
+
+**File:** `src/components/chat/SystemEventMessage.tsx`
+
+Add new event configurations for space-specific events:
+
+```tsx
+const eventConfig = {
+  // ... existing configs ...
+  
+  space_name_changed: {
+    icon: Pencil,
+    getText: (data: SystemEventData) => 
+      data.old_value 
+        ? `${data.actor_name} changed the space name from "${data.old_value}" to "${data.new_value}"`
+        : `${data.actor_name} changed the space name to "${data.new_value}"`,
+    className: "text-blue-600 dark:text-blue-400",
+  },
+  space_photo_changed: {
+    icon: Camera,
+    getText: (data: SystemEventData) => 
+      `${data.actor_name} updated the space photo`,
+    className: "text-blue-600 dark:text-blue-400",
+  },
+};
+```
+
+---
+
+### Part 3: Add System Events to Space Member Operations
+
+**File:** `src/services/useChat.ts`
+
+#### 3A. `useAddSpaceMembers` (lines 1512-1544)
+Update to accept employee names and log system events:
+
+```tsx
+export const useAddSpaceMembers = () => {
+  const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+
+  return useMutation({
+    mutationFn: async ({
+      spaceId,
+      employeeIds,
+      employeeNames, // NEW parameter
+    }: {
+      spaceId: string;
+      employeeIds: string[];
+      employeeNames?: string[]; // Optional for backwards compatibility
+    }) => {
+      if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
+
+      // Insert members
+      const members = employeeIds.map((empId) => ({
+        space_id: spaceId,
+        employee_id: empId,
+        organization_id: currentOrg.id,
+        role: 'member' as const,
+      }));
+
+      const { error } = await supabase
+        .from('chat_space_members')
+        .insert(members);
+
+      if (error) throw error;
+
+      // Log system events if names provided
+      if (employeeNames?.length) {
+        const actorName = currentEmployee.profiles?.full_name || 'Someone';
+        
+        for (let i = 0; i < employeeIds.length; i++) {
+          const empId = employeeIds[i];
+          const empName = employeeNames[i] || 'Someone';
+
+          await supabase.from('chat_messages').insert({
+            organization_id: currentOrg.id,
+            space_id: spaceId,
+            sender_id: currentEmployee.id,
+            content: `${empName} was added by ${actorName}`,
+            content_type: 'system_event',
+            system_event_data: {
+              event_type: 'member_added',
+              target_employee_id: empId,
+              target_name: empName,
+              actor_employee_id: currentEmployee.id,
+              actor_name: actorName
+            }
+          });
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-space-members'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-messages'] });
+    },
+  });
+};
+```
+
+#### 3B. `useUpdateSpaceMemberRole` (lines 1547-1572)
+Add employee name parameter and log admin role changes:
+
+```tsx
+export const useUpdateSpaceMemberRole = () => {
+  const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+
+  return useMutation({
+    mutationFn: async ({
+      spaceId,
+      employeeId,
+      employeeName, // NEW parameter
+      role,
+    }: {
+      spaceId: string;
+      employeeId: string;
+      employeeName?: string; // Optional for backwards compatibility
+      role: 'admin' | 'member';
+    }) => {
+      if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
+
+      const { error } = await supabase
+        .from('chat_space_members')
+        .update({ role })
+        .eq('space_id', spaceId)
+        .eq('employee_id', employeeId);
+
+      if (error) throw error;
+
+      // Log system event for role change
+      if (employeeName) {
+        const eventType = role === 'admin' ? 'admin_added' : 'admin_removed';
+        const actorName = currentEmployee.profiles?.full_name || 'Someone';
+
+        await supabase.from('chat_messages').insert({
+          organization_id: currentOrg.id,
+          space_id: spaceId,
+          sender_id: currentEmployee.id,
+          content: role === 'admin' 
+            ? `${employeeName} was made an admin`
+            : `${employeeName} is no longer an admin`,
+          content_type: 'system_event',
+          system_event_data: {
+            event_type: eventType,
+            target_employee_id: employeeId,
+            target_name: employeeName,
+            actor_employee_id: currentEmployee.id,
+            actor_name: actorName
+          }
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-space-members'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-messages'] });
+    },
+  });
+};
+```
+
+#### 3C. `useRemoveSpaceMember` (lines 1575-1599)
+Add employee name parameter and log removal:
+
+```tsx
+export const useRemoveSpaceMember = () => {
+  const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+
+  return useMutation({
+    mutationFn: async ({
+      spaceId,
+      employeeId,
+      employeeName, // NEW parameter
+    }: {
+      spaceId: string;
+      employeeId: string;
+      employeeName?: string; // Optional for backwards compatibility
+    }) => {
+      if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
+
+      // Log system event before delete (if name provided)
+      if (employeeName) {
+        const actorName = currentEmployee.profiles?.full_name || 'Someone';
+
+        await supabase.from('chat_messages').insert({
+          organization_id: currentOrg.id,
+          space_id: spaceId,
+          sender_id: currentEmployee.id,
+          content: `${employeeName} was removed by ${actorName}`,
+          content_type: 'system_event',
+          system_event_data: {
+            event_type: 'member_removed',
+            target_employee_id: employeeId,
+            target_name: employeeName,
+            actor_employee_id: currentEmployee.id,
+            actor_name: actorName
+          }
+        });
+      }
+
+      const { error } = await supabase
+        .from('chat_space_members')
+        .delete()
+        .eq('space_id', spaceId)
+        .eq('employee_id', employeeId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-space-members'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-messages'] });
+    },
+  });
+};
+```
+
+#### 3D. `useLeaveSpace` (lines 2040-2062)
+Log when a member leaves:
+
+```tsx
+export const useLeaveSpace = () => {
+  const queryClient = useQueryClient();
+  const { data: currentEmployee } = useCurrentEmployee();
+  const { currentOrg } = useOrganization();
+
+  return useMutation({
+    mutationFn: async (spaceId: string) => {
+      if (!currentEmployee?.id || !currentOrg?.id) throw new Error('Not authenticated');
+
+      const leavingEmployeeName = currentEmployee.profiles?.full_name || 'Someone';
+
+      // Log system event for leaving
+      await supabase.from('chat_messages').insert({
+        organization_id: currentOrg.id,
+        space_id: spaceId,
+        sender_id: currentEmployee.id,
+        content: `${leavingEmployeeName} left the space`,
+        content_type: 'system_event',
+        system_event_data: {
+          event_type: 'member_left',
+          target_employee_id: currentEmployee.id,
+          target_name: leavingEmployeeName
+        }
+      });
+
+      const { error } = await supabase
+        .from('chat_space_members')
+        .delete()
+        .eq('space_id', spaceId)
+        .eq('employee_id', currentEmployee.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-spaces', currentOrg?.id] });
+      queryClient.invalidateQueries({ queryKey: ['chat-space-members'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-messages'] });
+    },
+  });
+};
+```
+
+#### 3E. `useUpdateSpace` (lines 1306-1347)
+Log name and photo changes:
+
+```tsx
+export const useUpdateSpace = () => {
+  const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+
+  return useMutation({
+    mutationFn: async ({
+      spaceId,
+      name,
+      description,
+      spaceType,
+      iconUrl,
+      autoSyncMembers,
+      oldName,      // NEW: for logging name changes
+      oldIconUrl,   // NEW: for logging photo changes
+    }: {
+      spaceId: string;
+      name?: string;
+      description?: string | null;
+      spaceType?: 'collaboration' | 'announcements';
+      iconUrl?: string | null;
+      autoSyncMembers?: boolean;
+      oldName?: string;
+      oldIconUrl?: string | null;
+    }) => {
+      if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
+
+      const updateData: Record<string, any> = {
+        updated_at: new Date().toISOString(),
+      };
+      
+      if (name !== undefined) updateData.name = name;
+      if (description !== undefined) updateData.description = description;
+      if (spaceType !== undefined) updateData.space_type = spaceType;
+      if (iconUrl !== undefined) updateData.icon_url = iconUrl;
+      if (autoSyncMembers !== undefined) updateData.auto_sync_members = autoSyncMembers;
+
+      const { error } = await supabase
+        .from('chat_spaces')
+        .update(updateData)
+        .eq('id', spaceId);
+
+      if (error) throw error;
+
+      const actorName = currentEmployee.profiles?.full_name || 'Someone';
+
+      // Log name change
+      if (name !== undefined && oldName !== undefined && name !== oldName) {
+        await supabase.from('chat_messages').insert({
+          organization_id: currentOrg.id,
+          space_id: spaceId,
+          sender_id: currentEmployee.id,
+          content: `${actorName} changed the space name`,
+          content_type: 'system_event',
+          system_event_data: {
+            event_type: 'space_name_changed',
+            target_employee_id: currentEmployee.id,
+            target_name: actorName,
+            actor_employee_id: currentEmployee.id,
+            actor_name: actorName,
+            old_value: oldName,
+            new_value: name
+          }
+        });
+      }
+
+      // Log photo change
+      if (iconUrl !== undefined && oldIconUrl !== iconUrl) {
+        await supabase.from('chat_messages').insert({
+          organization_id: currentOrg.id,
+          space_id: spaceId,
+          sender_id: currentEmployee.id,
+          content: `${actorName} updated the space photo`,
+          content_type: 'system_event',
+          system_event_data: {
+            event_type: 'space_photo_changed',
+            target_employee_id: currentEmployee.id,
+            target_name: actorName,
+            actor_employee_id: currentEmployee.id,
+            actor_name: actorName
+          }
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-space'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-messages'] });
+    },
+  });
+};
+```
+
+---
+
+### Part 4: Update Call Sites to Pass Employee Names
+
+**File:** `src/components/chat/SpaceMembersDialog.tsx`
+
+Update the `handlePromote`, `handleDemote`, and `handleRemove` functions to pass employee names:
+
+```tsx
+// handlePromote
+await updateRole.mutateAsync({
+  spaceId,
+  employeeId: member.employee_id,
+  employeeName: member.employee?.profiles?.full_name, // ADD
+  role: 'admin'
 });
 
-// After
-const filteredEmployees = employees.filter(emp => {
-  // Exclude current user and inactive employees
-  if (emp.id === currentEmployee?.id) return false;
-  if (emp.status !== 'active') return false;
-  
-  const name = emp.profiles?.full_name || "";
-  const email = emp.profiles?.email || "";
-  return (
-    name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+// handleDemote  
+await updateRole.mutateAsync({
+  spaceId,
+  employeeId: member.employee_id,
+  employeeName: member.employee?.profiles?.full_name, // ADD
+  role: 'member'
+});
+
+// handleRemove
+await removeMember.mutateAsync({
+  spaceId,
+  employeeId: member.employee_id,
+  employeeName: member.employee?.profiles?.full_name // ADD
 });
 ```
 
----
+**File:** `src/components/chat/AddSpaceMembersDialog.tsx`
 
-### Part 2: Database Trigger to Remove Inactive Members from All Chat
+Update to pass employee names when adding members.
 
-**New Migration:** Add a comprehensive trigger that removes inactive employees from:
-1. **Chat conversations** (group chats via `chat_participants` table)
-2. **Chat spaces** (already partially handled, but ensure complete coverage)
+**File:** `src/components/chat/SpaceSettingsDialog.tsx`
 
-#### Migration SQL
-```sql
--- Function: Remove employee from all chat when made inactive
-CREATE OR REPLACE FUNCTION remove_inactive_from_all_chat()
-RETURNS TRIGGER AS $$
-BEGIN
-  -- Only trigger when status changes from active to inactive
-  IF OLD.status = 'active' AND NEW.status = 'inactive' THEN
-    
-    -- 1. Remove from all chat conversations (group chats)
-    DELETE FROM chat_participants
-    WHERE employee_id = NEW.id
-      AND organization_id = NEW.organization_id;
-    
-    -- 2. Remove from all chat spaces (including non-auto-sync spaces)
-    DELETE FROM chat_space_members
-    WHERE employee_id = NEW.id
-      AND organization_id = NEW.organization_id;
-    
-  END IF;
-  
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+Update `handleSave` to pass old values for name/photo change logging:
 
--- Create trigger
-DROP TRIGGER IF EXISTS trigger_remove_inactive_from_all_chat ON employees;
-CREATE TRIGGER trigger_remove_inactive_from_all_chat
-  AFTER UPDATE OF status ON employees
-  FOR EACH ROW
-  EXECUTE FUNCTION remove_inactive_from_all_chat();
+```tsx
+await updateSpace.mutateAsync({
+  spaceId,
+  name: name.trim(),
+  description: description.trim() || null,
+  spaceType,
+  autoSyncMembers,
+  oldName: space?.name, // ADD for logging
+});
 ```
 
----
+**File:** `src/components/chat/ChatRightPanelEnhanced.tsx`
 
-### Part 3: One-Time Data Cleanup
-
-**Migration:** Remove all currently inactive employees from chat memberships.
-
-```sql
--- Remove inactive employees from chat conversations (groups)
-DELETE FROM chat_participants cp
-USING employees e
-WHERE cp.employee_id = e.id
-  AND e.status = 'inactive';
-
--- Remove inactive employees from chat spaces
-DELETE FROM chat_space_members csm
-USING employees e
-WHERE csm.employee_id = e.id
-  AND e.status = 'inactive';
-```
-
----
-
-### Part 4: Update Existing Auto-Sync Functions
-
-The existing `sync_company_space_members()` function already handles removal from auto-sync spaces. The new trigger will handle ALL spaces and conversations, but we should ensure no conflicts.
-
-**Note:** The new trigger specifically handles the status change, while the existing function handles both add (when becoming active) and remove (when becoming inactive). The new trigger will execute first and clean up everything, so both can coexist.
+Update role change and member removal calls to pass employee names.
 
 ---
 
 ## Summary of Changes
 
-| File/Location | Type | Description |
-|---------------|------|-------------|
-| `src/components/chat/NewChatDialog.tsx` | Modify | Add `emp.status !== 'active'` filter to exclude inactive employees |
-| New migration | Create | Add `remove_inactive_from_all_chat()` function and trigger |
-| New migration | Create | One-time cleanup of existing inactive members from chat |
+| File | Type | Description |
+|------|------|-------------|
+| `src/types/chat.ts` | Modify | Add `space_name_changed` and `space_photo_changed` event types |
+| `src/components/chat/SystemEventMessage.tsx` | Modify | Add event configs for space name/photo changes |
+| `src/services/useChat.ts` | Modify | Add system event logging to `useAddSpaceMembers`, `useUpdateSpaceMemberRole`, `useRemoveSpaceMember`, `useLeaveSpace`, and `useUpdateSpace` |
+| `src/components/chat/SpaceMembersDialog.tsx` | Modify | Pass employee names to mutation calls |
+| `src/components/chat/AddSpaceMembersDialog.tsx` | Modify | Pass employee names when adding members |
+| `src/components/chat/SpaceSettingsDialog.tsx` | Modify | Pass old name for change logging |
+| `src/components/chat/ChatRightPanelEnhanced.tsx` | Modify | Pass employee names to role/removal mutations |
 
 ---
 
-## Verification Points
+## System Event Messages Display
 
-After implementation, verify:
-1. New Chat dialog only shows active team members
-2. Add Group Members dialog only shows active team members (already working)
-3. Access Scope Selector only shows active team members (already working)
-4. When a team member is made inactive:
-   - They are removed from all chat conversations/groups
-   - They are removed from all chat spaces
-5. Existing inactive members are cleaned up from all chat memberships
+The existing `ConversationView.tsx` already handles displaying `system_event` messages for both conversations and spaces (line 832-840):
+
+```tsx
+if (message.content_type === 'system_event' && message.system_event_data) {
+  return (
+    <SystemEventMessage
+      key={message.id}
+      eventData={message.system_event_data}
+      timestamp={message.created_at}
+    />
+  );
+}
+```
+
+No changes needed - once system events are logged to spaces, they will automatically display.
 
 ---
 
-## Technical Notes
+## Expected Result
 
-- The trigger uses `SECURITY DEFINER` to ensure it can delete records regardless of RLS policies
-- The cleanup migration runs once to fix existing data
-- No changes needed to `AddGroupMembersDialog.tsx` or `AccessScopeSelector.tsx` as they already filter by `status = 'active'`
-- The trigger fires `AFTER UPDATE OF status` to ensure it only runs when status changes
+After implementation, Space channels will show system event logs like:
+- "John Smith was added by Jane Doe" (member added)
+- "John Smith was removed by Jane Doe" (member removed)  
+- "John Smith left the space" (member left)
+- "John Smith was made an admin" (admin promoted)
+- "John Smith is no longer an admin" (admin demoted)
+- "Jane Doe changed the space name from 'Old Name' to 'New Name'" (name changed)
+- "Jane Doe updated the space photo" (photo changed)
