@@ -147,7 +147,6 @@ const FavoritesSection = ({ activeChat, onSelectChat, onlineStatuses }: Favorite
                 </div>
 
                 <span className="truncate flex-1 text-left">
-                  {!isConversation && <span className="text-muted-foreground">#</span>}
                   {name}
                 </span>
 
