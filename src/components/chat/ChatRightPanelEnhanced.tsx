@@ -85,6 +85,7 @@ import {
   useSpace,
 } from "@/services/useChat";
 import { useExemptEmployeeIds, isExemptFromAutoSync } from "@/hooks/useExemptRoles";
+import { useTeamPresence } from "@/services/useTeamData";
 import { useOrganization } from "@/hooks/useOrganization";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useChatFavorites, useToggleFavorite } from "@/hooks/useChatFavorites";
@@ -384,6 +385,10 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
     return 0;
   });
   const memberCount = members.length;
+  
+  // Get online status for all members
+  const allMemberIds = members.map((m: any) => m.employee_id);
+  const { data: onlineStatuses = {} } = useTeamPresence(allMemberIds);
 
   // Check if current user is a space admin
   const currentMembership = spaceMembers.find(m => m.employee_id === currentEmployee?.id);
@@ -741,12 +746,17 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
                       key={member.id} 
                       className="flex items-center gap-2 p-1.5 -mx-1.5 rounded-lg group hover:bg-accent/50 transition-colors"
                     >
-                      <Avatar className="h-7 w-7">
-                        <AvatarImage src={profile?.avatar_url || undefined} />
-                        <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-                          {getInitials(profile?.full_name || "U")}
-                        </AvatarFallback>
-                      </Avatar>
+                      <div className="relative">
+                        <Avatar className="h-7 w-7">
+                          <AvatarImage src={profile?.avatar_url || undefined} />
+                          <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                            {getInitials(profile?.full_name || "U")}
+                          </AvatarFallback>
+                        </Avatar>
+                        {onlineStatuses[member.employee_id] && (
+                          <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-green-500 border-[1.5px] border-card" />
+                        )}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
                           <span className="text-sm truncate">{profile?.full_name || "Unknown"}</span>
