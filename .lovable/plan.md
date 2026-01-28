@@ -1,401 +1,290 @@
 
-# Multi-Criteria Access Settings for Spaces
+# System-Wide Online Status Indicator Implementation
 
 ## Overview
-This implementation adds **Department** as an access scope option and changes the access model from "single selection" (radio buttons) to "multi-selection with AND logic" (checkboxes). When multiple access groups are selected (e.g., Project: Agentcis + Department: Engineering), only employees meeting **ALL criteria** will be eligible for membership.
+Add online status indicators (green dots) to team member profile images throughout the GlobalyOS application. This builds on the existing infrastructure:
+- `useOnlineStatus` hook for single employee status
+- `useTeamPresence` hook for batch employee status
+- The `chat_presence` table with real-time subscriptions
 
-Additionally, the "Add All Members" and "Auto-sync" controls will be moved from the footer to a dedicated section below Access Settings.
-
----
-
-## Suggested UI Design
-
-### 1. Create Space Dialog - New Access Settings Layout
-**Location:** `CreateSpaceDialog.tsx` with updated `AccessScopeSelector.tsx`
-
-```text
-+---------------------------------------------------------------+
-|  Create a space                                         [X]   |
-+---------------------------------------------------------------+
-|  [Icon] Space name ________________________                   |
-|                                            95/128             |
-|                                                               |
-|  Description (optional)                                       |
-|  ┌───────────────────────────────────────────────────────┐    |
-|  │ What is this space about?                             │    |
-|  └───────────────────────────────────────────────────────┘    |
-|                                            0/500              |
-|                                                               |
-|  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  |
-|  ACCESS SETTINGS                                              |
-|  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  |
-|                                                               |
-|  ○ Company-wide                                               |
-|  │ Anyone in GlobalyHub can find, view, and join              |
-|                                                               |
-|  ○ Custom access (select criteria below)                      |
-|  │ Only employees matching ALL selected criteria can access   |
-|                                                               |
-|     ┌─────────────────────────────────────────────────────┐   |
-|     │ ☐ Office                                            │   |
-|     │   [Select offices...               ▼]               │   |
-|     │   ┌──────────┐ ┌──────────────────┐                 │   |
-|     │   │ Sydney ✕ │ │ Melbourne ✕      │                 │   |
-|     │   └──────────┘ └──────────────────┘                 │   |
-|     │                                                     │   |
-|     │ ☑ Department                                        │   |
-|     │   [Select departments...           ▼]               │   |
-|     │   ┌───────────────┐                                 │   |
-|     │   │ Engineering ✕ │                                 │   |
-|     │   └───────────────┘                                 │   |
-|     │                                                     │   |
-|     │ ☑ Project                                           │   |
-|     │   [Select projects...              ▼]               │   |
-|     │   ┌───────────┐                                     │   |
-|     │   │ Agentcis ✕│                                     │   |
-|     │   └───────────┘                                     │   |
-|     └─────────────────────────────────────────────────────┘   |
-|                                                               |
-|     💡 Members must be in Engineering AND assigned to         |
-|        Agentcis project to access this space.                 |
-|                                                               |
-|  ○ Invite members manually                                    |
-|  │ Only invited members can access                            |
-|     [Select team members...              ▼]                   |
-|     ┌────────────┐ ┌────────────┐ ┌────────────┐              |
-|     │ 👤 John ✕  │ │ 👤 Jane ✕  │ │ 👤 Mike ✕  │              |
-|     └────────────┘ └────────────┘ └────────────┘              |
-|                                                               |
-|  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  |
-|  MEMBERSHIP OPTIONS                                           |
-|  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  |
-|                                                               |
-|  ☐ Add all matching members now                               |
-|     Add all employees who meet the access criteria            |
-|                                                               |
-|  ⦿ Auto-sync members                                   [OFF]  |
-|     Automatically add/remove members when team changes   ⓘ   |
-|                                                               |
-|───────────────────────────────────────────────────────────────|
-|                                       [Cancel]  [Create]      |
-+---------------------------------------------------------------+
-```
-
-**Key Changes:**
-1. Radio buttons now have 3 options: Company-wide, Custom access, Invite manually
-2. Custom access reveals checkboxes for Office, Department, Project
-3. Each checked criterion shows its multi-select dropdown
-4. Dynamic help text shows the AND logic being applied
-5. "Add All Members" and "Auto-sync" moved to MEMBERSHIP OPTIONS section
-6. Dialog width increased by ~50% (from `sm:max-w-lg` to `sm:max-w-2xl`)
+The implementation uses a consistent visual pattern: a small green dot positioned at the bottom-right corner of avatars.
 
 ---
 
-### 2. Space Settings Dialog - Updated Layout
-**Location:** `SpaceSettingsDialog.tsx`
+## Scope of Changes
 
-```text
-+---------------------------------------------------------------+
-|  Space Settings                                         [X]   |
-+---------------------------------------------------------------+
-|  Space name                                                   |
-|  [Engineering Discussions________________________]            |
-|                                             22/128            |
-|                                                               |
-|  Description (optional)                                       |
-|  ┌───────────────────────────────────────────────────────┐    |
-|  │ Discussions for the engineering team                  │    |
-|  └───────────────────────────────────────────────────────┘    |
-|                                                               |
-|  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  |
-|  SPACE TYPE                                                   |
-|  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  |
-|  ○ Collaboration - Everyone can post and reply                |
-|  ● Announcements - Only admins can post                       |
-|                                                               |
-|  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  |
-|  ACCESS SETTINGS (read-only)                                  |
-|  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  |
-|  Current access: Department: Engineering + Project: Agentcis  |
-|  ℹ️ Access settings cannot be changed after creation.         |
-|                                                               |
-|  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  |
-|  MEMBERSHIP OPTIONS                                           |
-|  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  |
-|                                                               |
-|  ⦿ Auto-sync members                                   [ON]   |
-|     Automatically add/remove members based on criteria   ⓘ   |
-|                                                               |
-|  ┌───────────────────────────────────────────────────────┐    |
-|  │ 🛡 Owner, Admin, and HR members are exempt from       │    |
-|  │   auto-sync and can be manually managed.              │    |
-|  └───────────────────────────────────────────────────────┘    |
-|                                                               |
-|  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  |
-|  DANGER ZONE                                                  |
-|  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  |
-|  [📁 Archive space]     [🗑 Delete space]                     |
-|                                                               |
-|───────────────────────────────────────────────────────────────|
-|                                       [Cancel]  [Save]        |
-+---------------------------------------------------------------+
-```
+Based on codebase analysis, the following locations display team member avatars and should show online status:
+
+### Already Implemented (no changes needed)
+| Component | Location | Status |
+|-----------|----------|--------|
+| `ChatSidebar.tsx` | DM list, Favorites | Has online indicators |
+| `FavoritesSection.tsx` | Favorited chats | Has online indicators |
+| `Layout.tsx` | User profile button | Has online indicator |
+| `PostCard.tsx` | Post author avatar | Uses `useOnlineStatus` |
+| `KpiOwnersDisplay.tsx` | Individual KPI owner | Uses `useOnlineStatus` |
+| `MessageBubble.tsx` | Message avatars | Has online indicators |
+| `EmployeeCard.tsx` | Team directory cards | Has `isOnline` prop |
+
+### Needs Implementation
+
+#### High Priority (Core UX)
+1. **Team Directory Page** (`src/pages/Team.tsx`)
+   - Cards view already passes `isOnline` to `EmployeeCard`
+   - Org chart view needs online status in `OrgEmployeeCard`
+
+2. **Team Member Profile** (`src/pages/TeamMemberProfile.tsx`)
+   - Main profile avatar header
+
+3. **Chat Components**
+   - `NewChatDialog.tsx` - Employee selection list
+   - `AddGroupMembersDialog.tsx` - Group member picker
+   - `AddSpaceMembersDialog.tsx` - Space member picker
+   - `EditGroupChatDialog.tsx` - Participant list
+   - `SpaceMembersDialog.tsx` - Space members list
+   - `ChatRightPanelEnhanced.tsx` - Members panel avatars
+   - `ThreadView.tsx` - Reply author avatars
+   - `QuickSwitcher.tsx` - DM conversation avatars
+   - `GlobalChatSearch.tsx` - Employee search results
+   - `MentionAutocomplete.tsx` - @mention dropdown
+   - `InlineSearchResults.tsx` - Search result avatars
+
+4. **Feed/Social Components**
+   - `PostComments.tsx` - Comment author avatars
+   - `UnifiedFeed.tsx` - If it shows author avatars
+   - `SocialFeedComposer.tsx` - User avatar in composer
+
+5. **Wiki Components**
+   - `WikiInviteMember.tsx` - Member selector
+   - `WikiShareDialog.tsx` - Share member list
+
+6. **Workflow Components**
+   - `WorkflowKanbanCard.tsx` - Employee avatar on cards
+   - `WorkflowTaskList.tsx` - Assignee avatars
+   - `TaskDetailSheet.tsx` - Assignee/approver avatars
+   - `ApplicationCard.tsx` - Employee avatar
+   - `WorkflowActivityLog.tsx` - Activity actor avatars
+   - `AddTaskToWorkflowDialog.tsx` - Employee selector
+   - `KnowledgeTransferList.tsx` - Employee avatars
+
+7. **Home Dashboard**
+   - `AllPendingLeavesCard.tsx` - Employee avatars
+   - `NotCheckedInCard.tsx` - Employee avatars
+   - `MyWorkflowTasks.tsx` - Assignee avatars
+
+8. **Dialogs with Employee Avatars**
+   - `QuickInviteDialog.tsx` - Employee selector
+   - `InviteTeamMemberDialog.tsx` - If it shows existing members
+   - `KPITemplatesDialog.tsx` - Employee selector
+   - `EditManagerDialog.tsx` - Manager avatar
+   - `EditProjectsDialog.tsx` - If it shows team members
+
+9. **Other Components**
+   - `AttendanceSettings.tsx` - Manager selector
+   - `ProfileActivityFeed.tsx` - Activity actor avatars
+   - `ask-ai/AskAIParticipants.tsx` - Session participant avatars
 
 ---
 
-### 3. Chat Header - Multi-Criteria Display
-**Location:** `ChatHeader.tsx`
+## Implementation Strategy
 
-```text
-+---------------------------------------------------------------+
-|  🎯 Engineering Discussions                             ⚙️    |
-|  51 members · Engineering + Agentcis                          |
-+---------------------------------------------------------------+
-```
+### Option 1: Create a Reusable Component (Recommended)
+Create an `AvatarWithStatus` component that wraps the existing Avatar pattern:
 
-For multiple criteria, show abbreviated format:
-- Single criterion: `51 members · Engineering`
-- Two criteria: `51 members · Engineering + Agentcis`
-- Three+ criteria: `51 members · 3 criteria`
+**New File: `src/components/ui/avatar-with-status.tsx`**
+```typescript
+interface AvatarWithStatusProps {
+  src?: string | null;
+  fallback: string;
+  isOnline?: boolean;
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  className?: string;
+  fallbackClassName?: string;
+  employeeId?: string; // For auto-fetching status
+}
 
----
-
-## Data Model Changes
-
-### New Database Table: `chat_space_departments`
-```sql
-CREATE TABLE chat_space_departments (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  space_id UUID NOT NULL REFERENCES chat_spaces(id) ON DELETE CASCADE,
-  department_id UUID NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
-  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(space_id, department_id)
-);
-
-ALTER TABLE chat_space_departments ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can view department links for spaces they can access"
-  ON chat_space_departments FOR SELECT
-  TO authenticated
-  USING (
-    organization_id IN (
-      SELECT organization_id FROM employees 
-      WHERE user_id = auth.uid() AND status = 'active'
-    )
+export function AvatarWithStatus({ 
+  src, 
+  fallback, 
+  isOnline, 
+  employeeId,
+  size = 'md',
+  className,
+  fallbackClassName
+}: AvatarWithStatusProps) {
+  // If employeeId provided and isOnline not explicitly set, auto-fetch
+  const { isOnline: fetchedOnline } = useOnlineStatus(
+    isOnline === undefined ? employeeId : undefined
   );
-
-CREATE POLICY "Space admins can manage department links"
-  ON chat_space_departments FOR ALL
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM chat_space_members csm
-      WHERE csm.space_id = chat_space_departments.space_id
-        AND csm.employee_id = (
-          SELECT id FROM employees WHERE user_id = auth.uid() AND status = 'active'
-        )
-        AND csm.role = 'admin'
-    )
+  const online = isOnline ?? fetchedOnline;
+  
+  const sizeClasses = {
+    xs: { avatar: 'h-6 w-6', dot: 'h-1.5 w-1.5', text: 'text-[9px]' },
+    sm: { avatar: 'h-8 w-8', dot: 'h-2 w-2', text: 'text-[10px]' },
+    md: { avatar: 'h-10 w-10', dot: 'h-2.5 w-2.5', text: 'text-xs' },
+    lg: { avatar: 'h-12 w-12', dot: 'h-3 w-3', text: 'text-sm' },
+    xl: { avatar: 'h-16 w-16', dot: 'h-3.5 w-3.5', text: 'text-base' },
+  };
+  
+  return (
+    <div className="relative inline-block">
+      <Avatar className={cn(sizeClasses[size].avatar, className)}>
+        <AvatarImage src={src || undefined} />
+        <AvatarFallback className={cn(sizeClasses[size].text, fallbackClassName)}>
+          {fallback}
+        </AvatarFallback>
+      </Avatar>
+      {online && (
+        <span className={cn(
+          "absolute bottom-0 right-0 rounded-full bg-green-500 border-2 border-background",
+          sizeClasses[size].dot
+        )} />
+      )}
+    </div>
   );
-```
-
-### Update `access_scope` enum
-```sql
-ALTER TYPE access_scope ADD VALUE IF NOT EXISTS 'custom';
-```
-
-The new `custom` scope indicates multi-criteria selection (combinations of offices + departments + projects).
-
----
-
-## Implementation Steps
-
-### Phase 1: Database Changes
-
-#### 1.1 Create `chat_space_departments` junction table
-Add migration to create the table with proper RLS policies.
-
-#### 1.2 Add `custom` value to access_scope
-Update the enum to support the new multi-criteria mode.
-
-### Phase 2: Type & Hook Updates
-
-#### 2.1 Update `ChatSpace` type
-**File:** `src/types/chat.ts`
-
-```typescript
-export interface ChatSpace {
-  // ... existing fields
-  departments?: { id: string; name: string }[];  // NEW
 }
 ```
 
-#### 2.2 Update `AccessScope` type
-**File:** `src/components/chat/AccessScopeSelector.tsx`
+### Option 2: Inline Implementation
+For components that already have complex avatar rendering, add the status dot inline following the existing pattern:
 
-```typescript
-export type AccessScope = 'company' | 'custom' | 'members';
-// 'offices', 'projects' are now represented by 'custom' + selected criteria
-```
-
-#### 2.3 Update `useSpace` hook
-**File:** `src/services/useChat.ts`
-
-Add join for `chat_space_departments` to fetch department associations.
-
-#### 2.4 Update `useCreateSpace` hook
-**File:** `src/services/useChat.ts`
-
-Add `departmentIds` parameter and insert into `chat_space_departments`.
-
-Update the member filtering logic to use AND across all criteria:
-```typescript
-// Get employees matching ALL criteria
-let employeesToAdd = await getAllActiveEmployees(orgId);
-
-if (officeIds?.length) {
-  employeesToAdd = employeesToAdd.filter(e => officeIds.includes(e.office_id));
-}
-if (departmentIds?.length) {
-  employeesToAdd = employeesToAdd.filter(e => departmentIds.includes(e.department_id));
-}
-if (projectIds?.length) {
-  const projectEmployees = await getEmployeesInProjects(projectIds);
-  const projectEmployeeIds = new Set(projectEmployees.map(e => e.id));
-  employeesToAdd = employeesToAdd.filter(e => projectEmployeeIds.has(e.id));
-}
-```
-
-### Phase 3: UI Component Updates
-
-#### 3.1 Redesign `AccessScopeSelector`
-**File:** `src/components/chat/AccessScopeSelector.tsx`
-
-Major changes:
-- Replace single-select RadioGroup with 3 options (Company-wide, Custom, Members)
-- Add checkboxes for Office, Department, Project under "Custom"
-- Fetch departments list from database
-- Pass all selected criteria up to parent
-- Show dynamic AND logic explanation text
-
-**New Props Interface:**
-```typescript
-interface AccessScopeSelectorProps {
-  value: AccessScope;
-  onChange: (scope: AccessScope) => void;
-  // Multi-criteria selections (for 'custom' scope)
-  selectedOfficeIds: string[];
-  onOfficeIdsChange: (ids: string[]) => void;
-  selectedDepartmentIds: string[];  // NEW
-  onDepartmentIdsChange: (ids: string[]) => void;  // NEW
-  selectedProjectIds: string[];
-  onProjectIdsChange: (ids: string[]) => void;
-  // Member selection (for 'members' scope)
-  selectedMemberIds: string[];
-  onMemberIdsChange: (ids: string[]) => void;
-  currentEmployeeId?: string;
-}
-```
-
-#### 3.2 Update `CreateSpaceDialog`
-**File:** `src/components/chat/CreateSpaceDialog.tsx`
-
-- Add `selectedDepartmentIds` state
-- Move "Add All Members" and "Auto-sync" from footer to body (new MEMBERSHIP OPTIONS section)
-- Increase dialog width: `sm:max-w-2xl`
-- Pass department IDs to `useCreateSpace`
-- Update validation for custom scope
-
-#### 3.3 Update `SpaceSettingsDialog`
-**File:** `src/components/chat/SpaceSettingsDialog.tsx`
-
-- Display current access criteria (read-only)
-- Move Auto-sync to MEMBERSHIP OPTIONS section
-- Increase dialog width
-
-#### 3.4 Update `ChatHeader`
-**File:** `src/components/chat/ChatHeader.tsx`
-
-Update the access group label logic:
-```typescript
-const getAccessGroupLabel = () => {
-  if (!space) return null;
-  if (space.access_scope === 'company') return 'Everyone';
-  if (space.access_scope === 'members') return 'Private';
-  
-  // For 'custom' scope, combine all criteria
-  const parts: string[] = [];
-  if (space.offices?.length) parts.push(...space.offices.map(o => o.name));
-  if (space.departments?.length) parts.push(...space.departments.map(d => d.name));
-  if (space.projects?.length) parts.push(...space.projects.map(p => p.name));
-  
-  if (parts.length === 0) return 'Private';
-  if (parts.length <= 2) return parts.join(' + ');
-  return `${parts.length} criteria`;
-};
-```
-
-### Phase 4: Auto-Sync Logic Update
-
-#### 4.1 Update sync preview calculation
-**File:** `src/components/chat/SpaceSettingsDialog.tsx`
-
-Update `scopedEmployees` query to apply AND logic across all criteria:
-```typescript
-let query = supabase.from('employees').select(...);
-
-// Apply AND filters
-if (space.offices?.length) {
-  query = query.in('office_id', space.offices.map(o => o.id));
-}
-if (space.departments?.length) {
-  query = query.in('department_id', space.departments.map(d => d.id));
-}
-// For projects, need separate query + intersection
+```tsx
+<div className="relative">
+  <Avatar className="h-10 w-10">
+    <AvatarImage src={employee.avatar_url} />
+    <AvatarFallback>{getInitials(employee.name)}</AvatarFallback>
+  </Avatar>
+  {isOnline && (
+    <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-background" />
+  )}
+</div>
 ```
 
 ---
 
-## Files to Modify/Create
+## Technical Details
 
-| File | Changes |
-|------|---------|
-| **Database Migration** | Create `chat_space_departments` table, add 'custom' to access_scope enum |
-| `src/types/chat.ts` | Add `departments` to `ChatSpace` interface |
-| `src/components/chat/AccessScopeSelector.tsx` | Complete redesign with checkbox-based multi-criteria selection |
-| `src/components/chat/CreateSpaceDialog.tsx` | Add department state, move membership options, widen dialog |
-| `src/components/chat/SpaceSettingsDialog.tsx` | Show access criteria (read-only), move auto-sync section |
-| `src/components/chat/ChatHeader.tsx` | Update label for multi-criteria display |
-| `src/services/useChat.ts` | Update `useSpace` to fetch departments, update `useCreateSpace` with AND logic |
+### Existing Hooks to Use
+
+1. **`useOnlineStatus(employeeId)`** - For single employee status with real-time subscription
+   - Best for: Profile pages, individual cards, detail views
+   - Returns: `{ isOnline: boolean, lastSeenAt: string | null }`
+
+2. **`useTeamPresence(employeeIds[])`** - For batch employee status lookup
+   - Best for: Lists, grids, multiple avatars on one screen
+   - Returns: `Record<string, boolean>` mapping employee IDs to online status
+
+### Data Source
+The online status comes from the `chat_presence` table:
+- `is_online`: Boolean flag
+- `last_seen_at`: Timestamp of last activity
+- Status considered "stale" if `last_seen_at` is >60 seconds ago
+
+### Performance Considerations
+- Use `useTeamPresence` for lists (single query for multiple employees)
+- Use `useOnlineStatus` for individual profiles (includes real-time subscription)
+- Both hooks have appropriate stale times (30 seconds)
 
 ---
 
-## Edge Cases Handled
+## Implementation Order
 
-1. **No criteria selected in Custom mode**: Require at least one criterion
-2. **Zero matching employees**: Show warning before creating space
-3. **Employee changes department/project**: Auto-sync will add/remove on next sync
-4. **Legacy spaces with old access_scope**: Continue to work, displayed as single criterion
-5. **Exempt roles (Owner/Admin/HR)**: Always manually manageable regardless of criteria
+### Phase 1: Core Chat & Profile (Highest Impact)
+1. Create `AvatarWithStatus` component
+2. `TeamMemberProfile.tsx` - Profile header avatar
+3. `NewChatDialog.tsx` - Employee selector
+4. `ChatRightPanelEnhanced.tsx` - Member list
+5. `ThreadView.tsx` - Reply avatars
+
+### Phase 2: Dialogs & Selectors
+6. `AddGroupMembersDialog.tsx`
+7. `AddSpaceMembersDialog.tsx`
+8. `SpaceMembersDialog.tsx`
+9. `EditGroupChatDialog.tsx`
+10. `QuickSwitcher.tsx`
+11. `MentionAutocomplete.tsx`
+12. `GlobalChatSearch.tsx`
+
+### Phase 3: Team & Directory
+13. `Team.tsx` - Org chart view `OrgEmployeeCard`
+14. `WikiInviteMember.tsx`
+15. `WikiShareDialog.tsx`
+
+### Phase 4: Feed & Comments
+16. `PostComments.tsx`
+17. `ProfileActivityFeed.tsx`
+
+### Phase 5: Workflows
+18. `WorkflowKanbanCard.tsx`
+19. `WorkflowTaskList.tsx`
+20. `TaskDetailSheet.tsx`
+21. `ApplicationCard.tsx`
+22. `WorkflowActivityLog.tsx`
+
+### Phase 6: Home & Settings
+23. `AllPendingLeavesCard.tsx`
+24. `NotCheckedInCard.tsx`
+25. `AttendanceSettings.tsx`
+26. Remaining dialogs
 
 ---
 
-## Technical Notes
+## Visual Consistency
 
-### AND Logic for Member Filtering
-```typescript
-// Example: Engineering department + Agentcis project
-const engineeringEmployees = employees.filter(e => e.department_id === 'eng-id');
-const agentcisEmployees = await getProjectMembers('agentcis-id');
-const eligibleMembers = engineeringEmployees.filter(e => 
-  agentcisEmployees.some(pe => pe.id === e.id)
-);
-// Only employees in BOTH Engineering AND Agentcis are eligible
-```
+All online status indicators should follow this pattern:
+- **Color**: `bg-green-500`
+- **Shape**: Fully rounded (`rounded-full`)
+- **Border**: 2px border matching background (`border-2 border-background` or `border-card`)
+- **Position**: Absolute, bottom-right of avatar (`absolute bottom-0 right-0`)
+- **Size**: Proportional to avatar size (typically 20-25% of avatar diameter)
 
-### Backward Compatibility
-- Existing spaces with `access_scope = 'offices'` or `'projects'` will continue to work
-- They will be displayed as single-criterion spaces
-- No migration of existing data required
+| Avatar Size | Dot Size | Classes |
+|-------------|----------|---------|
+| h-6 w-6 (xs) | 1.5-2px | `h-1.5 w-1.5` or `h-2 w-2` |
+| h-8 w-8 (sm) | 2px | `h-2 w-2` |
+| h-9-10 w-9-10 (md) | 2.5-3px | `h-2.5 w-2.5` or `h-3 w-3` |
+| h-12+ (lg) | 3px | `h-3 w-3` |
+| h-16+ (xl) | 3.5-4px | `h-3.5 w-3.5` or `h-4 w-4` |
 
+---
+
+## Files to Create/Modify
+
+| File | Action | Description |
+|------|--------|-------------|
+| `src/components/ui/avatar-with-status.tsx` | **Create** | Reusable avatar component with online status |
+| `src/pages/TeamMemberProfile.tsx` | Modify | Add status to profile header avatar |
+| `src/pages/Team.tsx` | Modify | Add status to OrgEmployeeCard |
+| `src/components/chat/NewChatDialog.tsx` | Modify | Add status to employee list |
+| `src/components/chat/ChatRightPanelEnhanced.tsx` | Modify | Add status to member avatars |
+| `src/components/chat/ThreadView.tsx` | Modify | Add status to reply avatars |
+| `src/components/chat/AddGroupMembersDialog.tsx` | Modify | Add status to member picker |
+| `src/components/chat/AddSpaceMembersDialog.tsx` | Modify | Add status to member picker |
+| `src/components/chat/SpaceMembersDialog.tsx` | Modify | Add status to member list |
+| `src/components/chat/EditGroupChatDialog.tsx` | Modify | Add status to participant list |
+| `src/components/chat/QuickSwitcher.tsx` | Modify | Add status to DM avatars |
+| `src/components/chat/MentionAutocomplete.tsx` | Modify | Add status to mention dropdown |
+| `src/components/chat/GlobalChatSearch.tsx` | Modify | Add status to search results |
+| `src/components/chat/InlineSearchResults.tsx` | Modify | Add status to result avatars |
+| `src/components/feed/PostComments.tsx` | Modify | Add status to comment avatars |
+| `src/components/feed/ProfileActivityFeed.tsx` | Modify | Add status to activity avatars |
+| `src/components/wiki/WikiInviteMember.tsx` | Modify | Add status to member selector |
+| `src/components/wiki/WikiShareDialog.tsx` | Modify | Add status to share list |
+| `src/components/workflows/WorkflowKanbanCard.tsx` | Modify | Add status to employee avatar |
+| `src/components/workflows/WorkflowTaskList.tsx` | Modify | Add status to assignee avatars |
+| `src/components/workflows/TaskDetailSheet.tsx` | Modify | Add status to assignee avatars |
+| `src/components/workflows/ApplicationCard.tsx` | Modify | Add status to employee avatar |
+| `src/components/workflows/WorkflowActivityLog.tsx` | Modify | Add status to actor avatars |
+| `src/components/home/AllPendingLeavesCard.tsx` | Modify | Add status to employee avatars |
+| `src/components/home/NotCheckedInCard.tsx` | Modify | Add status to employee avatars |
+| `src/components/AttendanceSettings.tsx` | Modify | Add status to manager selector |
+| `src/components/dialogs/QuickInviteDialog.tsx` | Modify | Add status to employee selector |
+| `src/components/dialogs/KPITemplatesDialog.tsx` | Modify | Add status to employee selector |
+| `src/components/ask-ai/AskAIParticipants.tsx` | Modify | Add status to participant avatars |
+
+**Total: ~30 files to modify + 1 new component**
+
+---
+
+## Summary
+This implementation will add consistent online status indicators across the entire GlobalyOS platform, providing users with real-time visibility into who is currently active. The approach leverages existing infrastructure (`useOnlineStatus`, `useTeamPresence`, `chat_presence` table) and follows established visual patterns already used in the chat module.
