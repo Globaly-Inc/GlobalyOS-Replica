@@ -50,8 +50,7 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
   // Enable manual member invites alongside Group Access
   const [inviteAdditionalMembers, setInviteAdditionalMembers] = useState(false);
   
-  // Membership option - add all matching members now
-  const [addAllMembers, setAddAllMembers] = useState(false);
+  // Membership option - add all matching members now (always true for company/custom scopes)
   
   const createSpace = useCreateSpace();
   const { data: currentEmployee } = useCurrentEmployee();
@@ -78,7 +77,6 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
   // Clear related state when switching scopes
   useEffect(() => {
     if (accessScope === 'members') {
-      setAddAllMembers(false);
       setInviteAdditionalMembers(false);
     }
     if (accessScope !== 'custom') {
@@ -112,7 +110,7 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
         memberIds: accessScope === 'members' 
           ? selectedMemberIds 
           : (accessScope === 'custom' && inviteAdditionalMembers ? selectedMemberIds : undefined),
-        addAllMembers: (accessScope === 'company' || accessScope === 'custom') ? addAllMembers : false,
+        addAllMembers: accessScope === 'company' || accessScope === 'custom',
         autoSync: accessScope !== 'members', // Always true for company/group
       });
 
@@ -148,7 +146,6 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
     setDepartmentsEnabled(false);
     setProjectsEnabled(false);
     setSelectedMemberIds([]);
-    setAddAllMembers(false);
     setInviteAdditionalMembers(false);
   };
 
