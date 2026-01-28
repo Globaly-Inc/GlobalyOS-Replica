@@ -1,84 +1,273 @@
 
-## What’s actually broken (rephrased)
-When you type in the header search, the results dropdown renders *under* the right “Members” panel and the currently selected result has poor contrast (purple background with muted text). This makes the dropdown look “broken” and hard to read / interact with.
 
-## Root causes (why this keeps happening)
-1. **Stacking-context trap from the frosted header**  
-   `ChatHeader` uses `backdrop-blur-md` (backdrop-filter). This commonly creates a new stacking context and can cause child `z-index` to not beat sibling columns (like the right panel). So even `z-50` on the dropdown won’t reliably overlay the right panel.
-2. **Manual absolute positioning without a portal**  
-   The dropdown is a plain `absolute` element inside the header subtree. Any stacking-context / DOM-paint-order changes (right panel layout, transforms, filters) can re-break it.
-3. **Selected-state text contrast not handled**  
-   List rows switch to `bg-accent` but text stays `text-muted-foreground`, becoming unreadable on the accent background.
+## Add "Add All Members" Option and Auto-Sync Feature to CreateSpaceDialog
 
-## The “from the root” fix (refactor)
-### A) Render the dropdown in a Portal (reliable layering)
-Refactor the dropdown to use the existing Radix `Popover` wrapper (`src/components/ui/popover.tsx`), which already renders content in a **Portal** with high z-index. This bypasses stacking contexts created by `backdrop-blur` and prevents the right panel from covering it.
+### Feature Overview
 
-**Implementation approach**
-- In `ChatHeader.tsx`, wrap the search input container in:
-  - `<Popover open={...} onOpenChange={...}>`
-  - `<PopoverAnchor asChild>` around the input wrapper
-  - `<PopoverContent side="bottom" align="end" sideOffset={6} className="p-0 ...">` containing the results UI
-- Drive `open` by search state, e.g.:
-  - `open = showSearch && searchQuery.trim().length > 0`
-- Close behavior:
-  - Clicking outside closes the popover (Radix handles this)
-  - Selecting a result closes the popover and collapses the search (keep your current `handleCloseSearch`)
-  - `Escape` closes (keep existing handler)
+When creating a space, users should be able to:
+1. **Add all team members at once** via a checkbox in the footer (between Cancel and Create buttons)
+2. **Enable auto-sync** to automatically add/remove members when employees join or leave the team/company
 
-**Why this prevents recurrence**
-- Portal rendering means the dropdown is no longer “trapped” inside the header’s stacking context, so future layout tweaks won’t re-break layering.
+---
 
-### B) Make InlineSearchResults “content-only” (no absolute positioning)
-Refactor `InlineSearchResults.tsx` so it no longer owns layout positioning (`absolute right-4 top-full ...`). Instead it becomes a **pure panel body** that can be rendered inside `PopoverContent`.
+### Implementation Summary
 
-Changes:
-- Remove the outer absolute-positioned container entirely.
-- Let `PopoverContent` provide border, background, shadow, radius, and z-index.
-- Keep internal structure: header (count/nav) + scroll list + empty state.
+#### 1. Database Changes (New Column)
 
-### C) Fix selected/active row readability (contrast)
-Update the row class logic in `InlineSearchResults.tsx`:
-- When `index === currentIndex`, apply:
-  - `text-accent-foreground`
-  - and force nested muted text to become readable, e.g.
-    - `[&_.text-muted-foreground]:text-accent-foreground/80`
-- This matches your existing “selected-state text visibility” pattern used elsewhere in the app.
+Add an `auto_sync_members` boolean column to `chat_spaces` table:
 
-### D) Optional cleanup to reduce future UI bugs
-These are small but meaningful “stability refactors”:
-- Replace `NodeJS.Timeout` typing with `ReturnType<typeof setTimeout>` (more correct in Vite/TS DOM environments).
-- Improve `highlightMatch` implementation:
-  - Current code uses `regex.test(part)` with a global regex (`/g`), which can behave inconsistently due to `lastIndex`.
-  - Refactor to highlight based on split indices (every odd segment is the match) to avoid subtle rendering glitches.
-- Clamp dropdown sizing safely:
-  - Use `w-[min(400px,calc(100vw-1.5rem))]` on `PopoverContent` so it never exceeds viewport width.
+```sql
+ALTER TABLE chat_spaces 
+ADD COLUMN auto_sync_members boolean DEFAULT false;
 
-## Files to change
-1. `src/components/chat/ChatHeader.tsx`
-   - Replace the “inline absolute dropdown” render with a `Popover` anchored to the search input.
-   - Keep search bar UI exactly where it is (next to mute), but move results rendering into the popover portal.
-2. `src/components/chat/InlineSearchResults.tsx`
-   - Remove absolute-positioned wrapper
-   - Fix selected-state text contrast
-   - (Optional) improve `highlightMatch`, timeout typing
+COMMENT ON COLUMN chat_spaces.auto_sync_members IS 
+  'When true, space membership automatically syncs with access scope changes (company employees, office transfers, project assignments)';
+```
 
-## Acceptance criteria (what you’ll see after)
-- Dropdown always appears above the right “Members” panel (no overlap issues).
-- Selected row is fully readable (no dark/muted text on accent background).
-- Dropdown alignment stays attached to the search bar (end-aligned) and doesn’t jump around.
-- Outside click + Escape consistently closes the dropdown/search.
-- No “transparent/see-through” dropdown: background is solid (`bg-popover`) with correct shadow.
+This column will track whether the space should auto-sync its members based on the access_scope (company/offices/projects).
 
-## Regression prevention (lightweight)
-Add a small UI test (Vitest + Testing Library) that:
-- Renders `ChatHeader` in desktop layout
-- Opens search, types a query
-- Asserts the dropdown content is rendered inside a portal container (e.g., `document.body`) and has readable selected-row classes.
-This won’t catch every CSS issue, but it will prevent accidental reintroduction of “inline absolute dropdown inside blurred header” patterns.
+---
 
-## Notes based on your screenshot
-The screenshot shows both:
-- layering/stacking conflict (results under members panel)
-- poor selected-row contrast
-This plan addresses both, not just the position number tweaks (right-4 / z-50), so the issue won’t reappear with small layout changes.
+#### 2. Database Trigger for Auto-Sync
+
+Create triggers to handle automatic member additions/removals:
+
+**For company-wide spaces (`access_scope = 'company'`):**
+- When a new employee becomes active → add to all auto-sync company spaces
+- When an employee becomes inactive/leaves → remove from all auto-sync company spaces
+
+**For office-wise spaces (`access_scope = 'offices'`):**
+- When an employee's `office_id` changes → add/remove from relevant office spaces
+
+**For project-wise spaces (`access_scope = 'projects'`):**
+- When an employee is added/removed from a project → add/remove from relevant project spaces
+
+```sql
+-- Function: Handle employee status changes for company-wide auto-sync spaces
+CREATE OR REPLACE FUNCTION sync_company_space_members()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Employee became active: add to all company-wide auto-sync spaces
+  IF NEW.status = 'active' AND (OLD.status IS NULL OR OLD.status != 'active') THEN
+    INSERT INTO chat_space_members (space_id, employee_id, organization_id, role)
+    SELECT cs.id, NEW.id, cs.organization_id, 'member'
+    FROM chat_spaces cs
+    WHERE cs.organization_id = NEW.organization_id
+      AND cs.access_scope = 'company'
+      AND cs.auto_sync_members = true
+      AND cs.archived_at IS NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM chat_space_members csm 
+        WHERE csm.space_id = cs.id AND csm.employee_id = NEW.id
+      );
+  END IF;
+
+  -- Employee became inactive: remove from all auto-sync spaces
+  IF NEW.status = 'inactive' AND OLD.status = 'active' THEN
+    DELETE FROM chat_space_members
+    WHERE employee_id = NEW.id
+      AND space_id IN (
+        SELECT id FROM chat_spaces 
+        WHERE organization_id = NEW.organization_id
+          AND auto_sync_members = true
+      );
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Similar triggers for office changes and project membership changes
+```
+
+---
+
+#### 3. Frontend Changes
+
+##### A. CreateSpaceDialog.tsx
+
+Add two new state variables and UI elements:
+
+**State:**
+```typescript
+const [addAllMembers, setAddAllMembers] = useState(false);
+const [autoSync, setAutoSync] = useState(false);
+```
+
+**UI (in footer, left side before Cancel):**
+```tsx
+<div className="flex justify-between items-center gap-2 pt-4 border-t">
+  {/* Left side: Options */}
+  <div className="flex items-center gap-4">
+    {/* Add all members checkbox */}
+    <div className="flex items-center gap-2">
+      <Checkbox 
+        id="addAll"
+        checked={addAllMembers}
+        onCheckedChange={(checked) => setAddAllMembers(!!checked)}
+        disabled={accessScope === 'members'} // Only for non-manual scopes
+      />
+      <Label htmlFor="addAll" className="text-sm font-normal cursor-pointer">
+        Add all members
+      </Label>
+    </div>
+    
+    {/* Auto-sync toggle */}
+    <div className="flex items-center gap-2">
+      <Switch
+        id="autoSync"
+        checked={autoSync}
+        onCheckedChange={setAutoSync}
+        disabled={accessScope === 'members'}
+      />
+      <Label htmlFor="autoSync" className="text-sm font-normal cursor-pointer">
+        Auto-sync
+      </Label>
+      <Tooltip>
+        <TooltipTrigger>
+          <HelpCircle className="h-4 w-4 text-muted-foreground" />
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs">
+          Automatically add/remove members when team members join or leave
+        </TooltipContent>
+      </Tooltip>
+    </div>
+  </div>
+
+  {/* Right side: Actions */}
+  <div className="flex gap-2">
+    <Button variant="outline" onClick={handleClose}>Cancel</Button>
+    <Button onClick={handleCreate}>Create</Button>
+  </div>
+</div>
+```
+
+**Logic Changes:**
+- When `addAllMembers` is true at creation time, fetch all employees matching the access scope and include them in the `memberIds` array
+- Pass `autoSync` value to the `createSpace` mutation
+
+##### B. useCreateSpace Hook (src/services/useChat.ts)
+
+Update the mutation to:
+1. Accept `addAllMembers` and `autoSync` parameters
+2. If `addAllMembers` is true, fetch and add all matching employees
+3. Save `auto_sync_members` flag to the space record
+
+```typescript
+mutationFn: async ({ 
+  name, 
+  description,
+  iconUrl,
+  spaceType = 'collaboration',
+  accessScope = 'company',
+  officeIds,
+  projectIds,
+  memberIds,
+  addAllMembers = false,  // NEW
+  autoSync = false,       // NEW
+}: { ... }) => {
+  // ...existing code...
+
+  // Create space with auto_sync_members flag
+  const { data: space, error: spaceError } = await supabase
+    .from('chat_spaces')
+    .insert({
+      // ...existing fields...
+      auto_sync_members: autoSync && accessScope !== 'members',
+    })
+    .select()
+    .single();
+
+  // If addAllMembers is true, fetch and add all matching employees
+  if (addAllMembers && accessScope !== 'members') {
+    let employeesToAdd: string[] = [];
+    
+    if (accessScope === 'company') {
+      // Add all active employees
+      const { data } = await supabase
+        .from('employees')
+        .select('id')
+        .eq('organization_id', currentOrg.id)
+        .eq('status', 'active');
+      employeesToAdd = data?.map(e => e.id) || [];
+    } else if (accessScope === 'offices' && officeIds?.length) {
+      // Add employees from selected offices
+      const { data } = await supabase
+        .from('employees')
+        .select('id')
+        .eq('organization_id', currentOrg.id)
+        .eq('status', 'active')
+        .in('office_id', officeIds);
+      employeesToAdd = data?.map(e => e.id) || [];
+    } else if (accessScope === 'projects' && projectIds?.length) {
+      // Add employees from selected projects
+      // (Requires joining with project_members table)
+    }
+    
+    // Insert all as members (excluding creator who's auto-added)
+    if (employeesToAdd.length > 0) {
+      const membersToInsert = employeesToAdd
+        .filter(id => id !== employeeId)
+        .map(empId => ({
+          space_id: space.id,
+          employee_id: empId,
+          organization_id: currentOrg.id,
+          role: 'member'
+        }));
+      
+      if (membersToInsert.length > 0) {
+        await supabase.from('chat_space_members').insert(membersToInsert);
+      }
+    }
+  }
+}
+```
+
+---
+
+### Files to Change
+
+| File | Changes |
+|------|---------|
+| **Database Migration** | Add `auto_sync_members` column to `chat_spaces` |
+| **Database Trigger** | Create trigger functions for auto-sync on employee status/office/project changes |
+| `src/components/chat/CreateSpaceDialog.tsx` | Add checkbox for "Add all members", Switch for "Auto-sync", update form state and handleCreate |
+| `src/services/useChat.ts` | Update `useCreateSpace` mutation to accept and handle new parameters |
+| `src/types/chat.ts` | Update `ChatSpace` interface to include `auto_sync_members?: boolean` |
+
+---
+
+### UX Behavior
+
+1. **"Add all members" checkbox:**
+   - Visible when access scope is Company-wide, Office-wise, or Project-wise
+   - Hidden/disabled when access scope is "Members" (manual selection)
+   - When checked, all matching employees are added to the space on creation
+
+2. **"Auto-sync" toggle:**
+   - Visible when access scope is Company-wide, Office-wise, or Project-wise
+   - Hidden/disabled when access scope is "Members"
+   - Shows tooltip explaining the behavior
+   - When enabled, members are automatically added/removed based on employment status changes
+
+3. **Reset on scope change:**
+   - If user switches to "Members" scope, both options are automatically unchecked
+
+---
+
+### Technical Details
+
+**Access Scope Behavior Matrix:**
+
+| Access Scope | Add All Members | Auto-Sync Trigger |
+|--------------|-----------------|-------------------|
+| Company | All active employees | Employee status changes (active ↔ inactive) |
+| Offices | Employees in selected offices | Employee office_id changes |
+| Projects | Employees in selected projects | Project membership changes |
+| Members | N/A (disabled) | N/A (disabled) |
+
+**Security Considerations:**
+- Triggers use `SECURITY DEFINER` but validate organization_id
+- Only active employees are added
+- Creator is already added via existing trigger, so they're excluded from bulk insert
+
