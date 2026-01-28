@@ -1,185 +1,486 @@
 
 
-# Prevent Duplicate Individual Chats & Filter Spaces by Membership
+# Enable Browser Push Notifications for Chat & System Notifications
 
 ## Overview
 
-Three fixes are needed:
-1. Update `NewChatDialog` to check for existing 1:1 conversations and navigate to them instead of creating duplicates
-2. Update `useSpaces` hook to only return spaces where the current user is a member
-3. Apply the same filtering to both desktop (`ChatSidebar`) and mobile (`MobileChatHome`)
+This plan implements fully functional browser push notifications for both:
+1. **Chat notifications** - New DMs, space messages, mentions, reactions
+2. **System notifications** - Leave approvals, kudos, reviews, check-in reminders
+
+The existing infrastructure has VAPID keys configured and a subscription mechanism, but the actual push sending is incomplete. We need to upgrade the edge function to properly send Web Push messages using the `@negrel/webpush` Deno library.
 
 ---
 
-## Issue Analysis
+## Current State Analysis
 
-### Issue 1: Duplicate Individual Chats
-**Current behavior:** `NewChatDialog` always creates a new conversation, even when one exists with the same person.
+### What Already Works
+- VAPID keys are configured (VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY secrets exist)
+- `usePushNotifications` hook handles browser subscription/unsubscription
+- `push_subscriptions` table stores user endpoints, p256dh, and auth keys
+- Service worker (`sw.ts`) has push event handlers for displaying notifications
+- UI toggles exist in ChatSettingsDialog and Notifications page
+- System notifications already call `send-push-notification` from Layout.tsx
 
-**Expected behavior:** When selecting a single team member:
-- Check if a 1:1 conversation already exists with that person
-- If yes, navigate to existing conversation
-- If no, create a new conversation
-
-**Reference:** `ChatSidebar.handleStartDM()` already has this logic (lines 280-312)
-
-### Issue 2: Spaces Visible Without Membership
-**Current behavior:** `useSpaces()` returns all non-archived spaces in the organization.
-
-**Expected behavior:** Only return spaces where the current user is a member (exists in `chat_space_members`).
+### What's Missing
+- **The edge function doesn't actually send push notifications** - it just logs and returns
+- **Chat messages don't trigger push notifications** - only in-app sounds are played
+- Need to implement proper Web Push encryption using `@negrel/webpush` library
 
 ---
 
 ## Implementation Plan
 
-### Part 1: Fix NewChatDialog - Check Existing Conversations
+### Part 1: Upgrade send-push-notification Edge Function
 
-**File:** `src/components/chat/NewChatDialog.tsx`
+**File:** `supabase/functions/send-push-notification/index.ts`
 
-Add a check for existing conversations before creating a new one:
+Replace the placeholder implementation with actual Web Push sending using the Deno-compatible `@negrel/webpush` library:
 
-```tsx
-// Add useConversations to imports
-import { useCreateConversation, useConversations } from "@/services/useChat";
+```typescript
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
+import { 
+  ApplicationServer, 
+  importVapidKeys 
+} from "https://raw.githubusercontent.com/negrel/webpush/master/mod.ts";
 
-// Get existing conversations
-const { data: conversations = [] } = useConversations();
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
-const handleCreate = async () => {
-  if (selectedEmployees.length === 0) {
-    toast.error("Please select at least one person");
-    return;
+interface PushPayload {
+  user_id: string;
+  title: string;
+  body: string;
+  url?: string;
+  tag?: string;
+  data?: Record<string, unknown>;
+}
+
+serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    setIsUploading(true);
-    const isGroup = selectedEmployees.length > 1;
-    
-    // FOR 1:1 CHATS: Check if conversation already exists
-    if (!isGroup) {
-      const targetEmployeeId = selectedEmployees[0];
-      const existingConv = conversations.find(conv => {
-        if (conv.is_group) return false;
-        return conv.participants?.some(p => p.employee_id === targetEmployeeId);
-      });
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
 
-      if (existingConv) {
-        // Navigate to existing conversation instead of creating new
-        const otherParticipant = existingConv.participants?.find(
-          p => p.employee_id !== currentEmployee?.id
-        );
-        const name = otherParticipant?.employee?.profiles?.full_name || "Chat";
-        
-        onChatCreated({
-          type: 'conversation',
-          id: existingConv.id,
-          name,
-          isGroup: false,
+    const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY");
+    const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY");
+
+    if (!vapidPublicKey || !vapidPrivateKey) {
+      return new Response(
+        JSON.stringify({ error: "VAPID keys not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { user_id, title, body, url, tag, data }: PushPayload = await req.json();
+
+    // Get all push subscriptions for this user
+    const { data: subscriptions, error: subError } = await supabaseClient
+      .from("push_subscriptions")
+      .select("id, endpoint, p256dh, auth")
+      .eq("user_id", user_id);
+
+    if (subError || !subscriptions || subscriptions.length === 0) {
+      return new Response(
+        JSON.stringify({ success: true, message: "No subscriptions", sent: 0 }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Initialize VAPID application server
+    const vapidKeys = await importVapidKeys({
+      publicKey: vapidPublicKey,
+      privateKey: vapidPrivateKey,
+    });
+    
+    const appServer = new ApplicationServer(
+      { contactInformation: "mailto:support@globalyhub.com" },
+      vapidKeys
+    );
+
+    const payload = JSON.stringify({
+      title,
+      body,
+      icon: "/favicon.png",
+      badge: "/favicon.png",
+      url: url || "/",
+      tag: tag || "notification",
+      data,
+    });
+
+    let sentCount = 0;
+    const failedEndpoints: string[] = [];
+
+    for (const sub of subscriptions) {
+      try {
+        const subscriber = appServer.subscribe({
+          endpoint: sub.endpoint,
+          keys: {
+            p256dh: sub.p256dh,
+            auth: sub.auth,
+          },
         });
+
+        await subscriber.pushTextMessage(payload, {});
+        sentCount++;
+      } catch (err) {
+        console.error(`Failed to send to endpoint ${sub.id}:`, err);
+        failedEndpoints.push(sub.id);
         
-        // Reset and close
-        setSelectedEmployees([]);
-        setSearchQuery("");
-        onOpenChange(false);
-        toast.info("Opened existing conversation");
-        return;
+        // Remove invalid subscriptions (410 Gone or 404 Not Found)
+        if (err.message?.includes("410") || err.message?.includes("404")) {
+          await supabaseClient
+            .from("push_subscriptions")
+            .delete()
+            .eq("id", sub.id);
+        }
       }
     }
 
-    // ... rest of existing create logic for new conversations ...
+    return new Response(
+      JSON.stringify({ success: true, sent: sentCount, failed: failedEndpoints.length }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("Error in send-push-notification:", errorMessage);
+    return new Response(
+      JSON.stringify({ error: errorMessage }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
-};
+});
 ```
 
 ---
 
-### Part 2: Filter Spaces by Membership
+### Part 2: Create send-chat-push-notification Edge Function
+
+**File:** `supabase/functions/send-chat-push-notification/index.ts`
+
+Create a dedicated function for chat push notifications that handles different message types:
+
+```typescript
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+interface ChatPushPayload {
+  message_id: string;
+  sender_employee_id: string;
+  conversation_id?: string;
+  space_id?: string;
+  content: string;
+  content_type: string;
+}
+
+serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+
+    const { 
+      message_id, 
+      sender_employee_id, 
+      conversation_id, 
+      space_id, 
+      content,
+      content_type 
+    }: ChatPushPayload = await req.json();
+
+    // Get sender info
+    const { data: sender } = await supabase
+      .from("employees")
+      .select("id, user_id, profiles:user_id(full_name, avatar_url)")
+      .eq("id", sender_employee_id)
+      .single();
+
+    const senderName = sender?.profiles?.full_name || "Someone";
+
+    // Determine recipients based on conversation or space
+    let recipientUserIds: string[] = [];
+    let chatName = "";
+    let chatUrl = "";
+
+    if (conversation_id) {
+      // Get other participants in the conversation
+      const { data: participants } = await supabase
+        .from("chat_participants")
+        .select("employees:employee_id(user_id)")
+        .eq("conversation_id", conversation_id)
+        .neq("employee_id", sender_employee_id);
+
+      recipientUserIds = participants
+        ?.map(p => p.employees?.user_id)
+        .filter(Boolean) || [];
+
+      // Check if muted for each recipient
+      const { data: mutedData } = await supabase
+        .from("chat_participants")
+        .select("employee_id, is_muted, employees:employee_id(user_id)")
+        .eq("conversation_id", conversation_id)
+        .eq("is_muted", true);
+
+      const mutedUserIds = new Set(
+        mutedData?.map(m => m.employees?.user_id).filter(Boolean) || []
+      );
+      
+      recipientUserIds = recipientUserIds.filter(id => !mutedUserIds.has(id));
+      chatName = senderName;
+      chatUrl = `/chat?conversation=${conversation_id}`;
+    } else if (space_id) {
+      // Get space members (excluding sender)
+      const { data: space } = await supabase
+        .from("chat_spaces")
+        .select("name")
+        .eq("id", space_id)
+        .single();
+
+      const { data: members } = await supabase
+        .from("chat_space_members")
+        .select("employee_id, notification_setting, employees:employee_id(user_id)")
+        .eq("space_id", space_id)
+        .neq("employee_id", sender_employee_id)
+        .neq("notification_setting", "mute");
+
+      recipientUserIds = members
+        ?.map(m => m.employees?.user_id)
+        .filter(Boolean) || [];
+
+      chatName = space?.name || "Space";
+      chatUrl = `/chat?space=${space_id}`;
+    }
+
+    if (recipientUserIds.length === 0) {
+      return new Response(
+        JSON.stringify({ success: true, message: "No recipients", sent: 0 }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Prepare notification content
+    const title = conversation_id ? senderName : `${senderName} in ${chatName}`;
+    let body = content;
+    if (content_type === "file") {
+      body = "Sent an attachment";
+    } else if (content_type === "voice") {
+      body = "Sent a voice message";
+    } else if (content.length > 100) {
+      body = content.substring(0, 97) + "...";
+    }
+
+    // Send push to each recipient
+    let sentCount = 0;
+    for (const userId of recipientUserIds) {
+      try {
+        await supabase.functions.invoke("send-push-notification", {
+          body: {
+            user_id: userId,
+            title,
+            body,
+            url: chatUrl,
+            tag: `chat-${conversation_id || space_id}`,
+            data: {
+              type: "chat_message",
+              message_id,
+              conversation_id,
+              space_id,
+            },
+          },
+        });
+        sentCount++;
+      } catch (err) {
+        console.error(`Failed to send push to user ${userId}:`, err);
+      }
+    }
+
+    return new Response(
+      JSON.stringify({ success: true, sent: sentCount }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("Error in send-chat-push-notification:", errorMessage);
+    return new Response(
+      JSON.stringify({ error: errorMessage }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});
+```
+
+---
+
+### Part 3: Create Database Trigger for Chat Messages
+
+Create a PostgreSQL trigger that calls the chat push notification function when new messages are inserted:
+
+```sql
+-- Function to call edge function for chat push
+CREATE OR REPLACE FUNCTION notify_chat_message()
+RETURNS TRIGGER AS $$
+DECLARE
+  payload JSONB;
+BEGIN
+  -- Build payload
+  payload := jsonb_build_object(
+    'message_id', NEW.id,
+    'sender_employee_id', NEW.sender_id,
+    'conversation_id', NEW.conversation_id,
+    'space_id', NEW.space_id,
+    'content', NEW.content,
+    'content_type', NEW.content_type
+  );
+
+  -- Call edge function asynchronously via pg_net
+  PERFORM net.http_post(
+    url := current_setting('app.supabase_url') || '/functions/v1/send-chat-push-notification',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || current_setting('app.supabase_service_role_key')
+    ),
+    body := payload
+  );
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Create trigger
+DROP TRIGGER IF EXISTS on_chat_message_insert ON chat_messages;
+CREATE TRIGGER on_chat_message_insert
+  AFTER INSERT ON chat_messages
+  FOR EACH ROW
+  EXECUTE FUNCTION notify_chat_message();
+```
+
+**Note:** If `pg_net` extension is not enabled, we'll use an alternative approach with Supabase Realtime webhooks or call the function from the client side.
+
+---
+
+### Part 4: Alternative - Client-Side Chat Push Trigger
+
+If database triggers with HTTP calls aren't available, add push notification calls from the message send flow:
 
 **File:** `src/services/useChat.ts`
 
-Update `useSpaces` hook to filter by current employee membership:
+Update `useSendMessage` to trigger push notifications after sending:
 
-```tsx
-export const useSpaces = (includeArchived = false) => {
-  const { currentOrg } = useOrganization();
-  const { data: currentEmployee } = useCurrentEmployee();  // ADD THIS
-
-  return useQuery({
-    queryKey: ['chat-spaces', currentOrg?.id, currentEmployee?.id, includeArchived],  // Add employee to key
-    queryFn: async () => {
-      if (!currentOrg?.id || !currentEmployee?.id) return [];  // Also check employee
-
-      let query = supabase
-        .from('chat_spaces')
-        .select(`
-          *,
-          chat_space_members!inner (
-            id,
-            employee_id,
-            role
-          )
-        `)
-        .eq('organization_id', currentOrg.id)
-        .eq('chat_space_members.employee_id', currentEmployee.id);  // ADD: Filter by membership
-
-      // Filter out archived spaces unless explicitly requested
-      if (!includeArchived) {
-        query = query.is('archived_at', null);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      return (data || []).map((space: any) => ({
-        ...space,
-        member_count: space.chat_space_members?.length || 0
-      })) as ChatSpace[];
+```typescript
+// After successful message insert
+if (message) {
+  // Trigger push notification (fire and forget)
+  supabase.functions.invoke("send-chat-push-notification", {
+    body: {
+      message_id: message.id,
+      sender_employee_id: currentEmployee.id,
+      conversation_id: conversationId || undefined,
+      space_id: spaceId || undefined,
+      content: content,
+      content_type: contentType,
     },
-    enabled: !!currentOrg?.id && !!currentEmployee?.id,  // Require employee
-  });
-};
-```
-
-**Key change:** Using `!inner` join ensures only spaces where the employee is a member are returned.
-
----
-
-### Part 3: MobileChatHome - Already Uses useSpaces
-
-**File:** `src/components/chat/MobileChatHome.tsx`
-
-No changes needed - it already uses `useSpaces()` which will automatically be filtered after Part 2.
-
----
-
-### Part 4: ChatSidebar - Already Uses useSpaces
-
-**File:** `src/components/chat/ChatSidebar.tsx`
-
-No changes needed - it already uses `useSpaces()` which will automatically be filtered after Part 2.
-
----
-
-### Part 5: Update BrowseSpacesDialog (if needed)
-
-The `BrowseSpacesDialog` may need to use a different hook if it's meant to show ALL joinable spaces (not just member spaces). Let me verify:
-
-If `BrowseSpacesDialog` is for discovering and joining new spaces, it should continue to show all public spaces. We may need to create a separate `useAllSpaces()` hook or add a parameter:
-
-```tsx
-// Option A: Add parameter to useSpaces
-export const useSpaces = (includeArchived = false, membersOnly = true) => {
-  // If membersOnly = false, don't filter by membership
-}
-
-// Option B: Create separate hook
-export const useAllPublicSpaces = () => {
-  // Returns all public spaces for browsing
+  }).catch(err => console.error("Push notification error:", err));
 }
 ```
 
-This depends on how `BrowseSpacesDialog` currently works.
+---
+
+### Part 5: Update Service Worker for Better Chat Notifications
+
+**File:** `src/sw.ts`
+
+Enhance push handler to support chat-specific notification handling:
+
+```typescript
+self.addEventListener('push', (event) => {
+  let data = {
+    title: 'GlobalyOS Notification',
+    body: 'You have a new notification',
+    icon: '/favicon.png',
+    badge: '/favicon.png',
+    url: '/',
+    tag: 'default',
+    data: {},
+  };
+
+  if (event.data) {
+    try {
+      data = { ...data, ...event.data.json() };
+    } catch (e) {
+      console.error('Error parsing push data:', e);
+    }
+  }
+
+  const isChatMessage = data.data?.type === 'chat_message';
+  const isIncomingCall = data.data?.type === 'incoming_call';
+
+  const options: NotificationOptions = {
+    body: data.body,
+    icon: data.icon,
+    badge: data.badge,
+    vibrate: isIncomingCall ? [300, 100, 300, 100, 300] : [100, 50, 100],
+    data: {
+      ...data.data,
+      url: data.url,
+      dateOfArrival: Date.now(),
+    },
+    tag: data.tag,
+    renotify: true,
+    silent: false,
+    requireInteraction: isIncomingCall,
+  };
+
+  // Add reply action for chat messages (if supported)
+  if (isChatMessage && 'actions' in Notification.prototype) {
+    options.actions = [
+      { action: 'reply', title: 'Reply' },
+      { action: 'dismiss', title: 'Dismiss' },
+    ];
+  }
+
+  if (isIncomingCall) {
+    options.actions = [
+      { action: 'answer', title: 'Answer' },
+      { action: 'decline', title: 'Decline' },
+    ];
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+```
+
+---
+
+### Part 6: Update supabase/config.toml
+
+Add the new edge function configuration:
+
+```toml
+[functions.send-chat-push-notification]
+verify_jwt = false
+```
 
 ---
 
@@ -187,15 +488,19 @@ This depends on how `BrowseSpacesDialog` currently works.
 
 | File | Type | Description |
 |------|------|-------------|
-| `src/components/chat/NewChatDialog.tsx` | Modify | Add existing conversation check for 1:1 chats, navigate instead of create |
-| `src/services/useChat.ts` | Modify | Update `useSpaces` to filter by current employee membership using inner join |
+| `supabase/functions/send-push-notification/index.ts` | Modify | Implement actual Web Push sending with @negrel/webpush |
+| `supabase/functions/send-chat-push-notification/index.ts` | Create | New function for chat-specific push notifications |
+| `supabase/config.toml` | Modify | Add config for new edge function |
+| `src/services/useChat.ts` | Modify | Add push notification trigger after sending messages |
+| `src/sw.ts` | Modify | Enhance push handler for chat message actions |
 
 ---
 
 ## Technical Notes
 
-- **Query optimization:** Using `!inner` join in Supabase is efficient as it filters at database level
-- **Query key update:** Adding `currentEmployee?.id` to the query key ensures cache invalidation when user changes
-- **Toast feedback:** Using `toast.info()` to notify user they're being redirected to existing conversation
-- **Backward compatibility:** Group chats still create as normal; only 1:1 chats are deduplicated
+- **Library Choice**: Using `@negrel/webpush` as it's Deno-native and handles RFC 8291/8292 encryption
+- **Mute Handling**: Push notifications respect both conversation mute (`is_muted`) and space notification settings (`notification_setting`)
+- **Subscription Cleanup**: Invalid/expired endpoints are automatically removed from `push_subscriptions`
+- **Security**: Edge functions use service role key; no user data exposed in client
+- **Backward Compatible**: Existing in-app notification sounds continue to work alongside push
 
