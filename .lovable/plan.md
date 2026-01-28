@@ -1,144 +1,71 @@
 
-# Convert Chat Search from Command Palette to Inline Dropdown
+# Fix Database Error: "record 'new' has no field 'updated_by'"
 
-## Overview
+## Problem Identified
 
-Transform the search from a modal/command palette pattern back to an inline dropdown that appears directly below the search input. This provides a more immediate, contextual search experience without covering the main content.
+The recent fix migration (`20260128122917`) introduced a bug in the `sync_project_space_members()` function. While fixing the JOIN condition from `p.user_id` to `p.id`, it also replaced the function logic with a version that references columns that **do not exist** on the `employee_projects` table.
 
-## Key Changes
+**Root Cause Analysis:**
 
-### 1. Remove Keyboard Shortcut
-- Remove the `Cmd/Ctrl + K` global keyboard shortcut listener
-- Remove the keyboard hint (`⌘K`) from the search trigger
+| Table | Actual Columns |
+|-------|----------------|
+| `employee_projects` | `id`, `employee_id`, `project_id`, `organization_id`, `created_at` |
+| **Missing columns** | `updated_by`, `created_by` (do not exist!) |
 
-### 2. Convert to Inline Dropdown Pattern
-- Replace `CommandDialog` (modal) with inline `Command` component wrapped in a `Popover`
-- Search input becomes a real input field (not just a trigger button)
-- Results dropdown appears directly below the input using Popover portal
-- Click outside or Escape closes the dropdown
-
-### 3. Reorder Results
-New order (as requested):
-1. **Members** - Start DM with team members (online status visible)
-2. **Groups** - Group conversations and DMs
-3. **Spaces** - Team spaces/channels  
-4. **Messages** - Search through message content
-
-### 4. UI/UX Improvements
-
-**Missing Features to Add:**
-- **Highlight matching text** in search results for better scanability
-- **Recent searches** section when dropdown opens (before typing)
-- **Quick actions hint** at top of dropdown ("Start typing to search...")
-- **Clear search button** (X) when query exists
-- **Result count indicator** per category
-- **Escape to close** dropdown
-- **Focus management** - Auto-focus input when dropdown opens
-
-**Design Improvements:**
-- Compact result items for dropdown context
-- Sticky category headers as you scroll
-- Subtle hover states with keyboard navigation support
-- Loading skeleton for better perceived performance
-
----
-
-## Technical Implementation
-
-### File Changes
-
-| File | Action | Description |
-|------|--------|-------------|
-| `src/components/chat/GlobalChatSearch.tsx` | Modify | Complete rewrite to dropdown pattern |
-
-### New Component Structure
-
-```text
-+------------------------------------------+
-| [🔍] Search messages, people, spaces...  |
-+------------------------------------------+
-         ↓ (Popover dropdown)
-+------------------------------------------+
-|  MEMBERS (3)                             |
-|  +--------------------------------------+|
-|  | [Avatar🟢] Sarah Smith               ||
-|  |            Product Manager           ||
-|  +--------------------------------------+|
-|  | [Avatar] John Doe                    ||
-|  |          Engineer                    ||
-|  +--------------------------------------+|
-|                                          |
-|  GROUPS (2)                              |
-|  +--------------------------------------+|
-|  | [👥] Marketing Team                  ||
-|  |      5 members                       ||
-|  +--------------------------------------+|
-|                                          |
-|  SPACES (1)                              |
-|  +--------------------------------------+|
-|  | [#] All GlobalyOS                    ||
-|  |     Company-wide                     ||
-|  +--------------------------------------+|
-|                                          |
-|  MESSAGES (4)                            |
-|  +--------------------------------------+|
-|  | [💬] "...meeting tomorrow at 3pm..." ||
-|  |      Sarah · Jan 15                  ||
-|  +--------------------------------------+|
-+------------------------------------------+
-| ↑↓ Navigate · ↵ Select · Esc Close       |
-+------------------------------------------+
+**Broken code in migration 20260128122917 (line 14):**
+```sql
+WHERE e.id = COALESCE(NEW.updated_by, NEW.created_by);  -- WRONG!
 ```
 
-### Key Technical Details
-
-1. **Popover for Dropdown**: Uses Radix Popover to render dropdown via portal, avoiding overflow clipping issues
-
-2. **cmdk for Keyboard Nav**: Keep using `Command` component (not `CommandDialog`) for built-in arrow key navigation
-
-3. **Focus Trap**: Ensure focus stays in dropdown when open, returns to input on close
-
-4. **Debounced Search**: Keep existing 300ms debounce for search queries
-
-5. **Result Ordering**: Display in order: member → conversation → space → message
+The `employee_projects` table has no `updated_by` or `created_by` columns, so when a row is inserted, the trigger fails because `NEW.updated_by` is not a valid field reference.
 
 ---
 
-## Empty States
+## Solution
 
-**Before Typing:**
-```text
-+------------------------------------------+
-| Start typing to search members, groups,  |
-| spaces, and messages...                  |
-+------------------------------------------+
-```
+Restore the `sync_project_space_members()` function to use the simpler, correct logic from migration `20260128121722`, but with the `p.id` JOIN fix applied:
 
-**No Results:**
-```text
-+------------------------------------------+
-| [🔍]                                     |
-| No results for "xyz"                     |
-| Try a different search term              |
-+------------------------------------------+
-```
+1. Look up employee details using `NEW.employee_id` (which exists)
+2. Use `LEFT JOIN profiles p ON p.id = e.user_id` (the correct JOIN)
+3. Use 'Auto-Sync' as the actor name (since there's no actor tracking on this junction table)
 
 ---
 
-## Interaction Flow
+## Database Migration
 
-1. User clicks search input → Dropdown opens with initial state
-2. User types → Results filter in real-time (debounced)
-3. Arrow keys navigate results → Enter selects highlighted item
-4. Click result OR Enter → Navigate to that chat/start DM
-5. Click outside OR Escape → Close dropdown, clear search
-6. Clear button (X) → Clear query, keep dropdown open
+A new migration will:
+1. Restore `sync_project_space_members()` with the correct logic
+2. Use `NEW.employee_id` to get employee info (not `NEW.updated_by`)
+3. Fix the `p.user_id` → `p.id` JOIN issue
+4. Keep system messages attribution to "Auto-Sync"
 
 ---
 
-## Benefits Over Modal Pattern
+## Technical Details
 
-- **Less disruptive** - Content remains visible behind dropdown
-- **Faster access** - No modal animation, immediate results
-- **More contextual** - Feels integrated with sidebar
-- **Mobile-friendly** - Dropdown patterns work better on touch devices
+### Function Changes
+
+| Aspect | Broken (20260128122917) | Fixed |
+|--------|-------------------------|-------|
+| Employee lookup | `WHERE e.id = COALESCE(NEW.updated_by, NEW.created_by)` | `WHERE e.id = NEW.employee_id` |
+| Actor name | Complex lookup from non-existent column | `'Auto-Sync'` (static string) |
+| Profile JOIN | `p.id = e.user_id` (correct) | `p.id = e.user_id` (keep correct) |
+
+The fix applies only to `sync_project_space_members()` since the other functions (`sync_company_space_members`, `sync_office_space_members`) operate on the `employees` table which does have the `updated_by` column.
+
+---
+
+## Files Changed
+
+| Resource | Action | Description |
+|----------|--------|-------------|
+| Database migration | Add | Restore correct `sync_project_space_members()` function logic |
+
+---
+
+## After Fix
+
+Assigning projects to team members will work correctly again. The system will:
+- Add employees to project-scoped chat spaces automatically
+- Create system messages saying "[Employee Name] was added by Auto-Sync"
+- Properly look up employee names using the correct JOIN
