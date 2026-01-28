@@ -510,6 +510,20 @@ export const useSendMessage = () => {
             return filtered;
           }
         );
+
+        // Trigger push notification for recipients (fire and forget)
+        if (currentEmployee?.id) {
+          supabase.functions.invoke("send-chat-push-notification", {
+            body: {
+              message_id: data.id,
+              sender_employee_id: currentEmployee.id,
+              conversation_id: variables.conversationId || undefined,
+              space_id: variables.spaceId || undefined,
+              content: variables.content,
+              content_type: variables.attachments?.length ? 'file' : 'text',
+            },
+          }).catch(err => console.error("Push notification error:", err));
+        }
       }
       // Update conversation/space lists for last message preview
       queryClient.invalidateQueries({ queryKey: ['chat-conversations'] });
