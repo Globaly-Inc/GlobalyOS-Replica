@@ -361,7 +361,13 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
     setFilesLightboxIndex((prev) => (prev === sharedFiles.length - 1 ? 0 : prev + 1));
   };
 
-  const members = spaceId ? spaceMembers : conversationParticipants;
+  const unsortedMembers = spaceId ? spaceMembers : conversationParticipants;
+  // Sort members with admins first
+  const members = [...unsortedMembers].sort((a, b) => {
+    if (a.role === 'admin' && b.role !== 'admin') return -1;
+    if (a.role !== 'admin' && b.role === 'admin') return 1;
+    return 0;
+  });
   const memberCount = members.length;
 
   // Check if current user is a space admin
