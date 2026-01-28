@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -66,6 +66,7 @@ import {
 } from "@/services/useChat";
 import { useMessageStars, useToggleMessageStar } from "@/hooks/useMessageStars";
 import { useChatInfiniteScroll } from "@/hooks/useChatInfiniteScroll";
+import { useTeamPresence } from "@/services/useTeamData";
 
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { useChatNotificationPreferences } from "@/hooks/useChatNotificationPreferences";
@@ -182,6 +183,16 @@ const ConversationView = ({
   const { data: spaceMembers = [] } = useSpaceMembers(spaceId);
   const { data: conversationParticipants = [] } = useConversationParticipants(activeChat.isGroup ? conversationId : null);
   const { data: replyCounts = {} } = useMessageReplyCounts(conversationId, spaceId);
+  
+  // Get unique sender IDs from messages for presence tracking
+  const senderIds = useMemo(() => {
+    const ids = new Set<string>();
+    messages.forEach(m => {
+      if (m.sender_id) ids.add(m.sender_id);
+    });
+    return Array.from(ids);
+  }, [messages]);
+  const { data: onlineStatuses = {} } = useTeamPresence(senderIds);
 
   // Load older messages callback
   const handleLoadOlderMessages = useCallback(() => {
@@ -867,6 +878,7 @@ const ConversationView = ({
                             onReply={() => setActiveThreadMessage(message)}
                             replyCount={replyCounts[message.id]}
                             isEditPending={editMessage.isPending}
+                            isOnline={message.sender_id ? onlineStatuses[message.sender_id] : false}
                           />
                         );
                       })}

@@ -42,6 +42,7 @@ interface MessageBubbleProps {
   replyCount?: number;
   isEditPending: boolean;
   isStarred: boolean;
+  isOnline?: boolean;
 }
 
 const MessageBubble = ({
@@ -63,6 +64,7 @@ const MessageBubble = ({
   replyCount,
   isEditPending,
   isStarred,
+  isOnline,
 }: MessageBubbleProps) => {
   const senderName = message.sender?.profiles?.full_name || "Unknown";
 
@@ -91,12 +93,17 @@ const MessageBubble = ({
       {/* Avatar - smaller on mobile */}
       <div className="w-7 md:w-9 flex-shrink-0">
         {!isGrouped && (
-          <Avatar className="h-7 w-7 md:h-9 md:w-9">
-            <AvatarImage src={message.sender?.profiles?.avatar_url || undefined} />
-            <AvatarFallback className="text-[10px] md:text-xs bg-primary/10 text-primary font-medium">
-              {getInitials(senderName)}
-            </AvatarFallback>
-          </Avatar>
+          <div className="relative">
+            <Avatar className="h-7 w-7 md:h-9 md:w-9">
+              <AvatarImage src={message.sender?.profiles?.avatar_url || undefined} />
+              <AvatarFallback className="text-[10px] md:text-xs bg-primary/10 text-primary font-medium">
+                {getInitials(senderName)}
+              </AvatarFallback>
+            </Avatar>
+            {isOnline && (
+              <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 md:h-3 md:w-3 rounded-full bg-green-500 border-2 border-card" />
+            )}
+          </div>
         )}
       </div>
 
