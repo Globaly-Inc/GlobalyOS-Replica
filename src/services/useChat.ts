@@ -44,10 +44,11 @@ export const useConversations = () => {
   const { data: currentEmployee } = useCurrentEmployee();
 
   return useQuery({
-    queryKey: ['chat-conversations', currentOrg?.id],
+    queryKey: ['chat-conversations', currentOrg?.id, currentEmployee?.id],
     queryFn: async () => {
       if (!currentOrg?.id || !currentEmployee?.id) return [];
 
+      // Single optimized query with all needed joins - eliminates N+1 problem
       const { data, error } = await supabase
         .from('chat_participants')
         .select(`
@@ -62,24 +63,11 @@ export const useConversations = () => {
             is_group,
             created_by,
             created_at,
-            updated_at
-          )
-        `)
-        .eq('employee_id', currentEmployee.id)
-        .eq('organization_id', currentOrg.id);
-
-      if (error) throw error;
-
-      // Get participants for each conversation
-      const conversations = await Promise.all(
-        (data || []).map(async (item: any) => {
-          const conv = item.chat_conversations;
-          
-          const { data: participants } = await supabase
-            .from('chat_participants')
-            .select(`
+            updated_at,
+            chat_participants (
               id,
               employee_id,
+              role,
               employees:employee_id (
                 id,
                 user_id,
@@ -90,33 +78,52 @@ export const useConversations = () => {
                   email
                 )
               )
-            `)
-            .eq('conversation_id', conv.id);
+            )
+          )
+        `)
+        .eq('employee_id', currentEmployee.id)
+        .eq('organization_id', currentOrg.id);
 
-          // Get last message
-          const { data: messages } = await supabase
-            .from('chat_messages')
-            .select('*')
-            .eq('conversation_id', conv.id)
-            .order('created_at', { ascending: false })
-            .limit(1);
+      if (error) throw error;
 
-          return {
-            ...conv,
-            participants: participants?.map((p: any) => ({
-              ...p,
-              employee: p.employees
-            })),
-            last_message: messages?.[0],
-            last_read_at: item.last_read_at,
-            is_muted: item.is_muted
-          } as ChatConversation;
-        })
-      );
+      // Get conversation IDs for batch last message fetch
+      const conversationIds = (data || [])
+        .map((item: any) => item.chat_conversations?.id)
+        .filter(Boolean);
 
-      return conversations;
+      // Batch fetch last messages using optimized database function
+      let lastMessageMap = new Map();
+      if (conversationIds.length > 0) {
+        const { data: lastMessages } = await supabase
+          .rpc('get_last_messages_batch', { 
+            conversation_ids: conversationIds 
+          });
+
+        lastMessageMap = new Map(
+          (lastMessages || []).map((m: any) => [m.conversation_id, m])
+        );
+      }
+
+      // Transform data - no additional queries needed
+      return (data || []).map((item: any) => {
+        const conv = item.chat_conversations;
+        if (!conv) return null;
+        
+        return {
+          ...conv,
+          participants: conv.chat_participants?.map((p: any) => ({
+            ...p,
+            employee: p.employees
+          })),
+          last_message: lastMessageMap.get(conv.id),
+          last_read_at: item.last_read_at,
+          is_muted: item.is_muted
+        } as ChatConversation;
+      }).filter(Boolean) as ChatConversation[];
     },
     enabled: !!currentOrg?.id && !!currentEmployee?.id,
+    staleTime: 30000, // Cache for 30 seconds - realtime handles updates
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
   });
 };
 
@@ -162,6 +169,8 @@ export const useSpaces = (includeArchived = false, membersOnly = true) => {
       })) as ChatSpace[];
     },
     enabled: !!currentOrg?.id && (!membersOnly || !!currentEmployee?.id),
+    staleTime: 60000, // Cache for 60 seconds - less frequent changes
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
   });
 };
 
@@ -196,6 +205,8 @@ export const useSpaceMembers = (spaceId: string | null) => {
       })) as ChatSpaceMember[];
     },
     enabled: !!spaceId,
+    staleTime: 30000, // Cache for 30 seconds
+    gcTime: 5 * 60 * 1000,
   });
 };
 
@@ -995,7 +1006,8 @@ export const useTypingUsers = (conversationId: string | null, spaceId: string | 
       }));
     },
     enabled: (!!conversationId || !!spaceId) && !!currentEmployee?.id,
-    refetchInterval: 3000, // Poll every 3 seconds as fallback
+    staleTime: 5000, // Rely on realtime, allow 5s stale
+    // Removed polling - realtime subscription handles updates
   });
 };
 
@@ -1095,7 +1107,9 @@ export const useUnreadCounts = () => {
       return { conversations: conversationCounts, spaces: spaceCounts };
     },
     enabled: !!currentOrg?.id && !!currentEmployee?.id,
-    refetchInterval: 30000, // Refresh every 30 seconds
+    staleTime: 10000, // Cache for 10 seconds - realtime handles increments
+    gcTime: 2 * 60 * 1000, // 2 minutes
+    refetchInterval: 60000, // Fallback poll every 60 seconds (was 30s)
   });
 };
 

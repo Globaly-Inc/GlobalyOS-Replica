@@ -12748,6 +12748,17 @@ export type Database = {
         Args: { p_employee_id: string; p_organization_id: string }
         Returns: Json
       }
+      get_last_messages_batch: {
+        Args: { conversation_ids: string[] }
+        Returns: {
+          content: string
+          content_type: string
+          conversation_id: string
+          created_at: string
+          id: string
+          sender_id: string
+        }[]
+      }
       get_organization_usage:
         | {
             Args: { _billing_period?: string; _organization_id: string }

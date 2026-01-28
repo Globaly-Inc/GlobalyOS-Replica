@@ -132,7 +132,7 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
     fetchOnlineStatuses();
   }, [conversations, currentEmployee?.id]);
 
-  // Subscribe to presence changes
+  // Subscribe to presence changes only (main realtime is consolidated in useChatRealtime)
   useEffect(() => {
     if (!currentOrg?.id) return;
 
@@ -168,79 +168,8 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
     return other?.employee_id || null;
   };
 
-  // Realtime subscription for conversations, messages, and spaces
-  useEffect(() => {
-    if (!currentOrg?.id) return;
-
-    const channel = supabase
-      .channel('chat-sidebar-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'chat_conversations',
-          filter: `organization_id=eq.${currentOrg.id}`
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['chat-conversations', currentOrg.id] });
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'chat_participants',
-          filter: `organization_id=eq.${currentOrg.id}`
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['chat-conversations', currentOrg.id] });
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'chat_messages',
-          filter: `organization_id=eq.${currentOrg.id}`
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['chat-conversations', currentOrg.id] });
-          queryClient.invalidateQueries({ queryKey: ['unread-counts', currentOrg.id] });
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'chat_spaces',
-          filter: `organization_id=eq.${currentOrg.id}`
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['chat-spaces', currentOrg.id] });
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'chat_space_members',
-          filter: `organization_id=eq.${currentOrg.id}`
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['chat-spaces', currentOrg.id] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [currentOrg?.id, queryClient]);
+  // Note: Main realtime subscriptions are consolidated in useChatRealtime hook
+  // This component no longer needs redundant channel subscriptions
 
   const getConversationName = (conv: ChatConversation) => {
     if (conv.name) return conv.name;
@@ -427,8 +356,11 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
             <div className="space-y-0.5">
               {loadingConversations ? (
                 <div className="space-y-1 px-2">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="h-8 bg-muted/50 rounded-md animate-pulse" />
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <div key={i} className="flex items-center gap-2.5 py-1.5">
+                      <div className="h-6 w-6 rounded-full bg-muted animate-pulse" />
+                      <div className="flex-1 h-4 bg-muted rounded animate-pulse" />
+                    </div>
                   ))}
                 </div>
               ) : conversations.length === 0 ? (

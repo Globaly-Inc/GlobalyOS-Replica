@@ -458,7 +458,8 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
     fetchOtherParticipant();
   }, [activeChat, currentEmployee?.id]);
 
-  // Subscribe to presence changes
+  // Note: Presence updates are handled by consolidated useChatRealtime hook
+  // Only keep individual participant presence subscription for header status display
   useEffect(() => {
     if (!otherParticipant?.id) return;
 
