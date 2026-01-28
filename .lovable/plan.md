@@ -1,296 +1,161 @@
 
-
-# Auto-Sync Triggers: Full Feature Implementation
+# Inactive Team Members: Complete Exclusion from Chat Features
 
 ## Overview
-Implement a comprehensive display of auto-sync trigger conditions in the chat right panel, showing users exactly when and how member synchronization occurs. This involves:
-1. Updating the banner UI with a detailed tooltip
-2. Adding database triggers for department and project changes (currently missing)
-3. Displaying scope-specific information dynamically
+Implement comprehensive filtering to exclude inactive team members from all chat-related features, including automatic removal from existing groups and spaces when a team member becomes inactive.
 
 ---
 
 ## Current State Analysis
 
-### Existing Database Triggers
-The system currently has two auto-sync triggers:
+### Existing Filtering
+| Component | Filters Inactive? | Notes |
+|-----------|-------------------|-------|
+| `NewChatDialog.tsx` | **No** | Uses `useEmployees()` with no status filter |
+| `AddGroupMembersDialog.tsx` | **Yes** | Already filters `.eq('status', 'active')` |
+| `AccessScopeSelector.tsx` | **Yes** | Already filters `.eq('status', 'active')` |
+| Auto-sync triggers (DB) | **Partial** | Removes from auto-sync spaces but NOT from conversations/groups |
 
-| Trigger | Table | Event | Action |
-|---------|-------|-------|--------|
-| `trigger_sync_company_space_members` | employees | INSERT or UPDATE of status | Adds to/removes from company-wide spaces |
-| `trigger_sync_office_space_members` | employees | UPDATE of office_id | Moves between office-scoped spaces |
-
-### Missing Triggers
-Based on access scopes used (`company`, `offices`, `projects`, `custom`), the following are **not yet implemented**:
-- **Department changes** (`department_id` on employees) - Needed if spaces use department scope
-- **Project assignment changes** (`employee_projects` table) - Needed for project-scoped spaces
-
-### Access Scope vs Trigger Mapping
-| Access Scope | Trigger Exists? | Notes |
-|--------------|-----------------|-------|
-| `company` | Yes | Syncs on employee add/deactivate |
-| `offices` | Yes | Syncs on office change |
-| `projects` | **No** | Needs trigger on `employee_projects` table |
-| `custom` | N/A | Manual member management |
-| `members` | N/A | Manual member management |
+### Missing Features
+1. `NewChatDialog.tsx` shows all employees including inactive
+2. No trigger to remove inactive members from **chat conversations/groups**
+3. Existing auto-sync trigger only handles spaces, not group chats
 
 ---
 
 ## Implementation Plan
 
-### Part 1: UI Enhancement - Auto-Sync Banner with Tooltip
+### Part 1: Filter Inactive Members in NewChatDialog
 
-**File:** `src/components/chat/ChatRightPanelEnhanced.tsx`
+**File:** `src/components/chat/NewChatDialog.tsx`
 
-Update the auto-sync banner (lines 727-734) to include a tooltip showing the specific trigger conditions based on the space's `access_scope`.
+Currently uses `useEmployees()` without status filtering. Need to filter to only show active employees.
 
-#### Current Code (lines 727-734)
+**Change (line 56):**
 ```tsx
-{spaceId && autoSyncEnabled && (
-  <Alert className="mb-3 bg-muted/50 border-border">
-    <RefreshCw className="h-4 w-4" />
-    <AlertDescription className="text-xs">
-      Auto-sync enabled. Members synced with {spaceData?.access_scope === 'company' ? 'organization' : spaceData?.access_scope}.
-    </AlertDescription>
-  </Alert>
-)}
-```
+// Before
+const filteredEmployees = employees.filter(emp => {
+  if (emp.id === currentEmployee?.id) return false;
+  const name = emp.profiles?.full_name || "";
+  const email = emp.profiles?.email || "";
+  return (
+    name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+});
 
-#### Updated Code
-```tsx
-{spaceId && autoSyncEnabled && (
-  <Alert className="mb-3 bg-muted/50 border-border">
-    <div className="flex items-center gap-2">
-      <RefreshCw className="h-4 w-4 shrink-0" />
-      <AlertDescription className="text-xs flex-1">
-        <span>Auto-sync enabled. Members synced with </span>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button className="underline decoration-dotted underline-offset-2 hover:text-primary transition-colors">
-              {getScopeLabel(spaceData?.access_scope)}
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="max-w-xs">
-            <div className="space-y-1.5">
-              <p className="font-medium text-xs">Sync triggers:</p>
-              <ul className="text-xs space-y-1 list-disc list-inside">
-                {getSyncTriggers(spaceData?.access_scope).map((trigger, i) => (
-                  <li key={i}>{trigger}</li>
-                ))}
-              </ul>
-              {(spaceData?.offices?.length || spaceData?.projects?.length) && (
-                <>
-                  <p className="font-medium text-xs mt-2">Synced with:</p>
-                  <p className="text-xs text-muted-foreground">
-                    {getScopedEntities(spaceData)}
-                  </p>
-                </>
-              )}
-            </div>
-          </TooltipContent>
-        </Tooltip>
-        .
-      </AlertDescription>
-    </div>
-  </Alert>
-)}
-```
-
-#### Helper Functions (add before the return statement)
-```tsx
-const getScopeLabel = (scope?: string) => {
-  switch (scope) {
-    case 'company': return 'organization';
-    case 'offices': return 'office(s)';
-    case 'projects': return 'project(s)';
-    default: return scope || 'custom';
-  }
-};
-
-const getSyncTriggers = (scope?: string): string[] => {
-  const baseTriggers = [
-    'New member added to the organization',
-    'Team member is deactivated',
-  ];
+// After
+const filteredEmployees = employees.filter(emp => {
+  // Exclude current user and inactive employees
+  if (emp.id === currentEmployee?.id) return false;
+  if (emp.status !== 'active') return false;
   
-  switch (scope) {
-    case 'company':
-      return baseTriggers;
-    case 'offices':
-      return [
-        ...baseTriggers,
-        'Office assignment changed in team profile',
-      ];
-    case 'projects':
-      return [
-        ...baseTriggers,
-        'Project assignment updated in team profile',
-      ];
-    default:
-      return baseTriggers;
-  }
-};
-
-const getScopedEntities = (space?: typeof spaceData) => {
-  if (!space) return '';
-  
-  if (space.access_scope === 'offices' && space.offices?.length) {
-    return space.offices.map(o => o.name).join(', ');
-  }
-  if (space.access_scope === 'projects' && space.projects?.length) {
-    return space.projects.map(p => p.name).join(', ');
-  }
-  return '';
-};
+  const name = emp.profiles?.full_name || "";
+  const email = emp.profiles?.email || "";
+  return (
+    name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+});
 ```
 
 ---
 
-### Part 2: Database Triggers for Project Sync (New)
+### Part 2: Database Trigger to Remove Inactive Members from All Chat
 
-**File:** New migration for project-based auto-sync
-
-The `employee_projects` table tracks which employees are assigned to which projects. We need a trigger to sync space membership when project assignments change.
+**New Migration:** Add a comprehensive trigger that removes inactive employees from:
+1. **Chat conversations** (group chats via `chat_participants` table)
+2. **Chat spaces** (already partially handled, but ensure complete coverage)
 
 #### Migration SQL
 ```sql
--- Function: Handle project assignment changes for project-scoped auto-sync spaces
-CREATE OR REPLACE FUNCTION sync_project_space_members()
+-- Function: Remove employee from all chat when made inactive
+CREATE OR REPLACE FUNCTION remove_inactive_from_all_chat()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- On INSERT: Add employee to project-scoped auto-sync spaces
-  IF TG_OP = 'INSERT' THEN
-    INSERT INTO chat_space_members (space_id, employee_id, organization_id, role)
-    SELECT cs.id, NEW.employee_id, cs.organization_id, 'member'
-    FROM chat_spaces cs
-    JOIN chat_space_projects csp ON csp.space_id = cs.id
-    WHERE cs.organization_id = NEW.organization_id
-      AND cs.access_scope = 'projects'
-      AND cs.auto_sync_members = true
-      AND cs.archived_at IS NULL
-      AND csp.project_id = NEW.project_id
-      AND NOT EXISTS (
-        SELECT 1 FROM chat_space_members csm 
-        WHERE csm.space_id = cs.id AND csm.employee_id = NEW.employee_id
-      );
+  -- Only trigger when status changes from active to inactive
+  IF OLD.status = 'active' AND NEW.status = 'inactive' THEN
+    
+    -- 1. Remove from all chat conversations (group chats)
+    DELETE FROM chat_participants
+    WHERE employee_id = NEW.id
+      AND organization_id = NEW.organization_id;
+    
+    -- 2. Remove from all chat spaces (including non-auto-sync spaces)
+    DELETE FROM chat_space_members
+    WHERE employee_id = NEW.id
+      AND organization_id = NEW.organization_id;
+    
   END IF;
-
-  -- On DELETE: Remove employee from project-scoped auto-sync spaces (if not in other matching projects)
-  IF TG_OP = 'DELETE' THEN
-    DELETE FROM chat_space_members csm
-    WHERE csm.employee_id = OLD.employee_id
-      AND csm.space_id IN (
-        SELECT cs.id FROM chat_spaces cs
-        JOIN chat_space_projects csp ON csp.space_id = cs.id
-        WHERE cs.organization_id = OLD.organization_id
-          AND cs.access_scope = 'projects'
-          AND cs.auto_sync_members = true
-          AND csp.project_id = OLD.project_id
-      )
-      -- Only remove if not still assigned via another project in the same space
-      AND NOT EXISTS (
-        SELECT 1 FROM employee_projects ep2
-        JOIN chat_space_projects csp2 ON csp2.project_id = ep2.project_id
-        WHERE ep2.employee_id = OLD.employee_id
-          AND ep2.project_id != OLD.project_id
-          AND csp2.space_id = csm.space_id
-      );
-    RETURN OLD;
-  END IF;
-
+  
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
--- Create trigger for project assignment changes
-DROP TRIGGER IF EXISTS trigger_sync_project_space_members ON employee_projects;
-CREATE TRIGGER trigger_sync_project_space_members
-  AFTER INSERT OR DELETE ON employee_projects
+-- Create trigger
+DROP TRIGGER IF EXISTS trigger_remove_inactive_from_all_chat ON employees;
+CREATE TRIGGER trigger_remove_inactive_from_all_chat
+  AFTER UPDATE OF status ON employees
   FOR EACH ROW
-  EXECUTE FUNCTION sync_project_space_members();
+  EXECUTE FUNCTION remove_inactive_from_all_chat();
 ```
 
 ---
 
-### Part 3: Database Triggers for Department Sync (Optional/Future)
+### Part 3: One-Time Data Cleanup
 
-Currently, `chat_spaces` does not use `access_scope = 'departments'` (only posts/wikis do). If this becomes needed:
+**Migration:** Remove all currently inactive employees from chat memberships.
 
 ```sql
--- Function: Handle department changes for department-scoped auto-sync spaces
-CREATE OR REPLACE FUNCTION sync_department_space_members()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.status = 'active' AND (OLD.department_id IS DISTINCT FROM NEW.department_id) THEN
-    -- Remove from old department spaces
-    IF OLD.department_id IS NOT NULL THEN
-      DELETE FROM chat_space_members csm
-      WHERE csm.employee_id = NEW.id
-        AND csm.space_id IN (
-          SELECT cs.id FROM chat_spaces cs
-          JOIN chat_space_departments csd ON csd.space_id = cs.id
-          WHERE cs.organization_id = NEW.organization_id
-            AND cs.auto_sync_members = true
-            AND csd.department_id = OLD.department_id
-        );
-    END IF;
+-- Remove inactive employees from chat conversations (groups)
+DELETE FROM chat_participants cp
+USING employees e
+WHERE cp.employee_id = e.id
+  AND e.status = 'inactive';
 
-    -- Add to new department spaces
-    IF NEW.department_id IS NOT NULL THEN
-      INSERT INTO chat_space_members (space_id, employee_id, organization_id, role)
-      SELECT cs.id, NEW.id, cs.organization_id, 'member'
-      FROM chat_spaces cs
-      JOIN chat_space_departments csd ON csd.space_id = cs.id
-      WHERE cs.organization_id = NEW.organization_id
-        AND cs.auto_sync_members = true
-        AND cs.archived_at IS NULL
-        AND csd.department_id = NEW.department_id
-        AND NOT EXISTS (
-          SELECT 1 FROM chat_space_members csm2 
-          WHERE csm2.space_id = cs.id AND csm2.employee_id = NEW.id
-        );
-    END IF;
-  END IF;
-
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
-
-DROP TRIGGER IF EXISTS trigger_sync_department_space_members ON employees;
-CREATE TRIGGER trigger_sync_department_space_members
-  AFTER UPDATE OF department_id ON employees
-  FOR EACH ROW
-  EXECUTE FUNCTION sync_department_space_members();
+-- Remove inactive employees from chat spaces
+DELETE FROM chat_space_members csm
+USING employees e
+WHERE csm.employee_id = e.id
+  AND e.status = 'inactive';
 ```
+
+---
+
+### Part 4: Update Existing Auto-Sync Functions
+
+The existing `sync_company_space_members()` function already handles removal from auto-sync spaces. The new trigger will handle ALL spaces and conversations, but we should ensure no conflicts.
+
+**Note:** The new trigger specifically handles the status change, while the existing function handles both add (when becoming active) and remove (when becoming inactive). The new trigger will execute first and clean up everything, so both can coexist.
 
 ---
 
 ## Summary of Changes
 
-| File | Type | Description |
-|------|------|-------------|
-| `src/components/chat/ChatRightPanelEnhanced.tsx` | Modify | Add tooltip to auto-sync banner with trigger conditions and scoped entities |
-| New migration | Create | Add `sync_project_space_members()` function and trigger for project-based auto-sync |
-| (Optional) New migration | Create | Add `sync_department_space_members()` function for future department-scoped spaces |
+| File/Location | Type | Description |
+|---------------|------|-------------|
+| `src/components/chat/NewChatDialog.tsx` | Modify | Add `emp.status !== 'active'` filter to exclude inactive employees |
+| New migration | Create | Add `remove_inactive_from_all_chat()` function and trigger |
+| New migration | Create | One-time cleanup of existing inactive members from chat |
 
 ---
 
-## Visual Result
+## Verification Points
 
-When a user views the chat right panel for an auto-sync enabled space, they will see:
+After implementation, verify:
+1. New Chat dialog only shows active team members
+2. Add Group Members dialog only shows active team members (already working)
+3. Access Scope Selector only shows active team members (already working)
+4. When a team member is made inactive:
+   - They are removed from all chat conversations/groups
+   - They are removed from all chat spaces
+5. Existing inactive members are cleaned up from all chat memberships
 
-**Banner text:** "Auto-sync enabled. Members synced with **office(s)**."
+---
 
-**Tooltip (on hover over "office(s)"):**
-```text
-Sync triggers:
-• New member added to the organization
-• Team member is deactivated
-• Office assignment changed in team profile
+## Technical Notes
 
-Synced with:
-Head Office, Remote Office
-```
-
-This provides complete transparency about when and why member lists change automatically.
-
+- The trigger uses `SECURITY DEFINER` to ensure it can delete records regardless of RLS policies
+- The cleanup migration runs once to fix existing data
+- No changes needed to `AddGroupMembersDialog.tsx` or `AccessScopeSelector.tsx` as they already filter by `status = 'active'`
+- The trigger fires `AFTER UPDATE OF status` to ensure it only runs when status changes
