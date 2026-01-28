@@ -1616,6 +1616,7 @@ export const useAddSpaceMembers = () => {
         employee_id: empId,
         organization_id: currentOrg.id,
         role: 'member' as const,
+        source: 'manual' as const, // Explicitly mark as manually invited
       }));
 
       const { error } = await supabase

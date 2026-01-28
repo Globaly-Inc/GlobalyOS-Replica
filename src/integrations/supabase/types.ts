@@ -2300,6 +2300,7 @@ export type Database = {
           notification_setting: string
           organization_id: string
           role: string
+          source: string
           space_id: string
         }
         Insert: {
@@ -2310,6 +2311,7 @@ export type Database = {
           notification_setting?: string
           organization_id: string
           role?: string
+          source?: string
           space_id: string
         }
         Update: {
@@ -2320,6 +2322,7 @@ export type Database = {
           notification_setting?: string
           organization_id?: string
           role?: string
+          source?: string
           space_id?: string
         }
         Relationships: [

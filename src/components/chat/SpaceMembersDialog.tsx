@@ -22,11 +22,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Search, MoreVertical, Shield, UserMinus, Crown, Loader2, RefreshCw, Info } from "lucide-react";
+import { Search, MoreVertical, Shield, UserMinus, Crown, Loader2, RefreshCw, UserPlus } from "lucide-react";
 import { useSpaceMembers, useUpdateSpaceMemberRole, useRemoveSpaceMember } from "@/services/useChat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
-import { useOrganization } from "@/hooks/useOrganization";
-import { useExemptEmployeeIds } from "@/hooks/useExemptRoles";
 import { toast } from "sonner";
 import { showErrorToast } from "@/lib/errorUtils";
 import type { ChatSpaceMember } from "@/types/chat";
@@ -51,13 +49,8 @@ const SpaceMembersDialog = ({
   const [search, setSearch] = useState("");
   const { data: members = [], isLoading } = useSpaceMembers(spaceId);
   const { data: currentEmployee } = useCurrentEmployee();
-  const { currentOrg } = useOrganization();
   const updateRole = useUpdateSpaceMemberRole();
   const removeMember = useRemoveSpaceMember();
-
-  // Get exempt roles for all members
-  const memberIds = members.map(m => m.employee_id);
-  const { exemptIds, isLoading: loadingRoles } = useExemptEmployeeIds(memberIds, currentOrg?.id || null);
 
   const currentMember = members.find(m => m.employee_id === currentEmployee?.id);
   const isCurrentAdmin = currentMember?.role === 'admin';
@@ -129,15 +122,17 @@ const SpaceMembersDialog = ({
     }
   };
 
-  // Check if a member can be removed (exempt members can always be removed, others only when auto-sync is off)
+  // Check if a member can be removed (only manually added members can be removed)
   const canRemoveMember = (member: ChatSpaceMember) => {
-    if (!autoSyncEnabled) return true;
-    return exemptIds.has(member.employee_id);
+    // Access the source field - members added via auto-sync cannot be removed
+    const memberSource = (member as any).source;
+    return memberSource === 'manual';
   };
 
-  // Check if a member is exempt from auto-sync
-  const isMemberExempt = (member: ChatSpaceMember) => {
-    return exemptIds.has(member.employee_id);
+  // Check if member was manually invited
+  const isManuallyInvited = (member: ChatSpaceMember) => {
+    const memberSource = (member as any).source;
+    return memberSource === 'manual';
   };
 
   return (
@@ -155,7 +150,7 @@ const SpaceMembersDialog = ({
               <AlertDescription className="text-sm">
                 Auto-sync is enabled. Members are managed automatically.
                 <span className="block text-xs text-muted-foreground mt-1">
-                  Owner, Admin, and HR members can be managed manually.
+                  Only invited members can be removed manually.
                 </span>
               </AlertDescription>
             </Alert>
@@ -173,29 +168,15 @@ const SpaceMembersDialog = ({
               />
             </div>
             {isCurrentAdmin && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span>
-                    <Button 
-                      onClick={onAddMembers}
-                      disabled={autoSyncEnabled}
-                    >
-                      Add
-                    </Button>
-                  </span>
-                </TooltipTrigger>
-                {autoSyncEnabled && (
-                  <TooltipContent>
-                    <p>Disable auto-sync to add members manually</p>
-                  </TooltipContent>
-                )}
-              </Tooltip>
+              <Button onClick={onAddMembers}>
+                Add
+              </Button>
             )}
           </div>
 
           {/* Members list */}
           <ScrollArea className="h-[300px]">
-            {isLoading || loadingRoles ? (
+            {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
@@ -206,8 +187,8 @@ const SpaceMembersDialog = ({
             ) : (
               <div className="space-y-1">
                 {filteredMembers.map((member) => {
-                  const isExempt = isMemberExempt(member);
                   const canRemove = canRemoveMember(member);
+                  const isInvited = isManuallyInvited(member);
 
                   return (
                     <div
@@ -232,10 +213,10 @@ const SpaceMembersDialog = ({
                               Admin
                             </Badge>
                           )}
-                          {autoSyncEnabled && isExempt && (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-500/50 text-amber-600">
-                              <Shield className="h-3 w-3 mr-1" />
-                              Exempt
+                          {isInvited && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-sky-500/50 text-sky-600">
+                              <UserPlus className="h-3 w-3 mr-1" />
+                              Invited
                             </Badge>
                           )}
                           {member.employee_id === currentEmployee?.id && (
@@ -284,7 +265,7 @@ const SpaceMembersDialog = ({
                                   </div>
                                 </TooltipTrigger>
                                 <TooltipContent side="left">
-                                  <p>Cannot remove - auto-sync is enabled</p>
+                                  <p>Cannot remove - added via auto-sync</p>
                                 </TooltipContent>
                               </Tooltip>
                             )}
