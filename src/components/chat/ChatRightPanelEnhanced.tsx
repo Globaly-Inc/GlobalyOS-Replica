@@ -774,43 +774,6 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
               </div>
             </CollapsibleTrigger>
             <CollapsibleContent className="px-4 pb-4">
-              {/* Auto-sync banner for spaces */}
-              {spaceId && autoSyncEnabled && (
-                <Alert className="mb-3 bg-muted/50 border-border">
-                  <div className="flex items-center gap-2">
-                    <RefreshCw className="h-4 w-4 shrink-0" />
-                    <AlertDescription className="text-xs flex-1">
-                      <span>Auto-sync enabled. Members synced with </span>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button className="underline decoration-dotted underline-offset-2 hover:text-primary transition-colors font-medium">
-                            {getAutoSyncScopeLabel(spaceData?.access_scope)}
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" align="start" className="max-w-xs">
-                          <div className="space-y-1.5">
-                            <p className="font-medium text-xs">Sync triggers:</p>
-                            <ul className="text-xs space-y-1 list-disc list-inside">
-                              {getAutoSyncTriggers(spaceData?.access_scope).map((trigger, i) => (
-                                <li key={i}>{trigger}</li>
-                              ))}
-                            </ul>
-                            {getAutoSyncScopedEntities(spaceData) && (
-                              <>
-                                <p className="font-medium text-xs mt-2">Synced with:</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {getAutoSyncScopedEntities(spaceData)}
-                                </p>
-                              </>
-                            )}
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                      .
-                    </AlertDescription>
-                  </div>
-                </Alert>
-              )}
               <div className="space-y-2">
                 {/* Search Input */}
                 <div className="relative">
