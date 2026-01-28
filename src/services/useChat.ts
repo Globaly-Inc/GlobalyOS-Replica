@@ -1232,6 +1232,7 @@ export const useSpace = (spaceId: string | null) => {
 
       return {
         id: data.id,
+        organization_id: data.organization_id,
         name: data.name,
         description: data.description,
         space_type: data.space_type as 'collaboration' | 'announcements',
@@ -1240,6 +1241,7 @@ export const useSpace = (spaceId: string | null) => {
         icon_url: data.icon_url,
         archived_at: data.archived_at,
         archived_by: data.archived_by,
+        auto_sync_members: data.auto_sync_members ?? false,
         offices: data.chat_space_offices?.map((o: any) => o.offices).filter(Boolean) as { id: string; name: string }[] || [],
         projects: data.chat_space_projects?.map((p: any) => p.projects).filter(Boolean) as { id: string; name: string }[] || [],
       };
@@ -1259,12 +1261,14 @@ export const useUpdateSpace = () => {
       description,
       spaceType,
       iconUrl,
+      autoSyncMembers,
     }: {
       spaceId: string;
       name?: string;
       description?: string | null;
       spaceType?: 'collaboration' | 'announcements';
       iconUrl?: string | null;
+      autoSyncMembers?: boolean;
     }) => {
       const updateData: Record<string, any> = {
         updated_at: new Date().toISOString(),
@@ -1274,6 +1278,7 @@ export const useUpdateSpace = () => {
       if (description !== undefined) updateData.description = description;
       if (spaceType !== undefined) updateData.space_type = spaceType;
       if (iconUrl !== undefined) updateData.icon_url = iconUrl;
+      if (autoSyncMembers !== undefined) updateData.auto_sync_members = autoSyncMembers;
 
       const { error } = await supabase
         .from('chat_spaces')
