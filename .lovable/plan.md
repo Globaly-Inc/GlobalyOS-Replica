@@ -1,273 +1,118 @@
 
 
-## Add "Add All Members" Option and Auto-Sync Feature to CreateSpaceDialog
+## Remove "HISTORY IS ON" and Add Space Feature Suggestions
 
-### Feature Overview
+### What's Being Changed
 
-When creating a space, users should be able to:
-1. **Add all team members at once** via a checkbox in the footer (between Cancel and Create buttons)
-2. **Enable auto-sync** to automatically add/remove members when employees join or leave the team/company
+The empty state for Spaces currently shows a confusing "HISTORY IS ON" message (which doesn't correspond to any actual feature). This will be replaced with helpful suggestions showing what users can do in their new Space.
 
 ---
 
-### Implementation Summary
+### Current vs New Design
 
-#### 1. Database Changes (New Column)
+**Before:**
+- Generic "Welcome to your new space!" message
+- "HISTORY IS ON" badge with History icon
+- "Messages sent with history on are saved" text
 
-Add an `auto_sync_members` boolean column to `chat_spaces` table:
-
-```sql
-ALTER TABLE chat_spaces 
-ADD COLUMN auto_sync_members boolean DEFAULT false;
-
-COMMENT ON COLUMN chat_spaces.auto_sync_members IS 
-  'When true, space membership automatically syncs with access scope changes (company employees, office transfers, project assignments)';
-```
-
-This column will track whether the space should auto-sync its members based on the access_scope (company/offices/projects).
-
----
-
-#### 2. Database Trigger for Auto-Sync
-
-Create triggers to handle automatic member additions/removals:
-
-**For company-wide spaces (`access_scope = 'company'`):**
-- When a new employee becomes active → add to all auto-sync company spaces
-- When an employee becomes inactive/leaves → remove from all auto-sync company spaces
-
-**For office-wise spaces (`access_scope = 'offices'`):**
-- When an employee's `office_id` changes → add/remove from relevant office spaces
-
-**For project-wise spaces (`access_scope = 'projects'`):**
-- When an employee is added/removed from a project → add/remove from relevant project spaces
-
-```sql
--- Function: Handle employee status changes for company-wide auto-sync spaces
-CREATE OR REPLACE FUNCTION sync_company_space_members()
-RETURNS TRIGGER AS $$
-BEGIN
-  -- Employee became active: add to all company-wide auto-sync spaces
-  IF NEW.status = 'active' AND (OLD.status IS NULL OR OLD.status != 'active') THEN
-    INSERT INTO chat_space_members (space_id, employee_id, organization_id, role)
-    SELECT cs.id, NEW.id, cs.organization_id, 'member'
-    FROM chat_spaces cs
-    WHERE cs.organization_id = NEW.organization_id
-      AND cs.access_scope = 'company'
-      AND cs.auto_sync_members = true
-      AND cs.archived_at IS NULL
-      AND NOT EXISTS (
-        SELECT 1 FROM chat_space_members csm 
-        WHERE csm.space_id = cs.id AND csm.employee_id = NEW.id
-      );
-  END IF;
-
-  -- Employee became inactive: remove from all auto-sync spaces
-  IF NEW.status = 'inactive' AND OLD.status = 'active' THEN
-    DELETE FROM chat_space_members
-    WHERE employee_id = NEW.id
-      AND space_id IN (
-        SELECT id FROM chat_spaces 
-        WHERE organization_id = NEW.organization_id
-          AND auto_sync_members = true
-      );
-  END IF;
-
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Similar triggers for office changes and project membership changes
-```
+**After:**
+- Welcoming header with space name
+- Grid of 4 feature suggestions with icons:
+  1. **Send a message** - Start the conversation with your team
+  2. **Share files** - Attach documents, images, and more
+  3. **Mention teammates** - Use @name to notify specific people  
+  4. **Start a thread** - Reply to messages to keep discussions organized
 
 ---
 
-#### 3. Frontend Changes
+### Technical Implementation
 
-##### A. CreateSpaceDialog.tsx
+#### File: `src/components/chat/ConversationView.tsx`
 
-Add two new state variables and UI elements:
-
-**State:**
+**1. Add new icon imports:**
 ```typescript
-const [addAllMembers, setAddAllMembers] = useState(false);
-const [autoSync, setAutoSync] = useState(false);
+import {
+  // ... existing imports
+  MessageSquare,
+  Paperclip,
+  AtSign,
+  MessagesSquare,
+} from "lucide-react";
 ```
 
-**UI (in footer, left side before Cancel):**
-```tsx
-<div className="flex justify-between items-center gap-2 pt-4 border-t">
-  {/* Left side: Options */}
-  <div className="flex items-center gap-4">
-    {/* Add all members checkbox */}
-    <div className="flex items-center gap-2">
-      <Checkbox 
-        id="addAll"
-        checked={addAllMembers}
-        onCheckedChange={(checked) => setAddAllMembers(!!checked)}
-        disabled={accessScope === 'members'} // Only for non-manual scopes
-      />
-      <Label htmlFor="addAll" className="text-sm font-normal cursor-pointer">
-        Add all members
-      </Label>
-    </div>
-    
-    {/* Auto-sync toggle */}
-    <div className="flex items-center gap-2">
-      <Switch
-        id="autoSync"
-        checked={autoSync}
-        onCheckedChange={setAutoSync}
-        disabled={accessScope === 'members'}
-      />
-      <Label htmlFor="autoSync" className="text-sm font-normal cursor-pointer">
-        Auto-sync
-      </Label>
-      <Tooltip>
-        <TooltipTrigger>
-          <HelpCircle className="h-4 w-4 text-muted-foreground" />
-        </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-xs">
-          Automatically add/remove members when team members join or leave
-        </TooltipContent>
-      </Tooltip>
-    </div>
-  </div>
+**2. Replace lines 756-773** (the Space empty state section):
 
-  {/* Right side: Actions */}
-  <div className="flex gap-2">
-    <Button variant="outline" onClick={handleClose}>Cancel</Button>
-    <Button onClick={handleCreate}>Create</Button>
+Remove:
+```tsx
+<div className="flex items-center gap-1 mt-4 text-sm text-muted-foreground">
+  <History className="h-4 w-4" />
+  <span>HISTORY IS ON</span>
+</div>
+<p className="text-xs text-muted-foreground mt-1">
+  Messages sent with history on are saved
+</p>
+```
+
+Replace with a feature suggestions grid (same pattern as `ChatEmptyState.tsx`):
+```tsx
+{/* Space feature suggestions */}
+<div className="grid grid-cols-2 gap-3 mt-6 w-full max-w-sm">
+  <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-500/10 text-sm">
+    <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+    <span className="text-muted-foreground">Send a message</span>
+  </div>
+  <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 text-sm">
+    <Paperclip className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+    <span className="text-muted-foreground">Share files</span>
+  </div>
+  <div className="flex items-center gap-2 p-3 rounded-lg bg-purple-500/10 text-sm">
+    <AtSign className="h-4 w-4 text-purple-600 dark:text-purple-400 shrink-0" />
+    <span className="text-muted-foreground">Mention teammates</span>
+  </div>
+  <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 text-sm">
+    <MessagesSquare className="h-4 w-4 text-green-600 dark:text-green-400 shrink-0" />
+    <span className="text-muted-foreground">Start a thread</span>
   </div>
 </div>
 ```
 
-**Logic Changes:**
-- When `addAllMembers` is true at creation time, fetch all employees matching the access scope and include them in the `memberIds` array
-- Pass `autoSync` value to the `createSpace` mutation
+---
 
-##### B. useCreateSpace Hook (src/services/useChat.ts)
+### Visual Result
 
-Update the mutation to:
-1. Accept `addAllMembers` and `autoSync` parameters
-2. If `addAllMembers` is true, fetch and add all matching employees
-3. Save `auto_sync_members` flag to the space record
+The empty Space view will now show:
 
-```typescript
-mutationFn: async ({ 
-  name, 
-  description,
-  iconUrl,
-  spaceType = 'collaboration',
-  accessScope = 'company',
-  officeIds,
-  projectIds,
-  memberIds,
-  addAllMembers = false,  // NEW
-  autoSync = false,       // NEW
-}: { ... }) => {
-  // ...existing code...
+```text
+        ┌─────────┐
+        │    G    │  ← Space icon/initial
+        └─────────┘
+      General Space
+Welcome to your new space!
+   Start the conversation.
 
-  // Create space with auto_sync_members flag
-  const { data: space, error: spaceError } = await supabase
-    .from('chat_spaces')
-    .insert({
-      // ...existing fields...
-      auto_sync_members: autoSync && accessScope !== 'members',
-    })
-    .select()
-    .single();
-
-  // If addAllMembers is true, fetch and add all matching employees
-  if (addAllMembers && accessScope !== 'members') {
-    let employeesToAdd: string[] = [];
-    
-    if (accessScope === 'company') {
-      // Add all active employees
-      const { data } = await supabase
-        .from('employees')
-        .select('id')
-        .eq('organization_id', currentOrg.id)
-        .eq('status', 'active');
-      employeesToAdd = data?.map(e => e.id) || [];
-    } else if (accessScope === 'offices' && officeIds?.length) {
-      // Add employees from selected offices
-      const { data } = await supabase
-        .from('employees')
-        .select('id')
-        .eq('organization_id', currentOrg.id)
-        .eq('status', 'active')
-        .in('office_id', officeIds);
-      employeesToAdd = data?.map(e => e.id) || [];
-    } else if (accessScope === 'projects' && projectIds?.length) {
-      // Add employees from selected projects
-      // (Requires joining with project_members table)
-    }
-    
-    // Insert all as members (excluding creator who's auto-added)
-    if (employeesToAdd.length > 0) {
-      const membersToInsert = employeesToAdd
-        .filter(id => id !== employeeId)
-        .map(empId => ({
-          space_id: space.id,
-          employee_id: empId,
-          organization_id: currentOrg.id,
-          role: 'member'
-        }));
-      
-      if (membersToInsert.length > 0) {
-        await supabase.from('chat_space_members').insert(membersToInsert);
-      }
-    }
-  }
-}
+┌──────────────────┬──────────────────┐
+│ 💬 Send a        │ 📎 Share files   │
+│    message       │                  │
+├──────────────────┼──────────────────┤
+│ @ Mention        │ 💬 Start a       │
+│   teammates      │    thread        │
+└──────────────────┴──────────────────┘
 ```
 
 ---
 
-### Files to Change
+### Files to Modify
 
 | File | Changes |
 |------|---------|
-| **Database Migration** | Add `auto_sync_members` column to `chat_spaces` |
-| **Database Trigger** | Create trigger functions for auto-sync on employee status/office/project changes |
-| `src/components/chat/CreateSpaceDialog.tsx` | Add checkbox for "Add all members", Switch for "Auto-sync", update form state and handleCreate |
-| `src/services/useChat.ts` | Update `useCreateSpace` mutation to accept and handle new parameters |
-| `src/types/chat.ts` | Update `ChatSpace` interface to include `auto_sync_members?: boolean` |
+| `src/components/chat/ConversationView.tsx` | Add 4 new icon imports; replace lines 767-773 with feature suggestion grid |
 
 ---
 
-### UX Behavior
+### Notes
 
-1. **"Add all members" checkbox:**
-   - Visible when access scope is Company-wide, Office-wise, or Project-wise
-   - Hidden/disabled when access scope is "Members" (manual selection)
-   - When checked, all matching employees are added to the space on creation
-
-2. **"Auto-sync" toggle:**
-   - Visible when access scope is Company-wide, Office-wise, or Project-wise
-   - Hidden/disabled when access scope is "Members"
-   - Shows tooltip explaining the behavior
-   - When enabled, members are automatically added/removed based on employment status changes
-
-3. **Reset on scope change:**
-   - If user switches to "Members" scope, both options are automatically unchecked
-
----
-
-### Technical Details
-
-**Access Scope Behavior Matrix:**
-
-| Access Scope | Add All Members | Auto-Sync Trigger |
-|--------------|-----------------|-------------------|
-| Company | All active employees | Employee status changes (active ↔ inactive) |
-| Offices | Employees in selected offices | Employee office_id changes |
-| Projects | Employees in selected projects | Project membership changes |
-| Members | N/A (disabled) | N/A (disabled) |
-
-**Security Considerations:**
-- Triggers use `SECURITY DEFINER` but validate organization_id
-- Only active employees are added
-- Creator is already added via existing trigger, so they're excluded from bulk insert
+- The same visual style (colored backgrounds, icon + text) is used as in `ChatEmptyState.tsx` for consistency
+- The 2x2 grid works well on both mobile and desktop
+- No interactive elements needed - these are informational hints, not action buttons
+- The `History` icon import can be removed since it's no longer used (cleanup)
 
