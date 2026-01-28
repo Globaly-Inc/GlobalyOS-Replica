@@ -28,7 +28,10 @@ import {
   Search,
   MoreVertical,
   Pin,
-  History,
+  MessageSquare,
+  Paperclip,
+  AtSign,
+  MessagesSquare,
   Users,
   Settings,
   UserPlus,
@@ -764,13 +767,25 @@ const ConversationView = ({
                     </p>
                   </>
                 )}
-                <div className="flex items-center gap-1 mt-4 text-sm text-muted-foreground">
-                  <History className="h-4 w-4" />
-                  <span>HISTORY IS ON</span>
+                {/* Space feature suggestions */}
+                <div className="grid grid-cols-2 gap-3 mt-6 w-full max-w-sm">
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-500/10 text-sm">
+                    <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                    <span className="text-muted-foreground">Send a message</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 text-sm">
+                    <Paperclip className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <span className="text-muted-foreground">Share files</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-purple-500/10 text-sm">
+                    <AtSign className="h-4 w-4 text-purple-600 dark:text-purple-400 shrink-0" />
+                    <span className="text-muted-foreground">Mention teammates</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 text-sm">
+                    <MessagesSquare className="h-4 w-4 text-green-600 dark:text-green-400 shrink-0" />
+                    <span className="text-muted-foreground">Start a thread</span>
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Messages sent with history on are saved
-                </p>
               </div>
             ) : (
               <div className="space-y-1">
