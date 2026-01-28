@@ -647,6 +647,7 @@ export const useCreateSpace = () => {
       spaceType = 'collaboration',
       accessScope = 'company',
       officeIds,
+      departmentIds,
       projectIds,
       memberIds,
       addAllMembers = false,
@@ -656,8 +657,9 @@ export const useCreateSpace = () => {
       description?: string;
       iconUrl?: string;
       spaceType?: 'collaboration' | 'announcements';
-      accessScope?: 'company' | 'offices' | 'projects' | 'members';
+      accessScope?: 'company' | 'custom' | 'offices' | 'projects' | 'members';
       officeIds?: string[];
+      departmentIds?: string[];
       projectIds?: string[];
       memberIds?: string[];
       addAllMembers?: boolean;
@@ -710,8 +712,9 @@ export const useCreateSpace = () => {
       // Creator is auto-added as admin by database trigger (trg_auto_add_space_creator)
       // No manual insert needed - this eliminates RLS recursion issues
 
-      // Add office associations if office-wise access
-      if (accessScope === 'offices' && officeIds && officeIds.length > 0) {
+      // For 'custom' scope, add all selected associations
+      // Add office associations if custom scope with offices, or legacy offices scope
+      if ((accessScope === 'custom' || accessScope === 'offices') && officeIds && officeIds.length > 0) {
         const { error: officeError } = await supabase
           .from('chat_space_offices')
           .insert(
@@ -724,8 +727,22 @@ export const useCreateSpace = () => {
         if (officeError) throw officeError;
       }
 
-      // Add project associations if project-wise access
-      if (accessScope === 'projects' && projectIds && projectIds.length > 0) {
+      // Add department associations if custom scope with departments
+      if (accessScope === 'custom' && departmentIds && departmentIds.length > 0) {
+        const { error: departmentError } = await supabase
+          .from('chat_space_departments')
+          .insert(
+            departmentIds.map(departmentId => ({
+              space_id: space.id,
+              department_id: departmentId,
+              organization_id: currentOrg.id,
+            }))
+          );
+        if (departmentError) throw departmentError;
+      }
+
+      // Add project associations if custom scope with projects, or legacy projects scope
+      if ((accessScope === 'custom' || accessScope === 'projects') && projectIds && projectIds.length > 0) {
         const { error: projectError } = await supabase
           .from('chat_space_projects')
           .insert(
@@ -765,8 +782,39 @@ export const useCreateSpace = () => {
             .eq('organization_id', currentOrg.id)
             .eq('status', 'active');
           employeesToAdd = data?.map(e => e.id) || [];
+        } else if (accessScope === 'custom') {
+          // For custom scope, apply AND logic across all criteria
+          const { data: allEmployees } = await supabase
+            .from('employees')
+            .select('id, office_id, department_id')
+            .eq('organization_id', currentOrg.id)
+            .eq('status', 'active');
+          
+          let candidates = allEmployees || [];
+          
+          // Filter by offices if specified
+          if (officeIds?.length) {
+            candidates = candidates.filter(e => officeIds.includes(e.office_id || ''));
+          }
+          
+          // Filter by departments if specified
+          if (departmentIds?.length) {
+            candidates = candidates.filter(e => departmentIds.includes(e.department_id || ''));
+          }
+          
+          // Filter by projects if specified
+          if (projectIds?.length) {
+            const { data: projectEmployees } = await supabase
+              .from('employee_projects')
+              .select('employee_id')
+              .in('project_id', projectIds);
+            const projectEmpIds = new Set((projectEmployees || []).map(pe => pe.employee_id));
+            candidates = candidates.filter(e => projectEmpIds.has(e.id));
+          }
+          
+          employeesToAdd = candidates.map(e => e.id);
         } else if (accessScope === 'offices' && officeIds?.length) {
-          // Add employees from selected offices
+          // Legacy: Add employees from selected offices
           const { data } = await supabase
             .from('employees')
             .select('id')
@@ -775,7 +823,7 @@ export const useCreateSpace = () => {
             .in('office_id', officeIds);
           employeesToAdd = data?.map(e => e.id) || [];
         } else if (accessScope === 'projects' && projectIds?.length) {
-          // Add employees from selected projects via employee_projects table
+          // Legacy: Add employees from selected projects via employee_projects table
           const { data } = await supabase
             .from('employee_projects')
             .select('employee_id')
@@ -1220,6 +1268,9 @@ export const useSpace = (spaceId: string | null) => {
           chat_space_offices(
             offices:office_id(id, name)
           ),
+          chat_space_departments(
+            departments:department_id(id, name)
+          ),
           chat_space_projects(
             projects:project_id(id, name)
           )
@@ -1237,12 +1288,13 @@ export const useSpace = (spaceId: string | null) => {
         description: data.description,
         space_type: data.space_type as 'collaboration' | 'announcements',
         access_type: data.access_type as 'public' | 'private',
-        access_scope: data.access_scope as 'company' | 'offices' | 'projects' | 'members',
+        access_scope: data.access_scope as 'company' | 'custom' | 'offices' | 'projects' | 'members',
         icon_url: data.icon_url,
         archived_at: data.archived_at,
         archived_by: data.archived_by,
         auto_sync_members: data.auto_sync_members ?? false,
         offices: data.chat_space_offices?.map((o: any) => o.offices).filter(Boolean) as { id: string; name: string }[] || [],
+        departments: data.chat_space_departments?.map((d: any) => d.departments).filter(Boolean) as { id: string; name: string }[] || [],
         projects: data.chat_space_projects?.map((p: any) => p.projects).filter(Boolean) as { id: string; name: string }[] || [],
       };
     },

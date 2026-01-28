@@ -33,7 +33,7 @@ export interface ChatParticipant {
   };
 }
 
-export type AccessScope = 'company' | 'offices' | 'projects' | 'members';
+export type AccessScope = 'company' | 'custom' | 'members' | 'offices' | 'projects';
 
 export interface ChatSpace {
   id: string;
@@ -55,6 +55,7 @@ export interface ChatSpace {
   last_message?: ChatMessage;
   unread_count?: number;
   offices?: { id: string; name: string }[];
+  departments?: { id: string; name: string }[];
   projects?: { id: string; name: string }[];
 }
 

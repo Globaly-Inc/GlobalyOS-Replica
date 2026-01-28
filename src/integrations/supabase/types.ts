@@ -2169,6 +2169,52 @@ export type Database = {
           },
         ]
       }
+      chat_space_departments: {
+        Row: {
+          created_at: string | null
+          department_id: string
+          id: string
+          organization_id: string
+          space_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          department_id: string
+          id?: string
+          organization_id: string
+          space_id: string
+        }
+        Update: {
+          created_at?: string | null
+          department_id?: string
+          id?: string
+          organization_id?: string
+          space_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_space_departments_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_space_departments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_space_departments_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "chat_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_space_members: {
         Row: {
           employee_id: string
@@ -12886,7 +12932,12 @@ export type Database = {
     Enums: {
       app_role: "admin" | "hr" | "user" | "super_admin" | "owner" | "member"
       chat_space_access: "public" | "private"
-      chat_space_access_scope: "company" | "offices" | "projects" | "members"
+      chat_space_access_scope:
+        | "company"
+        | "offices"
+        | "projects"
+        | "members"
+        | "custom"
       chat_space_type: "collaboration" | "announcements"
       support_request_priority: "low" | "medium" | "high" | "critical"
       support_request_status:
@@ -13026,7 +13077,13 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "hr", "user", "super_admin", "owner", "member"],
       chat_space_access: ["public", "private"],
-      chat_space_access_scope: ["company", "offices", "projects", "members"],
+      chat_space_access_scope: [
+        "company",
+        "offices",
+        "projects",
+        "members",
+        "custom",
+      ],
       chat_space_type: ["collaboration", "announcements"],
       support_request_priority: ["low", "medium", "high", "critical"],
       support_request_status: [
