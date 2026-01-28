@@ -254,18 +254,35 @@ const AccessScopeSelector = ({
 
   const criteriaText = buildCriteriaText();
 
+  // Calculate member count for display
+  const memberCountDisplay = useMemo(() => {
+    if (value === 'company') {
+      return { count: employeesWithDetails.length, isAutoSync: true };
+    }
+    if (value === 'custom') {
+      const additionalCount = inviteAdditionalMembers ? selectedMemberIds.length : 0;
+      return { count: groupMemberIds.length + additionalCount, isAutoSync: true };
+    }
+    if (value === 'members') {
+      return { count: selectedMemberIds.length, isAutoSync: false };
+    }
+    return { count: 0, isAutoSync: false };
+  }, [value, employeesWithDetails.length, groupMemberIds.length, selectedMemberIds.length, inviteAdditionalMembers]);
+
   const scopeOptions = [
     {
       value: 'company' as AccessScope,
       label: 'Company-wide',
-      description: `Anyone in ${currentOrg?.name || 'organization'} can find, view, and join`,
+      description: `All ${employeesWithDetails.length} members will be added automatically`,
       icon: Building2,
       showAutoSync: true,
     },
     {
       value: 'custom' as AccessScope,
       label: 'Group Access',
-      description: 'Only employees matching criteria can access',
+      description: groupMemberIds.length > 0 
+        ? `${groupMemberIds.length} members will be added automatically`
+        : 'Select criteria to define group members',
       icon: Settings2,
       showAutoSync: true,
     },
@@ -542,6 +559,26 @@ const AccessScopeSelector = ({
           );
         })}
       </RadioGroup>
+
+      {/* Member count summary */}
+      {memberCountDisplay.count > 0 && (
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border/50">
+          <Users className="h-4 w-4 text-primary" />
+          <span className="text-sm text-muted-foreground">
+            {memberCountDisplay.isAutoSync ? (
+              <>
+                <span className="font-medium text-foreground">{memberCountDisplay.count}</span>
+                {' '}member{memberCountDisplay.count !== 1 ? 's' : ''} will be added automatically
+              </>
+            ) : (
+              <>
+                <span className="font-medium text-foreground">{memberCountDisplay.count}</span>
+                {' '}member{memberCountDisplay.count !== 1 ? 's' : ''} selected
+              </>
+            )}
+          </span>
+        </div>
+      )}
     </div>
   );
 };
