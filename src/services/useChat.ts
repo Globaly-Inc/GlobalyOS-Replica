@@ -1215,21 +1215,33 @@ export const useSpace = (spaceId: string | null) => {
 
       const { data, error } = await supabase
         .from('chat_spaces')
-        .select('*')
+        .select(`
+          *,
+          chat_space_offices(
+            offices:office_id(id, name)
+          ),
+          chat_space_projects(
+            projects:project_id(id, name)
+          )
+        `)
         .eq('id', spaceId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) return null;
 
-      return data as {
-        id: string;
-        name: string;
-        description: string | null;
-        space_type: 'collaboration' | 'announcements';
-        access_type: 'public' | 'private';
-        icon_url: string | null;
-        archived_at: string | null;
-        archived_by: string | null;
+      return {
+        id: data.id,
+        name: data.name,
+        description: data.description,
+        space_type: data.space_type as 'collaboration' | 'announcements',
+        access_type: data.access_type as 'public' | 'private',
+        access_scope: data.access_scope as 'company' | 'offices' | 'projects' | 'members',
+        icon_url: data.icon_url,
+        archived_at: data.archived_at,
+        archived_by: data.archived_by,
+        offices: data.chat_space_offices?.map((o: any) => o.offices).filter(Boolean) as { id: string; name: string }[] || [],
+        projects: data.chat_space_projects?.map((p: any) => p.projects).filter(Boolean) as { id: string; name: string }[] || [],
       };
     },
     enabled: !!spaceId,
