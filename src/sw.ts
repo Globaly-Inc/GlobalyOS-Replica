@@ -49,6 +49,9 @@ self.addEventListener('push', (event) => {
       caller_name?: string;
       call_type?: string;
       organization_slug?: string;
+      message_id?: string;
+      conversation_id?: string;
+      space_id?: string;
       [key: string]: unknown;
     };
     requireInteraction?: boolean;
@@ -69,14 +72,15 @@ self.addEventListener('push', (event) => {
     }
   }
 
-  // Check if this is an incoming call notification
+  // Check notification types
   const isIncomingCall = data.data?.type === 'incoming_call';
+  const isChatMessage = data.data?.type === 'chat_message';
 
   const options: NotificationOptions & { vibrate?: number[]; renotify?: boolean; actions?: Array<{ action: string; title: string }> } = {
     body: data.body,
     icon: data.icon || '/favicon.png',
     badge: data.badge || '/favicon.png',
-    vibrate: isIncomingCall ? [300, 100, 300, 100, 300, 100, 300] : [200, 100, 200],
+    vibrate: isIncomingCall ? [300, 100, 300, 100, 300, 100, 300] : [100, 50, 100],
     data: {
       ...data.data,
       url: data.url || '/',
@@ -88,11 +92,16 @@ self.addEventListener('push', (event) => {
     requireInteraction: isIncomingCall || data.requireInteraction,
   };
 
-  // Add action buttons for incoming calls
+  // Add action buttons based on notification type
   if (isIncomingCall) {
     options.actions = [
       { action: 'answer', title: 'Answer' },
       { action: 'decline', title: 'Decline' },
+    ];
+  } else if (isChatMessage) {
+    options.actions = [
+      { action: 'open', title: 'Open' },
+      { action: 'dismiss', title: 'Dismiss' },
     ];
   }
 
