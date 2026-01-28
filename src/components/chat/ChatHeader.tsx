@@ -377,7 +377,7 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
 
   return (
     <>
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-card/80 backdrop-blur-md flex-shrink-0">
+      <div className="relative flex items-center justify-between px-4 py-3 border-b border-border/50 bg-card/80 backdrop-blur-md flex-shrink-0">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           {activeChat.type === 'conversation' && !activeChat.isGroup ? (
             // Direct message - show other participant (clickable)
@@ -535,7 +535,7 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
         </div>
 
         {/* Right section - Actions with inline search */}
-        <div className="relative flex items-center gap-0.5 flex-shrink-0">
+        <div className="flex items-center gap-0.5 flex-shrink-0">
           {/* Inline Search Bar */}
           {showSearch ? (
             <div className="flex items-center gap-1.5 mr-1">
@@ -625,19 +625,20 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
             </TooltipContent>
           </Tooltip>
 
-          {/* Inline search results dropdown */}
-          {showSearch && searchQuery.trim() && (
-            <InlineSearchResults
-              query={searchQuery}
-              conversationId={conversationId}
-              spaceId={spaceId}
-              onResultClick={handleSearchResultClick}
-              onClose={handleCloseSearch}
-              currentIndex={searchCurrentIndex}
-              setCurrentIndex={setSearchCurrentIndex}
-            />
-          )}
         </div>
+
+        {/* Inline search results dropdown - positioned relative to header */}
+        {showSearch && searchQuery.trim() && (
+          <InlineSearchResults
+            query={searchQuery}
+            conversationId={conversationId}
+            spaceId={spaceId}
+            onResultClick={handleSearchResultClick}
+            onClose={handleCloseSearch}
+            currentIndex={searchCurrentIndex}
+            setCurrentIndex={setSearchCurrentIndex}
+          />
+        )}
       </div>
 
       {/* Edit Group Chat Dialog */}
