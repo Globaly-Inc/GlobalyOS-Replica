@@ -1,485 +1,392 @@
 
-
-# Enable Browser Push Notifications for Chat & System Notifications
+# Chat Performance Optimization Plan
 
 ## Overview
 
-This plan implements fully functional browser push notifications for both:
-1. **Chat notifications** - New DMs, space messages, mentions, reactions
-2. **System notifications** - Leave approvals, kudos, reviews, check-in reminders
-
-The existing infrastructure has VAPID keys configured and a subscription mechanism, but the actual push sending is incomplete. We need to upgrade the edge function to properly send Web Push messages using the `@negrel/webpush` Deno library.
+This plan addresses multiple performance bottlenecks causing slow chat page loading and delayed updates. The optimizations focus on reducing database queries, improving caching, consolidating realtime subscriptions, and implementing efficient delta updates.
 
 ---
 
-## Current State Analysis
+## Critical Issues Identified
 
-### What Already Works
-- VAPID keys are configured (VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY secrets exist)
-- `usePushNotifications` hook handles browser subscription/unsubscription
-- `push_subscriptions` table stores user endpoints, p256dh, and auth keys
-- Service worker (`sw.ts`) has push event handlers for displaying notifications
-- UI toggles exist in ChatSettingsDialog and Notifications page
-- System notifications already call `send-push-notification` from Layout.tsx
-
-### What's Missing
-- **The edge function doesn't actually send push notifications** - it just logs and returns
-- **Chat messages don't trigger push notifications** - only in-app sounds are played
-- Need to implement proper Web Push encryption using `@negrel/webpush` library
+| Issue | Impact | Current State | After Optimization |
+|-------|--------|---------------|-------------------|
+| N+1 queries in useConversations | 21+ DB calls | Sequential async loops | Single optimized query |
+| No staleTime configuration | Constant refetching | 0ms stale | 30s-5min based on data type |
+| Multiple realtime channels | Memory + CPU overhead | 5-7 channels per view | 1-2 consolidated channels |
+| Aggressive query invalidation | Full refetches on every action | invalidateQueries everywhere | Delta cache updates |
+| Typing indicator polling | 3s interval queries | Polling fallback | Realtime-only |
 
 ---
 
 ## Implementation Plan
 
-### Part 1: Upgrade send-push-notification Edge Function
-
-**File:** `supabase/functions/send-push-notification/index.ts`
-
-Replace the placeholder implementation with actual Web Push sending using the Deno-compatible `@negrel/webpush` library:
-
-```typescript
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
-import { 
-  ApplicationServer, 
-  importVapidKeys 
-} from "https://raw.githubusercontent.com/negrel/webpush/master/mod.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-interface PushPayload {
-  user_id: string;
-  title: string;
-  body: string;
-  url?: string;
-  tag?: string;
-  data?: Record<string, unknown>;
-}
-
-serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
-
-    const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY");
-    const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY");
-
-    if (!vapidPublicKey || !vapidPrivateKey) {
-      return new Response(
-        JSON.stringify({ error: "VAPID keys not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const { user_id, title, body, url, tag, data }: PushPayload = await req.json();
-
-    // Get all push subscriptions for this user
-    const { data: subscriptions, error: subError } = await supabaseClient
-      .from("push_subscriptions")
-      .select("id, endpoint, p256dh, auth")
-      .eq("user_id", user_id);
-
-    if (subError || !subscriptions || subscriptions.length === 0) {
-      return new Response(
-        JSON.stringify({ success: true, message: "No subscriptions", sent: 0 }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Initialize VAPID application server
-    const vapidKeys = await importVapidKeys({
-      publicKey: vapidPublicKey,
-      privateKey: vapidPrivateKey,
-    });
-    
-    const appServer = new ApplicationServer(
-      { contactInformation: "mailto:support@globalyhub.com" },
-      vapidKeys
-    );
-
-    const payload = JSON.stringify({
-      title,
-      body,
-      icon: "/favicon.png",
-      badge: "/favicon.png",
-      url: url || "/",
-      tag: tag || "notification",
-      data,
-    });
-
-    let sentCount = 0;
-    const failedEndpoints: string[] = [];
-
-    for (const sub of subscriptions) {
-      try {
-        const subscriber = appServer.subscribe({
-          endpoint: sub.endpoint,
-          keys: {
-            p256dh: sub.p256dh,
-            auth: sub.auth,
-          },
-        });
-
-        await subscriber.pushTextMessage(payload, {});
-        sentCount++;
-      } catch (err) {
-        console.error(`Failed to send to endpoint ${sub.id}:`, err);
-        failedEndpoints.push(sub.id);
-        
-        // Remove invalid subscriptions (410 Gone or 404 Not Found)
-        if (err.message?.includes("410") || err.message?.includes("404")) {
-          await supabaseClient
-            .from("push_subscriptions")
-            .delete()
-            .eq("id", sub.id);
-        }
-      }
-    }
-
-    return new Response(
-      JSON.stringify({ success: true, sent: sentCount, failed: failedEndpoints.length }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Error in send-push-notification:", errorMessage);
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-});
-```
-
----
-
-### Part 2: Create send-chat-push-notification Edge Function
-
-**File:** `supabase/functions/send-chat-push-notification/index.ts`
-
-Create a dedicated function for chat push notifications that handles different message types:
-
-```typescript
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-interface ChatPushPayload {
-  message_id: string;
-  sender_employee_id: string;
-  conversation_id?: string;
-  space_id?: string;
-  content: string;
-  content_type: string;
-}
-
-serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
-
-    const { 
-      message_id, 
-      sender_employee_id, 
-      conversation_id, 
-      space_id, 
-      content,
-      content_type 
-    }: ChatPushPayload = await req.json();
-
-    // Get sender info
-    const { data: sender } = await supabase
-      .from("employees")
-      .select("id, user_id, profiles:user_id(full_name, avatar_url)")
-      .eq("id", sender_employee_id)
-      .single();
-
-    const senderName = sender?.profiles?.full_name || "Someone";
-
-    // Determine recipients based on conversation or space
-    let recipientUserIds: string[] = [];
-    let chatName = "";
-    let chatUrl = "";
-
-    if (conversation_id) {
-      // Get other participants in the conversation
-      const { data: participants } = await supabase
-        .from("chat_participants")
-        .select("employees:employee_id(user_id)")
-        .eq("conversation_id", conversation_id)
-        .neq("employee_id", sender_employee_id);
-
-      recipientUserIds = participants
-        ?.map(p => p.employees?.user_id)
-        .filter(Boolean) || [];
-
-      // Check if muted for each recipient
-      const { data: mutedData } = await supabase
-        .from("chat_participants")
-        .select("employee_id, is_muted, employees:employee_id(user_id)")
-        .eq("conversation_id", conversation_id)
-        .eq("is_muted", true);
-
-      const mutedUserIds = new Set(
-        mutedData?.map(m => m.employees?.user_id).filter(Boolean) || []
-      );
-      
-      recipientUserIds = recipientUserIds.filter(id => !mutedUserIds.has(id));
-      chatName = senderName;
-      chatUrl = `/chat?conversation=${conversation_id}`;
-    } else if (space_id) {
-      // Get space members (excluding sender)
-      const { data: space } = await supabase
-        .from("chat_spaces")
-        .select("name")
-        .eq("id", space_id)
-        .single();
-
-      const { data: members } = await supabase
-        .from("chat_space_members")
-        .select("employee_id, notification_setting, employees:employee_id(user_id)")
-        .eq("space_id", space_id)
-        .neq("employee_id", sender_employee_id)
-        .neq("notification_setting", "mute");
-
-      recipientUserIds = members
-        ?.map(m => m.employees?.user_id)
-        .filter(Boolean) || [];
-
-      chatName = space?.name || "Space";
-      chatUrl = `/chat?space=${space_id}`;
-    }
-
-    if (recipientUserIds.length === 0) {
-      return new Response(
-        JSON.stringify({ success: true, message: "No recipients", sent: 0 }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Prepare notification content
-    const title = conversation_id ? senderName : `${senderName} in ${chatName}`;
-    let body = content;
-    if (content_type === "file") {
-      body = "Sent an attachment";
-    } else if (content_type === "voice") {
-      body = "Sent a voice message";
-    } else if (content.length > 100) {
-      body = content.substring(0, 97) + "...";
-    }
-
-    // Send push to each recipient
-    let sentCount = 0;
-    for (const userId of recipientUserIds) {
-      try {
-        await supabase.functions.invoke("send-push-notification", {
-          body: {
-            user_id: userId,
-            title,
-            body,
-            url: chatUrl,
-            tag: `chat-${conversation_id || space_id}`,
-            data: {
-              type: "chat_message",
-              message_id,
-              conversation_id,
-              space_id,
-            },
-          },
-        });
-        sentCount++;
-      } catch (err) {
-        console.error(`Failed to send push to user ${userId}:`, err);
-      }
-    }
-
-    return new Response(
-      JSON.stringify({ success: true, sent: sentCount }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Error in send-chat-push-notification:", errorMessage);
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-});
-```
-
----
-
-### Part 3: Create Database Trigger for Chat Messages
-
-Create a PostgreSQL trigger that calls the chat push notification function when new messages are inserted:
-
-```sql
--- Function to call edge function for chat push
-CREATE OR REPLACE FUNCTION notify_chat_message()
-RETURNS TRIGGER AS $$
-DECLARE
-  payload JSONB;
-BEGIN
-  -- Build payload
-  payload := jsonb_build_object(
-    'message_id', NEW.id,
-    'sender_employee_id', NEW.sender_id,
-    'conversation_id', NEW.conversation_id,
-    'space_id', NEW.space_id,
-    'content', NEW.content,
-    'content_type', NEW.content_type
-  );
-
-  -- Call edge function asynchronously via pg_net
-  PERFORM net.http_post(
-    url := current_setting('app.supabase_url') || '/functions/v1/send-chat-push-notification',
-    headers := jsonb_build_object(
-      'Content-Type', 'application/json',
-      'Authorization', 'Bearer ' || current_setting('app.supabase_service_role_key')
-    ),
-    body := payload
-  );
-
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Create trigger
-DROP TRIGGER IF EXISTS on_chat_message_insert ON chat_messages;
-CREATE TRIGGER on_chat_message_insert
-  AFTER INSERT ON chat_messages
-  FOR EACH ROW
-  EXECUTE FUNCTION notify_chat_message();
-```
-
-**Note:** If `pg_net` extension is not enabled, we'll use an alternative approach with Supabase Realtime webhooks or call the function from the client side.
-
----
-
-### Part 4: Alternative - Client-Side Chat Push Trigger
-
-If database triggers with HTTP calls aren't available, add push notification calls from the message send flow:
+### Part 1: Fix N+1 Query Problem in useConversations
 
 **File:** `src/services/useChat.ts`
 
-Update `useSendMessage` to trigger push notifications after sending:
+Replace the current implementation with a single optimized query that fetches all data at once:
 
 ```typescript
-// After successful message insert
-if (message) {
-  // Trigger push notification (fire and forget)
-  supabase.functions.invoke("send-chat-push-notification", {
-    body: {
-      message_id: message.id,
-      sender_employee_id: currentEmployee.id,
-      conversation_id: conversationId || undefined,
-      space_id: spaceId || undefined,
-      content: content,
-      content_type: contentType,
+export const useConversations = () => {
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+
+  return useQuery({
+    queryKey: ['chat-conversations', currentOrg?.id, currentEmployee?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id || !currentEmployee?.id) return [];
+
+      // Single query with all needed joins
+      const { data, error } = await supabase
+        .from('chat_participants')
+        .select(`
+          conversation_id,
+          last_read_at,
+          is_muted,
+          chat_conversations:conversation_id (
+            id,
+            organization_id,
+            name,
+            icon_url,
+            is_group,
+            created_by,
+            created_at,
+            updated_at,
+            chat_participants (
+              id,
+              employee_id,
+              role,
+              employees:employee_id (
+                id,
+                user_id,
+                position,
+                profiles:user_id (
+                  full_name,
+                  avatar_url,
+                  email
+                )
+              )
+            )
+          )
+        `)
+        .eq('employee_id', currentEmployee.id)
+        .eq('organization_id', currentOrg.id);
+
+      if (error) throw error;
+
+      // Transform and get last messages in a single batch query
+      const conversationIds = (data || [])
+        .map((item: any) => item.chat_conversations?.id)
+        .filter(Boolean);
+
+      // Batch fetch last messages using database function (create if needed)
+      const { data: lastMessages } = await supabase
+        .rpc('get_last_messages_batch', { 
+          conversation_ids: conversationIds 
+        });
+
+      const lastMessageMap = new Map(
+        (lastMessages || []).map((m: any) => [m.conversation_id, m])
+      );
+
+      return (data || []).map((item: any) => {
+        const conv = item.chat_conversations;
+        return {
+          ...conv,
+          participants: conv.chat_participants?.map((p: any) => ({
+            ...p,
+            employee: p.employees
+          })),
+          last_message: lastMessageMap.get(conv.id),
+          last_read_at: item.last_read_at,
+          is_muted: item.is_muted
+        } as ChatConversation;
+      });
     },
-  }).catch(err => console.error("Push notification error:", err));
-}
+    enabled: !!currentOrg?.id && !!currentEmployee?.id,
+    staleTime: 30000, // Cache for 30 seconds
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+  });
+};
+```
+
+**Database Function (SQL Migration):**
+```sql
+CREATE OR REPLACE FUNCTION get_last_messages_batch(conversation_ids uuid[])
+RETURNS TABLE (
+  conversation_id uuid,
+  id uuid,
+  content text,
+  content_type text,
+  created_at timestamptz,
+  sender_id uuid
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT DISTINCT ON (cm.conversation_id)
+    cm.conversation_id,
+    cm.id,
+    cm.content,
+    cm.content_type,
+    cm.created_at,
+    cm.sender_id
+  FROM chat_messages cm
+  WHERE cm.conversation_id = ANY(conversation_ids)
+  ORDER BY cm.conversation_id, cm.created_at DESC;
+END;
+$$ LANGUAGE plpgsql STABLE;
 ```
 
 ---
 
-### Part 5: Update Service Worker for Better Chat Notifications
+### Part 2: Add Optimal staleTime and gcTime Configuration
 
-**File:** `src/sw.ts`
+**File:** `src/services/useChat.ts`
 
-Enhance push handler to support chat-specific notification handling:
+Add caching configuration to all major queries:
+
+| Query | staleTime | gcTime | Rationale |
+|-------|-----------|--------|-----------|
+| chat-conversations | 30s | 5min | Updates via realtime |
+| chat-spaces | 60s | 5min | Less frequent changes |
+| chat-messages | 0 | 5min | Must be fresh, realtime handles updates |
+| unread-counts | 10s | 2min | Realtime updates, fallback polling |
+| chat-favorites | 60s | 5min | User-initiated changes only |
+| typing-users | 0 | 30s | Ephemeral data |
 
 ```typescript
-self.addEventListener('push', (event) => {
-  let data = {
-    title: 'GlobalyOS Notification',
-    body: 'You have a new notification',
-    icon: '/favicon.png',
-    badge: '/favicon.png',
-    url: '/',
-    tag: 'default',
-    data: {},
-  };
-
-  if (event.data) {
-    try {
-      data = { ...data, ...event.data.json() };
-    } catch (e) {
-      console.error('Error parsing push data:', e);
-    }
-  }
-
-  const isChatMessage = data.data?.type === 'chat_message';
-  const isIncomingCall = data.data?.type === 'incoming_call';
-
-  const options: NotificationOptions = {
-    body: data.body,
-    icon: data.icon,
-    badge: data.badge,
-    vibrate: isIncomingCall ? [300, 100, 300, 100, 300] : [100, 50, 100],
-    data: {
-      ...data.data,
-      url: data.url,
-      dateOfArrival: Date.now(),
-    },
-    tag: data.tag,
-    renotify: true,
-    silent: false,
-    requireInteraction: isIncomingCall,
-  };
-
-  // Add reply action for chat messages (if supported)
-  if (isChatMessage && 'actions' in Notification.prototype) {
-    options.actions = [
-      { action: 'reply', title: 'Reply' },
-      { action: 'dismiss', title: 'Dismiss' },
-    ];
-  }
-
-  if (isIncomingCall) {
-    options.actions = [
-      { action: 'answer', title: 'Answer' },
-      { action: 'decline', title: 'Decline' },
-    ];
-  }
-
-  event.waitUntil(
-    self.registration.showNotification(data.title, options)
-  );
+// Example for useSpaces
+return useQuery({
+  queryKey: ['chat-spaces', ...],
+  queryFn: async () => { ... },
+  staleTime: 60000, // 1 minute
+  gcTime: 5 * 60 * 1000, // 5 minutes
 });
 ```
 
 ---
 
-### Part 6: Update supabase/config.toml
+### Part 3: Consolidate Realtime Channels
 
-Add the new edge function configuration:
+**File:** `src/hooks/useChatRealtime.ts` (New)
 
-```toml
-[functions.send-chat-push-notification]
-verify_jwt = false
+Create a single consolidated realtime hook that components share:
+
+```typescript
+import { useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useOrganization } from '@/hooks/useOrganization';
+import { useCurrentEmployee } from '@/services/useCurrentEmployee';
+
+export const useChatRealtime = () => {
+  const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  useEffect(() => {
+    if (!currentOrg?.id || !currentEmployee?.id) return;
+
+    // Single consolidated channel for all chat-related tables
+    const channel = supabase
+      .channel(`chat-realtime-${currentOrg.id}`)
+      // Messages - delta updates
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'chat_messages',
+        filter: `organization_id=eq.${currentOrg.id}`
+      }, (payload) => {
+        const msg = payload.new;
+        // Delta update for specific conversation/space
+        queryClient.setQueryData(
+          ['chat-messages', msg.conversation_id, msg.space_id],
+          (old: any[]) => old ? [...old, msg] : [msg]
+        );
+        // Update last_message in conversations list
+        queryClient.setQueryData(['chat-conversations', currentOrg.id, currentEmployee.id],
+          (old: any[]) => old?.map(c => 
+            c.id === msg.conversation_id 
+              ? { ...c, last_message: msg } 
+              : c
+          )
+        );
+        // Increment unread count for others
+        if (msg.sender_id !== currentEmployee.id) {
+          queryClient.setQueryData(['unread-counts', currentOrg.id], (old: any) => ({
+            ...old,
+            conversations: {
+              ...old?.conversations,
+              [msg.conversation_id]: (old?.conversations?.[msg.conversation_id] || 0) + 1
+            }
+          }));
+        }
+      })
+      // Presence updates
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'chat_presence',
+        filter: `organization_id=eq.${currentOrg.id}`
+      }, (payload) => {
+        queryClient.setQueryData(['online-presence', currentOrg.id], (old: any[]) => {
+          if (!old) return [payload.new];
+          const filtered = old.filter(p => p.employee_id !== payload.new?.employee_id);
+          return payload.eventType === 'DELETE' ? filtered : [...filtered, payload.new];
+        });
+        queryClient.invalidateQueries({ queryKey: ['typing-users'] });
+      })
+      // Reactions - delta updates
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'chat_message_reactions',
+        filter: `organization_id=eq.${currentOrg.id}`
+      }, () => {
+        // Reactions are complex, invalidate is acceptable
+        queryClient.invalidateQueries({ queryKey: ['chat-reactions'] });
+      })
+      // Spaces and members
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'chat_spaces',
+        filter: `organization_id=eq.${currentOrg.id}`
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'chat_space_members',
+        filter: `organization_id=eq.${currentOrg.id}`
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ['chat-space-members'] });
+      })
+      .subscribe();
+
+    channelRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentOrg?.id, currentEmployee?.id, queryClient]);
+};
+```
+
+**Update Chat.tsx to use consolidated realtime:**
+```typescript
+const Chat = () => {
+  useChatRealtime(); // Single hook for all realtime
+  // ... rest of component
+};
+```
+
+**Remove redundant channel subscriptions from:**
+- `ChatSidebar.tsx` (lines 136-243)
+- `ConversationView.tsx` (lines 298-564)
+- `ChatHeader.tsx` (lines 464-487)
+
+---
+
+### Part 4: Replace Invalidations with Delta Updates
+
+**File:** `src/services/useChat.ts`
+
+Update mutation hooks to use optimistic/delta updates instead of full invalidations:
+
+```typescript
+// useSendMessage - remove invalidation, rely on realtime
+onSettled: (data, error, variables) => {
+  if (data && !error) {
+    // Replace temp message with real one in cache
+    queryClient.setQueryData<ChatMessage[]>(
+      ['chat-messages', variables.conversationId, variables.spaceId],
+      (old) => old?.map(m => 
+        m.id.startsWith('temp-') && m.content === variables.content 
+          ? { ...m, id: data.id } 
+          : m
+      ) || []
+    );
+    // DO NOT invalidate conversations/spaces - realtime handles it
+  }
+}
+
+// useMarkAsRead - already has optimistic update, remove onSettled invalidation
+onSettled: () => {
+  // Remove these - optimistic update already handled
+  // queryClient.invalidateQueries({ queryKey: ['chat-conversations'] });
+  // queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
+}
+```
+
+---
+
+### Part 5: Remove Typing Indicator Polling
+
+**File:** `src/services/useChat.ts`
+
+Remove the 3-second polling interval from `useTypingUsers`:
+
+```typescript
+export const useTypingUsers = (...) => {
+  return useQuery({
+    queryKey: ['typing-users', conversationId, spaceId],
+    queryFn: async () => { ... },
+    enabled: (!!conversationId || !!spaceId) && !!currentEmployee?.id,
+    // REMOVE: refetchInterval: 3000,
+    staleTime: 5000, // Rely on realtime, allow 5s stale
+  });
+};
+```
+
+---
+
+### Part 6: Lazy Load Right Panel and Thread View
+
+**File:** `src/pages/Chat.tsx`
+
+Use React.lazy for less critical components:
+
+```typescript
+import { lazy, Suspense } from 'react';
+
+const ChatRightPanelEnhanced = lazy(() => import('@/components/chat/ChatRightPanelEnhanced'));
+const ThreadView = lazy(() => import('@/components/chat/ThreadView'));
+
+// In render:
+{showRightPanelCondition && (
+  <Suspense fallback={<div className="w-80 animate-pulse bg-muted" />}>
+    {activeThreadMessage ? (
+      <ThreadView ... />
+    ) : (
+      <ChatRightPanelEnhanced ... />
+    )}
+  </Suspense>
+)}
+```
+
+---
+
+### Part 7: Add Loading Skeletons for Perceived Performance
+
+**File:** `src/components/chat/ChatSidebar.tsx`
+
+Improve loading skeleton to match actual content layout:
+
+```typescript
+{loadingConversations ? (
+  <div className="space-y-1 px-2">
+    {[1, 2, 3, 4, 5].map(i => (
+      <div key={i} className="flex items-center gap-2.5 py-1.5">
+        <div className="h-6 w-6 rounded-full bg-muted animate-pulse" />
+        <div className="flex-1 h-4 bg-muted rounded animate-pulse" />
+      </div>
+    ))}
+  </div>
+) : ...}
 ```
 
 ---
@@ -488,19 +395,32 @@ verify_jwt = false
 
 | File | Type | Description |
 |------|------|-------------|
-| `supabase/functions/send-push-notification/index.ts` | Modify | Implement actual Web Push sending with @negrel/webpush |
-| `supabase/functions/send-chat-push-notification/index.ts` | Create | New function for chat-specific push notifications |
-| `supabase/config.toml` | Modify | Add config for new edge function |
-| `src/services/useChat.ts` | Modify | Add push notification trigger after sending messages |
-| `src/sw.ts` | Modify | Enhance push handler for chat message actions |
+| `src/services/useChat.ts` | Modify | Fix N+1 query, add staleTime, remove polling, delta updates |
+| `src/hooks/useChatRealtime.ts` | Create | Consolidated realtime subscription hook |
+| `src/pages/Chat.tsx` | Modify | Use consolidated realtime, lazy load panels |
+| `src/components/chat/ChatSidebar.tsx` | Modify | Remove redundant channels, improve skeletons |
+| `src/components/chat/ConversationView.tsx` | Modify | Remove redundant channels |
+| `src/components/chat/ChatHeader.tsx` | Modify | Remove redundant channels |
+| SQL Migration | Create | Add `get_last_messages_batch` function |
+
+---
+
+## Expected Performance Improvements
+
+| Metric | Before | After | Improvement |
+|--------|--------|-------|-------------|
+| Initial load DB calls | 21+ | 2-3 | ~90% reduction |
+| Realtime channels | 5-7 | 1-2 | ~80% reduction |
+| Cache hit rate | Low | High | Fewer refetches |
+| Time to interactive | 2-3s | <500ms | ~80% faster |
+| Message send latency | Visible delay | Instant | Optimistic updates |
 
 ---
 
 ## Technical Notes
 
-- **Library Choice**: Using `@negrel/webpush` as it's Deno-native and handles RFC 8291/8292 encryption
-- **Mute Handling**: Push notifications respect both conversation mute (`is_muted`) and space notification settings (`notification_setting`)
-- **Subscription Cleanup**: Invalid/expired endpoints are automatically removed from `push_subscriptions`
-- **Security**: Edge functions use service role key; no user data exposed in client
-- **Backward Compatible**: Existing in-app notification sounds continue to work alongside push
-
+- **React Query staleTime:** Data considered fresh for X ms; prevents refetches
+- **gcTime (garbage collection):** How long inactive data stays in cache
+- **Delta updates:** Modify cache directly instead of refetching entire dataset
+- **Consolidated channels:** Supabase recommends 1-2 channels per client for performance
+- **Lazy loading:** Reduces initial bundle size and parse time
