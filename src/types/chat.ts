@@ -45,6 +45,7 @@ export interface ChatSpace {
   access_type: 'public' | 'private';
   access_scope: AccessScope;
   history_enabled: boolean;
+  auto_sync_members?: boolean;
   created_by: string;
   created_at: string;
   updated_at: string;

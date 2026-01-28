@@ -2331,6 +2331,7 @@ export type Database = {
           access_type: Database["public"]["Enums"]["chat_space_access"]
           archived_at: string | null
           archived_by: string | null
+          auto_sync_members: boolean | null
           created_at: string
           created_by: string
           description: string | null
@@ -2349,6 +2350,7 @@ export type Database = {
           access_type?: Database["public"]["Enums"]["chat_space_access"]
           archived_at?: string | null
           archived_by?: string | null
+          auto_sync_members?: boolean | null
           created_at?: string
           created_by: string
           description?: string | null
@@ -2367,6 +2369,7 @@ export type Database = {
           access_type?: Database["public"]["Enums"]["chat_space_access"]
           archived_at?: string | null
           archived_by?: string | null
+          auto_sync_members?: boolean | null
           created_at?: string
           created_by?: string
           description?: string | null

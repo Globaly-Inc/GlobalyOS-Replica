@@ -649,6 +649,8 @@ export const useCreateSpace = () => {
       officeIds,
       projectIds,
       memberIds,
+      addAllMembers = false,
+      autoSync = false,
     }: { 
       name: string; 
       description?: string;
@@ -658,6 +660,8 @@ export const useCreateSpace = () => {
       officeIds?: string[];
       projectIds?: string[];
       memberIds?: string[];
+      addAllMembers?: boolean;
+      autoSync?: boolean;
     }) => {
       if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
 
@@ -695,7 +699,8 @@ export const useCreateSpace = () => {
           space_type: spaceType,
           access_type: accessType,
           access_scope: accessScope,
-          created_by: employeeId
+          created_by: employeeId,
+          auto_sync_members: autoSync && accessScope !== 'members'
         })
         .select()
         .single();
@@ -746,6 +751,53 @@ export const useCreateSpace = () => {
             }))
           );
         if (membersError) throw membersError;
+      }
+
+      // Add all members if requested (for non-manual scopes)
+      if (addAllMembers && accessScope !== 'members') {
+        let employeesToAdd: string[] = [];
+        
+        if (accessScope === 'company') {
+          // Add all active employees
+          const { data } = await supabase
+            .from('employees')
+            .select('id')
+            .eq('organization_id', currentOrg.id)
+            .eq('status', 'active');
+          employeesToAdd = data?.map(e => e.id) || [];
+        } else if (accessScope === 'offices' && officeIds?.length) {
+          // Add employees from selected offices
+          const { data } = await supabase
+            .from('employees')
+            .select('id')
+            .eq('organization_id', currentOrg.id)
+            .eq('status', 'active')
+            .in('office_id', officeIds);
+          employeesToAdd = data?.map(e => e.id) || [];
+        } else if (accessScope === 'projects' && projectIds?.length) {
+          // Add employees from selected projects via employee_projects table
+          const { data } = await supabase
+            .from('employee_projects')
+            .select('employee_id')
+            .in('project_id', projectIds);
+          employeesToAdd = (data || []).map((e: { employee_id: string }) => e.employee_id);
+        }
+        
+        // Insert all as members (excluding creator who's auto-added by trigger)
+        if (employeesToAdd.length > 0) {
+          const membersToInsert = employeesToAdd
+            .filter(id => id !== employeeId)
+            .map(empId => ({
+              space_id: space.id,
+              employee_id: empId,
+              organization_id: currentOrg.id,
+              role: 'member' as const
+            }));
+          
+          if (membersToInsert.length > 0) {
+            await supabase.from('chat_space_members').insert(membersToInsert);
+          }
+        }
       }
 
       return space;
