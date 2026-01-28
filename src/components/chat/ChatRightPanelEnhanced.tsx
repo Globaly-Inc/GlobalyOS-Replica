@@ -84,6 +84,8 @@ import {
   useRemoveGroupMember,
   useSpace,
 } from "@/services/useChat";
+import { useSpaceMembersRealtime } from "@/services/useSpaceMembersRealtime";
+import { useSpaceMemberLogs } from "@/services/useSpaceMemberLogs";
 import { useExemptEmployeeIds, isExemptFromAutoSync } from "@/hooks/useExemptRoles";
 import { useTeamPresence } from "@/services/useTeamData";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -184,6 +186,7 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
   const [membersOpen, setMembersOpen] = useState(true);
   const [pinnedOpen, setPinnedOpen] = useState(true);
   const [filesOpen, setFilesOpen] = useState(false);
+  const [syncActivityOpen, setSyncActivityOpen] = useState(false);
   const [memberSearch, setMemberSearch] = useState("");
   
   const [spaceDetails, setSpaceDetails] = useState<SpaceDetails | null>(null);
@@ -227,10 +230,15 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
   const { data: pinnedMessages = [] } = usePinnedMessages(conversationId, spaceId);
   const { data: spaceMembers = [] } = useSpaceMembers(spaceId);
   const { data: spaceData } = useSpace(spaceId || '');
+  const { data: memberLogs = [] } = useSpaceMemberLogs(spaceId);
   const { currentOrg } = useOrganization();
+  
+  // Enable realtime updates for space members
+  useSpaceMembersRealtime(spaceId);
   
   // Check if auto-sync is enabled for this space
   const autoSyncEnabled = spaceData?.auto_sync_members || false;
+  const autoSyncLogs = memberLogs.filter(log => log.source === 'auto_sync');
   
   // Get exempt member IDs for auto-sync restrictions
   const spaceMemberIds = spaceMembers.map(m => m.employee_id);
@@ -950,6 +958,63 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
                     })()}
                   </div>
                 </ScrollArea>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+
+        {/* Auto-Sync Activity Logs (only for spaces with auto-sync enabled) */}
+        {spaceId && autoSyncEnabled && (
+          <Collapsible open={syncActivityOpen} onOpenChange={setSyncActivityOpen} className="border-b border-border">
+            <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-3 hover:bg-muted/50 transition-colors">
+              <h4 className="text-sm font-medium flex items-center gap-2">
+                <RefreshCw className="h-4 w-4 text-muted-foreground" />
+                Sync Activity
+                <span className="text-xs text-muted-foreground font-normal">
+                  ({autoSyncLogs.length})
+                </span>
+              </h4>
+              {syncActivityOpen ? (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              )}
+            </CollapsibleTrigger>
+            <CollapsibleContent className="px-4 pb-4">
+              <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                {autoSyncLogs.slice(0, 20).map(log => (
+                  <div key={log.id} className="flex items-center gap-2 text-xs">
+                    <Avatar className="h-5 w-5">
+                      <AvatarImage src={log.employee?.profiles?.avatar_url || undefined} />
+                      <AvatarFallback className="text-[8px]">
+                        {log.employee?.profiles?.full_name?.[0] || "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="truncate flex-1">{log.employee?.profiles?.full_name || "Unknown"}</span>
+                    <span 
+                      className={cn(
+                        "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
+                        log.action_type === 'added' 
+                          ? "bg-primary/10 text-primary" 
+                          : "bg-destructive/10 text-destructive"
+                      )}
+                    >
+                      {log.action_type}
+                    </span>
+                    <span className="text-muted-foreground text-[10px] whitespace-nowrap">
+                      {format(new Date(log.created_at), "MMM d, h:mm a")}
+                    </span>
+                  </div>
+                ))}
+                {autoSyncLogs.length === 0 && (
+                  <div className="text-center py-4">
+                    <RefreshCw className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">No auto-sync activity yet</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Logs appear when members are added/removed by auto-sync triggers
+                    </p>
+                  </div>
+                )}
               </div>
             </CollapsibleContent>
           </Collapsible>
