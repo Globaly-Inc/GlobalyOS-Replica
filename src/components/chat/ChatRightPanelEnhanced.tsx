@@ -621,7 +621,9 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
             )}
           </div>
           <div>
-            <h3 className="font-semibold text-sm">Conversation Info</h3>
+            <h3 className="font-semibold text-sm">
+              {activeChat.type === 'space' ? 'Space Info' : activeChat.isGroup ? 'Group Chat Info' : 'Individual Chat Info'}
+            </h3>
             <p className="text-xs text-muted-foreground">Details & pinned items</p>
           </div>
         </div>
