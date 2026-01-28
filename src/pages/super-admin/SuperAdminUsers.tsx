@@ -427,7 +427,7 @@ const SuperAdminUsers = () => {
                         <Tooltip>
                           <TooltipTrigger>
                             <span className="text-sm text-muted-foreground">
-                              {formatDistanceToNow(new Date(user.last_active_at), { addSuffix: true })}
+                              {formatDistanceToNow(new Date(user.last_active_at), { addSuffix: true }).replace(/^about /, '')}
                             </span>
                           </TooltipTrigger>
                           <TooltipContent>
