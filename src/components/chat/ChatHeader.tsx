@@ -538,13 +538,16 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
         {/* Right section - Actions with inline search */}
         <div className="flex items-center gap-0.5 flex-shrink-0">
           {/* Inline Search Bar with Portal-based Results */}
-          <Popover 
-            open={showSearch && searchQuery.trim().length > 0}
-            onOpenChange={(open) => {
-              if (!open) handleCloseSearch();
-            }}
-          >
-            {showSearch ? (
+          {showSearch ? (
+            <Popover 
+              open={searchQuery.trim().length > 0}
+              onOpenChange={(open) => {
+                if (!open && searchQuery.trim()) {
+                  // Don't close search when popover closes from outside click
+                  // just clear the results view
+                }
+              }}
+            >
               <div className="flex items-center gap-1.5 mr-1">
                 <PopoverAnchor asChild>
                   <div className="relative">
@@ -577,41 +580,41 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
                   <X className="h-4 w-4" />
                 </Button>
               </div>
-            ) : (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-9 w-9"
-                    onClick={() => setShowSearch(true)}
-                  >
-                    <Search className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">Search messages</TooltipContent>
-              </Tooltip>
-            )}
 
-            {/* Search results rendered in Portal via PopoverContent */}
-            <PopoverContent 
-              side="bottom" 
-              align="end" 
-              sideOffset={6}
-              className="p-0 w-[min(400px,calc(100vw-1.5rem))] max-h-[400px] overflow-hidden"
-              onOpenAutoFocus={(e) => e.preventDefault()}
-            >
-              <InlineSearchResults
-                query={searchQuery}
-                conversationId={conversationId}
-                spaceId={spaceId}
-                onResultClick={handleSearchResultClick}
-                onClose={handleCloseSearch}
-                currentIndex={searchCurrentIndex}
-                setCurrentIndex={setSearchCurrentIndex}
-              />
-            </PopoverContent>
-          </Popover>
+              {/* Search results rendered in Portal via PopoverContent */}
+              <PopoverContent 
+                side="bottom" 
+                align="end" 
+                sideOffset={6}
+                className="p-0 w-[min(400px,calc(100vw-1.5rem))] max-h-[400px] overflow-hidden"
+                onOpenAutoFocus={(e) => e.preventDefault()}
+              >
+                <InlineSearchResults
+                  query={searchQuery}
+                  conversationId={conversationId}
+                  spaceId={spaceId}
+                  onResultClick={handleSearchResultClick}
+                  onClose={handleCloseSearch}
+                  currentIndex={searchCurrentIndex}
+                  setCurrentIndex={setSearchCurrentIndex}
+                />
+              </PopoverContent>
+            </Popover>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9"
+                  onClick={() => setShowSearch(true)}
+                >
+                  <Search className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Search messages</TooltipContent>
+            </Tooltip>
+          )}
 
           <Tooltip>
             <TooltipTrigger asChild>
