@@ -393,6 +393,7 @@ const Team = () => {
   const OrgEmployeeCard = ({ employee, departmentColor }: { employee: TreeNode; departmentColor: typeof DEPARTMENT_COLORS[0] }) => {
     const isExternal = employee.isExternalManager;
     const empDeptColor = departmentColorMap.get(employee.department || "Unassigned") || DEPARTMENT_COLORS[0];
+    const isOnline = onlineStatuses[employee.id] ?? false;
     
     return (
       <Card
@@ -408,12 +409,17 @@ const Team = () => {
       >
         <div className="px-2 py-1.5">
           <div className="flex items-center gap-2">
-            <Avatar className="h-6 w-6 flex-shrink-0" style={{ borderWidth: 2, borderStyle: 'solid', borderColor: empDeptColor.bg }}>
-              <AvatarImage src={employee.profiles.avatar_url || undefined} />
-              <AvatarFallback style={{ background: empDeptColor.bg }} className="text-white text-[10px]">
-                {employee.profiles.full_name.split(" ").map((n) => n[0]).join("")}
-              </AvatarFallback>
-            </Avatar>
+            <div className="relative flex-shrink-0">
+              <Avatar className="h-6 w-6" style={{ borderWidth: 2, borderStyle: 'solid', borderColor: empDeptColor.bg }}>
+                <AvatarImage src={employee.profiles.avatar_url || undefined} />
+                <AvatarFallback style={{ background: empDeptColor.bg }} className="text-white text-[10px]">
+                  {employee.profiles.full_name.split(" ").map((n) => n[0]).join("")}
+                </AvatarFallback>
+              </Avatar>
+              {isOnline && (
+                <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-green-500 border border-background" />
+              )}
+            </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1">
                 <h3 className="text-xs font-medium text-foreground truncate">{employee.profiles.full_name}</h3>

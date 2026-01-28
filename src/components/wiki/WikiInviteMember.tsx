@@ -31,6 +31,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useTeamPresence } from "@/services/useTeamData";
 
 interface Employee {
   id: string;
@@ -87,6 +88,10 @@ export const WikiAddMember = ({
   const [permission, setPermission] = useState<'view' | 'edit'>('view');
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Get online statuses for employees
+  const employeeIds = useMemo(() => employees.map(e => e.id), [employees]);
+  const onlineStatuses = useTeamPresence(employeeIds);
 
   // Count employees per group
   const employeeCountByOffice = useMemo(() => {
@@ -393,12 +398,17 @@ export const WikiAddMember = ({
                         })}
                         className="flex items-center gap-2 cursor-pointer"
                       >
-                        <Avatar className="h-7 w-7">
-                          <AvatarImage src={emp.profiles?.avatar_url || undefined} />
-                          <AvatarFallback className="text-xs">
-                            {emp.profiles?.full_name?.charAt(0) || '?'}
-                          </AvatarFallback>
-                        </Avatar>
+                        <div className="relative">
+                          <Avatar className="h-7 w-7">
+                            <AvatarImage src={emp.profiles?.avatar_url || undefined} />
+                            <AvatarFallback className="text-xs">
+                              {emp.profiles?.full_name?.charAt(0) || '?'}
+                            </AvatarFallback>
+                          </Avatar>
+                          {onlineStatuses[emp.id] && (
+                            <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-green-500 border border-background" />
+                          )}
+                        </div>
                         <div className="flex flex-col">
                           <span className="text-sm">{emp.profiles?.full_name}</span>
                           {emp.profiles?.email && (

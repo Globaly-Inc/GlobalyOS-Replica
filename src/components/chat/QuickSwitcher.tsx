@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Search, MessageSquare, Hash, User, Clock } from "lucide-react";
 import { useConversations, useSpaces } from "@/services/useChat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
+import { useTeamPresence } from "@/services/useTeamData";
 import { cn } from "@/lib/utils";
 import type { ActiveChat, ChatConversation, ChatSpace } from "@/types/chat";
 
@@ -36,6 +37,29 @@ const QuickSwitcher = ({ open, onOpenChange, onSelectChat, recentChats = [] }: Q
   const { data: spaces = [] } = useSpaces();
   const { data: currentEmployee } = useCurrentEmployee();
 
+  // Extract employee IDs for DM conversations to get online statuses
+  const dmEmployeeIds = useMemo(() => {
+    return conversations
+      .filter(conv => !conv.is_group)
+      .map(conv => {
+        const otherParticipant = conv.participants?.find(
+          p => p.employee_id !== currentEmployee?.id
+        );
+        return otherParticipant?.employee_id;
+      })
+      .filter((id): id is string => !!id);
+  }, [conversations, currentEmployee?.id]);
+
+  const onlineStatuses = useTeamPresence(dmEmployeeIds);
+
+  const getConversationEmployeeId = (conv: ChatConversation) => {
+    if (conv.is_group) return null;
+    const otherParticipant = conv.participants?.find(
+      p => p.employee_id !== currentEmployee?.id
+    );
+    return otherParticipant?.employee_id || null;
+  };
+
   const getConversationName = (conv: ChatConversation) => {
     if (conv.name) return conv.name;
     if (conv.is_group) return "Group Chat";
@@ -54,7 +78,7 @@ const QuickSwitcher = ({ open, onOpenChange, onSelectChat, recentChats = [] }: Q
   };
 
   // Build search results
-  const allItems: SearchResult[] = [
+  const allItems: (SearchResult & { employeeId?: string | null })[] = [
     ...conversations.map(conv => ({
       type: 'conversation' as const,
       id: conv.id,
@@ -62,6 +86,7 @@ const QuickSwitcher = ({ open, onOpenChange, onSelectChat, recentChats = [] }: Q
       avatarUrl: getConversationAvatar(conv),
       isGroup: conv.is_group,
       subtitle: conv.is_group ? `${conv.participants?.length || 0} members` : undefined,
+      employeeId: getConversationEmployeeId(conv),
     })),
     ...spaces.map(space => ({
       type: 'space' as const,
@@ -69,6 +94,7 @@ const QuickSwitcher = ({ open, onOpenChange, onSelectChat, recentChats = [] }: Q
       name: space.name,
       avatarUrl: space.icon_url,
       subtitle: `${space.member_count || 0} members`,
+      employeeId: null,
     })),
   ];
 
@@ -231,16 +257,21 @@ const QuickSwitcher = ({ open, onOpenChange, onSelectChat, recentChats = [] }: Q
                         )}
                       </div>
                     ) : (
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={result.avatarUrl || undefined} />
-                        <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                          {result.isGroup ? (
-                            <MessageSquare className="h-4 w-4" />
-                          ) : (
-                            getInitials(result.name)
-                          )}
-                        </AvatarFallback>
-                      </Avatar>
+                      <div className="relative">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={result.avatarUrl || undefined} />
+                          <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                            {result.isGroup ? (
+                              <MessageSquare className="h-4 w-4" />
+                            ) : (
+                              getInitials(result.name)
+                            )}
+                          </AvatarFallback>
+                        </Avatar>
+                        {!result.isGroup && result.employeeId && onlineStatuses[result.employeeId] && (
+                          <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-green-500 border-2 border-background" />
+                        )}
+                      </div>
                     )}
                     <div className="flex-1 min-w-0 text-left">
                       <div className="flex items-center gap-1">

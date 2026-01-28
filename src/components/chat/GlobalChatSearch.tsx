@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useGlobalChatSearch, GlobalSearchResult } from "@/hooks/useGlobalChatSearch";
+import { useTeamPresence } from "@/services/useTeamData";
 import { format } from "date-fns";
 import type { ActiveChat } from "@/types/chat";
 
@@ -60,6 +61,13 @@ const GlobalChatSearch = ({ onSelectResult, onStartDM }: GlobalChatSearchProps) 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const { groupedResults, isLoading, hasResults } = useGlobalChatSearch(query);
+
+  // Extract member employee IDs for online status
+  const memberEmployeeIds = useMemo(() => {
+    return groupedResults.member.map(m => m.id.replace('member-', ''));
+  }, [groupedResults.member]);
+
+  const onlineStatuses = useTeamPresence(memberEmployeeIds);
 
   // Flatten results for keyboard navigation
   const flatResults: GlobalSearchResult[] = [
@@ -195,12 +203,17 @@ const GlobalChatSearch = ({ onSelectResult, onStartDM }: GlobalChatSearchProps) 
                     {result.title.charAt(0).toUpperCase()}
                   </div>
                 ) : (
-                  <Avatar className="h-8 w-8 shrink-0">
-                    <AvatarImage src={result.avatarUrl || undefined} />
-                    <AvatarFallback className="text-[10px]">
-                      {type === 'conversation' ? <Users className="h-4 w-4" /> : getInitials(result.title)}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="relative">
+                    <Avatar className="h-8 w-8 shrink-0">
+                      <AvatarImage src={result.avatarUrl || undefined} />
+                      <AvatarFallback className="text-[10px]">
+                        {type === 'conversation' ? <Users className="h-4 w-4" /> : getInitials(result.title)}
+                      </AvatarFallback>
+                    </Avatar>
+                    {type === 'member' && onlineStatuses[result.id.replace('member-', '')] && (
+                      <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-green-500 border-2 border-background" />
+                    )}
+                  </div>
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">

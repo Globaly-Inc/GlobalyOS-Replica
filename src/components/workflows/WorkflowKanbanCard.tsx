@@ -6,6 +6,7 @@ import { Clock, AlertCircle } from "lucide-react";
 import { differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { MiniStageIndicator } from "./MiniStageIndicator";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import type { WorkflowStage } from "@/types/workflow";
 
 export interface WorkflowKanbanCardData {
@@ -36,6 +37,7 @@ interface WorkflowKanbanCardProps {
 }
 
 export function WorkflowKanbanCard({ workflow, stages, onClick }: WorkflowKanbanCardProps) {
+  const { isOnline } = useOnlineStatus(workflow.employee?.id);
   const completedTasks = workflow.tasks?.filter(t => t.status === "completed").length ?? 0;
   const totalTasks = workflow.tasks?.length ?? 0;
   const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
@@ -68,10 +70,15 @@ export function WorkflowKanbanCard({ workflow, stages, onClick }: WorkflowKanban
     >
       {/* Employee Info */}
       <div className="flex items-start gap-3">
-        <Avatar className="h-10 w-10 shrink-0">
-          <AvatarImage src={workflow.employee?.profiles?.avatar_url || undefined} />
-          <AvatarFallback className="text-sm font-medium">{initials}</AvatarFallback>
-        </Avatar>
+        <div className="relative">
+          <Avatar className="h-10 w-10 shrink-0">
+            <AvatarImage src={workflow.employee?.profiles?.avatar_url || undefined} />
+            <AvatarFallback className="text-sm font-medium">{initials}</AvatarFallback>
+          </Avatar>
+          {isOnline && (
+            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-card" />
+          )}
+        </div>
 
         <div className="flex-1 min-w-0">
           <h4 className="font-medium text-sm truncate">
