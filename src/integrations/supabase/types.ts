@@ -13032,7 +13032,7 @@ export type Database = {
         | "projects"
         | "members"
         | "custom"
-      chat_space_type: "collaboration" | "announcements"
+      chat_space_type: "collaboration" | "announcements" | "project"
       support_request_priority: "low" | "medium" | "high" | "critical"
       support_request_status:
         | "new"
@@ -13178,7 +13178,7 @@ export const Constants = {
         "members",
         "custom",
       ],
-      chat_space_type: ["collaboration", "announcements"],
+      chat_space_type: ["collaboration", "announcements", "project"],
       support_request_priority: ["low", "medium", "high", "critical"],
       support_request_status: [
         "new",
