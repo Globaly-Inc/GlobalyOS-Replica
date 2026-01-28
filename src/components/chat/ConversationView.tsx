@@ -41,6 +41,7 @@ import {
   Bell,
   LogOut,
   Info,
+  Megaphone,
 } from "lucide-react";
 import { format, isToday, isYesterday, differenceInMinutes } from "date-fns";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -899,11 +900,21 @@ const ConversationView = ({
 
         {/* Message Composer with safe area and bottom nav clearance */}
         <div className="pb-16 md:pb-0 safe-area-bottom">
-          <MessageComposer 
-            ref={composerRef}
-            conversationId={conversationId}
-            spaceId={spaceId}
-          />
+          {spaceId && space?.space_type === 'announcements' && !isSpaceAdmin ? (
+            // Disabled state for non-admins in announcement spaces
+            <div className="border-t border-border bg-muted/30 px-4 py-4">
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Megaphone className="h-4 w-4" />
+                <span>Only space admins can post announcements</span>
+              </div>
+            </div>
+          ) : (
+            <MessageComposer 
+              ref={composerRef}
+              conversationId={conversationId}
+              spaceId={spaceId}
+            />
+          )}
         </div>
         
         {/* Space Management Dialogs */}

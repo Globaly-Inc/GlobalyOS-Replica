@@ -12553,6 +12553,10 @@ export type Database = {
         Args: { _employee_id: string; _organization_id: string }
         Returns: boolean
       }
+      can_post_in_space: {
+        Args: { p_employee_id: string; p_space_id: string }
+        Returns: boolean
+      }
       can_view_employee_sensitive_data: {
         Args: { _employee_id: string }
         Returns: boolean
