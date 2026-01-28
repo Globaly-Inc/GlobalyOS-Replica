@@ -184,6 +184,7 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
   const [membersOpen, setMembersOpen] = useState(true);
   const [pinnedOpen, setPinnedOpen] = useState(true);
   const [filesOpen, setFilesOpen] = useState(false);
+  const [memberSearch, setMemberSearch] = useState("");
   
   const [spaceDetails, setSpaceDetails] = useState<SpaceDetails | null>(null);
   const [otherParticipant, setOtherParticipant] = useState<OtherParticipantDetails | null>(null);
@@ -806,155 +807,182 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
                   </div>
                 </Alert>
               )}
-              <div className="space-y-1">
-                {members.slice(0, 10).map((member: any) => {
-                  const employee = member.employee || member.employees;
-                  const profile = employee?.profiles;
-                  const isAdmin = member.role === 'admin';
-                  const isSelf = member.employee_id === currentEmployee?.id;
-                  const isMemberExempt = exemptIds.has(member.employee_id);
-                  const canRemoveThisMember = !autoSyncEnabled || isMemberExempt || !spaceId;
-
-                  return (
-                    <div 
-                      key={member.id} 
-                      className="flex items-center gap-2 p-1.5 -mx-1.5 rounded-lg group hover:bg-accent/50 transition-colors"
-                    >
-                      <div className="relative">
-                        <Avatar className="h-7 w-7">
-                          <AvatarImage src={profile?.avatar_url || undefined} />
-                          <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-                            {getInitials(profile?.full_name || "U")}
-                          </AvatarFallback>
-                        </Avatar>
-                        {onlineStatuses[member.employee_id] && (
-                          <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-green-500 border-[1.5px] border-card" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-sm truncate">{profile?.full_name || "Unknown"}</span>
-                          {isAdmin && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary shrink-0">
-                              Admin
-                            </span>
-                          )}
-                          {spaceId && autoSyncEnabled && isMemberExempt && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 shrink-0">
-                              Exempt
-                            </span>
-                          )}
-                        </div>
-                        {profile?.email && (
-                          <span className="text-xs text-muted-foreground truncate block">
-                            {profile.email}
-                          </span>
-                        )}
-                      </div>
+              <div className="space-y-2">
+                {/* Search Input */}
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Search members..."
+                    value={memberSearch}
+                    onChange={(e) => setMemberSearch(e.target.value)}
+                    className="flex h-8 w-full rounded-md border border-input bg-background pl-8 pr-3 py-2 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  />
+                </div>
+                
+                {/* Scrollable Members List - Fixed height for ~5 visible members */}
+                <ScrollArea className="h-[220px]">
+                  <div className="space-y-1 pr-2">
+                    {(() => {
+                      const filteredMembers = members.filter((member: any) => {
+                        const employee = member.employee || member.employees;
+                        const profile = employee?.profiles;
+                        const name = profile?.full_name || "";
+                        const email = profile?.email || "";
+                        const searchLower = memberSearch.toLowerCase();
+                        return name.toLowerCase().includes(searchLower) || email.toLowerCase().includes(searchLower);
+                      });
                       
-                      {/* 3-dot menu - visible on hover for admins (space or group), or for self if group admin */}
-                      {(canManageMembers || (isSelf && isGroupAdmin)) && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <MoreVertical className="h-3.5 w-3.5" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="bg-popover border shadow-lg z-50">
-                            {/* View Profile - always shown for non-self */}
-                            {!isSelf && (
-                              <DropdownMenuItem onClick={() => handleViewMember(member.employee_id)}>
-                                <UserCircle className="h-4 w-4 mr-2" />
-                                View Profile
-                              </DropdownMenuItem>
-                            )}
-                            
-                            {/* Admin management actions - only for non-self */}
-                            {!isSelf && canManageMembers && (
-                              <>
-                                {isAdmin ? (
-                                  <DropdownMenuItem onClick={() => handleDemote(member)}>
-                                    <UserMinus className="h-4 w-4 mr-2" />
-                                    Remove Admin
-                                  </DropdownMenuItem>
-                                ) : (
-                                  <DropdownMenuItem onClick={() => handlePromote(member)}>
-                                    <Crown className="h-4 w-4 mr-2" />
-                                    Make Admin
-                                  </DropdownMenuItem>
+                      if (filteredMembers.length === 0) {
+                        return (
+                          <p className="text-xs text-muted-foreground text-center py-4">
+                            No members found
+                          </p>
+                        );
+                      }
+                      
+                      return filteredMembers.map((member: any) => {
+                        const employee = member.employee || member.employees;
+                        const profile = employee?.profiles;
+                        const isAdmin = member.role === 'admin';
+                        const isSelf = member.employee_id === currentEmployee?.id;
+                        const isMemberExempt = exemptIds.has(member.employee_id);
+                        const canRemoveThisMember = !autoSyncEnabled || isMemberExempt || !spaceId;
+
+                        return (
+                          <div 
+                            key={member.id} 
+                            className="flex items-center gap-2 p-1.5 -mx-1.5 rounded-lg group hover:bg-accent/50 transition-colors"
+                          >
+                            <div className="relative">
+                              <Avatar className="h-7 w-7">
+                                <AvatarImage src={profile?.avatar_url || undefined} />
+                                <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                                  {getInitials(profile?.full_name || "U")}
+                                </AvatarFallback>
+                              </Avatar>
+                              {onlineStatuses[member.employee_id] && (
+                                <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-green-500 border-[1.5px] border-card" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-sm truncate">{profile?.full_name || "Unknown"}</span>
+                                {isAdmin && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary shrink-0">
+                                    Admin
+                                  </span>
                                 )}
-                                {canRemoveThisMember ? (
-                                  <DropdownMenuItem 
-                                    onClick={() => handleRemove(member)}
-                                    className="text-destructive focus:text-destructive"
+                                {spaceId && autoSyncEnabled && isMemberExempt && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 shrink-0">
+                                    Exempt
+                                  </span>
+                                )}
+                              </div>
+                              {profile?.email && (
+                                <span className="text-xs text-muted-foreground truncate block">
+                                  {profile.email}
+                                </span>
+                              )}
+                            </div>
+                            
+                            {/* 3-dot menu - visible on hover for admins (space or group), or for self if group admin */}
+                            {(canManageMembers || (isSelf && isGroupAdmin)) && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    onClick={(e) => e.stopPropagation()}
                                   >
-                                    <UserMinus className="h-4 w-4 mr-2" />
-                                    {spaceId ? "Remove from Space" : "Remove from Group"}
-                                  </DropdownMenuItem>
-                                ) : (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <div className="relative flex cursor-not-allowed select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none opacity-50">
-                                        <UserMinus className="h-4 w-4 mr-2" />
-                                        Remove from Space
-                                      </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="left">
-                                      <p>Cannot remove - auto-sync is enabled</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                )}
-                              </>
+                                    <MoreVertical className="h-3.5 w-3.5" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="bg-popover border shadow-lg z-50">
+                                  {/* View Profile - always shown for non-self */}
+                                  {!isSelf && (
+                                    <DropdownMenuItem onClick={() => handleViewMember(member.employee_id)}>
+                                      <UserCircle className="h-4 w-4 mr-2" />
+                                      View Profile
+                                    </DropdownMenuItem>
+                                  )}
+                                  
+                                  {/* Admin management actions - only for non-self */}
+                                  {!isSelf && canManageMembers && (
+                                    <>
+                                      {isAdmin ? (
+                                        <DropdownMenuItem onClick={() => handleDemote(member)}>
+                                          <UserMinus className="h-4 w-4 mr-2" />
+                                          Remove Admin
+                                        </DropdownMenuItem>
+                                      ) : (
+                                        <DropdownMenuItem onClick={() => handlePromote(member)}>
+                                          <Crown className="h-4 w-4 mr-2" />
+                                          Make Admin
+                                        </DropdownMenuItem>
+                                      )}
+                                      {canRemoveThisMember ? (
+                                        <DropdownMenuItem 
+                                          onClick={() => handleRemove(member)}
+                                          className="text-destructive focus:text-destructive"
+                                        >
+                                          <UserMinus className="h-4 w-4 mr-2" />
+                                          {spaceId ? "Remove from Space" : "Remove from Group"}
+                                        </DropdownMenuItem>
+                                      ) : (
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <div className="relative flex cursor-not-allowed select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none opacity-50">
+                                              <UserMinus className="h-4 w-4 mr-2" />
+                                              Remove from Space
+                                            </div>
+                                          </TooltipTrigger>
+                                          <TooltipContent side="left">
+                                            <p>Cannot remove - auto-sync is enabled</p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      )}
+                                    </>
+                                  )}
+                                  
+                                  {/* Leave Space - only for self (space admin) */}
+                                  {isSelf && isSpaceAdmin && spaceId && (
+                                    <DropdownMenuItem 
+                                      onClick={() => {
+                                        // Check if sole admin - need to transfer first
+                                        if (adminCount === 1) {
+                                          setShowTransferAdminDialog(true);
+                                        } else {
+                                          setShowLeaveConfirm(true);
+                                        }
+                                      }}
+                                      className="text-destructive focus:text-destructive"
+                                    >
+                                      <LogOut className="h-4 w-4 mr-2" />
+                                      Leave Space
+                                    </DropdownMenuItem>
+                                  )}
+                                  
+                                  {/* Leave Group - only for self (group admin) */}
+                                  {isSelf && isGroupAdmin && (
+                                    <DropdownMenuItem 
+                                      onClick={handleAdminLeaveGroup}
+                                      className="text-destructive focus:text-destructive"
+                                    >
+                                      <LogOut className="h-4 w-4 mr-2" />
+                                      Leave Group
+                                    </DropdownMenuItem>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             )}
-                            
-                            {/* Leave Space - only for self (space admin) */}
-                            {isSelf && isSpaceAdmin && spaceId && (
-                              <DropdownMenuItem 
-                                onClick={() => {
-                                  // Check if sole admin - need to transfer first
-                                  if (adminCount === 1) {
-                                    setShowTransferAdminDialog(true);
-                                  } else {
-                                    setShowLeaveConfirm(true);
-                                  }
-                                }}
-                                className="text-destructive focus:text-destructive"
-                              >
-                                <LogOut className="h-4 w-4 mr-2" />
-                                Leave Space
-                              </DropdownMenuItem>
-                            )}
-                            
-                            {/* Leave Group - only for self (group admin) */}
-                            {isSelf && isGroupAdmin && (
-                              <DropdownMenuItem 
-                                onClick={handleAdminLeaveGroup}
-                                className="text-destructive focus:text-destructive"
-                              >
-                                <LogOut className="h-4 w-4 mr-2" />
-                                Leave Group
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                    </div>
-                  );
-                })}
-                {memberCount > 10 && (
-                  <Button 
-                    variant="link" 
-                    className="w-full text-xs text-primary p-0 h-auto mt-2"
-                    onClick={() => setShowMembersDialog(true)}
-                  >
-                    View all {memberCount} members
-                  </Button>
-                )}
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </ScrollArea>
               </div>
             </CollapsibleContent>
           </Collapsible>
