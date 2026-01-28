@@ -1,102 +1,128 @@
 
 
-## Remove "HISTORY IS ON" and Add Space Feature Suggestions
+## Display Access Group Name in Space Chat Header
 
-### What's Being Changed
-
-The empty state for Spaces currently shows a confusing "HISTORY IS ON" message (which doesn't correspond to any actual feature). This will be replaced with helpful suggestions showing what users can do in their new Space.
-
----
-
-### Current vs New Design
-
-**Before:**
-- Generic "Welcome to your new space!" message
-- "HISTORY IS ON" badge with History icon
-- "Messages sent with history on are saved" text
-
-**After:**
-- Welcoming header with space name
-- Grid of 4 feature suggestions with icons:
-  1. **Send a message** - Start the conversation with your team
-  2. **Share files** - Attach documents, images, and more
-  3. **Mention teammates** - Use @name to notify specific people  
-  4. **Start a thread** - Reply to messages to keep discussions organized
+### Overview
+Add the access group name after the member count in the Space chat header. The display format will be:
+- **Company-wide spaces**: "51 members · Everyone"
+- **Office-scoped spaces**: "12 members · GlobalyHub Australia"
+- **Project-scoped spaces**: "8 members · Agentcis"
+- **Private member spaces**: "5 members · Private"
 
 ---
 
-### Technical Implementation
+### Current State
+- The header currently shows only: `{spaceMembers.length} member(s)`
+- Located in `src/components/chat/ChatHeader.tsx` at lines 735-737
+- The `useSpace` hook fetches space data but does NOT include:
+  - `access_scope` field
+  - Related office names (from `chat_space_offices` junction table)
+  - Related project names (from `chat_space_projects` junction table)
+- The `ChatSpace` type already supports `offices` and `projects` arrays
 
-#### File: `src/components/chat/ConversationView.tsx`
+---
 
-**1. Add new icon imports:**
+### Implementation Steps
+
+#### Step 1: Extend useSpace Hook Query
+Update `src/services/useChat.ts` to fetch additional fields including `access_scope` and related office/project names via joins.
+
+**Current query (line 1216-1220):**
 ```typescript
-import {
-  // ... existing imports
-  MessageSquare,
-  Paperclip,
-  AtSign,
-  MessagesSquare,
-} from "lucide-react";
+const { data, error } = await supabase
+  .from('chat_spaces')
+  .select('*')
+  .eq('id', spaceId)
+  .single();
 ```
 
-**2. Replace lines 756-773** (the Space empty state section):
+**Updated query:**
+```typescript
+const { data, error } = await supabase
+  .from('chat_spaces')
+  .select(`
+    *,
+    chat_space_offices(
+      offices:office_id(id, name)
+    ),
+    chat_space_projects(
+      projects:project_id(id, name)
+    )
+  `)
+  .eq('id', spaceId)
+  .single();
+```
 
-Remove:
+**Updated return type (line 1224-1233):**
+```typescript
+return {
+  id: data.id,
+  name: data.name,
+  description: data.description,
+  space_type: data.space_type,
+  access_type: data.access_type,
+  access_scope: data.access_scope,
+  icon_url: data.icon_url,
+  archived_at: data.archived_at,
+  archived_by: data.archived_by,
+  offices: data.chat_space_offices?.map((o: any) => o.offices).filter(Boolean) || [],
+  projects: data.chat_space_projects?.map((p: any) => p.projects).filter(Boolean) || [],
+};
+```
+
+---
+
+#### Step 2: Create Access Group Label Helper in ChatHeader
+Add a helper function in `src/components/chat/ChatHeader.tsx` to determine the label based on access scope.
+
+```typescript
+const getAccessGroupLabel = () => {
+  if (!space) return null;
+  
+  // Company-wide access
+  if (space.access_scope === 'company') {
+    return 'Everyone';
+  }
+  
+  // Office-scoped access
+  if (space.access_scope === 'offices' && space.offices?.length > 0) {
+    return space.offices.map(o => o.name).join(', ');
+  }
+  
+  // Project-scoped access
+  if (space.access_scope === 'projects' && space.projects?.length > 0) {
+    return space.projects.map(p => p.name).join(', ');
+  }
+  
+  // Private member-scoped access
+  if (space.access_scope === 'members') {
+    return 'Private';
+  }
+  
+  return null;
+};
+
+const accessGroupLabel = getAccessGroupLabel();
+```
+
+---
+
+#### Step 3: Update Header Display
+Modify lines 735-737 in `ChatHeader.tsx` to include the access group label.
+
+**Current:**
 ```tsx
-<div className="flex items-center gap-1 mt-4 text-sm text-muted-foreground">
-  <History className="h-4 w-4" />
-  <span>HISTORY IS ON</span>
-</div>
-<p className="text-xs text-muted-foreground mt-1">
-  Messages sent with history on are saved
+<p className="text-xs text-muted-foreground">
+  {spaceMembers.length} member{spaceMembers.length !== 1 ? 's' : ''}
 </p>
 ```
 
-Replace with a feature suggestions grid (same pattern as `ChatEmptyState.tsx`):
+**Updated:**
 ```tsx
-{/* Space feature suggestions */}
-<div className="grid grid-cols-2 gap-3 mt-6 w-full max-w-sm">
-  <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-500/10 text-sm">
-    <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
-    <span className="text-muted-foreground">Send a message</span>
-  </div>
-  <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 text-sm">
-    <Paperclip className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
-    <span className="text-muted-foreground">Share files</span>
-  </div>
-  <div className="flex items-center gap-2 p-3 rounded-lg bg-purple-500/10 text-sm">
-    <AtSign className="h-4 w-4 text-purple-600 dark:text-purple-400 shrink-0" />
-    <span className="text-muted-foreground">Mention teammates</span>
-  </div>
-  <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 text-sm">
-    <MessagesSquare className="h-4 w-4 text-green-600 dark:text-green-400 shrink-0" />
-    <span className="text-muted-foreground">Start a thread</span>
-  </div>
-</div>
-```
-
----
-
-### Visual Result
-
-The empty Space view will now show:
-
-```text
-        ┌─────────┐
-        │    G    │  ← Space icon/initial
-        └─────────┘
-      General Space
-Welcome to your new space!
-   Start the conversation.
-
-┌──────────────────┬──────────────────┐
-│ 💬 Send a        │ 📎 Share files   │
-│    message       │                  │
-├──────────────────┼──────────────────┤
-│ @ Mention        │ 💬 Start a       │
-│   teammates      │    thread        │
-└──────────────────┴──────────────────┘
+<p className="text-xs text-muted-foreground">
+  {spaceMembers.length} member{spaceMembers.length !== 1 ? 's' : ''}
+  {accessGroupLabel && ` · ${accessGroupLabel}`}
+</p>
 ```
 
 ---
@@ -105,14 +131,24 @@ Welcome to your new space!
 
 | File | Changes |
 |------|---------|
-| `src/components/chat/ConversationView.tsx` | Add 4 new icon imports; replace lines 767-773 with feature suggestion grid |
+| `src/services/useChat.ts` | Update `useSpace` hook (lines 1210-1237) to fetch `access_scope` and join office/project names |
+| `src/components/chat/ChatHeader.tsx` | Add `getAccessGroupLabel` helper function and update subtitle display (lines 735-737) |
 
 ---
 
-### Notes
+### Expected Results
 
-- The same visual style (colored backgrounds, icon + text) is used as in `ChatEmptyState.tsx` for consistency
-- The 2x2 grid works well on both mobile and desktop
-- No interactive elements needed - these are informational hints, not action buttons
-- The `History` icon import can be removed since it's no longer used (cleanup)
+| Access Scope | Display |
+|--------------|---------|
+| `company` | "51 members · Everyone" |
+| `offices` | "12 members · GlobalyHub Australia" |
+| `projects` | "8 members · Agentcis" |
+| `members` (private) | "5 members · Private" |
+
+---
+
+### Technical Notes
+- The `ChatSpace` type in `src/types/chat.ts` already defines `access_scope: AccessScope` and optional `offices`/`projects` arrays, so no type changes needed
+- The junction tables `chat_space_offices` and `chat_space_projects` already exist in the database
+- For multiple offices/projects, names will be comma-separated (e.g., "Office A, Office B")
 
