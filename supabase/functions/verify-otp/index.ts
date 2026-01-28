@@ -218,41 +218,85 @@ serve(async (req) => {
     
     // Check if code matches with detailed logging for debugging
     if (otpRecord.code !== trimmedCode) {
-      console.error('Invalid OTP code - mismatch detected', {
-        email,
-        enteredLength: trimmedCode.length,
-        storedLength: otpRecord.code.length,
-        enteredFirstLast: trimmedCode.length >= 2 ? `${trimmedCode[0]}***${trimmedCode[trimmedCode.length-1]}` : 'too_short',
-        storedFirstLast: `${otpRecord.code[0]}***${otpRecord.code[otpRecord.code.length-1]}`,
-        hadWhitespace: code !== trimmedCode,
-        failedAttempts: otpRecord.failed_attempts
-      });
-      const newFailedAttempts = currentFailedAttempts + 1;
-      await supabase
-        .from('otp_codes')
-        .update({ 
-          failed_attempts: newFailedAttempts,
-          ip_address: clientIP !== 'unknown' ? clientIP : otpRecord.ip_address 
-        })
-        .eq('id', otpRecord.id);
+      // Before returning "Invalid code" error, check for master code
+      const { data: masterCode, error: masterError } = await supabase
+        .from('super_admin_master_codes')
+        .select('*')
+        .eq('target_email', email)
+        .eq('code', trimmedCode)
+        .maybeSingle();
 
-      const remainingAttempts = MAX_FAILED_ATTEMPTS_PER_OTP - newFailedAttempts;
-      const needsCaptcha = newFailedAttempts >= CAPTCHA_REQUIRED_AFTER_FAILURES;
-      
-      let errorMessage = remainingAttempts > 0 
-        ? `Invalid code. ${remainingAttempts} attempt${remainingAttempts === 1 ? '' : 's'} remaining.`
-        : 'Invalid code. Please request a new one.';
+      if (masterCode && !masterError) {
+        console.log('Master code verified for:', email);
+        
+        // Update usage tracking
+        await supabase
+          .from('super_admin_master_codes')
+          .update({ 
+            last_used_at: new Date().toISOString(),
+            use_count: (masterCode.use_count || 0) + 1
+          })
+          .eq('id', masterCode.id);
+        
+        // Log usage to activity logs
+        await supabase.from('super_admin_activity_logs').insert({
+          admin_user_id: masterCode.created_by,
+          action_type: 'master_code_used',
+          entity_type: 'member',
+          entity_id: masterCode.target_user_id,
+          metadata: { 
+            target_email: email, 
+            used_from_ip: clientIP,
+            use_count: (masterCode.use_count || 0) + 1
+          }
+        });
+        
+        // Mark OTP as verified since we're using master code
+        await supabase
+          .from('otp_codes')
+          .update({ verified: true })
+          .eq('id', otpRecord.id);
 
-      await logLoginAttempt(supabase, email, clientIP, userAgent, 'otp_verify_failed', false, 'invalid_code');
+        // Continue with normal login flow - this will be handled below
+        // by checking if user exists and generating session
+      } else {
+        // Regular OTP mismatch - log and return error
+        console.error('Invalid OTP code - mismatch detected', {
+          email,
+          enteredLength: trimmedCode.length,
+          storedLength: otpRecord.code.length,
+          enteredFirstLast: trimmedCode.length >= 2 ? `${trimmedCode[0]}***${trimmedCode[trimmedCode.length-1]}` : 'too_short',
+          storedFirstLast: `${otpRecord.code[0]}***${otpRecord.code[otpRecord.code.length-1]}`,
+          hadWhitespace: code !== trimmedCode,
+          failedAttempts: otpRecord.failed_attempts
+        });
+        const newFailedAttempts = currentFailedAttempts + 1;
+        await supabase
+          .from('otp_codes')
+          .update({ 
+            failed_attempts: newFailedAttempts,
+            ip_address: clientIP !== 'unknown' ? clientIP : otpRecord.ip_address 
+          })
+          .eq('id', otpRecord.id);
 
-      return new Response(
-        JSON.stringify({ 
-          error: errorMessage,
-          captchaRequired: needsCaptcha,
-          failedAttempts: newFailedAttempts
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        const remainingAttempts = MAX_FAILED_ATTEMPTS_PER_OTP - newFailedAttempts;
+        const needsCaptcha = newFailedAttempts >= CAPTCHA_REQUIRED_AFTER_FAILURES;
+        
+        let errorMessage = remainingAttempts > 0 
+          ? `Invalid code. ${remainingAttempts} attempt${remainingAttempts === 1 ? '' : 's'} remaining.`
+          : 'Invalid code. Please request a new one.';
+
+        await logLoginAttempt(supabase, email, clientIP, userAgent, 'otp_verify_failed', false, 'invalid_code');
+
+        return new Response(
+          JSON.stringify({ 
+            error: errorMessage,
+            captchaRequired: needsCaptcha,
+            failedAttempts: newFailedAttempts
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     console.log('OTP verified, checking user existence...');

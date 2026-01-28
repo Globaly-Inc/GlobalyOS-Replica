@@ -266,3 +266,9 @@ verify_jwt = false
 
 [functions.charge-payment-method]
 verify_jwt = false
+
+[functions.generate-master-code]
+verify_jwt = false
+
+[functions.delete-master-code]
+verify_jwt = false

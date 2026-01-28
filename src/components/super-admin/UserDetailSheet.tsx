@@ -14,6 +14,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +43,9 @@ import {
   Zap,
   TrendingUp,
   Trash2,
+  Key,
+  Copy,
+  Check,
 } from "lucide-react";
 import { format, formatDistanceToNow, isToday, isYesterday, startOfDay, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -180,6 +184,19 @@ export const UserDetailSheet = ({ open, onOpenChange, user, onUserDeleted }: Use
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
+  
+  // Master code state
+  const [masterCode, setMasterCode] = useState<{
+    id: string;
+    code: string;
+    created_at: string;
+    last_used_at: string | null;
+    use_count: number;
+  } | null>(null);
+  const [generatingCode, setGeneratingCode] = useState(false);
+  const [deletingCode, setDeletingCode] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
+  const [loadingMasterCode, setLoadingMasterCode] = useState(false);
 
   const handleDeleteUser = async () => {
     if (!user) return;
@@ -211,6 +228,111 @@ export const UserDetailSheet = ({ open, onOpenChange, user, onUserDeleted }: Use
       setIsDeleting(false);
     }
   };
+
+  // Fetch master code for the user
+  const fetchMasterCode = async () => {
+    if (!user?.id) return;
+    setLoadingMasterCode(true);
+    try {
+      const { data, error } = await supabase
+        .from('super_admin_master_codes')
+        .select('*')
+        .eq('target_user_id', user.id)
+        .maybeSingle();
+      
+      if (!error && data) {
+        setMasterCode(data);
+      } else {
+        setMasterCode(null);
+      }
+    } catch (err) {
+      console.error('Error fetching master code:', err);
+    } finally {
+      setLoadingMasterCode(false);
+    }
+  };
+
+  const handleGenerateMasterCode = async () => {
+    if (!user) return;
+    setGeneratingCode(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-master-code', {
+        body: { 
+          targetUserId: user.id,
+          targetEmail: user.email,
+        }
+      });
+      
+      if (error) throw error;
+      
+      setMasterCode(data.masterCode);
+      
+      toast({
+        title: data.isExisting ? "Existing Master Code" : "Master Code Generated",
+        description: data.isExisting 
+          ? "Returning the existing master code for this user."
+          : "This code can be used to log in as this user at any time.",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Failed to generate code",
+        description: err.message || "An error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingCode(false);
+    }
+  };
+
+  const handleDeleteMasterCode = async () => {
+    if (!masterCode) return;
+    setDeletingCode(true);
+    
+    try {
+      const { error } = await supabase.functions.invoke('delete-master-code', {
+        body: { masterCodeId: masterCode.id }
+      });
+      
+      if (error) throw error;
+      
+      setMasterCode(null);
+      
+      toast({
+        title: "Master Code Deleted",
+        description: "The master code has been revoked.",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Failed to delete code",
+        description: err.message || "An error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingCode(false);
+    }
+  };
+
+  const handleCopyCode = () => {
+    if (masterCode) {
+      navigator.clipboard.writeText(masterCode.code);
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2000);
+      toast({
+        title: "Copied",
+        description: "Master code copied to clipboard.",
+      });
+    }
+  };
+
+  // Fetch master code when user changes
+  useEffect(() => {
+    if (user?.id && open) {
+      fetchMasterCode();
+    } else {
+      setMasterCode(null);
+    }
+  }, [user?.id, open]);
 
   const filteredActivityCounts = useMemo(() => {
     const now = new Date();
@@ -396,6 +518,98 @@ export const UserDetailSheet = ({ open, onOpenChange, user, onUserDeleted }: Use
                 ) : (
                   <p className="text-sm text-muted-foreground">Not a member of any organisation</p>
                 )}
+              </div>
+
+              {/* Section 2.5: Master Code - Login Access */}
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Key className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-sm font-medium">Login Access</span>
+                </div>
+                
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 space-y-3">
+                  {loadingMasterCode ? (
+                    <div className="flex items-center justify-center py-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-amber-600" />
+                    </div>
+                  ) : !masterCode ? (
+                    <>
+                      <p className="text-xs text-amber-700 dark:text-amber-300">
+                        Generate a master code to log in as this user for support purposes.
+                        The code will remain active until you delete it.
+                      </p>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={handleGenerateMasterCode}
+                        disabled={generatingCode}
+                        className="w-full"
+                      >
+                        {generatingCode ? (
+                          <><Loader2 className="h-3 w-3 mr-2 animate-spin" /> Generating...</>
+                        ) : (
+                          <><Key className="h-3 w-3 mr-2" /> Generate Master Code</>
+                        )}
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs text-amber-600 dark:text-amber-400 mb-1">
+                            Master Code
+                          </p>
+                          <code className="text-2xl font-mono font-bold tracking-widest text-amber-800 dark:text-amber-200">
+                            {masterCode.code}
+                          </code>
+                        </div>
+                        <Button size="sm" variant="ghost" onClick={handleCopyCode}>
+                          {codeCopied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      
+                      <div className="text-[10px] text-amber-600/80 dark:text-amber-400/80 space-y-0.5">
+                        <p>Created: {format(new Date(masterCode.created_at), 'MMM d, yyyy')}</p>
+                        {masterCode.last_used_at && (
+                          <p>Last used: {formatDistanceToNow(new Date(masterCode.last_used_at), { addSuffix: true })} ({masterCode.use_count} times)</p>
+                        )}
+                        <p className="pt-1">Enter this code on the login page with {user.email}</p>
+                      </div>
+                      
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="w-full text-destructive border-destructive/30 hover:bg-destructive/10"
+                            disabled={deletingCode}
+                          >
+                            {deletingCode ? (
+                              <><Loader2 className="h-3 w-3 mr-2 animate-spin" /> Deleting...</>
+                            ) : (
+                              <><Trash2 className="h-3 w-3 mr-2" /> Delete Master Code</>
+                            )}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Master Code?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently revoke the master code for {user.email}. 
+                              You can generate a new one later if needed.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteMasterCode}>
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </>
+                  )}
+                </div>
               </div>
 
               {/* Section 3: Overview Stats */}
