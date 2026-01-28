@@ -129,6 +129,52 @@ interface OtherParticipantDetails {
   office_name?: string | null;
 }
 
+// Helper functions for auto-sync tooltip
+const getAutoSyncScopeLabel = (scope?: string | null): string => {
+  switch (scope) {
+    case 'company': return 'organization';
+    case 'offices': return 'office(s)';
+    case 'projects': return 'project(s)';
+    default: return scope || 'custom';
+  }
+};
+
+const getAutoSyncTriggers = (scope?: string | null): string[] => {
+  const baseTriggers = [
+    'New member added to the organization',
+    'Team member is deactivated',
+  ];
+  
+  switch (scope) {
+    case 'company':
+      return baseTriggers;
+    case 'offices':
+      return [
+        ...baseTriggers,
+        'Office assignment changed in team profile',
+      ];
+    case 'projects':
+      return [
+        ...baseTriggers,
+        'Project assignment updated in team profile',
+      ];
+    default:
+      return baseTriggers;
+  }
+};
+
+const getAutoSyncScopedEntities = (space?: { access_scope?: string | null; offices?: { name: string }[]; projects?: { name: string }[] } | null): string => {
+  if (!space) return '';
+  
+  if (space.access_scope === 'offices' && space.offices?.length) {
+    return space.offices.map(o => o.name).join(', ');
+  }
+  if (space.access_scope === 'projects' && space.projects?.length) {
+    return space.projects.map(p => p.name).join(', ');
+  }
+  return '';
+};
+
 const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay = false }: ChatRightPanelEnhancedProps) => {
   const navigate = useNavigate();
   const { orgCode } = useParams();
@@ -726,10 +772,38 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
               {/* Auto-sync banner for spaces */}
               {spaceId && autoSyncEnabled && (
                 <Alert className="mb-3 bg-muted/50 border-border">
-                  <RefreshCw className="h-4 w-4" />
-                  <AlertDescription className="text-xs">
-                    Auto-sync enabled. Members synced with {spaceData?.access_scope === 'company' ? 'organization' : spaceData?.access_scope}.
-                  </AlertDescription>
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className="h-4 w-4 shrink-0" />
+                    <AlertDescription className="text-xs flex-1">
+                      <span>Auto-sync enabled. Members synced with </span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button className="underline decoration-dotted underline-offset-2 hover:text-primary transition-colors font-medium">
+                            {getAutoSyncScopeLabel(spaceData?.access_scope)}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" align="start" className="max-w-xs">
+                          <div className="space-y-1.5">
+                            <p className="font-medium text-xs">Sync triggers:</p>
+                            <ul className="text-xs space-y-1 list-disc list-inside">
+                              {getAutoSyncTriggers(spaceData?.access_scope).map((trigger, i) => (
+                                <li key={i}>{trigger}</li>
+                              ))}
+                            </ul>
+                            {getAutoSyncScopedEntities(spaceData) && (
+                              <>
+                                <p className="font-medium text-xs mt-2">Synced with:</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {getAutoSyncScopedEntities(spaceData)}
+                                </p>
+                              </>
+                            )}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                      .
+                    </AlertDescription>
+                  </div>
                 </Alert>
               )}
               <div className="space-y-1">
