@@ -652,7 +652,7 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
                 <Star className={cn("h-4 w-4", isFavorited && "fill-orange-500 text-orange-500")} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="bottom">
+            <TooltipContent side="left">
               {isFavorited ? 'Remove from favorites' : 'Add to favorites'}
             </TooltipContent>
           </Tooltip>
