@@ -26,6 +26,7 @@ import {
   useMuteConversation,
   useUpdateSpaceNotification,
   useUpdateConversation,
+  useUpdateSpace,
 } from "@/services/useChat";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
@@ -55,6 +56,7 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
   const toggleFavorite = useToggleFavorite();
   const muteConversation = useMuteConversation();
   const updateSpaceNotification = useUpdateSpaceNotification();
+  const updateSpace = useUpdateSpace();
   
   const [otherParticipant, setOtherParticipant] = useState<OtherParticipant | null>(null);
   const [showSearch, setShowSearch] = useState(false);
@@ -70,6 +72,11 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
   const [isSavingName, setIsSavingName] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Space name editing state
+  const [isEditingSpaceName, setIsEditingSpaceName] = useState(false);
+  const [editSpaceNameValue, setEditSpaceNameValue] = useState(activeChat.name);
+  const [isSavingSpaceName, setIsSavingSpaceName] = useState(false);
 
   // Focus input when search opens
   useEffect(() => {
@@ -108,9 +115,10 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
   );
   const isGroupAdmin = activeChat.isGroup && currentGroupMembership?.role === 'admin';
 
-  // Check space notification setting
+  // Check space notification setting and admin status
   const currentMembership = spaceMembers.find(m => m.employee_id === currentEmployee?.id);
   const spaceNotificationSetting = currentMembership?.notification_setting || 'all';
+  const isSpaceAdmin = activeChat.type === 'space' && currentMembership?.role === 'admin';
 
   // Check if favorited
   const isFavorited = favorites.some(f => 
@@ -202,6 +210,40 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
     setIsEditingName(false);
   };
 
+  // Space name editing handlers
+  const handleSaveSpaceName = async () => {
+    if (!spaceId || editSpaceNameValue.trim() === activeChat.name) {
+      setIsEditingSpaceName(false);
+      return;
+    }
+    
+    if (!isSpaceAdmin) {
+      toast.error("Only space admins can change the space name");
+      setIsEditingSpaceName(false);
+      return;
+    }
+    
+    setIsSavingSpaceName(true);
+    try {
+      await updateSpace.mutateAsync({
+        spaceId,
+        name: editSpaceNameValue.trim()
+      });
+      toast.success("Space name updated");
+    } catch (error) {
+      toast.error("Failed to update space name");
+      setEditSpaceNameValue(activeChat.name);
+    } finally {
+      setIsSavingSpaceName(false);
+      setIsEditingSpaceName(false);
+    }
+  };
+
+  const handleCancelSpaceEdit = () => {
+    setEditSpaceNameValue(activeChat.name);
+    setIsEditingSpaceName(false);
+  };
+
   // Direct photo upload handler
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -276,6 +318,7 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
   useEffect(() => {
     setGroupIconUrl(activeChat.iconUrl || null);
     setGroupName(activeChat.name);
+    setEditSpaceNameValue(activeChat.name);
   }, [activeChat.id, activeChat.iconUrl, activeChat.name]);
 
   // Fetch other participant details for direct chats
@@ -524,9 +567,60 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
                 )}
               </div>
             ) : (
-              // Space info
-              <div>
-                <h2 className="font-semibold text-foreground text-base truncate">{activeChat.name}</h2>
+              // Space info with inline editing (admin only)
+              <div className="group/name">
+                {isEditingSpaceName && isSpaceAdmin ? (
+                  // Editing mode (admin only)
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      value={editSpaceNameValue}
+                      onChange={(e) => setEditSpaceNameValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSaveSpaceName();
+                        if (e.key === 'Escape') handleCancelSpaceEdit();
+                      }}
+                      className="h-7 text-base font-semibold py-0 px-2 w-auto min-w-[120px]"
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleSaveSpaceName}
+                      disabled={isSavingSpaceName}
+                      className="p-1 rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                    >
+                      {isSavingSpaceName ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Check className="h-3 w-3" />
+                      )}
+                    </button>
+                    <button
+                      onClick={handleCancelSpaceEdit}
+                      disabled={isSavingSpaceName}
+                      className="p-1 rounded bg-muted hover:bg-muted/80 transition-colors disabled:opacity-50"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : isSpaceAdmin ? (
+                  // Display mode for admins (editable)
+                  <div 
+                    className="cursor-pointer"
+                    onClick={() => {
+                      setEditSpaceNameValue(activeChat.name);
+                      setIsEditingSpaceName(true);
+                    }}
+                  >
+                    <h2 className="font-semibold text-foreground text-base flex items-center gap-1 truncate">
+                      {activeChat.name}
+                      <Pencil className="h-3 w-3 text-muted-foreground flex-shrink-0 opacity-0 group-hover/name:opacity-100 transition-opacity" />
+                    </h2>
+                  </div>
+                ) : (
+                  // Display mode for non-admins (read-only)
+                  <h2 className="font-semibold text-foreground text-base truncate">
+                    {activeChat.name}
+                  </h2>
+                )}
                 <p className="text-xs text-muted-foreground">
                   {spaceMembers.length} member{spaceMembers.length !== 1 ? 's' : ''}
                 </p>
