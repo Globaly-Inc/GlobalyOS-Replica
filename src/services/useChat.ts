@@ -120,24 +120,32 @@ export const useConversations = () => {
   });
 };
 
-export const useSpaces = (includeArchived = false) => {
+export const useSpaces = (includeArchived = false, membersOnly = true) => {
   const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
 
   return useQuery({
-    queryKey: ['chat-spaces', currentOrg?.id, includeArchived],
+    queryKey: ['chat-spaces', currentOrg?.id, currentEmployee?.id, includeArchived, membersOnly],
     queryFn: async () => {
       if (!currentOrg?.id) return [];
+      // If membersOnly, require currentEmployee
+      if (membersOnly && !currentEmployee?.id) return [];
 
       let query = supabase
         .from('chat_spaces')
         .select(`
           *,
-          chat_space_members (
+          chat_space_members${membersOnly ? '!inner' : ''} (
             id,
             employee_id
           )
         `)
         .eq('organization_id', currentOrg.id);
+
+      // Filter by membership if membersOnly
+      if (membersOnly && currentEmployee?.id) {
+        query = query.eq('chat_space_members.employee_id', currentEmployee.id);
+      }
 
       // Filter out archived spaces unless explicitly requested
       if (!includeArchived) {
@@ -153,7 +161,7 @@ export const useSpaces = (includeArchived = false) => {
         member_count: space.chat_space_members?.length || 0
       })) as ChatSpace[];
     },
-    enabled: !!currentOrg?.id,
+    enabled: !!currentOrg?.id && (!membersOnly || !!currentEmployee?.id),
   });
 };
 
