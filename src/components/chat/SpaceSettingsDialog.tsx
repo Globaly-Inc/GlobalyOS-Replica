@@ -222,6 +222,7 @@ const SpaceSettingsDialog = ({
         description: description.trim() || null,
         spaceType,
         autoSyncMembers,
+        oldName: space?.name,
       });
       toast.success("Space settings updated");
       onOpenChange(false);

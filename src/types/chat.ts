@@ -98,7 +98,7 @@ export interface CallLogData {
 }
 
 export interface SystemEventData {
-  event_type: 'member_added' | 'member_removed' | 'member_left' | 'admin_added' | 'admin_removed' | 'group_name_changed' | 'group_photo_changed';
+  event_type: 'member_added' | 'member_removed' | 'member_left' | 'admin_added' | 'admin_removed' | 'group_name_changed' | 'group_photo_changed' | 'space_name_changed' | 'space_photo_changed';
   target_employee_id: string;
   target_name: string;
   actor_employee_id?: string;

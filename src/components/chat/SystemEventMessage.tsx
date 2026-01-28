@@ -24,7 +24,7 @@ const eventConfig = {
   member_left: {
     icon: LogOut,
     getText: (data: SystemEventData) => 
-      `${data.target_name} left the group`,
+      `${data.target_name} left the space`,
     className: "text-muted-foreground",
   },
   admin_added: {
@@ -51,6 +51,20 @@ const eventConfig = {
     icon: Camera,
     getText: (data: SystemEventData) => 
       `${data.actor_name} updated the group photo`,
+    className: "text-blue-600 dark:text-blue-400",
+  },
+  space_name_changed: {
+    icon: Pencil,
+    getText: (data: SystemEventData) => 
+      data.old_value 
+        ? `${data.actor_name} changed the space name from "${data.old_value}" to "${data.new_value}"`
+        : `${data.actor_name} changed the space name to "${data.new_value}"`,
+    className: "text-blue-600 dark:text-blue-400",
+  },
+  space_photo_changed: {
+    icon: Camera,
+    getText: (data: SystemEventData) => 
+      `${data.actor_name} updated the space photo`,
     className: "text-blue-600 dark:text-blue-400",
   },
 };

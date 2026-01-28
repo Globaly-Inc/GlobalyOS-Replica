@@ -549,10 +549,11 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
         .from('chat-attachments')
         .getPublicUrl(fileName);
 
-      // Update space with new icon URL
+      // Update space with new icon URL (pass old URL for logging)
       await updateSpace.mutateAsync({
         spaceId,
         iconUrl: publicUrl,
+        oldIconUrl: spaceIconUrl,
       });
 
       setSpaceIconUrl(publicUrl);
@@ -585,6 +586,7 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
         await updateRole.mutateAsync({
           spaceId,
           employeeId: member.employee_id,
+          employeeName: memberName,
           role: 'admin'
         });
       } else if (conversationId) {
@@ -609,6 +611,7 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
         await updateRole.mutateAsync({
           spaceId,
           employeeId: member.employee_id,
+          employeeName: memberName,
           role: 'member'
         });
       } else if (conversationId) {
@@ -632,7 +635,8 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
       if (spaceId) {
         await removeMember.mutateAsync({
           spaceId,
-          employeeId: member.employee_id
+          employeeId: member.employee_id,
+          employeeName: memberName
         });
         toast.success(`${memberName} has been removed from the space`);
       } else if (conversationId) {

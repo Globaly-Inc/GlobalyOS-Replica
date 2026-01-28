@@ -81,6 +81,7 @@ const SpaceMembersDialog = ({
       await updateRole.mutateAsync({
         spaceId,
         employeeId: member.employee_id,
+        employeeName: member.employee?.profiles?.full_name,
         role: 'admin'
       });
       toast.success(`${member.employee?.profiles?.full_name} is now an admin`);
@@ -98,6 +99,7 @@ const SpaceMembersDialog = ({
       await updateRole.mutateAsync({
         spaceId,
         employeeId: member.employee_id,
+        employeeName: member.employee?.profiles?.full_name,
         role: 'member'
       });
       toast.success(`${member.employee?.profiles?.full_name} is now a member`);
@@ -114,7 +116,8 @@ const SpaceMembersDialog = ({
     try {
       await removeMember.mutateAsync({
         spaceId,
-        employeeId: member.employee_id
+        employeeId: member.employee_id,
+        employeeName: member.employee?.profiles?.full_name
       });
       toast.success(`${member.employee?.profiles?.full_name} has been removed`);
     } catch (error) {
