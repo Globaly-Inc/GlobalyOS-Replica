@@ -14,9 +14,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import SearchableMemberPicker from "./SearchableMemberPicker";
 
 export type AccessScope = 'company' | 'custom' | 'members';
 
@@ -24,6 +24,7 @@ interface Employee {
   id: string;
   office_id?: string | null;
   department_id?: string | null;
+  position?: string | null;
   employee_projects?: { project_id: string }[];
   profiles: {
     full_name: string;
@@ -140,6 +141,7 @@ const AccessScopeSelector = ({
           id, 
           office_id, 
           department_id,
+          position,
           profiles!inner(full_name, avatar_url, email),
           employee_projects(project_id)
         `)
@@ -509,52 +511,14 @@ const AccessScopeSelector = ({
                         <p className="text-xs text-muted-foreground mb-2">
                           Select additional members who aren't covered by the group criteria
                         </p>
-                        <Select onValueChange={handleAddMember}>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select members not in group..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <ScrollArea className="max-h-[200px]">
-                              {additionalInviteEmployees.map(emp => (
-                                <SelectItem key={emp.id} value={emp.id}>
-                                  <div className="flex items-center gap-2">
-                                    <Avatar className="h-5 w-5">
-                                      <AvatarImage src={emp.profiles?.avatar_url || ''} />
-                                      <AvatarFallback className="text-xs">
-                                        {emp.profiles?.full_name?.charAt(0) || '?'}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    {emp.profiles?.full_name}
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </ScrollArea>
-                          </SelectContent>
-                        </Select>
-                        
-                        {/* Show selected additional members as badges */}
-                        {selectedMemberIds.length > 0 && (
-                          <div className="flex flex-wrap gap-2">
-                            {selectedMemberIds.map(id => {
-                              const emp = employeesWithDetails.find(e => e.id === id);
-                              return emp ? (
-                                <Badge key={id} variant="secondary" className="gap-1">
-                                  <Avatar className="h-4 w-4">
-                                    <AvatarImage src={emp.profiles?.avatar_url || ''} />
-                                    <AvatarFallback className="text-xs">
-                                      {emp.profiles?.full_name?.charAt(0) || '?'}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  {emp.profiles?.full_name?.split(' ')[0]}
-                                  <X 
-                                    className="h-3 w-3 cursor-pointer" 
-                                    onClick={() => handleRemoveMember(id)} 
-                                  />
-                                </Badge>
-                              ) : null;
-                            })}
-                          </div>
-                        )}
+                        <SearchableMemberPicker
+                          employees={additionalInviteEmployees}
+                          selectedIds={selectedMemberIds}
+                          onSelect={handleAddMember}
+                          onRemove={handleRemoveMember}
+                          placeholder="Search members not in group..."
+                          emptyMessage="No additional members available"
+                        />
                       </div>
                     )}
                   </div>
@@ -563,53 +527,15 @@ const AccessScopeSelector = ({
 
               {/* Member selector for 'members' scope */}
               {isSelected && option.value === 'members' && (
-                <div className="ml-10 space-y-2">
-                  <Select onValueChange={handleAddMember}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select team members..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <ScrollArea className="max-h-[200px]">
-                        {selectableEmployees
-                          .filter(emp => !selectedMemberIds.includes(emp.id))
-                          .map(emp => (
-                            <SelectItem key={emp.id} value={emp.id}>
-                              <div className="flex items-center gap-2">
-                                <Avatar className="h-5 w-5">
-                                  <AvatarImage src={emp.profiles?.avatar_url || ''} />
-                                  <AvatarFallback className="text-xs">
-                                    {emp.profiles?.full_name?.charAt(0) || '?'}
-                                  </AvatarFallback>
-                                </Avatar>
-                                {emp.profiles?.full_name}
-                              </div>
-                            </SelectItem>
-                          ))}
-                      </ScrollArea>
-                    </SelectContent>
-                  </Select>
-                  {selectedMemberIds.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {selectedMemberIds.map(id => {
-                        const emp = employeesWithDetails.find(e => e.id === id);
-                        return emp ? (
-                          <Badge key={id} variant="secondary" className="gap-1">
-                            <Avatar className="h-4 w-4">
-                              <AvatarImage src={emp.profiles?.avatar_url || ''} />
-                              <AvatarFallback className="text-xs">
-                                {emp.profiles?.full_name?.charAt(0) || '?'}
-                              </AvatarFallback>
-                            </Avatar>
-                            {emp.profiles?.full_name?.split(' ')[0]}
-                            <X 
-                              className="h-3 w-3 cursor-pointer" 
-                              onClick={() => handleRemoveMember(id)} 
-                            />
-                          </Badge>
-                        ) : null;
-                      })}
-                    </div>
-                  )}
+                <div className="ml-10">
+                  <SearchableMemberPicker
+                    employees={selectableEmployees}
+                    selectedIds={selectedMemberIds}
+                    onSelect={handleAddMember}
+                    onRemove={handleRemoveMember}
+                    placeholder="Search and select team members..."
+                    emptyMessage="No team members available"
+                  />
                 </div>
               )}
             </div>
