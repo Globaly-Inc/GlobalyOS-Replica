@@ -13,6 +13,7 @@ import {
   Check,
   X,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -732,22 +733,30 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
                     {activeChat.name}
                   </h2>
                 )}
-                <p className="text-xs text-muted-foreground">
-                  {spaceMembers.length} member{spaceMembers.length !== 1 ? 's' : ''}
-                  {(() => {
-                    if (!space) return null;
-                    if (space.access_scope === 'company') return ' · Everyone';
-                    if (space.access_scope === 'members') return ' · Private';
-                    
-                    // For custom or legacy scopes, combine all criteria
-                    const parts: string[] = [];
-                    if (space.offices?.length) parts.push(...space.offices.map(o => o.name));
-                    if (space.departments?.length) parts.push(...space.departments.map(d => d.name));
-                    if (space.projects?.length) parts.push(...space.projects.map(p => p.name));
-                    
-                    if (parts.length === 0) return ' · Private';
-                    return ` · ${parts.join(' + ')}`;
-                  })()}
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <span>
+                    {spaceMembers.length} member{spaceMembers.length !== 1 ? 's' : ''}
+                    {(() => {
+                      if (!space) return null;
+                      if (space.access_scope === 'company') return ' · Everyone';
+                      if (space.access_scope === 'members') return ' · Private';
+                      
+                      // For custom or legacy scopes, combine all criteria
+                      const parts: string[] = [];
+                      if (space.offices?.length) parts.push(...space.offices.map(o => o.name));
+                      if (space.departments?.length) parts.push(...space.departments.map(d => d.name));
+                      if (space.projects?.length) parts.push(...space.projects.map(p => p.name));
+                      
+                      if (parts.length === 0) return ' · Private';
+                      return ` · ${parts.join(' + ')}`;
+                    })()}
+                  </span>
+                  {space?.auto_sync_members && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[10px] font-medium">
+                      <RefreshCw className="h-2.5 w-2.5" />
+                      Auto Sync
+                    </span>
+                  )}
                 </p>
               </div>
             )}
