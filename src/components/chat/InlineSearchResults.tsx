@@ -158,7 +158,7 @@ const InlineSearchResults = ({
   if (!query.trim()) return null;
 
   return (
-    <div className="absolute right-0 top-full mt-1 z-30 w-[320px] md:w-[400px] bg-card border border-border rounded-lg shadow-lg max-h-[400px] overflow-hidden">
+    <div className="absolute right-4 top-full mt-1 z-50 w-[320px] md:w-[400px] bg-card border border-border rounded-lg shadow-lg max-h-[400px] overflow-hidden">
       {/* Header with result count and navigation */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30">
         <span className="text-xs text-muted-foreground">
