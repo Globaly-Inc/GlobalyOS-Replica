@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
@@ -7,6 +7,7 @@ import { Clock, CalendarDays } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useTeamPresence } from "@/services/useTeamData";
 import { OrgLink } from "@/components/OrgLink";
 import { format, parseISO } from "date-fns";
 
@@ -111,6 +112,27 @@ export const AllPendingLeavesCard = () => {
     return null;
   }
 
+  // Get employee IDs for online status
+  const employeeIds = pendingRequests.map(r => r.employee.id);
+
+  return (
+    <AllPendingLeavesCardContent 
+      pendingRequests={pendingRequests} 
+      employeeIds={employeeIds} 
+    />
+  );
+};
+
+// Extract to separate component to use hook at top level
+const AllPendingLeavesCardContent = ({ 
+  pendingRequests, 
+  employeeIds 
+}: { 
+  pendingRequests: PendingLeaveRequest[]; 
+  employeeIds: string[];
+}) => {
+  const onlineStatuses = useTeamPresence(employeeIds);
+
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between mb-4">
@@ -133,17 +155,23 @@ export const AllPendingLeavesCard = () => {
           const dateRange = isMultiDay
             ? `${format(parseISO(request.start_date), "d MMM")} - ${format(parseISO(request.end_date), "d MMM")}`
             : format(parseISO(request.start_date), "d MMM yyyy");
+          const isOnline = onlineStatuses[request.employee.id] ?? false;
 
           return (
             <HoverCard key={request.id}>
               <HoverCardTrigger asChild>
                 <OrgLink to={`/team/${request.employee.id}`}>
-                  <Avatar className="h-10 w-10 border-2 border-background shadow-sm cursor-pointer transition-transform hover:scale-110">
-                    <AvatarImage src={request.employee.profiles.avatar_url || undefined} />
-                    <AvatarFallback className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="relative">
+                    <Avatar className="h-10 w-10 border-2 border-background shadow-sm cursor-pointer transition-transform hover:scale-110">
+                      <AvatarImage src={request.employee.profiles.avatar_url || undefined} />
+                      <AvatarFallback className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    {isOnline && (
+                      <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-background" />
+                    )}
+                  </div>
                 </OrgLink>
               </HoverCardTrigger>
               <HoverCardContent className="w-64" side="top">

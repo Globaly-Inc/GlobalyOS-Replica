@@ -4,6 +4,7 @@ import { Progress } from "@/components/ui/progress";
 import { Card } from "@/components/ui/card";
 import { UserPlus, UserMinus, Clock, CheckCircle2, ChevronRight } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import type { WorkflowStatus, WorkflowType } from "@/types/workflow";
 
 interface ApplicationCardProps {
@@ -29,6 +30,7 @@ interface ApplicationCardProps {
 }
 
 export function ApplicationCard({ workflow, onClick }: ApplicationCardProps) {
+  const { isOnline } = useOnlineStatus(workflow.employee?.id);
   const completedTasks = workflow.tasks?.filter(t => t.status === 'completed').length ?? 0;
   const totalTasks = workflow.tasks?.length ?? 0;
   const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
@@ -45,12 +47,17 @@ export function ApplicationCard({ workflow, onClick }: ApplicationCardProps) {
     >
       <div className="flex items-center gap-4">
         {/* Avatar */}
-        <Avatar className="h-12 w-12">
-          <AvatarImage src={workflow.employee?.profiles?.avatar_url || undefined} />
-          <AvatarFallback>
-            {workflow.employee?.profiles?.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
-          </AvatarFallback>
-        </Avatar>
+        <div className="relative">
+          <Avatar className="h-12 w-12">
+            <AvatarImage src={workflow.employee?.profiles?.avatar_url || undefined} />
+            <AvatarFallback>
+              {workflow.employee?.profiles?.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+            </AvatarFallback>
+          </Avatar>
+          {isOnline && (
+            <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-card" />
+          )}
+        </div>
         
         {/* Main content */}
         <div className="flex-1 min-w-0">

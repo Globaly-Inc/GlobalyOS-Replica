@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
+import { useTeamPresence } from "@/services/useTeamData";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { format } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
@@ -326,6 +327,51 @@ export const NotCheckedInCard = () => {
   if (roleLoading || !canView || loading || notCheckedIn.length === 0) {
     return null;
   }
+
+  // Get employee IDs for online status
+  const employeeIds = notCheckedIn.map(e => e.id);
+
+  return (
+    <NotCheckedInCardContent 
+      notCheckedIn={notCheckedIn}
+      employeeIds={employeeIds}
+      orgTimezone={orgTimezone}
+      sentReminders={sentReminders}
+      setSentReminders={setSentReminders}
+      sendingReminder={sendingReminder}
+      setSendingReminder={setSendingReminder}
+      currentOrg={currentOrg}
+      currentEmployee={currentEmployee}
+      isMobile={isMobile}
+    />
+  );
+};
+
+// Extract to separate component to use hook at top level
+const NotCheckedInCardContent = ({ 
+  notCheckedIn, 
+  employeeIds,
+  orgTimezone,
+  sentReminders,
+  setSentReminders,
+  sendingReminder,
+  setSendingReminder,
+  currentOrg,
+  currentEmployee,
+  isMobile
+}: { 
+  notCheckedIn: NotCheckedInEmployee[]; 
+  employeeIds: string[];
+  orgTimezone: string;
+  sentReminders: Set<string>;
+  setSentReminders: React.Dispatch<React.SetStateAction<Set<string>>>;
+  sendingReminder: string | null;
+  setSendingReminder: React.Dispatch<React.SetStateAction<string | null>>;
+  currentOrg: any;
+  currentEmployee: any;
+  isMobile: boolean;
+}) => {
+  const onlineStatuses = useTeamPresence(employeeIds);
 
   const formatTime = (timeStr: string, scheduleTimezone?: string) => {
     if (!timeStr) return '';
