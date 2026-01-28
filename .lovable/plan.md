@@ -1,281 +1,401 @@
 
-# Auto-Sync Members Feature for Spaces
+# Multi-Criteria Access Settings for Spaces
 
 ## Overview
-Implement an "Auto Sync Members" toggle for Spaces that automatically manages membership based on the space's access scope (offices/projects). When enabled, it prevents manual member management while syncing members automatically. Exempt roles (Owner, Admin, HR) can always be manually added/removed regardless of auto-sync status.
+This implementation adds **Department** as an access scope option and changes the access model from "single selection" (radio buttons) to "multi-selection with AND logic" (checkboxes). When multiple access groups are selected (e.g., Project: Agentcis + Department: Engineering), only employees meeting **ALL criteria** will be eligible for membership.
+
+Additionally, the "Add All Members" and "Auto-sync" controls will be moved from the footer to a dedicated section below Access Settings.
 
 ---
 
 ## Suggested UI Design
 
-### 1. Auto-Sync Toggle in Space Settings
-**Location:** `SpaceSettingsDialog.tsx` - Add a new section below "Space type"
+### 1. Create Space Dialog - New Access Settings Layout
+**Location:** `CreateSpaceDialog.tsx` with updated `AccessScopeSelector.tsx`
 
 ```text
-+---------------------------------------------+
-|  Auto-sync members                          |
-|  ┌─────────────────────────────────────────┐|
-|  │ ○ Off - Manually manage members         │|
-|  │ ● On - Auto-sync based on access scope  │|
-|  └─────────────────────────────────────────┘|
-|                                             |
-|  ℹ️ When enabled, members are automatically |
-|  added/removed based on the space's access  |
-|  scope. Owner, Admin, and HR roles are      |
-|  exempt from auto-sync.                     |
-+---------------------------------------------+
++---------------------------------------------------------------+
+|  Create a space                                         [X]   |
++---------------------------------------------------------------+
+|  [Icon] Space name ________________________                   |
+|                                            95/128             |
+|                                                               |
+|  Description (optional)                                       |
+|  ┌───────────────────────────────────────────────────────┐    |
+|  │ What is this space about?                             │    |
+|  └───────────────────────────────────────────────────────┘    |
+|                                            0/500              |
+|                                                               |
+|  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  |
+|  ACCESS SETTINGS                                              |
+|  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  |
+|                                                               |
+|  ○ Company-wide                                               |
+|  │ Anyone in GlobalyHub can find, view, and join              |
+|                                                               |
+|  ○ Custom access (select criteria below)                      |
+|  │ Only employees matching ALL selected criteria can access   |
+|                                                               |
+|     ┌─────────────────────────────────────────────────────┐   |
+|     │ ☐ Office                                            │   |
+|     │   [Select offices...               ▼]               │   |
+|     │   ┌──────────┐ ┌──────────────────┐                 │   |
+|     │   │ Sydney ✕ │ │ Melbourne ✕      │                 │   |
+|     │   └──────────┘ └──────────────────┘                 │   |
+|     │                                                     │   |
+|     │ ☑ Department                                        │   |
+|     │   [Select departments...           ▼]               │   |
+|     │   ┌───────────────┐                                 │   |
+|     │   │ Engineering ✕ │                                 │   |
+|     │   └───────────────┘                                 │   |
+|     │                                                     │   |
+|     │ ☑ Project                                           │   |
+|     │   [Select projects...              ▼]               │   |
+|     │   ┌───────────┐                                     │   |
+|     │   │ Agentcis ✕│                                     │   |
+|     │   └───────────┘                                     │   |
+|     └─────────────────────────────────────────────────────┘   |
+|                                                               |
+|     💡 Members must be in Engineering AND assigned to         |
+|        Agentcis project to access this space.                 |
+|                                                               |
+|  ○ Invite members manually                                    |
+|  │ Only invited members can access                            |
+|     [Select team members...              ▼]                   |
+|     ┌────────────┐ ┌────────────┐ ┌────────────┐              |
+|     │ 👤 John ✕  │ │ 👤 Jane ✕  │ │ 👤 Mike ✕  │              |
+|     └────────────┘ └────────────┘ └────────────┘              |
+|                                                               |
+|  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  |
+|  MEMBERSHIP OPTIONS                                           |
+|  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  |
+|                                                               |
+|  ☐ Add all matching members now                               |
+|     Add all employees who meet the access criteria            |
+|                                                               |
+|  ⦿ Auto-sync members                                   [OFF]  |
+|     Automatically add/remove members when team changes   ⓘ   |
+|                                                               |
+|───────────────────────────────────────────────────────────────|
+|                                       [Cancel]  [Create]      |
++---------------------------------------------------------------+
 ```
 
-### 2. Sync Preview Dialog (When Enabling Auto-Sync)
-**Trigger:** When admin enables auto-sync and there are discrepancies
+**Key Changes:**
+1. Radio buttons now have 3 options: Company-wide, Custom access, Invite manually
+2. Custom access reveals checkboxes for Office, Department, Project
+3. Each checked criterion shows its multi-select dropdown
+4. Dynamic help text shows the AND logic being applied
+5. "Add All Members" and "Auto-sync" moved to MEMBERSHIP OPTIONS section
+6. Dialog width increased by ~50% (from `sm:max-w-lg` to `sm:max-w-2xl`)
+
+---
+
+### 2. Space Settings Dialog - Updated Layout
+**Location:** `SpaceSettingsDialog.tsx`
 
 ```text
-+-----------------------------------------------+
-|  Sync Members                           [X]   |
-+-----------------------------------------------+
-|  Enabling auto-sync will make these changes:  |
-|                                               |
-|  ⊕ 5 members to be added                      |
-|  ┌───────────────────────────────────────┐    |
-|  │ 👤 John Smith (Developer)             │    |
-|  │ 👤 Jane Doe (Designer)                │    |
-|  │ 👤 ... +3 more                        │    |
-|  └───────────────────────────────────────┘    |
-|                                               |
-|  ⊖ 2 members to be removed                    |
-|  ┌───────────────────────────────────────┐    |
-|  │ 👤 Mike Wilson (Contractor)           │    |
-|  │ 👤 Sarah Brown (Intern)               │    |
-|  └───────────────────────────────────────┘    |
-|                                               |
-|  ⚠️ Owner, Admin, and HR members are          |
-|  exempt and will not be removed.              |
-|                                               |
-|  [Cancel]              [Proceed with Sync]    |
-+-----------------------------------------------+
++---------------------------------------------------------------+
+|  Space Settings                                         [X]   |
++---------------------------------------------------------------+
+|  Space name                                                   |
+|  [Engineering Discussions________________________]            |
+|                                             22/128            |
+|                                                               |
+|  Description (optional)                                       |
+|  ┌───────────────────────────────────────────────────────┐    |
+|  │ Discussions for the engineering team                  │    |
+|  └───────────────────────────────────────────────────────┘    |
+|                                                               |
+|  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  |
+|  SPACE TYPE                                                   |
+|  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  |
+|  ○ Collaboration - Everyone can post and reply                |
+|  ● Announcements - Only admins can post                       |
+|                                                               |
+|  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  |
+|  ACCESS SETTINGS (read-only)                                  |
+|  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  |
+|  Current access: Department: Engineering + Project: Agentcis  |
+|  ℹ️ Access settings cannot be changed after creation.         |
+|                                                               |
+|  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  |
+|  MEMBERSHIP OPTIONS                                           |
+|  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  |
+|                                                               |
+|  ⦿ Auto-sync members                                   [ON]   |
+|     Automatically add/remove members based on criteria   ⓘ   |
+|                                                               |
+|  ┌───────────────────────────────────────────────────────┐    |
+|  │ 🛡 Owner, Admin, and HR members are exempt from       │    |
+|  │   auto-sync and can be manually managed.              │    |
+|  └───────────────────────────────────────────────────────┘    |
+|                                                               |
+|  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  |
+|  DANGER ZONE                                                  |
+|  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  |
+|  [📁 Archive space]     [🗑 Delete space]                     |
+|                                                               |
+|───────────────────────────────────────────────────────────────|
+|                                       [Cancel]  [Save]        |
++---------------------------------------------------------------+
 ```
 
-### 3. Disabled Member Management UI (When Auto-Sync is ON)
-**Location:** Members section in `ChatRightPanelEnhanced.tsx`
+---
+
+### 3. Chat Header - Multi-Criteria Display
+**Location:** `ChatHeader.tsx`
 
 ```text
-+-------------------------------------------+
-|  Members (12)                             |
-|  ┌───────────────────────────────────────┐|
-|  │ 🔄 Auto-sync enabled                  │|
-|  │ Members are synced automatically      │|
-|  └───────────────────────────────────────┘|
-|                                           |
-|  👤 John Smith (Admin) ✓                  |
-|  👤 Jane Doe                              |
-|  👤 Mike Wilson                           |
-|                                           |
-|  [+ Add] ← Disabled/greyed out            |
-|                                           |
-|  ℹ️ Disable auto-sync in settings to      |
-|  manually manage members                  |
-+-------------------------------------------+
++---------------------------------------------------------------+
+|  🎯 Engineering Discussions                             ⚙️    |
+|  51 members · Engineering + Agentcis                          |
++---------------------------------------------------------------+
 ```
 
-The "+ Add Member" button will be:
-- **Greyed out** when auto-sync is enabled
-- Shows a tooltip: "Disable auto-sync in space settings to add members manually"
-- **Exception:** Clicking shows only Owner/Admin/HR roles to add (exempt members)
+For multiple criteria, show abbreviated format:
+- Single criterion: `51 members · Engineering`
+- Two criteria: `51 members · Engineering + Agentcis`
+- Three+ criteria: `51 members · 3 criteria`
 
-### 4. Member Row Actions (When Auto-Sync is ON)
-For regular members:
-- Remove option is **disabled** with tooltip: "Cannot remove - auto-sync is enabled"
+---
 
-For exempt roles (Owner/Admin/HR from user_roles table):
-- Full remove capability regardless of auto-sync status
-- Small badge: "Exempt from sync"
+## Data Model Changes
+
+### New Database Table: `chat_space_departments`
+```sql
+CREATE TABLE chat_space_departments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  space_id UUID NOT NULL REFERENCES chat_spaces(id) ON DELETE CASCADE,
+  department_id UUID NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(space_id, department_id)
+);
+
+ALTER TABLE chat_space_departments ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view department links for spaces they can access"
+  ON chat_space_departments FOR SELECT
+  TO authenticated
+  USING (
+    organization_id IN (
+      SELECT organization_id FROM employees 
+      WHERE user_id = auth.uid() AND status = 'active'
+    )
+  );
+
+CREATE POLICY "Space admins can manage department links"
+  ON chat_space_departments FOR ALL
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM chat_space_members csm
+      WHERE csm.space_id = chat_space_departments.space_id
+        AND csm.employee_id = (
+          SELECT id FROM employees WHERE user_id = auth.uid() AND status = 'active'
+        )
+        AND csm.role = 'admin'
+    )
+  );
+```
+
+### Update `access_scope` enum
+```sql
+ALTER TYPE access_scope ADD VALUE IF NOT EXISTS 'custom';
+```
+
+The new `custom` scope indicates multi-criteria selection (combinations of offices + departments + projects).
 
 ---
 
 ## Implementation Steps
 
-### Phase 1: Database & Type Updates
+### Phase 1: Database Changes
 
-#### 1.1 Update `useSpace` hook to include `auto_sync_members`
-**File:** `src/services/useChat.ts`
+#### 1.1 Create `chat_space_departments` junction table
+Add migration to create the table with proper RLS policies.
 
-Add `auto_sync_members` to the return object in the `useSpace` hook (around line 1233-1245).
+#### 1.2 Add `custom` value to access_scope
+Update the enum to support the new multi-criteria mode.
 
-#### 1.2 Update `useUpdateSpace` mutation
-**File:** `src/services/useChat.ts`
+### Phase 2: Type & Hook Updates
 
-Add `autoSyncMembers?: boolean` parameter to the mutation and update accordingly.
-
-### Phase 2: Create Auto-Sync Preview Hook
-
-#### 2.1 Create `useAutoSyncPreview` hook
-**File:** `src/services/useChat.ts`
-
-This hook calculates the diff between current space members and expected members based on access scope:
+#### 2.1 Update `ChatSpace` type
+**File:** `src/types/chat.ts`
 
 ```typescript
-export const useAutoSyncPreview = (spaceId: string | null) => {
-  // Returns:
-  // - membersToAdd: employees in scope but not in space
-  // - membersToRemove: employees in space but not in scope (excluding exempt roles)
-  // - exemptMembers: Owner/Admin/HR members that won't be affected
+export interface ChatSpace {
+  // ... existing fields
+  departments?: { id: string; name: string }[];  // NEW
 }
 ```
 
-#### 2.2 Create `useExecuteAutoSync` mutation
+#### 2.2 Update `AccessScope` type
+**File:** `src/components/chat/AccessScopeSelector.tsx`
+
+```typescript
+export type AccessScope = 'company' | 'custom' | 'members';
+// 'offices', 'projects' are now represented by 'custom' + selected criteria
+```
+
+#### 2.3 Update `useSpace` hook
 **File:** `src/services/useChat.ts`
 
-Executes the sync operation:
-- Adds missing members
-- Removes out-of-scope members (non-exempt only)
-- Preserves exempt roles
+Add join for `chat_space_departments` to fetch department associations.
 
-### Phase 3: UI Components
+#### 2.4 Update `useCreateSpace` hook
+**File:** `src/services/useChat.ts`
 
-#### 3.1 Create `AutoSyncPreviewDialog` component
-**File:** `src/components/chat/AutoSyncPreviewDialog.tsx`
+Add `departmentIds` parameter and insert into `chat_space_departments`.
 
-Dialog that shows:
-- Members to be added
-- Members to be removed
-- Exempt members notice
-- Confirm/Cancel buttons
+Update the member filtering logic to use AND across all criteria:
+```typescript
+// Get employees matching ALL criteria
+let employeesToAdd = await getAllActiveEmployees(orgId);
 
-#### 3.2 Update `SpaceSettingsDialog`
+if (officeIds?.length) {
+  employeesToAdd = employeesToAdd.filter(e => officeIds.includes(e.office_id));
+}
+if (departmentIds?.length) {
+  employeesToAdd = employeesToAdd.filter(e => departmentIds.includes(e.department_id));
+}
+if (projectIds?.length) {
+  const projectEmployees = await getEmployeesInProjects(projectIds);
+  const projectEmployeeIds = new Set(projectEmployees.map(e => e.id));
+  employeesToAdd = employeesToAdd.filter(e => projectEmployeeIds.has(e.id));
+}
+```
+
+### Phase 3: UI Component Updates
+
+#### 3.1 Redesign `AccessScopeSelector`
+**File:** `src/components/chat/AccessScopeSelector.tsx`
+
+Major changes:
+- Replace single-select RadioGroup with 3 options (Company-wide, Custom, Members)
+- Add checkboxes for Office, Department, Project under "Custom"
+- Fetch departments list from database
+- Pass all selected criteria up to parent
+- Show dynamic AND logic explanation text
+
+**New Props Interface:**
+```typescript
+interface AccessScopeSelectorProps {
+  value: AccessScope;
+  onChange: (scope: AccessScope) => void;
+  // Multi-criteria selections (for 'custom' scope)
+  selectedOfficeIds: string[];
+  onOfficeIdsChange: (ids: string[]) => void;
+  selectedDepartmentIds: string[];  // NEW
+  onDepartmentIdsChange: (ids: string[]) => void;  // NEW
+  selectedProjectIds: string[];
+  onProjectIdsChange: (ids: string[]) => void;
+  // Member selection (for 'members' scope)
+  selectedMemberIds: string[];
+  onMemberIdsChange: (ids: string[]) => void;
+  currentEmployeeId?: string;
+}
+```
+
+#### 3.2 Update `CreateSpaceDialog`
+**File:** `src/components/chat/CreateSpaceDialog.tsx`
+
+- Add `selectedDepartmentIds` state
+- Move "Add All Members" and "Auto-sync" from footer to body (new MEMBERSHIP OPTIONS section)
+- Increase dialog width: `sm:max-w-2xl`
+- Pass department IDs to `useCreateSpace`
+- Update validation for custom scope
+
+#### 3.3 Update `SpaceSettingsDialog`
 **File:** `src/components/chat/SpaceSettingsDialog.tsx`
 
-Add auto-sync toggle section:
-- RadioGroup for Off/On
-- Info text explaining exempt roles
-- Triggers `AutoSyncPreviewDialog` when enabling
+- Display current access criteria (read-only)
+- Move Auto-sync to MEMBERSHIP OPTIONS section
+- Increase dialog width
 
-#### 3.3 Update `ChatRightPanelEnhanced`
-**File:** `src/components/chat/ChatRightPanelEnhanced.tsx`
+#### 3.4 Update `ChatHeader`
+**File:** `src/components/chat/ChatHeader.tsx`
 
-Modify members section:
-- Show "Auto-sync enabled" banner when active
-- Disable "+ Add" button (except for exempt roles)
-- Disable "Remove" action in member dropdown (except for exempt roles)
-- Add helper text directing to settings
-
-#### 3.4 Update `AddSpaceMembersDialog`
-**File:** `src/components/chat/AddSpaceMembersDialog.tsx`
-
-When auto-sync is enabled:
-- Only show Owner/Admin/HR employees in the list
-- Update header text: "Add exempt members to {spaceName}"
-- Add info notice about auto-sync
-
-#### 3.5 Update `SpaceMembersDialog`
-**File:** `src/components/chat/SpaceMembersDialog.tsx`
-
-When auto-sync is enabled:
-- Disable remove actions for non-exempt members
-- Show badge for exempt members
-- Add banner explaining auto-sync status
-
-### Phase 4: Exempt Role Detection
-
-#### 4.1 Create `useEmployeeSystemRoles` hook
-**File:** `src/services/useChat.ts` or new file
-
-Fetches system roles for employees in a space:
-
+Update the access group label logic:
 ```typescript
-export const useEmployeeSystemRoles = (employeeIds: string[], orgId: string) => {
-  // Query user_roles table to get role for each employee
-  // Returns map: { employeeId: 'owner' | 'admin' | 'hr' | 'member' }
-}
+const getAccessGroupLabel = () => {
+  if (!space) return null;
+  if (space.access_scope === 'company') return 'Everyone';
+  if (space.access_scope === 'members') return 'Private';
+  
+  // For 'custom' scope, combine all criteria
+  const parts: string[] = [];
+  if (space.offices?.length) parts.push(...space.offices.map(o => o.name));
+  if (space.departments?.length) parts.push(...space.departments.map(d => d.name));
+  if (space.projects?.length) parts.push(...space.projects.map(p => p.name));
+  
+  if (parts.length === 0) return 'Private';
+  if (parts.length <= 2) return parts.join(' + ');
+  return `${parts.length} criteria`;
+};
 ```
 
-#### 4.2 Helper function `isExemptFromAutoSync`
+### Phase 4: Auto-Sync Logic Update
+
+#### 4.1 Update sync preview calculation
+**File:** `src/components/chat/SpaceSettingsDialog.tsx`
+
+Update `scopedEmployees` query to apply AND logic across all criteria:
 ```typescript
-const isExemptFromAutoSync = (role: UserRole) => {
-  return role === 'owner' || role === 'admin' || role === 'hr';
+let query = supabase.from('employees').select(...);
+
+// Apply AND filters
+if (space.offices?.length) {
+  query = query.in('office_id', space.offices.map(o => o.id));
 }
+if (space.departments?.length) {
+  query = query.in('department_id', space.departments.map(d => d.id));
+}
+// For projects, need separate query + intersection
 ```
 
 ---
 
-## Technical Details
-
-### Auto-Sync Logic (for `useExecuteAutoSync`)
-
-```typescript
-// 1. Get space access scope
-const space = await getSpace(spaceId);
-
-// 2. Get expected members based on scope
-let expectedEmployeeIds: string[] = [];
-
-if (space.access_scope === 'company') {
-  // All active employees
-  expectedEmployeeIds = await getAllActiveEmployees(orgId);
-} else if (space.access_scope === 'offices') {
-  // Employees in linked offices
-  expectedEmployeeIds = await getEmployeesByOffices(space.offices);
-} else if (space.access_scope === 'projects') {
-  // Employees in linked projects  
-  expectedEmployeeIds = await getEmployeesByProjects(space.projects);
-}
-
-// 3. Get current space members
-const currentMembers = await getSpaceMembers(spaceId);
-
-// 4. Get exempt members (Owner/Admin/HR)
-const exemptEmployeeIds = await getExemptEmployees(currentMembers, orgId);
-
-// 5. Calculate diff
-const toAdd = expectedEmployeeIds.filter(id => !currentMembers.includes(id));
-const toRemove = currentMembers.filter(id => 
-  !expectedEmployeeIds.includes(id) && !exemptEmployeeIds.includes(id)
-);
-
-// 6. Execute
-await addMembers(spaceId, toAdd);
-await removeMembers(spaceId, toRemove);
-```
-
-### Exempt Role Query
-
-```sql
-SELECT ur.user_id, ur.role, e.id as employee_id
-FROM user_roles ur
-JOIN employees e ON e.user_id = ur.user_id
-WHERE e.id = ANY($1) -- employee IDs
-  AND ur.organization_id = $2
-  AND ur.role IN ('owner', 'admin', 'hr')
-```
-
----
-
-## Files to Modify
+## Files to Modify/Create
 
 | File | Changes |
 |------|---------|
-| `src/services/useChat.ts` | Add `auto_sync_members` to `useSpace`, update `useUpdateSpace`, add new hooks |
-| `src/components/chat/SpaceSettingsDialog.tsx` | Add auto-sync toggle section |
-| `src/components/chat/AutoSyncPreviewDialog.tsx` | **NEW** - Sync preview and confirm dialog |
-| `src/components/chat/ChatRightPanelEnhanced.tsx` | Conditional disable of add/remove based on auto-sync |
-| `src/components/chat/AddSpaceMembersDialog.tsx` | Filter to exempt roles only when auto-sync enabled |
-| `src/components/chat/SpaceMembersDialog.tsx` | Disable remove for non-exempt, show badges |
+| **Database Migration** | Create `chat_space_departments` table, add 'custom' to access_scope enum |
+| `src/types/chat.ts` | Add `departments` to `ChatSpace` interface |
+| `src/components/chat/AccessScopeSelector.tsx` | Complete redesign with checkbox-based multi-criteria selection |
+| `src/components/chat/CreateSpaceDialog.tsx` | Add department state, move membership options, widen dialog |
+| `src/components/chat/SpaceSettingsDialog.tsx` | Show access criteria (read-only), move auto-sync section |
+| `src/components/chat/ChatHeader.tsx` | Update label for multi-criteria display |
+| `src/services/useChat.ts` | Update `useSpace` to fetch departments, update `useCreateSpace` with AND logic |
 
 ---
 
 ## Edge Cases Handled
 
-1. **Space with `access_scope = 'members'`**: Auto-sync toggle hidden (not applicable)
-2. **All members are exempt**: No members removed during sync
-3. **Admin tries to remove exempt member**: Allowed (exempt from sync rules)
-4. **New employee joins office**: Added on next sync (or real-time with DB triggers)
-5. **Employee leaves office**: Removed on next sync (if not exempt)
-6. **Space admin is also org Owner**: Can manage all members regardless
+1. **No criteria selected in Custom mode**: Require at least one criterion
+2. **Zero matching employees**: Show warning before creating space
+3. **Employee changes department/project**: Auto-sync will add/remove on next sync
+4. **Legacy spaces with old access_scope**: Continue to work, displayed as single criterion
+5. **Exempt roles (Owner/Admin/HR)**: Always manually manageable regardless of criteria
 
 ---
 
-## Future Enhancement (Optional)
+## Technical Notes
 
-For real-time auto-sync (instead of manual trigger on toggle):
-- Create a PostgreSQL trigger on `employees.office_id` changes
-- Trigger syncs relevant spaces when employee office changes
-- This can be implemented as a Phase 2 enhancement
+### AND Logic for Member Filtering
+```typescript
+// Example: Engineering department + Agentcis project
+const engineeringEmployees = employees.filter(e => e.department_id === 'eng-id');
+const agentcisEmployees = await getProjectMembers('agentcis-id');
+const eligibleMembers = engineeringEmployees.filter(e => 
+  agentcisEmployees.some(pe => pe.id === e.id)
+);
+// Only employees in BOTH Engineering AND Agentcis are eligible
+```
+
+### Backward Compatibility
+- Existing spaces with `access_scope = 'offices'` or `'projects'` will continue to work
+- They will be displayed as single-criterion spaces
+- No migration of existing data required
+
