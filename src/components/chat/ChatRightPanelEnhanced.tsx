@@ -60,6 +60,7 @@ import {
   Search,
   MessageSquare,
   Hash,
+  RefreshCw,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import MessageSearch from "./MessageSearch";
@@ -81,7 +82,11 @@ import {
   useUpdateSpace,
   useUpdateGroupMemberRole,
   useRemoveGroupMember,
+  useSpace,
 } from "@/services/useChat";
+import { useExemptEmployeeIds, isExemptFromAutoSync } from "@/hooks/useExemptRoles";
+import { useOrganization } from "@/hooks/useOrganization";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useChatFavorites, useToggleFavorite } from "@/hooks/useChatFavorites";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { supabase } from "@/integrations/supabase/client";
@@ -173,6 +178,16 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
   
   const { data: pinnedMessages = [] } = usePinnedMessages(conversationId, spaceId);
   const { data: spaceMembers = [] } = useSpaceMembers(spaceId);
+  const { data: spaceData } = useSpace(spaceId || '');
+  const { currentOrg } = useOrganization();
+  
+  // Check if auto-sync is enabled for this space
+  const autoSyncEnabled = spaceData?.auto_sync_members || false;
+  
+  // Get exempt member IDs for auto-sync restrictions
+  const spaceMemberIds = spaceMembers.map(m => m.employee_id);
+  const { exemptIds } = useExemptEmployeeIds(spaceMemberIds, currentOrg?.id || null);
+  
   const { data: conversationParticipants = [] } = useConversationParticipants(
     activeChat.isGroup ? conversationId : null
   );
@@ -667,21 +682,33 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
               </h4>
               <div className="flex items-center gap-1">
                 {canManageMembers && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (spaceId) {
-                        setShowAddMembersDialog(true);
-                      } else if (conversationId && activeChat.isGroup) {
-                        setShowAddGroupMembersDialog(true);
-                      }
-                    }}
-                  >
-                    <Plus className="h-3.5 w-3.5 text-muted-foreground" />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          disabled={spaceId ? autoSyncEnabled : false}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (spaceId) {
+                              setShowAddMembersDialog(true);
+                            } else if (conversationId && activeChat.isGroup) {
+                              setShowAddGroupMembersDialog(true);
+                            }
+                          }}
+                        >
+                          <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    {spaceId && autoSyncEnabled && (
+                      <TooltipContent>
+                        <p>Disable auto-sync in settings to add members</p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
                 )}
                 {membersOpen ? (
                   <ChevronUp className="h-4 w-4 text-muted-foreground" />
@@ -691,12 +718,23 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
               </div>
             </CollapsibleTrigger>
             <CollapsibleContent className="px-4 pb-4">
+              {/* Auto-sync banner for spaces */}
+              {spaceId && autoSyncEnabled && (
+                <Alert className="mb-3 bg-muted/50 border-border">
+                  <RefreshCw className="h-4 w-4" />
+                  <AlertDescription className="text-xs">
+                    Auto-sync enabled. Members synced with {spaceData?.access_scope === 'company' ? 'organization' : spaceData?.access_scope}.
+                  </AlertDescription>
+                </Alert>
+              )}
               <div className="space-y-1">
                 {members.slice(0, 10).map((member: any) => {
                   const employee = member.employee || member.employees;
                   const profile = employee?.profiles;
                   const isAdmin = member.role === 'admin';
                   const isSelf = member.employee_id === currentEmployee?.id;
+                  const isMemberExempt = exemptIds.has(member.employee_id);
+                  const canRemoveThisMember = !autoSyncEnabled || isMemberExempt || !spaceId;
 
                   return (
                     <div 
@@ -715,6 +753,11 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
                           {isAdmin && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary shrink-0">
                               Admin
+                            </span>
+                          )}
+                          {spaceId && autoSyncEnabled && isMemberExempt && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 shrink-0">
+                              Exempt
                             </span>
                           )}
                         </div>
@@ -761,13 +804,27 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
                                     Make Admin
                                   </DropdownMenuItem>
                                 )}
-                                <DropdownMenuItem 
-                                  onClick={() => handleRemove(member)}
-                                  className="text-destructive focus:text-destructive"
-                                >
-                                  <UserMinus className="h-4 w-4 mr-2" />
-                                  {spaceId ? "Remove from Space" : "Remove from Group"}
-                                </DropdownMenuItem>
+                                {canRemoveThisMember ? (
+                                  <DropdownMenuItem 
+                                    onClick={() => handleRemove(member)}
+                                    className="text-destructive focus:text-destructive"
+                                  >
+                                    <UserMinus className="h-4 w-4 mr-2" />
+                                    {spaceId ? "Remove from Space" : "Remove from Group"}
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div className="relative flex cursor-not-allowed select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none opacity-50">
+                                        <UserMinus className="h-4 w-4 mr-2" />
+                                        Remove from Space
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="left">
+                                      <p>Cannot remove - auto-sync is enabled</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
                               </>
                             )}
                             
@@ -952,12 +1009,14 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
               setShowMembersDialog(false);
               setShowAddMembersDialog(true);
             }}
+            autoSyncEnabled={autoSyncEnabled}
           />
           <AddSpaceMembersDialog
             open={showAddMembersDialog}
             onOpenChange={setShowAddMembersDialog}
             spaceId={spaceId}
             spaceName={activeChat.name}
+            autoSyncEnabled={autoSyncEnabled}
           />
           <SpaceSettingsDialog
             open={showSettingsDialog}
