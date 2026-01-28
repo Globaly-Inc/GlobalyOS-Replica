@@ -33,10 +33,15 @@ export function ImageCropper({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [fitZoom, setFitZoom] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [imageLoaded, setImageLoaded] = useState(false);
+
+  // Dynamic zoom range: 30% decrease to 70% increase from fit
+  const effectiveMinZoom = fitZoom * 0.7;
+  const effectiveMaxZoom = fitZoom * 1.7;
 
   const canvasSize = 280;
   const cropSize = 260;
@@ -49,9 +54,17 @@ export function ImageCropper({
     img.crossOrigin = 'anonymous';
     img.onload = () => {
       imageRef.current = img;
-      setImageLoaded(true);
-      setZoom(minZoom);
+      
+      // Calculate zoom level that makes image fill the crop area
+      const baseScale = Math.min(canvasSize / img.width, canvasSize / img.height);
+      const scaledSize = Math.min(img.width, img.height) * baseScale;
+      const zoomToFillCrop = cropSize / scaledSize;
+      const calculatedFitZoom = Math.max(1, zoomToFillCrop);
+      
+      setFitZoom(calculatedFitZoom);
+      setZoom(calculatedFitZoom);
       setPosition({ x: 0, y: 0 });
+      setImageLoaded(true);
     };
     img.src = imageSrc;
 
@@ -156,7 +169,7 @@ export function ImageCropper({
   };
 
   const handleReset = () => {
-    setZoom(minZoom);
+    setZoom(fitZoom);
     setPosition({ x: 0, y: 0 });
   };
 
@@ -243,9 +256,9 @@ export function ImageCropper({
             <Slider
               value={[zoom]}
               onValueChange={([value]) => setZoom(value)}
-              min={minZoom}
-              max={maxZoom}
-              step={0.1}
+              min={effectiveMinZoom}
+              max={effectiveMaxZoom}
+              step={0.01}
               className="flex-1"
             />
             <ZoomIn className="h-4 w-4 text-muted-foreground" />
