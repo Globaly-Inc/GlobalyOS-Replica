@@ -1,154 +1,281 @@
 
+# Auto-Sync Members Feature for Spaces
 
-## Display Access Group Name in Space Chat Header
-
-### Overview
-Add the access group name after the member count in the Space chat header. The display format will be:
-- **Company-wide spaces**: "51 members · Everyone"
-- **Office-scoped spaces**: "12 members · GlobalyHub Australia"
-- **Project-scoped spaces**: "8 members · Agentcis"
-- **Private member spaces**: "5 members · Private"
+## Overview
+Implement an "Auto Sync Members" toggle for Spaces that automatically manages membership based on the space's access scope (offices/projects). When enabled, it prevents manual member management while syncing members automatically. Exempt roles (Owner, Admin, HR) can always be manually added/removed regardless of auto-sync status.
 
 ---
 
-### Current State
-- The header currently shows only: `{spaceMembers.length} member(s)`
-- Located in `src/components/chat/ChatHeader.tsx` at lines 735-737
-- The `useSpace` hook fetches space data but does NOT include:
-  - `access_scope` field
-  - Related office names (from `chat_space_offices` junction table)
-  - Related project names (from `chat_space_projects` junction table)
-- The `ChatSpace` type already supports `offices` and `projects` arrays
+## Suggested UI Design
+
+### 1. Auto-Sync Toggle in Space Settings
+**Location:** `SpaceSettingsDialog.tsx` - Add a new section below "Space type"
+
+```text
++---------------------------------------------+
+|  Auto-sync members                          |
+|  ┌─────────────────────────────────────────┐|
+|  │ ○ Off - Manually manage members         │|
+|  │ ● On - Auto-sync based on access scope  │|
+|  └─────────────────────────────────────────┘|
+|                                             |
+|  ℹ️ When enabled, members are automatically |
+|  added/removed based on the space's access  |
+|  scope. Owner, Admin, and HR roles are      |
+|  exempt from auto-sync.                     |
++---------------------------------------------+
+```
+
+### 2. Sync Preview Dialog (When Enabling Auto-Sync)
+**Trigger:** When admin enables auto-sync and there are discrepancies
+
+```text
++-----------------------------------------------+
+|  Sync Members                           [X]   |
++-----------------------------------------------+
+|  Enabling auto-sync will make these changes:  |
+|                                               |
+|  ⊕ 5 members to be added                      |
+|  ┌───────────────────────────────────────┐    |
+|  │ 👤 John Smith (Developer)             │    |
+|  │ 👤 Jane Doe (Designer)                │    |
+|  │ 👤 ... +3 more                        │    |
+|  └───────────────────────────────────────┘    |
+|                                               |
+|  ⊖ 2 members to be removed                    |
+|  ┌───────────────────────────────────────┐    |
+|  │ 👤 Mike Wilson (Contractor)           │    |
+|  │ 👤 Sarah Brown (Intern)               │    |
+|  └───────────────────────────────────────┘    |
+|                                               |
+|  ⚠️ Owner, Admin, and HR members are          |
+|  exempt and will not be removed.              |
+|                                               |
+|  [Cancel]              [Proceed with Sync]    |
++-----------------------------------------------+
+```
+
+### 3. Disabled Member Management UI (When Auto-Sync is ON)
+**Location:** Members section in `ChatRightPanelEnhanced.tsx`
+
+```text
++-------------------------------------------+
+|  Members (12)                             |
+|  ┌───────────────────────────────────────┐|
+|  │ 🔄 Auto-sync enabled                  │|
+|  │ Members are synced automatically      │|
+|  └───────────────────────────────────────┘|
+|                                           |
+|  👤 John Smith (Admin) ✓                  |
+|  👤 Jane Doe                              |
+|  👤 Mike Wilson                           |
+|                                           |
+|  [+ Add] ← Disabled/greyed out            |
+|                                           |
+|  ℹ️ Disable auto-sync in settings to      |
+|  manually manage members                  |
++-------------------------------------------+
+```
+
+The "+ Add Member" button will be:
+- **Greyed out** when auto-sync is enabled
+- Shows a tooltip: "Disable auto-sync in space settings to add members manually"
+- **Exception:** Clicking shows only Owner/Admin/HR roles to add (exempt members)
+
+### 4. Member Row Actions (When Auto-Sync is ON)
+For regular members:
+- Remove option is **disabled** with tooltip: "Cannot remove - auto-sync is enabled"
+
+For exempt roles (Owner/Admin/HR from user_roles table):
+- Full remove capability regardless of auto-sync status
+- Small badge: "Exempt from sync"
 
 ---
 
-### Implementation Steps
+## Implementation Steps
 
-#### Step 1: Extend useSpace Hook Query
-Update `src/services/useChat.ts` to fetch additional fields including `access_scope` and related office/project names via joins.
+### Phase 1: Database & Type Updates
 
-**Current query (line 1216-1220):**
+#### 1.1 Update `useSpace` hook to include `auto_sync_members`
+**File:** `src/services/useChat.ts`
+
+Add `auto_sync_members` to the return object in the `useSpace` hook (around line 1233-1245).
+
+#### 1.2 Update `useUpdateSpace` mutation
+**File:** `src/services/useChat.ts`
+
+Add `autoSyncMembers?: boolean` parameter to the mutation and update accordingly.
+
+### Phase 2: Create Auto-Sync Preview Hook
+
+#### 2.1 Create `useAutoSyncPreview` hook
+**File:** `src/services/useChat.ts`
+
+This hook calculates the diff between current space members and expected members based on access scope:
+
 ```typescript
-const { data, error } = await supabase
-  .from('chat_spaces')
-  .select('*')
-  .eq('id', spaceId)
-  .single();
+export const useAutoSyncPreview = (spaceId: string | null) => {
+  // Returns:
+  // - membersToAdd: employees in scope but not in space
+  // - membersToRemove: employees in space but not in scope (excluding exempt roles)
+  // - exemptMembers: Owner/Admin/HR members that won't be affected
+}
 ```
 
-**Updated query:**
+#### 2.2 Create `useExecuteAutoSync` mutation
+**File:** `src/services/useChat.ts`
+
+Executes the sync operation:
+- Adds missing members
+- Removes out-of-scope members (non-exempt only)
+- Preserves exempt roles
+
+### Phase 3: UI Components
+
+#### 3.1 Create `AutoSyncPreviewDialog` component
+**File:** `src/components/chat/AutoSyncPreviewDialog.tsx`
+
+Dialog that shows:
+- Members to be added
+- Members to be removed
+- Exempt members notice
+- Confirm/Cancel buttons
+
+#### 3.2 Update `SpaceSettingsDialog`
+**File:** `src/components/chat/SpaceSettingsDialog.tsx`
+
+Add auto-sync toggle section:
+- RadioGroup for Off/On
+- Info text explaining exempt roles
+- Triggers `AutoSyncPreviewDialog` when enabling
+
+#### 3.3 Update `ChatRightPanelEnhanced`
+**File:** `src/components/chat/ChatRightPanelEnhanced.tsx`
+
+Modify members section:
+- Show "Auto-sync enabled" banner when active
+- Disable "+ Add" button (except for exempt roles)
+- Disable "Remove" action in member dropdown (except for exempt roles)
+- Add helper text directing to settings
+
+#### 3.4 Update `AddSpaceMembersDialog`
+**File:** `src/components/chat/AddSpaceMembersDialog.tsx`
+
+When auto-sync is enabled:
+- Only show Owner/Admin/HR employees in the list
+- Update header text: "Add exempt members to {spaceName}"
+- Add info notice about auto-sync
+
+#### 3.5 Update `SpaceMembersDialog`
+**File:** `src/components/chat/SpaceMembersDialog.tsx`
+
+When auto-sync is enabled:
+- Disable remove actions for non-exempt members
+- Show badge for exempt members
+- Add banner explaining auto-sync status
+
+### Phase 4: Exempt Role Detection
+
+#### 4.1 Create `useEmployeeSystemRoles` hook
+**File:** `src/services/useChat.ts` or new file
+
+Fetches system roles for employees in a space:
+
 ```typescript
-const { data, error } = await supabase
-  .from('chat_spaces')
-  .select(`
-    *,
-    chat_space_offices(
-      offices:office_id(id, name)
-    ),
-    chat_space_projects(
-      projects:project_id(id, name)
-    )
-  `)
-  .eq('id', spaceId)
-  .single();
+export const useEmployeeSystemRoles = (employeeIds: string[], orgId: string) => {
+  // Query user_roles table to get role for each employee
+  // Returns map: { employeeId: 'owner' | 'admin' | 'hr' | 'member' }
+}
 ```
 
-**Updated return type (line 1224-1233):**
+#### 4.2 Helper function `isExemptFromAutoSync`
 ```typescript
-return {
-  id: data.id,
-  name: data.name,
-  description: data.description,
-  space_type: data.space_type,
-  access_type: data.access_type,
-  access_scope: data.access_scope,
-  icon_url: data.icon_url,
-  archived_at: data.archived_at,
-  archived_by: data.archived_by,
-  offices: data.chat_space_offices?.map((o: any) => o.offices).filter(Boolean) || [],
-  projects: data.chat_space_projects?.map((p: any) => p.projects).filter(Boolean) || [],
-};
+const isExemptFromAutoSync = (role: UserRole) => {
+  return role === 'owner' || role === 'admin' || role === 'hr';
+}
 ```
 
 ---
 
-#### Step 2: Create Access Group Label Helper in ChatHeader
-Add a helper function in `src/components/chat/ChatHeader.tsx` to determine the label based on access scope.
+## Technical Details
+
+### Auto-Sync Logic (for `useExecuteAutoSync`)
 
 ```typescript
-const getAccessGroupLabel = () => {
-  if (!space) return null;
-  
-  // Company-wide access
-  if (space.access_scope === 'company') {
-    return 'Everyone';
-  }
-  
-  // Office-scoped access
-  if (space.access_scope === 'offices' && space.offices?.length > 0) {
-    return space.offices.map(o => o.name).join(', ');
-  }
-  
-  // Project-scoped access
-  if (space.access_scope === 'projects' && space.projects?.length > 0) {
-    return space.projects.map(p => p.name).join(', ');
-  }
-  
-  // Private member-scoped access
-  if (space.access_scope === 'members') {
-    return 'Private';
-  }
-  
-  return null;
-};
+// 1. Get space access scope
+const space = await getSpace(spaceId);
 
-const accessGroupLabel = getAccessGroupLabel();
+// 2. Get expected members based on scope
+let expectedEmployeeIds: string[] = [];
+
+if (space.access_scope === 'company') {
+  // All active employees
+  expectedEmployeeIds = await getAllActiveEmployees(orgId);
+} else if (space.access_scope === 'offices') {
+  // Employees in linked offices
+  expectedEmployeeIds = await getEmployeesByOffices(space.offices);
+} else if (space.access_scope === 'projects') {
+  // Employees in linked projects  
+  expectedEmployeeIds = await getEmployeesByProjects(space.projects);
+}
+
+// 3. Get current space members
+const currentMembers = await getSpaceMembers(spaceId);
+
+// 4. Get exempt members (Owner/Admin/HR)
+const exemptEmployeeIds = await getExemptEmployees(currentMembers, orgId);
+
+// 5. Calculate diff
+const toAdd = expectedEmployeeIds.filter(id => !currentMembers.includes(id));
+const toRemove = currentMembers.filter(id => 
+  !expectedEmployeeIds.includes(id) && !exemptEmployeeIds.includes(id)
+);
+
+// 6. Execute
+await addMembers(spaceId, toAdd);
+await removeMembers(spaceId, toRemove);
+```
+
+### Exempt Role Query
+
+```sql
+SELECT ur.user_id, ur.role, e.id as employee_id
+FROM user_roles ur
+JOIN employees e ON e.user_id = ur.user_id
+WHERE e.id = ANY($1) -- employee IDs
+  AND ur.organization_id = $2
+  AND ur.role IN ('owner', 'admin', 'hr')
 ```
 
 ---
 
-#### Step 3: Update Header Display
-Modify lines 735-737 in `ChatHeader.tsx` to include the access group label.
-
-**Current:**
-```tsx
-<p className="text-xs text-muted-foreground">
-  {spaceMembers.length} member{spaceMembers.length !== 1 ? 's' : ''}
-</p>
-```
-
-**Updated:**
-```tsx
-<p className="text-xs text-muted-foreground">
-  {spaceMembers.length} member{spaceMembers.length !== 1 ? 's' : ''}
-  {accessGroupLabel && ` · ${accessGroupLabel}`}
-</p>
-```
-
----
-
-### Files to Modify
+## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/services/useChat.ts` | Update `useSpace` hook (lines 1210-1237) to fetch `access_scope` and join office/project names |
-| `src/components/chat/ChatHeader.tsx` | Add `getAccessGroupLabel` helper function and update subtitle display (lines 735-737) |
+| `src/services/useChat.ts` | Add `auto_sync_members` to `useSpace`, update `useUpdateSpace`, add new hooks |
+| `src/components/chat/SpaceSettingsDialog.tsx` | Add auto-sync toggle section |
+| `src/components/chat/AutoSyncPreviewDialog.tsx` | **NEW** - Sync preview and confirm dialog |
+| `src/components/chat/ChatRightPanelEnhanced.tsx` | Conditional disable of add/remove based on auto-sync |
+| `src/components/chat/AddSpaceMembersDialog.tsx` | Filter to exempt roles only when auto-sync enabled |
+| `src/components/chat/SpaceMembersDialog.tsx` | Disable remove for non-exempt, show badges |
 
 ---
 
-### Expected Results
+## Edge Cases Handled
 
-| Access Scope | Display |
-|--------------|---------|
-| `company` | "51 members · Everyone" |
-| `offices` | "12 members · GlobalyHub Australia" |
-| `projects` | "8 members · Agentcis" |
-| `members` (private) | "5 members · Private" |
+1. **Space with `access_scope = 'members'`**: Auto-sync toggle hidden (not applicable)
+2. **All members are exempt**: No members removed during sync
+3. **Admin tries to remove exempt member**: Allowed (exempt from sync rules)
+4. **New employee joins office**: Added on next sync (or real-time with DB triggers)
+5. **Employee leaves office**: Removed on next sync (if not exempt)
+6. **Space admin is also org Owner**: Can manage all members regardless
 
 ---
 
-### Technical Notes
-- The `ChatSpace` type in `src/types/chat.ts` already defines `access_scope: AccessScope` and optional `offices`/`projects` arrays, so no type changes needed
-- The junction tables `chat_space_offices` and `chat_space_projects` already exist in the database
-- For multiple offices/projects, names will be comma-separated (e.g., "Office A, Office B")
+## Future Enhancement (Optional)
 
+For real-time auto-sync (instead of manual trigger on toggle):
+- Create a PostgreSQL trigger on `employees.office_id` changes
+- Trigger syncs relevant spaces when employee office changes
+- This can be implemented as a Phase 2 enhancement
