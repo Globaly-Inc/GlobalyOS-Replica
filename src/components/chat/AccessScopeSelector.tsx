@@ -1,7 +1,8 @@
+import { useMemo } from "react";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Building2, Briefcase, FolderOpen, Users, Settings2, Lightbulb } from "lucide-react";
+import { Building2, Briefcase, FolderOpen, Users, Settings2, Lightbulb, RefreshCw, X } from "lucide-react";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,7 +15,6 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { X } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -22,6 +22,9 @@ export type AccessScope = 'company' | 'custom' | 'members';
 
 interface Employee {
   id: string;
+  office_id?: string | null;
+  department_id?: string | null;
+  employee_projects?: { project_id: string }[];
   profiles: {
     full_name: string;
     avatar_url: string | null;
@@ -46,10 +49,13 @@ interface AccessScopeSelectorProps {
   onDepartmentsEnabledChange: (enabled: boolean) => void;
   projectsEnabled: boolean;
   onProjectsEnabledChange: (enabled: boolean) => void;
-  // Member selection (for 'members' scope)
+  // Member selection (for 'members' scope and additional invites)
   selectedMemberIds: string[];
   onMemberIdsChange: (ids: string[]) => void;
   currentEmployeeId?: string;
+  // NEW: For inviting additional members alongside Group Access
+  inviteAdditionalMembers: boolean;
+  onInviteAdditionalMembersChange: (enabled: boolean) => void;
 }
 
 const AccessScopeSelector = ({
@@ -70,6 +76,8 @@ const AccessScopeSelector = ({
   selectedMemberIds,
   onMemberIdsChange,
   currentEmployeeId,
+  inviteAdditionalMembers,
+  onInviteAdditionalMembersChange,
 }: AccessScopeSelectorProps) => {
   const { currentOrg } = useOrganization();
 
@@ -121,14 +129,20 @@ const AccessScopeSelector = ({
     enabled: !!currentOrg?.id,
   });
 
-  // Fetch employees for member selection
-  const { data: employees = [] } = useQuery({
-    queryKey: ['employees-for-space', currentOrg?.id],
+  // Fetch employees with details for member selection and group filtering
+  const { data: employeesWithDetails = [] } = useQuery({
+    queryKey: ['employees-for-space-with-details', currentOrg?.id],
     queryFn: async () => {
       if (!currentOrg?.id) return [];
       const { data, error } = await supabase
         .from('employees')
-        .select(`id, profiles!inner(full_name, avatar_url, email)`)
+        .select(`
+          id, 
+          office_id, 
+          department_id,
+          profiles!inner(full_name, avatar_url, email),
+          employee_projects(project_id)
+        `)
         .eq('organization_id', currentOrg.id)
         .eq('status', 'active');
       if (error) throw error;
@@ -138,7 +152,39 @@ const AccessScopeSelector = ({
   });
 
   // Filter out current employee from selectable members
-  const selectableEmployees = employees.filter(emp => emp.id !== currentEmployeeId);
+  const selectableEmployees = employeesWithDetails.filter(emp => emp.id !== currentEmployeeId);
+
+  // Calculate which employees match the group criteria (for filtering in additional invites)
+  const groupMemberIds = useMemo(() => {
+    if (value !== 'custom') return [];
+    
+    // If no criteria enabled, no one matches
+    const hasCriteria = (officesEnabled && selectedOfficeIds.length > 0) ||
+                        (departmentsEnabled && selectedDepartmentIds.length > 0) ||
+                        (projectsEnabled && selectedProjectIds.length > 0);
+    if (!hasCriteria) return [];
+    
+    let candidates = [...employeesWithDetails];
+    
+    // Filter by offices if enabled (AND logic)
+    if (officesEnabled && selectedOfficeIds.length > 0) {
+      candidates = candidates.filter(e => selectedOfficeIds.includes(e.office_id || ''));
+    }
+    
+    // Filter by departments if enabled (AND logic)
+    if (departmentsEnabled && selectedDepartmentIds.length > 0) {
+      candidates = candidates.filter(e => selectedDepartmentIds.includes(e.department_id || ''));
+    }
+    
+    // Filter by projects if enabled (AND logic)
+    if (projectsEnabled && selectedProjectIds.length > 0) {
+      candidates = candidates.filter(e => 
+        e.employee_projects?.some(p => selectedProjectIds.includes(p.project_id))
+      );
+    }
+    
+    return candidates.map(e => e.id);
+  }, [value, employeesWithDetails, officesEnabled, selectedOfficeIds, departmentsEnabled, selectedDepartmentIds, projectsEnabled, selectedProjectIds]);
 
   const handleAddOffice = (officeId: string) => {
     if (!selectedOfficeIds.includes(officeId)) {
@@ -212,20 +258,28 @@ const AccessScopeSelector = ({
       label: 'Company-wide',
       description: `Anyone in ${currentOrg?.name || 'organization'} can find, view, and join`,
       icon: Building2,
+      showAutoSync: true,
     },
     {
       value: 'custom' as AccessScope,
-      label: 'Custom access',
-      description: 'Only employees matching ALL selected criteria can access',
+      label: 'Group Access',
+      description: 'Only employees matching criteria can access',
       icon: Settings2,
+      showAutoSync: true,
     },
     {
       value: 'members' as AccessScope,
       label: 'Invite members manually',
       description: 'Only invited members can access',
       icon: Users,
+      showAutoSync: false,
     },
   ];
+
+  // Get employees that can be selected for additional invites (not in group)
+  const additionalInviteEmployees = selectableEmployees.filter(
+    emp => !groupMemberIds.includes(emp.id) && !selectedMemberIds.includes(emp.id)
+  );
 
   return (
     <div className="space-y-3">
@@ -253,14 +307,22 @@ const AccessScopeSelector = ({
                 <RadioGroupItem value={option.value} id={option.value} className="mt-1" />
                 <Icon className={`h-5 w-5 mt-0.5 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
                 <div className="flex-1">
-                  <Label htmlFor={option.value} className="font-medium cursor-pointer">
-                    {option.label}
-                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor={option.value} className="font-medium cursor-pointer">
+                      {option.label}
+                    </Label>
+                    {option.showAutoSync && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[10px] font-medium">
+                        <RefreshCw className="h-2.5 w-2.5" />
+                        Auto Sync
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-muted-foreground">{option.description}</p>
                 </div>
               </div>
 
-              {/* Custom access criteria */}
+              {/* Custom access criteria (Group Access) */}
               {isSelected && option.value === 'custom' && (
                 <div className="ml-10 space-y-4 p-4 bg-muted/30 rounded-lg border border-border/50">
                   {/* Office checkbox & selector */}
@@ -428,10 +490,78 @@ const AccessScopeSelector = ({
                       </AlertDescription>
                     </Alert>
                   )}
+
+                  {/* Also invite specific members section */}
+                  <div className="pt-4 border-t border-border/50">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Checkbox
+                        id="invite-additional"
+                        checked={inviteAdditionalMembers}
+                        onCheckedChange={(checked) => onInviteAdditionalMembersChange(!!checked)}
+                      />
+                      <Label htmlFor="invite-additional" className="cursor-pointer text-sm">
+                        Also invite specific members
+                      </Label>
+                    </div>
+                    
+                    {inviteAdditionalMembers && (
+                      <div className="ml-6 space-y-2">
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Select additional members who aren't covered by the group criteria
+                        </p>
+                        <Select onValueChange={handleAddMember}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select members not in group..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <ScrollArea className="max-h-[200px]">
+                              {additionalInviteEmployees.map(emp => (
+                                <SelectItem key={emp.id} value={emp.id}>
+                                  <div className="flex items-center gap-2">
+                                    <Avatar className="h-5 w-5">
+                                      <AvatarImage src={emp.profiles?.avatar_url || ''} />
+                                      <AvatarFallback className="text-xs">
+                                        {emp.profiles?.full_name?.charAt(0) || '?'}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    {emp.profiles?.full_name}
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </ScrollArea>
+                          </SelectContent>
+                        </Select>
+                        
+                        {/* Show selected additional members as badges */}
+                        {selectedMemberIds.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {selectedMemberIds.map(id => {
+                              const emp = employeesWithDetails.find(e => e.id === id);
+                              return emp ? (
+                                <Badge key={id} variant="secondary" className="gap-1">
+                                  <Avatar className="h-4 w-4">
+                                    <AvatarImage src={emp.profiles?.avatar_url || ''} />
+                                    <AvatarFallback className="text-xs">
+                                      {emp.profiles?.full_name?.charAt(0) || '?'}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  {emp.profiles?.full_name?.split(' ')[0]}
+                                  <X 
+                                    className="h-3 w-3 cursor-pointer" 
+                                    onClick={() => handleRemoveMember(id)} 
+                                  />
+                                </Badge>
+                              ) : null;
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
-              {/* Member selector */}
+              {/* Member selector for 'members' scope */}
               {isSelected && option.value === 'members' && (
                 <div className="ml-10 space-y-2">
                   <Select onValueChange={handleAddMember}>
@@ -461,7 +591,7 @@ const AccessScopeSelector = ({
                   {selectedMemberIds.length > 0 && (
                     <div className="flex flex-wrap gap-2">
                       {selectedMemberIds.map(id => {
-                        const emp = employees.find(e => e.id === id);
+                        const emp = employeesWithDetails.find(e => e.id === id);
                         return emp ? (
                           <Badge key={id} variant="secondary" className="gap-1">
                             <Avatar className="h-4 w-4">
