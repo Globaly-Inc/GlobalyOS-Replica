@@ -178,7 +178,7 @@ const MessageSearch = ({
   if (!isOpen) return null;
 
   return (
-    <div className="absolute inset-x-0 top-0 z-20 bg-card border-b border-border shadow-lg">
+    <div className="absolute inset-x-0 top-full z-20 bg-card border-b border-border shadow-lg rounded-b-lg">
       <div className="p-3">
         {/* Search input */}
         <div className="flex items-center gap-2">
