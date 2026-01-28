@@ -33,6 +33,7 @@ import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { supabase } from "@/integrations/supabase/client";
 import InlineSearchResults from "./InlineSearchResults";
 import EditGroupChatDialog from "./EditGroupChatDialog";
+import { ImageCropper } from "@/components/ui/image-cropper";
 import type { ActiveChat } from "@/types/chat";
 
 interface OtherParticipant {
@@ -77,6 +78,13 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
   const [isEditingSpaceName, setIsEditingSpaceName] = useState(false);
   const [editSpaceNameValue, setEditSpaceNameValue] = useState(activeChat.name);
   const [isSavingSpaceName, setIsSavingSpaceName] = useState(false);
+  
+  // Space icon editing state
+  const [spaceIconUrl, setSpaceIconUrl] = useState<string | null>(null);
+  const [isUploadingSpacePhoto, setIsUploadingSpacePhoto] = useState(false);
+  const [spaceCropperOpen, setSpaceCropperOpen] = useState(false);
+  const [spaceTempImageSrc, setSpaceTempImageSrc] = useState<string | null>(null);
+  const spaceFileInputRef = useRef<HTMLInputElement>(null);
 
   // Focus input when search opens
   useEffect(() => {
@@ -244,6 +252,71 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
     setIsEditingSpaceName(false);
   };
 
+  // Space photo selection handler (opens cropper)
+  const handleSpacePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Admin check
+    if (!isSpaceAdmin) {
+      toast.error("Only space admins can change the space icon");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be less than 5MB");
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    // Read file and open cropper
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setSpaceTempImageSrc(reader.result as string);
+      setSpaceCropperOpen(true);
+    };
+    reader.readAsDataURL(file);
+    
+    if (spaceFileInputRef.current) spaceFileInputRef.current.value = '';
+  };
+
+  // Handle cropped space image upload
+  const handleSpaceCropComplete = async (croppedBlob: Blob) => {
+    if (!currentOrg?.id || !spaceId) return;
+
+    setIsUploadingSpacePhoto(true);
+    try {
+      const fileName = `${Date.now()}.png`;
+      const filePath = `${currentOrg.id}/space-icons/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('chat-attachments')
+        .upload(filePath, croppedBlob);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('chat-attachments')
+        .getPublicUrl(filePath);
+
+      await updateSpace.mutateAsync({
+        spaceId,
+        iconUrl: publicUrl
+      });
+
+      setSpaceIconUrl(publicUrl);
+      toast.success("Space icon updated");
+    } catch (error) {
+      toast.error("Failed to update space icon");
+    } finally {
+      setIsUploadingSpacePhoto(false);
+      setSpaceTempImageSrc(null);
+    }
+  };
+
   // Direct photo upload handler
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -319,7 +392,15 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
     setGroupIconUrl(activeChat.iconUrl || null);
     setGroupName(activeChat.name);
     setEditSpaceNameValue(activeChat.name);
+    setSpaceIconUrl(null); // Reset, will be set from space data
   }, [activeChat.id, activeChat.iconUrl, activeChat.name]);
+
+  // Sync space icon from space data
+  useEffect(() => {
+    if (space?.icon_url) {
+      setSpaceIconUrl(space.icon_url);
+    }
+  }, [space?.icon_url]);
 
   // Fetch other participant details for direct chats
   useEffect(() => {
@@ -479,14 +560,44 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
               </div>
             </>
           ) : (
-            // Space
-            <div className="flex items-center justify-center h-10 w-10 rounded bg-primary/10 text-primary font-semibold text-sm flex-shrink-0 overflow-hidden">
-              {space?.icon_url ? (
-                <img src={space.icon_url} alt={activeChat.name} className="h-full w-full object-cover" />
-              ) : (
-                activeChat.name.charAt(0).toUpperCase()
-              )}
-            </div>
+            // Space - with editable icon for admins
+            <>
+              <input
+                ref={spaceFileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleSpacePhotoSelect}
+              />
+              <div 
+                className={cn(
+                  "relative h-10 w-10 rounded flex-shrink-0 overflow-hidden",
+                  isSpaceAdmin ? "cursor-pointer group" : ""
+                )}
+                onClick={() => isSpaceAdmin && !isUploadingSpacePhoto && spaceFileInputRef.current?.click()}
+              >
+                {spaceIconUrl || space?.icon_url ? (
+                  <img 
+                    src={spaceIconUrl || space?.icon_url} 
+                    alt={activeChat.name} 
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full w-full bg-primary/10 text-primary font-semibold text-sm">
+                    {activeChat.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                {isSpaceAdmin && (
+                  <div className="absolute inset-0 rounded bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    {isUploadingSpacePhoto ? (
+                      <Loader2 className="h-4 w-4 text-white animate-spin" />
+                    ) : (
+                      <Camera className="h-4 w-4 text-white" />
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
           )}
           
           <div className="flex-1 min-w-0">
@@ -766,6 +877,21 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
             setGroupName(newName);
             setGroupIconUrl(newIconUrl);
           }}
+        />
+      )}
+
+      {/* Space Icon Cropper */}
+      {spaceTempImageSrc && (
+        <ImageCropper
+          open={spaceCropperOpen}
+          onOpenChange={(open) => {
+            setSpaceCropperOpen(open);
+            if (!open) setSpaceTempImageSrc(null);
+          }}
+          imageSrc={spaceTempImageSrc}
+          onCropComplete={handleSpaceCropComplete}
+          cropShape="square"
+          aspectRatio={1}
         />
       )}
     </>
