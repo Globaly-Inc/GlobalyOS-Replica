@@ -571,13 +571,17 @@ const ChatSidebar = ({ activeChat, onSelectChat, onNewChat, onNewSpace }: ChatSi
                         )}
                       >
                         {space.icon_url ? (
-                          <img 
-                            src={space.icon_url} 
-                            alt="" 
-                            className="h-4 w-4 rounded flex-shrink-0" 
-                          />
+                          <div className="flex items-center justify-center h-6 w-6 flex-shrink-0">
+                            <img 
+                              src={space.icon_url} 
+                              alt="" 
+                              className="h-6 w-6 rounded object-cover" 
+                            />
+                          </div>
                         ) : (
-                          <Hash className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                          <div className="flex items-center justify-center h-6 w-6 rounded bg-muted text-muted-foreground font-medium text-[10px]">
+                            {space.name.charAt(0).toUpperCase()}
+                          </div>
                         )}
                         <span className="truncate flex-1 text-left">{space.name}</span>
                         {space.space_type === 'announcements' && (
