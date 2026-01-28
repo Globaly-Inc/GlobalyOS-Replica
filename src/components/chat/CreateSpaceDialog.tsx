@@ -274,38 +274,6 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
               onInviteAdditionalMembersChange={setInviteAdditionalMembers}
             />
 
-            {/* Membership Options Section - for Company-wide & Group */}
-            {showMembershipOptions && (
-              <>
-                <Separator />
-                <div className="space-y-4">
-                  <Label className="text-base font-semibold">
-                    Membership options
-                    <span className="text-xs font-normal text-muted-foreground ml-2">
-                      (for Company-wide & Group)
-                    </span>
-                  </Label>
-                  
-                  {/* Add all matching members checkbox */}
-                  <div className="flex items-start gap-3">
-                    <Checkbox 
-                      id="addAll"
-                      checked={addAllMembers}
-                      onCheckedChange={(checked) => setAddAllMembers(!!checked)}
-                      className="mt-0.5"
-                    />
-                    <div className="space-y-0.5">
-                      <Label htmlFor="addAll" className="text-sm font-medium cursor-pointer">
-                        Add all matching members now
-                      </Label>
-                      <p className="text-xs text-muted-foreground">
-                        Add all employees who meet the access criteria
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
           </div>
         </ScrollArea>
 
