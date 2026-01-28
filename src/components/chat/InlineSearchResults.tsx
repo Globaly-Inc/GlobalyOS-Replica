@@ -28,6 +28,13 @@ interface InlineSearchResultsProps {
   setCurrentIndex: (index: number) => void;
 }
 
+/**
+ * InlineSearchResults - A content-only panel for search results.
+ * 
+ * This component is designed to be rendered inside a PopoverContent (portal-based)
+ * to avoid stacking context issues with backdrop-blur headers.
+ * It does NOT handle its own positioning - the parent PopoverContent does.
+ */
 const InlineSearchResults = ({
   query,
   conversationId,
@@ -39,7 +46,7 @@ const InlineSearchResults = ({
 }: InlineSearchResultsProps) => {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
   // Search with debounce
@@ -128,14 +135,19 @@ const InlineSearchResults = ({
       .slice(0, 2);
   };
 
+  /**
+   * Highlights matching text by splitting on the query.
+   * Uses split indices (odd = match) to avoid regex.lastIndex issues.
+   */
   const highlightMatch = (text: string, searchQuery: string) => {
     if (!searchQuery.trim()) return text;
     
-    const regex = new RegExp(`(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-    const parts = text.split(regex);
+    const escapedQuery = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const parts = text.split(new RegExp(`(${escapedQuery})`, 'gi'));
     
     return parts.map((part, index) => 
-      regex.test(part) ? (
+      // Odd indices are the matched segments
+      index % 2 === 1 ? (
         <mark key={index} className="bg-yellow-200 dark:bg-yellow-900 px-0.5 rounded">
           {part}
         </mark>
@@ -158,7 +170,7 @@ const InlineSearchResults = ({
   if (!query.trim()) return null;
 
   return (
-    <div className="absolute right-4 top-full mt-1 z-50 w-[320px] md:w-[400px] bg-card border border-border rounded-lg shadow-lg max-h-[400px] overflow-hidden">
+    <div className="flex flex-col">
       {/* Header with result count and navigation */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30">
         <span className="text-xs text-muted-foreground">
@@ -196,7 +208,9 @@ const InlineSearchResults = ({
               data-index={index}
               className={cn(
                 "flex items-start gap-2 px-3 py-2.5 cursor-pointer border-b border-border/50 last:border-0 transition-colors",
-                index === currentIndex ? "bg-accent" : "hover:bg-muted/50"
+                index === currentIndex 
+                  ? "bg-accent text-accent-foreground [&_.text-muted-foreground]:text-accent-foreground/80" 
+                  : "hover:bg-muted/50"
               )}
               onClick={() => {
                 setCurrentIndex(index);

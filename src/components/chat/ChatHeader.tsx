@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useChatFavorites, useToggleFavorite } from "@/hooks/useChatFavorites";
 import { 
@@ -536,53 +537,81 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
 
         {/* Right section - Actions with inline search */}
         <div className="flex items-center gap-0.5 flex-shrink-0">
-          {/* Inline Search Bar */}
-          {showSearch ? (
-            <div className="flex items-center gap-1.5 mr-1">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  ref={searchInputRef}
-                  type="text"
-                  placeholder="Search messages..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={handleSearchKeyDown}
-                  className="h-8 w-[200px] md:w-[260px] pl-8 pr-7 text-sm"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={handleCloseSearch}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          ) : (
-            <Tooltip>
-              <TooltipTrigger asChild>
+          {/* Inline Search Bar with Portal-based Results */}
+          <Popover 
+            open={showSearch && searchQuery.trim().length > 0}
+            onOpenChange={(open) => {
+              if (!open) handleCloseSearch();
+            }}
+          >
+            {showSearch ? (
+              <div className="flex items-center gap-1.5 mr-1">
+                <PopoverAnchor asChild>
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      ref={searchInputRef}
+                      type="text"
+                      placeholder="Search messages..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={handleSearchKeyDown}
+                      className="h-8 w-[200px] md:w-[260px] pl-8 pr-7 text-sm"
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery("")}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </PopoverAnchor>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-9"
-                  onClick={() => setShowSearch(true)}
+                  className="h-8 w-8"
+                  onClick={handleCloseSearch}
                 >
-                  <Search className="h-4 w-4" />
+                  <X className="h-4 w-4" />
                 </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Search messages</TooltipContent>
-            </Tooltip>
-          )}
+              </div>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9"
+                    onClick={() => setShowSearch(true)}
+                  >
+                    <Search className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Search messages</TooltipContent>
+              </Tooltip>
+            )}
+
+            {/* Search results rendered in Portal via PopoverContent */}
+            <PopoverContent 
+              side="bottom" 
+              align="end" 
+              sideOffset={6}
+              className="p-0 w-[min(400px,calc(100vw-1.5rem))] max-h-[400px] overflow-hidden"
+              onOpenAutoFocus={(e) => e.preventDefault()}
+            >
+              <InlineSearchResults
+                query={searchQuery}
+                conversationId={conversationId}
+                spaceId={spaceId}
+                onResultClick={handleSearchResultClick}
+                onClose={handleCloseSearch}
+                currentIndex={searchCurrentIndex}
+                setCurrentIndex={setSearchCurrentIndex}
+              />
+            </PopoverContent>
+          </Popover>
 
           <Tooltip>
             <TooltipTrigger asChild>
@@ -626,19 +655,6 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
           </Tooltip>
 
         </div>
-
-        {/* Inline search results dropdown - positioned relative to header */}
-        {showSearch && searchQuery.trim() && (
-          <InlineSearchResults
-            query={searchQuery}
-            conversationId={conversationId}
-            spaceId={spaceId}
-            onResultClick={handleSearchResultClick}
-            onClose={handleCloseSearch}
-            currentIndex={searchCurrentIndex}
-            setCurrentIndex={setSearchCurrentIndex}
-          />
-        )}
       </div>
 
       {/* Edit Group Chat Dialog */}
