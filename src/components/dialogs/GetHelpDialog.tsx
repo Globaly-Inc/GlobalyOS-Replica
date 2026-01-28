@@ -30,6 +30,8 @@ interface GetHelpDialogProps {
   defaultType?: SupportRequestType;
 }
 
+const MAX_SCREENSHOTS = 5;
+
 export const GetHelpDialog = ({ open, onOpenChange, defaultType }: GetHelpDialogProps) => {
   const location = useLocation();
   const [type, setType] = useState<SupportRequestType>(defaultType || 'bug');
@@ -37,8 +39,8 @@ export const GetHelpDialog = ({ open, onOpenChange, defaultType }: GetHelpDialog
   const [description, setDescription] = useState('');
   const [aiImprovedDescription, setAiImprovedDescription] = useState<string | null>(null);
   const [suggestedPriority, setSuggestedPriority] = useState<SupportRequestPriority | null>(null);
-  const [screenshot, setScreenshot] = useState<File | null>(null);
-  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [screenshots, setScreenshots] = useState<File[]>([]);
+  const [screenshotPreviews, setScreenshotPreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
 
@@ -59,27 +61,50 @@ export const GetHelpDialog = ({ open, onOpenChange, defaultType }: GetHelpDialog
       setDescription('');
       setAiImprovedDescription(null);
       setSuggestedPriority(null);
-      setScreenshot(null);
-      setScreenshotPreview(null);
+      setScreenshots([]);
+      setScreenshotPreviews([]);
     }
   }, [open, defaultType]);
 
   const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setScreenshot(file);
-      const reader = new FileReader();
-      reader.onload = (e) => setScreenshotPreview(e.target?.result as string);
-      reader.readAsDataURL(file);
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    // Append new files (limit to max)
+    const remainingSlots = MAX_SCREENSHOTS - screenshots.length;
+    const filesToAdd = files.slice(0, remainingSlots);
+    
+    if (filesToAdd.length === 0) {
+      toast.error(`Maximum ${MAX_SCREENSHOTS} images allowed`);
+      return;
     }
+
+    setScreenshots(prev => [...prev, ...filesToAdd]);
+    
+    // Generate previews for new files
+    filesToAdd.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setScreenshotPreviews(prev => [...prev, e.target?.result as string].slice(0, MAX_SCREENSHOTS));
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Reset input to allow re-selecting same files
+    e.target.value = '';
   };
 
-  const handleRemoveScreenshot = () => {
-    setScreenshot(null);
-    setScreenshotPreview(null);
+  const handleRemoveScreenshot = (index: number) => {
+    setScreenshots(prev => prev.filter((_, i) => i !== index));
+    setScreenshotPreviews(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleCaptureScreenshot = async () => {
+    if (screenshots.length >= MAX_SCREENSHOTS) {
+      toast.error(`Maximum ${MAX_SCREENSHOTS} images allowed`);
+      return;
+    }
+
     setIsCapturing(true);
     
     try {
@@ -135,9 +160,8 @@ export const GetHelpDialog = ({ open, onOpenChange, defaultType }: GetHelpDialog
 
       if (blob) {
         const file = new File([blob], `screenshot-${Date.now()}.png`, { type: 'image/png' });
-        setScreenshot(file);
-        // Use URL.createObjectURL instead of toDataURL for reliability
-        setScreenshotPreview(URL.createObjectURL(blob));
+        setScreenshots(prev => [...prev, file].slice(0, MAX_SCREENSHOTS));
+        setScreenshotPreviews(prev => [...prev, URL.createObjectURL(blob)].slice(0, MAX_SCREENSHOTS));
         toast.success('Screenshot captured successfully');
       } else {
         throw new Error('Could not generate screenshot image');
@@ -181,11 +205,11 @@ export const GetHelpDialog = ({ open, onOpenChange, defaultType }: GetHelpDialog
 
     setIsSubmitting(true);
     try {
-      let screenshotUrl: string | undefined;
-      
-      if (screenshot) {
-        const url = await uploadScreenshot(screenshot);
-        if (url) screenshotUrl = url;
+      // Upload all screenshots
+      const screenshotUrls: string[] = [];
+      for (const file of screenshots) {
+        const url = await uploadScreenshot(file);
+        if (url) screenshotUrls.push(url);
       }
 
       await createRequest.mutateAsync({
@@ -196,7 +220,8 @@ export const GetHelpDialog = ({ open, onOpenChange, defaultType }: GetHelpDialog
         page_url: pageUrl,
         browser_info: browserInfo,
         device_type: deviceType,
-        screenshot_url: screenshotUrl,
+        // Store multiple URLs as comma-separated
+        screenshot_url: screenshotUrls.join(',') || undefined,
       });
 
       onOpenChange(false);
@@ -327,25 +352,41 @@ export const GetHelpDialog = ({ open, onOpenChange, defaultType }: GetHelpDialog
 
           {/* Screenshot Options */}
           <div className="space-y-2">
-            <Label>Screenshot (optional)</Label>
-            {screenshotPreview ? (
-              <div className="relative inline-block">
-                <img 
-                  src={screenshotPreview} 
-                  alt="Screenshot preview" 
-                  className="max-h-32 rounded-lg border"
-                />
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="icon"
-                  className="absolute -top-2 -right-2 h-6 w-6"
-                  onClick={handleRemoveScreenshot}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
+            <div className="flex items-center justify-between">
+              <Label>Screenshots (optional)</Label>
+              {screenshots.length > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  {screenshots.length}/{MAX_SCREENSHOTS}
+                </span>
+              )}
+            </div>
+
+            {/* Screenshot Previews Grid */}
+            {screenshotPreviews.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                {screenshotPreviews.map((preview, index) => (
+                  <div key={index} className="relative group">
+                    <img 
+                      src={preview} 
+                      alt={`Screenshot ${index + 1}`}
+                      className="h-20 w-full object-cover rounded-lg border"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute -top-2 -right-2 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => handleRemoveScreenshot(index)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
               </div>
-            ) : (
+            )}
+
+            {/* Add More Options (shown if under limit) */}
+            {screenshots.length < MAX_SCREENSHOTS && (
               <div className="grid grid-cols-2 gap-3">
                 {/* Capture Screenshot */}
                 <Button
@@ -372,6 +413,7 @@ export const GetHelpDialog = ({ open, onOpenChange, defaultType }: GetHelpDialog
                   <input
                     type="file"
                     accept="image/*"
+                    multiple
                     className="hidden"
                     onChange={handleScreenshotChange}
                   />

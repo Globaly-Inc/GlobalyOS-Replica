@@ -177,17 +177,21 @@ export const UserSupportRequestDetailSheet = ({ request, open, onOpenChange }: U
               </CollapsibleContent>
             </Collapsible>
 
-            {/* Screenshot */}
+            {/* Screenshots */}
             {request.screenshot_url && (
               <div className="space-y-1.5">
-                <Label className="text-xs">Screenshot</Label>
-                <a href={request.screenshot_url} target="_blank" rel="noopener noreferrer">
-                  <img 
-                    src={request.screenshot_url} 
-                    alt="Screenshot" 
-                    className="max-h-32 rounded-lg border cursor-pointer hover:opacity-80 transition-opacity"
-                  />
-                </a>
+                <Label className="text-xs">Screenshots</Label>
+                <div className="flex flex-wrap gap-2">
+                  {request.screenshot_url.split(',').map((url, index) => (
+                    <a key={index} href={url.trim()} target="_blank" rel="noopener noreferrer">
+                      <img 
+                        src={url.trim()} 
+                        alt={`Screenshot ${index + 1}`} 
+                        className="max-h-24 rounded-lg border cursor-pointer hover:opacity-80 transition-opacity"
+                      />
+                    </a>
+                  ))}
+                </div>
               </div>
             )}
 

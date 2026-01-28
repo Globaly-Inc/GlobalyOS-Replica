@@ -319,17 +319,21 @@ export const SupportRequestDetailDialog = ({ request, open, onClose }: SupportRe
                 </CollapsibleContent>
               </Collapsible>
 
-              {/* Screenshot */}
+              {/* Screenshots */}
               {request.screenshot_url && (
                 <div className="space-y-2">
-                  <Label className="text-sm">Screenshot</Label>
-                  <a href={request.screenshot_url} target="_blank" rel="noopener noreferrer">
-                    <img 
-                      src={request.screenshot_url} 
-                      alt="Screenshot" 
-                      className="max-h-48 max-w-full rounded-lg border cursor-pointer hover:opacity-80 transition-opacity"
-                    />
-                  </a>
+                  <Label className="text-sm">Screenshots</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {request.screenshot_url.split(',').map((url, index) => (
+                      <a key={index} href={url.trim()} target="_blank" rel="noopener noreferrer">
+                        <img 
+                          src={url.trim()} 
+                          alt={`Screenshot ${index + 1}`} 
+                          className="max-h-32 rounded-lg border cursor-pointer hover:opacity-80 transition-opacity"
+                        />
+                      </a>
+                    ))}
+                  </div>
                 </div>
               )}
 
