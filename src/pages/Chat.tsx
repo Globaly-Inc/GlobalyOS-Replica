@@ -1,7 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import ChatSidebar from "@/components/chat/ChatSidebar";
 import ConversationView from "@/components/chat/ConversationView";
-import ChatRightPanelEnhanced from "@/components/chat/ChatRightPanelEnhanced";
 import ChatEmptyState from "@/components/chat/ChatEmptyState";
 import NewChatDialog from "@/components/chat/NewChatDialog";
 import CreateSpaceDialog from "@/components/chat/CreateSpaceDialog";
@@ -10,12 +9,16 @@ import StarredView from "@/components/chat/StarredView";
 import UnreadView from "@/components/chat/UnreadView";
 import MobileChatHome from "@/components/chat/MobileChatHome";
 import QuickSwitcher from "@/components/chat/QuickSwitcher";
-import ThreadView from "@/components/chat/ThreadView";
 import ChatHeader from "@/components/chat/ChatHeader";
 import SpecialViewHeader from "@/components/chat/SpecialViewHeader";
 import { useChatKeyboardShortcuts } from "@/hooks/useChatKeyboardShortcuts";
+import { useChatRealtime } from "@/hooks/useChatRealtime";
 import type { ActiveChat, ChatMessage } from "@/types/chat";
 import { useIsMobile } from "@/hooks/use-mobile";
+
+// Lazy load less critical components for better initial load performance
+const ChatRightPanelEnhanced = lazy(() => import("@/components/chat/ChatRightPanelEnhanced"));
+const ThreadView = lazy(() => import("@/components/chat/ThreadView"));
 
 const Chat = () => {
   const [activeChat, setActiveChat] = useState<ActiveChat | null>(null);
@@ -27,6 +30,9 @@ const Chat = () => {
   const [recentChats, setRecentChats] = useState<ActiveChat[]>([]);
   const [activeThreadMessage, setActiveThreadMessage] = useState<ChatMessage | null>(null);
   const isMobile = useIsMobile();
+
+  // Consolidated realtime subscription for all chat tables
+  useChatRealtime();
 
   // Keyboard shortcuts
   useChatKeyboardShortcuts({
@@ -203,23 +209,25 @@ const Chat = () => {
             {renderMainContent()}
           </div>
 
-          {/* Right Panel */}
+          {/* Right Panel - Lazy loaded with Suspense */}
           {showRightPanelCondition && (
             <div className="w-80 flex-shrink-0 border-l border-border overflow-hidden">
-              {activeThreadMessage ? (
-                <ThreadView
-                  parentMessage={activeThreadMessage}
-                  conversationId={activeChat.type === 'conversation' ? activeChat.id : null}
-                  spaceId={activeChat.type === 'space' ? activeChat.id : null}
-                  onClose={() => setActiveThreadMessage(null)}
-                />
-              ) : (
-                <ChatRightPanelEnhanced
-                  activeChat={activeChat}
-                  onClose={() => {}}
-                  onBack={handleBack}
-                />
-              )}
+              <Suspense fallback={<div className="h-full bg-muted/30 animate-pulse" />}>
+                {activeThreadMessage ? (
+                  <ThreadView
+                    parentMessage={activeThreadMessage}
+                    conversationId={activeChat.type === 'conversation' ? activeChat.id : null}
+                    spaceId={activeChat.type === 'space' ? activeChat.id : null}
+                    onClose={() => setActiveThreadMessage(null)}
+                  />
+                ) : (
+                  <ChatRightPanelEnhanced
+                    activeChat={activeChat}
+                    onClose={() => {}}
+                    onBack={handleBack}
+                  />
+                )}
+              </Suspense>
             </div>
           )}
         </div>

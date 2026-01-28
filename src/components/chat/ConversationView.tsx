@@ -294,27 +294,8 @@ const ConversationView = ({
     setHasMoreMessages(true);
   }, [conversationId, spaceId]);
 
-  // Subscribe to typing indicator changes
-  useEffect(() => {
-    const channel = supabase
-      .channel('typing-indicators')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'chat_presence'
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['typing-users', conversationId, spaceId] });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [conversationId, spaceId, queryClient]);
+  // Note: Typing indicator realtime is handled by consolidated useChatRealtime hook
+  // No need for separate subscription here
 
   // Fetch other participant details for direct chats
   useEffect(() => {
