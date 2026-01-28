@@ -1,275 +1,542 @@
 
-# Enable Multiple Image Uploads in Get Help Dialog
+
+# Create Space Dialog Enhancement - Revised Comprehensive Plan
 
 ## Overview
-Update the Get Help dialog to allow users to upload multiple images during submission, both initially and after files have been added. Currently, only a single screenshot is supported.
+
+This plan modifies the Create Space dialog based on the provided wireframe to:
+1. Add Space Type selector (Collaboration/Announcement)
+2. Add "Auto Sync" tag next to "Company-wide" option
+3. Rename "Custom access" to "Group Access" with "Auto Sync" tag
+4. Allow "Also invite specific members" within Group Access (filtering out group members)
+5. Update "Membership options" section to show for both Company-wide AND Group Access
+6. Remove the separate auto-sync toggle (group members are always auto-synced by default)
 
 ---
 
-## Current State Analysis
+## Visual Design (Based on Reference)
 
-| Component | Current Behavior |
-|-----------|------------------|
-| `GetHelpDialog.tsx` | Single file input (`screenshot: File \| null`) |
-| `support_requests` table | Single `screenshot_url` column (text) |
-| Detail dialogs | Display single image from `screenshot_url` |
-| Upload function | Uploads one file to `support-screenshots` bucket |
+```text
++-----------------------------------------------------------+
+| Create a space                                            |
++-----------------------------------------------------------+
+| [Icon] [Space name input.........................]        |
+|                                               0/128       |
+|                                                           |
+| Description (optional)                                    |
+| [......................................................]  |
+|                                               0/500       |
+|                                                           |
+| Space type                                                |
+| +-------------------------------------------------------+ |
+| | (*) [chat] Collaboration                              | |
+| |     Everyone can post messages                        | |
+| +-------------------------------------------------------+ |
+| | ( ) [megaphone] Announcement                          | |
+| |     Only admins can post, members can view            | |
+| +-------------------------------------------------------+ |
+|                                                           |
+| Access settings                                           |
+| +-------------------------------------------------------+ |
+| | (*) [building] Company-wide          [Auto Sync]      | |
+| |     Anyone in Org can find, view, and join            | |
+| +-------------------------------------------------------+ |
+| | ( ) [settings] Group Access          [Auto Sync]      | |
+| |     Only employees matching criteria can access       | |
+| |                                                       | |
+| |   (If selected, show criteria selectors)              | |
+| |   [ ] Office   [ ] Department   [ ] Project           | |
+| |   [Select offices...]   [badges]                      | |
+| |                                                       | |
+| |   [ ] Also invite specific members                    | |
+| |   [Select members not in group...]                    | |
+| +-------------------------------------------------------+ |
+| | ( ) [users] Invite members manually                   | |
+| |     Only invited members can access                   | |
+| |     [Select team members...]                          | |
+| +-------------------------------------------------------+ |
+|                                                           |
+| Membership options (for Company-wide & Group)             |
+| ---------------------------------------------------------+|
+| [ ] Add all matching members now                          |
+|     Add all employees who meet the access criteria        |
+|                                                           |
++-----------------------------------------------------------+
+|                              [Cancel]  [Create]           |
++-----------------------------------------------------------+
+```
 
 ---
 
 ## Implementation Plan
 
-### Part 1: Update State & Types
+### Part 1: Add Space Type State and UI
 
-**File:** `src/components/dialogs/GetHelpDialog.tsx`
+**File:** `src/components/chat/CreateSpaceDialog.tsx`
 
-Change from single to multiple files:
+Add new state and imports:
 
 ```tsx
-// Before
-const [screenshot, setScreenshot] = useState<File | null>(null);
-const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+import { MessageSquare, Megaphone } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
-// After
-const [screenshots, setScreenshots] = useState<File[]>([]);
-const [screenshotPreviews, setScreenshotPreviews] = useState<string[]>([]);
+// Add state
+const [spaceType, setSpaceType] = useState<'collaboration' | 'announcements'>('collaboration');
 ```
 
----
-
-### Part 2: Update File Input for Multiple Selection
-
-**File:** `src/components/dialogs/GetHelpDialog.tsx`
-
-Add `multiple` attribute and update handler:
+Add Space Type UI section between Description and Access settings:
 
 ```tsx
-<input
-  type="file"
-  accept="image/*"
-  multiple  // ADD THIS
-  className="hidden"
-  onChange={handleScreenshotChange}
-/>
-```
-
-Update handler to append files:
-
-```tsx
-const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const files = Array.from(e.target.files || []);
-  if (files.length === 0) return;
-  
-  // Append new files (limit to 5 total)
-  const newFiles = [...screenshots, ...files].slice(0, 5);
-  setScreenshots(newFiles);
-  
-  // Generate previews for new files
-  const newPreviews: string[] = [];
-  files.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      newPreviews.push(e.target?.result as string);
-      if (newPreviews.length === files.length) {
-        setScreenshotPreviews(prev => [...prev, ...newPreviews].slice(0, 5));
-      }
-    };
-    reader.readAsDataURL(file);
-  });
-};
-```
-
----
-
-### Part 3: Update Capture Screenshot to Append
-
-**File:** `src/components/dialogs/GetHelpDialog.tsx`
-
-Modify capture function to add to existing array:
-
-```tsx
-const handleCaptureScreenshot = async () => {
-  if (screenshots.length >= 5) {
-    toast.error('Maximum 5 images allowed');
-    return;
-  }
-  
-  // ... existing capture logic ...
-  
-  if (blob) {
-    const file = new File([blob], `screenshot-${Date.now()}.png`, { type: 'image/png' });
-    setScreenshots(prev => [...prev, file].slice(0, 5));
-    setScreenshotPreviews(prev => [...prev, URL.createObjectURL(blob)].slice(0, 5));
-    toast.success('Screenshot captured');
-  }
-};
-```
-
----
-
-### Part 4: Update Preview UI for Multiple Images
-
-**File:** `src/components/dialogs/GetHelpDialog.tsx`
-
-Show grid of previews with individual remove buttons, plus ability to add more:
-
-```tsx
-{/* Screenshot Previews */}
-{screenshotPreviews.length > 0 && (
-  <div className="grid grid-cols-3 gap-2 mb-3">
-    {screenshotPreviews.map((preview, index) => (
-      <div key={index} className="relative group">
-        <img 
-          src={preview} 
-          alt={`Screenshot ${index + 1}`}
-          className="h-20 w-full object-cover rounded-lg border"
-        />
-        <Button
-          type="button"
-          variant="destructive"
-          size="icon"
-          className="absolute -top-2 -right-2 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={() => handleRemoveScreenshot(index)}
-        >
-          <X className="h-3 w-3" />
-        </Button>
+{/* Space Type */}
+<div className="space-y-3">
+  <Label className="text-base font-semibold">Space type</Label>
+  <RadioGroup
+    value={spaceType}
+    onValueChange={(v) => setSpaceType(v as 'collaboration' | 'announcements')}
+    className="space-y-2"
+  >
+    <div 
+      className={cn(
+        "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
+        spaceType === 'collaboration' 
+          ? 'border-primary bg-primary/5' 
+          : 'border-border hover:bg-muted/50'
+      )}
+      onClick={() => setSpaceType('collaboration')}
+    >
+      <RadioGroupItem value="collaboration" id="collaboration" className="mt-1" />
+      <MessageSquare className={cn("h-5 w-5 mt-0.5", spaceType === 'collaboration' ? 'text-primary' : 'text-muted-foreground')} />
+      <div className="flex-1">
+        <Label htmlFor="collaboration" className="font-medium cursor-pointer">
+          Collaboration
+        </Label>
+        <p className="text-sm text-muted-foreground">Everyone can post messages</p>
       </div>
-    ))}
-  </div>
-)}
-
-{/* Add More Options (shown if under limit) */}
-{screenshotPreviews.length < 5 && (
-  <div className="grid grid-cols-2 gap-3">
-    {/* Capture + Upload buttons */}
-  </div>
-)}
-```
-
----
-
-### Part 5: Update Remove Handler
-
-**File:** `src/components/dialogs/GetHelpDialog.tsx`
-
-```tsx
-const handleRemoveScreenshot = (index: number) => {
-  setScreenshots(prev => prev.filter((_, i) => i !== index));
-  setScreenshotPreviews(prev => prev.filter((_, i) => i !== index));
-};
-```
-
----
-
-### Part 6: Update Submit to Upload Multiple Files
-
-**File:** `src/components/dialogs/GetHelpDialog.tsx`
-
-Upload all screenshots and join URLs:
-
-```tsx
-const handleSubmit = async () => {
-  // ... validation ...
-  
-  setIsSubmitting(true);
-  try {
-    // Upload all screenshots
-    const screenshotUrls: string[] = [];
-    for (const file of screenshots) {
-      const url = await uploadScreenshot(file);
-      if (url) screenshotUrls.push(url);
-    }
-    
-    await createRequest.mutateAsync({
-      type,
-      title,
-      description,
-      ai_improved_description: aiImprovedDescription || undefined,
-      page_url: pageUrl,
-      browser_info: browserInfo,
-      device_type: deviceType,
-      // Store multiple URLs as comma-separated or first URL
-      screenshot_url: screenshotUrls.join(',') || undefined,
-    });
-    
-    onOpenChange(false);
-  } catch (error) {
-    console.error('Failed to submit:', error);
-  } finally {
-    setIsSubmitting(false);
-  }
-};
-```
-
----
-
-### Part 7: Update Detail Views to Display Multiple Images
-
-**File:** `src/components/super-admin/SupportRequestDetailDialog.tsx`
-
-Parse and display multiple screenshots:
-
-```tsx
-{/* Screenshots */}
-{request.screenshot_url && (
-  <div className="space-y-2">
-    <Label className="text-sm">Screenshots</Label>
-    <div className="flex flex-wrap gap-2">
-      {request.screenshot_url.split(',').map((url, index) => (
-        <a key={index} href={url.trim()} target="_blank" rel="noopener noreferrer">
-          <img 
-            src={url.trim()} 
-            alt={`Screenshot ${index + 1}`} 
-            className="max-h-32 rounded-lg border cursor-pointer hover:opacity-80 transition-opacity"
-          />
-        </a>
-      ))}
     </div>
-  </div>
-)}
+    
+    <div 
+      className={cn(
+        "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
+        spaceType === 'announcements' 
+          ? 'border-primary bg-primary/5' 
+          : 'border-border hover:bg-muted/50'
+      )}
+      onClick={() => setSpaceType('announcements')}
+    >
+      <RadioGroupItem value="announcements" id="announcements" className="mt-1" />
+      <Megaphone className={cn("h-5 w-5 mt-0.5", spaceType === 'announcements' ? 'text-primary' : 'text-muted-foreground')} />
+      <div className="flex-1">
+        <Label htmlFor="announcements" className="font-medium cursor-pointer">
+          Announcement
+        </Label>
+        <p className="text-sm text-muted-foreground">Only admins can post, members can view</p>
+      </div>
+    </div>
+  </RadioGroup>
+</div>
 ```
-
-**File:** `src/components/home/UserSupportRequestDetailSheet.tsx`
-
-Apply the same multi-image display pattern.
 
 ---
 
-### Part 8: Update generateLovablePrompt
+### Part 2: Update AccessScopeSelector Props
 
-**File:** `src/utils/generateLovablePrompt.ts`
+**File:** `src/components/chat/AccessScopeSelector.tsx`
 
-Handle comma-separated screenshot URLs:
+Add new props for "Also invite specific members" functionality:
 
 ```tsx
-// Collect all images
-const images: string[] = [];
-if (request.screenshot_url) {
-  // Support multiple screenshots (comma-separated)
-  request.screenshot_url.split(',').forEach(url => {
-    if (images.length < 10 && url.trim()) {
-      images.push(url.trim());
-    }
-  });
+interface AccessScopeSelectorProps {
+  // ... existing props ...
+  
+  // NEW: For inviting additional members alongside Group Access
+  inviteAdditionalMembers: boolean;
+  onInviteAdditionalMembersChange: (enabled: boolean) => void;
 }
 ```
 
 ---
 
-### Part 9: Reset Form Properly
+### Part 3: Rename "Custom access" to "Group Access" and Add Auto Sync Tags
 
-**File:** `src/components/dialogs/GetHelpDialog.tsx`
+**File:** `src/components/chat/AccessScopeSelector.tsx`
 
-Update useEffect to clear arrays:
+Update scope options with new label and add auto-sync flag:
+
+```tsx
+import { RefreshCw } from "lucide-react";
+
+const scopeOptions = [
+  {
+    value: 'company' as AccessScope,
+    label: 'Company-wide',
+    description: `Anyone in ${currentOrg?.name || 'organization'} can find, view, and join`,
+    icon: Building2,
+    showAutoSync: true,  // NEW
+  },
+  {
+    value: 'custom' as AccessScope,
+    label: 'Group Access',  // RENAMED from 'Custom access'
+    description: 'Only employees matching criteria can access',
+    icon: Settings2,
+    showAutoSync: true,  // NEW
+  },
+  {
+    value: 'members' as AccessScope,
+    label: 'Invite members manually',
+    description: 'Only invited members can access',
+    icon: Users,
+    showAutoSync: false,  // No auto-sync for manual
+  },
+];
+```
+
+Update the label rendering to include Auto Sync tag:
+
+```tsx
+<div className="flex-1">
+  <div className="flex items-center gap-2">
+    <Label htmlFor={option.value} className="font-medium cursor-pointer">
+      {option.label}
+    </Label>
+    {option.showAutoSync && (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[10px] font-medium">
+        <RefreshCw className="h-2.5 w-2.5" />
+        Auto Sync
+      </span>
+    )}
+  </div>
+  <p className="text-sm text-muted-foreground">{option.description}</p>
+</div>
+```
+
+---
+
+### Part 4: Add "Also Invite Specific Members" Section in Group Access
+
+**File:** `src/components/chat/AccessScopeSelector.tsx`
+
+After the criteria selectors (Office, Department, Project) within the 'custom' scope section, add:
+
+```tsx
+{/* Also invite specific members - for Group Access */}
+{isSelected && option.value === 'custom' && (
+  <div className="mt-4 pt-4 border-t border-border/50">
+    <div className="flex items-center gap-2 mb-3">
+      <Checkbox
+        id="invite-additional"
+        checked={inviteAdditionalMembers}
+        onCheckedChange={(checked) => onInviteAdditionalMembersChange(!!checked)}
+      />
+      <Label htmlFor="invite-additional" className="cursor-pointer text-sm">
+        Also invite specific members
+      </Label>
+    </div>
+    
+    {inviteAdditionalMembers && (
+      <div className="ml-6 space-y-2">
+        <p className="text-xs text-muted-foreground mb-2">
+          Select additional members who aren't covered by the group criteria
+        </p>
+        <Select onValueChange={handleAddMember}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select members not in group..." />
+          </SelectTrigger>
+          <SelectContent>
+            <ScrollArea className="max-h-[200px]">
+              {selectableEmployees
+                .filter(emp => 
+                  !selectedMemberIds.includes(emp.id) && 
+                  !groupMemberIds.includes(emp.id)
+                )
+                .map(emp => (
+                  <SelectItem key={emp.id} value={emp.id}>
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-5 w-5">
+                        <AvatarImage src={emp.profiles?.avatar_url || ''} />
+                        <AvatarFallback className="text-xs">
+                          {emp.profiles?.full_name?.charAt(0) || '?'}
+                        </AvatarFallback>
+                      </Avatar>
+                      {emp.profiles?.full_name}
+                    </div>
+                  </SelectItem>
+                ))}
+            </ScrollArea>
+          </SelectContent>
+        </Select>
+        
+        {/* Show selected additional members as badges */}
+        {selectedMemberIds.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {selectedMemberIds.map(id => {
+              const emp = selectableEmployees.find(e => e.id === id);
+              return emp ? (
+                <Badge key={id} variant="secondary" className="gap-1">
+                  <Avatar className="h-4 w-4">
+                    <AvatarImage src={emp.profiles?.avatar_url || ''} />
+                    <AvatarFallback className="text-xs">
+                      {emp.profiles?.full_name?.charAt(0) || '?'}
+                    </AvatarFallback>
+                  </Avatar>
+                  {emp.profiles?.full_name?.split(' ')[0]}
+                  <X 
+                    className="h-3 w-3 cursor-pointer" 
+                    onClick={() => handleRemoveMember(id)} 
+                  />
+                </Badge>
+              ) : null;
+            })}
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+)}
+```
+
+---
+
+### Part 5: Calculate Group Member IDs for Filtering
+
+**File:** `src/components/chat/AccessScopeSelector.tsx`
+
+Add a computed value to determine which employees match the current group criteria, so we can filter them out from the manual member selector:
+
+```tsx
+import { useMemo } from "react";
+
+// Fetch employees with office, department, and project info for filtering
+const { data: employeesWithDetails = [] } = useQuery({
+  queryKey: ['employees-with-details-for-filtering', currentOrg?.id],
+  queryFn: async () => {
+    if (!currentOrg?.id) return [];
+    const { data, error } = await supabase
+      .from('employees')
+      .select(`
+        id, 
+        office_id, 
+        department_id,
+        profiles!inner(full_name, avatar_url, email),
+        employee_projects(project_id)
+      `)
+      .eq('organization_id', currentOrg.id)
+      .eq('status', 'active');
+    if (error) throw error;
+    return data || [];
+  },
+  enabled: !!currentOrg?.id,
+});
+
+// Calculate which employees match the group criteria
+const groupMemberIds = useMemo(() => {
+  if (value !== 'custom') return [];
+  
+  let candidates = [...employeesWithDetails];
+  
+  // Filter by offices if enabled
+  if (officesEnabled && selectedOfficeIds.length > 0) {
+    candidates = candidates.filter(e => selectedOfficeIds.includes(e.office_id || ''));
+  }
+  
+  // Filter by departments if enabled
+  if (departmentsEnabled && selectedDepartmentIds.length > 0) {
+    candidates = candidates.filter(e => selectedDepartmentIds.includes(e.department_id || ''));
+  }
+  
+  // Filter by projects if enabled
+  if (projectsEnabled && selectedProjectIds.length > 0) {
+    candidates = candidates.filter(e => 
+      e.employee_projects?.some(p => selectedProjectIds.includes(p.project_id))
+    );
+  }
+  
+  return candidates.map(e => e.id);
+}, [value, employeesWithDetails, officesEnabled, selectedOfficeIds, departmentsEnabled, selectedDepartmentIds, projectsEnabled, selectedProjectIds]);
+```
+
+---
+
+### Part 6: Update CreateSpaceDialog State and Props
+
+**File:** `src/components/chat/CreateSpaceDialog.tsx`
+
+Add new state and remove obsolete state:
+
+```tsx
+// NEW: Space type selection
+const [spaceType, setSpaceType] = useState<'collaboration' | 'announcements'>('collaboration');
+
+// NEW: Enable manual member invites alongside Group Access
+const [inviteAdditionalMembers, setInviteAdditionalMembers] = useState(false);
+
+// REMOVE: autoSync state (no longer needed as separate toggle)
+// const [autoSync, setAutoSync] = useState(false);  <- DELETE THIS
+```
+
+Update AccessScopeSelector props:
+
+```tsx
+<AccessScopeSelector
+  value={accessScope}
+  onChange={setAccessScope}
+  selectedOfficeIds={selectedOfficeIds}
+  onOfficeIdsChange={setSelectedOfficeIds}
+  selectedDepartmentIds={selectedDepartmentIds}
+  onDepartmentIdsChange={setSelectedDepartmentIds}
+  selectedProjectIds={selectedProjectIds}
+  onProjectIdsChange={setSelectedProjectIds}
+  officesEnabled={officesEnabled}
+  onOfficesEnabledChange={setOfficesEnabled}
+  departmentsEnabled={departmentsEnabled}
+  onDepartmentsEnabledChange={setDepartmentsEnabled}
+  projectsEnabled={projectsEnabled}
+  onProjectsEnabledChange={setProjectsEnabled}
+  selectedMemberIds={selectedMemberIds}
+  onMemberIdsChange={setSelectedMemberIds}
+  currentEmployeeId={currentEmployee?.id}
+  // NEW props:
+  inviteAdditionalMembers={inviteAdditionalMembers}
+  onInviteAdditionalMembersChange={setInviteAdditionalMembers}
+/>
+```
+
+---
+
+### Part 7: Update Membership Options Section
+
+**File:** `src/components/chat/CreateSpaceDialog.tsx`
+
+Show membership options for both Company-wide AND Group Access scopes, with updated label. Remove the auto-sync toggle entirely:
+
+```tsx
+{/* Membership options (for Company-wide & Group) */}
+{(accessScope === 'company' || accessScope === 'custom') && (
+  <>
+    <Separator />
+    <div className="space-y-4">
+      <Label className="text-base font-semibold">
+        Membership options
+        <span className="text-xs font-normal text-muted-foreground ml-2">
+          (for Company-wide & Group)
+        </span>
+      </Label>
+      
+      {/* Add all matching members checkbox */}
+      <div className="flex items-start gap-3">
+        <Checkbox 
+          id="addAll"
+          checked={addAllMembers}
+          onCheckedChange={(checked) => setAddAllMembers(!!checked)}
+          className="mt-0.5"
+        />
+        <div className="space-y-0.5">
+          <Label htmlFor="addAll" className="text-sm font-medium cursor-pointer">
+            Add all matching members now
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            Add all employees who meet the access criteria
+          </p>
+        </div>
+      </div>
+      
+      {/* REMOVED: Auto-sync toggle - no longer needed as separate option */}
+    </div>
+  </>
+)}
+```
+
+---
+
+### Part 8: Update handleCreate Function
+
+**File:** `src/components/chat/CreateSpaceDialog.tsx`
+
+Update the create logic to include space type and handle additional members:
+
+```tsx
+const handleCreate = async () => {
+  const error = validateForm();
+  if (error) {
+    toast.error(error);
+    return;
+  }
+
+  try {
+    const space = await createSpace.mutateAsync({
+      name: name.trim(),
+      description: description.trim() || undefined,
+      iconUrl: iconUrl || undefined,
+      spaceType,  // NEW: Pass space type
+      accessScope,
+      officeIds: accessScope === 'custom' && officesEnabled ? selectedOfficeIds : undefined,
+      departmentIds: accessScope === 'custom' && departmentsEnabled ? selectedDepartmentIds : undefined,
+      projectIds: accessScope === 'custom' && projectsEnabled ? selectedProjectIds : undefined,
+      // For 'members' scope: pass selected members
+      // For 'custom' scope with inviteAdditionalMembers: also pass selected members
+      memberIds: accessScope === 'members' 
+        ? selectedMemberIds 
+        : (accessScope === 'custom' && inviteAdditionalMembers ? selectedMemberIds : undefined),
+      addAllMembers: (accessScope === 'company' || accessScope === 'custom') ? addAllMembers : false,
+      autoSync: accessScope !== 'members',  // Always true for company/group
+    });
+
+    // ... rest of success handling
+  } catch (error) {
+    // ... error handling
+  }
+};
+```
+
+---
+
+### Part 9: Update Reset Form
+
+**File:** `src/components/chat/CreateSpaceDialog.tsx`
+
+Update reset function to include new state and remove obsolete state:
+
+```tsx
+const resetForm = () => {
+  setName("");
+  setIconUrl(null);
+  setDescription("");
+  setSpaceType("collaboration");  // NEW
+  setAccessScope("company");
+  setSelectedOfficeIds([]);
+  setSelectedDepartmentIds([]);
+  setSelectedProjectIds([]);
+  setOfficesEnabled(false);
+  setDepartmentsEnabled(false);
+  setProjectsEnabled(false);
+  setSelectedMemberIds([]);
+  setAddAllMembers(false);
+  setInviteAdditionalMembers(false);  // NEW
+  // REMOVED: setAutoSync(false);
+};
+```
+
+---
+
+### Part 10: Update useEffect for Scope Changes
+
+**File:** `src/components/chat/CreateSpaceDialog.tsx`
+
+Clear related state when switching scopes:
 
 ```tsx
 useEffect(() => {
-  if (open) {
-    setScreenshots([]);
-    setScreenshotPreviews([]);
-    // ... other resets ...
+  if (accessScope === 'members') {
+    setAddAllMembers(false);
+    setInviteAdditionalMembers(false);
   }
-}, [open, defaultType]);
+  if (accessScope !== 'custom') {
+    setInviteAdditionalMembers(false);
+    // Clear additional members when not in custom scope
+    if (accessScope !== 'members') {
+      setSelectedMemberIds([]);
+    }
+  }
+}, [accessScope]);
 ```
 
 ---
@@ -278,16 +545,16 @@ useEffect(() => {
 
 | File | Type | Description |
 |------|------|-------------|
-| `src/components/dialogs/GetHelpDialog.tsx` | Modify | Convert to multi-file state, add `multiple` to input, update UI with grid preview |
-| `src/components/super-admin/SupportRequestDetailDialog.tsx` | Modify | Parse comma-separated URLs, display image grid |
-| `src/components/home/UserSupportRequestDetailSheet.tsx` | Modify | Same multi-image display pattern |
-| `src/utils/generateLovablePrompt.ts` | Modify | Parse comma-separated URLs for Lovable prompt |
+| `src/components/chat/CreateSpaceDialog.tsx` | Modify | Add spaceType selector, update membership options, remove auto-sync toggle, update create logic |
+| `src/components/chat/AccessScopeSelector.tsx` | Modify | Rename to "Group Access", add Auto Sync tags, add "Also invite specific members" with filtering |
 
 ---
 
 ## Technical Notes
 
-- **Storage Format:** Multiple URLs stored as comma-separated string in existing `screenshot_url` column (no database migration needed)
-- **File Limit:** Maximum 5 images to prevent abuse and keep dialog manageable
-- **Backward Compatible:** Single URLs still work; comma-separated is additive
-- **Preview Memory:** Use `URL.createObjectURL` for better performance with multiple files
+- **Space Type**: Already supported in database (`chat_space_type` enum with `collaboration` | `announcements`)
+- **Auto-Sync**: Always enabled for company-wide and group access scopes (set automatically in create call)
+- **Group Member Filtering**: When "Also invite specific members" is enabled, the member selector filters out employees who already match the group criteria using AND logic
+- **Backward Compatible**: No database changes needed; all changes are UI-level
+- **Validation**: Updated to accept Group Access with additional members or pure group-only access
+
