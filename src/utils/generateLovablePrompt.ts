@@ -74,7 +74,12 @@ export function generateLovableContent({
   // Collect all images
   const images: string[] = [];
   if (request.screenshot_url) {
-    images.push(request.screenshot_url);
+    // Support multiple screenshots (comma-separated)
+    request.screenshot_url.split(',').forEach(url => {
+      if (images.length < 10 && url.trim()) {
+        images.push(url.trim());
+      }
+    });
   }
   attachmentUrls.forEach(url => {
     if (images.length < 10 && isImageUrl(url)) {
