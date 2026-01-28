@@ -734,6 +734,18 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
                 )}
                 <p className="text-xs text-muted-foreground">
                   {spaceMembers.length} member{spaceMembers.length !== 1 ? 's' : ''}
+                  {(() => {
+                    if (!space) return null;
+                    if (space.access_scope === 'company') return ' · Everyone';
+                    if (space.access_scope === 'offices' && space.offices?.length > 0) {
+                      return ` · ${space.offices.map(o => o.name).join(', ')}`;
+                    }
+                    if (space.access_scope === 'projects' && space.projects?.length > 0) {
+                      return ` · ${space.projects.map(p => p.name).join(', ')}`;
+                    }
+                    if (space.access_scope === 'members') return ' · Private';
+                    return null;
+                  })()}
                 </p>
               </div>
             )}
