@@ -337,11 +337,8 @@ export const NotCheckedInCard = () => {
       employeeIds={employeeIds}
       orgTimezone={orgTimezone}
       sentReminders={sentReminders}
-      setSentReminders={setSentReminders}
       sendingReminder={sendingReminder}
-      setSendingReminder={setSendingReminder}
-      currentOrg={currentOrg}
-      currentEmployee={currentEmployee}
+      handleSendReminder={handleSendReminder}
       isMobile={isMobile}
     />
   );
@@ -353,22 +350,16 @@ const NotCheckedInCardContent = ({
   employeeIds,
   orgTimezone,
   sentReminders,
-  setSentReminders,
   sendingReminder,
-  setSendingReminder,
-  currentOrg,
-  currentEmployee,
+  handleSendReminder,
   isMobile
 }: { 
   notCheckedIn: NotCheckedInEmployee[]; 
   employeeIds: string[];
   orgTimezone: string;
   sentReminders: Set<string>;
-  setSentReminders: React.Dispatch<React.SetStateAction<Set<string>>>;
   sendingReminder: string | null;
-  setSendingReminder: React.Dispatch<React.SetStateAction<string | null>>;
-  currentOrg: any;
-  currentEmployee: any;
+  handleSendReminder: (employeeId: string, e: React.MouseEvent) => void;
   isMobile: boolean;
 }) => {
   const onlineStatuses = useTeamPresence(employeeIds);
