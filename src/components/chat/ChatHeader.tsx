@@ -746,8 +746,7 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
                     if (space.projects?.length) parts.push(...space.projects.map(p => p.name));
                     
                     if (parts.length === 0) return ' · Private';
-                    if (parts.length <= 2) return ` · ${parts.join(' + ')}`;
-                    return ` · ${parts.length} criteria`;
+                    return ` · ${parts.join(' + ')}`;
                   })()}
                 </p>
               </div>
