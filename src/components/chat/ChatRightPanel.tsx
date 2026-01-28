@@ -1,15 +1,27 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   X,
   Pin,
   Link2,
   Plus,
-  ExternalLink,
+  RefreshCw,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { format } from "date-fns";
-import { usePinnedMessages } from "@/services/useChat";
+import { usePinnedMessages, useSpace } from "@/services/useChat";
+import { useSpaceMembersRealtime } from "@/services/useSpaceMembersRealtime";
+import { useSpaceMemberLogs } from "@/services/useSpaceMemberLogs";
+import { useRelativeTime } from "@/hooks/useRelativeTime";
 import type { ActiveChat } from "@/types/chat";
 
 interface ChatRightPanelProps {
@@ -22,6 +34,17 @@ const ChatRightPanel = ({ activeChat, onClose }: ChatRightPanelProps) => {
   const spaceId = activeChat.type === 'space' ? activeChat.id : null;
   
   const { data: pinnedMessages = [] } = usePinnedMessages(conversationId, spaceId);
+  const { data: space } = useSpace(spaceId);
+  const { data: memberLogs = [] } = useSpaceMemberLogs(spaceId);
+  const { getShortRelativeTime } = useRelativeTime();
+  
+  const [activityOpen, setActivityOpen] = useState(false);
+  
+  // Enable realtime updates for space members
+  useSpaceMembersRealtime(spaceId);
+  
+  const autoSyncEnabled = space?.auto_sync_members === true;
+  const autoSyncLogs = memberLogs.filter(log => log.source === 'auto_sync');
 
   const getInitials = (name: string) => {
     return name
@@ -103,6 +126,51 @@ const ChatRightPanel = ({ activeChat, onClose }: ChatRightPanelProps) => {
             </div>
           )}
         </div>
+
+        {/* Auto-Sync Activity Logs (only for spaces with auto-sync enabled) */}
+        {spaceId && autoSyncEnabled && (
+          <Collapsible open={activityOpen} onOpenChange={setActivityOpen} className="border-b border-border">
+            <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-3 hover:bg-muted/50">
+              <h4 className="text-sm font-medium flex items-center gap-2">
+                <RefreshCw className="h-4 w-4 text-muted-foreground" />
+                Sync Activity
+                <span className="text-xs text-muted-foreground font-normal">
+                  ({autoSyncLogs.length})
+                </span>
+              </h4>
+              {activityOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </CollapsibleTrigger>
+            <CollapsibleContent className="px-4 pb-4">
+              <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                {autoSyncLogs.slice(0, 20).map(log => (
+                  <div key={log.id} className="flex items-center gap-2 text-xs">
+                    <Avatar className="h-5 w-5">
+                      <AvatarImage src={log.employee?.profiles?.avatar_url || undefined} />
+                      <AvatarFallback className="text-[8px]">
+                        {log.employee?.profiles?.full_name?.[0] || "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="truncate flex-1">{log.employee?.profiles?.full_name || "Unknown"}</span>
+                    <Badge 
+                      variant={log.action_type === 'added' ? 'default' : 'destructive'} 
+                      className="text-[10px] px-1.5 py-0"
+                    >
+                      {log.action_type}
+                    </Badge>
+                    <span className="text-muted-foreground text-[10px] whitespace-nowrap">
+                      {getShortRelativeTime(log.created_at)}
+                    </span>
+                  </div>
+                ))}
+                {autoSyncLogs.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-2">
+                    No auto-sync activity yet
+                  </p>
+                )}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
 
         {/* Pinned Resources */}
         <div className="p-4">

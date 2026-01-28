@@ -2215,6 +2215,82 @@ export type Database = {
           },
         ]
       }
+      chat_space_member_logs: {
+        Row: {
+          action_type: string
+          created_at: string
+          employee_id: string
+          id: string
+          organization_id: string
+          performed_by: string | null
+          source: string
+          space_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          employee_id: string
+          id?: string
+          organization_id: string
+          performed_by?: string | null
+          source?: string
+          space_id: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          employee_id?: string
+          id?: string
+          organization_id?: string
+          performed_by?: string | null
+          source?: string
+          space_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_space_member_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_space_member_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_space_member_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_space_member_logs_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_space_member_logs_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_space_member_logs_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "chat_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_space_members: {
         Row: {
           employee_id: string
