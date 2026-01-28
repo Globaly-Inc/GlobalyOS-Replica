@@ -737,14 +737,17 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
                   {(() => {
                     if (!space) return null;
                     if (space.access_scope === 'company') return ' · Everyone';
-                    if (space.access_scope === 'offices' && space.offices?.length > 0) {
-                      return ` · ${space.offices.map(o => o.name).join(', ')}`;
-                    }
-                    if (space.access_scope === 'projects' && space.projects?.length > 0) {
-                      return ` · ${space.projects.map(p => p.name).join(', ')}`;
-                    }
                     if (space.access_scope === 'members') return ' · Private';
-                    return null;
+                    
+                    // For custom or legacy scopes, combine all criteria
+                    const parts: string[] = [];
+                    if (space.offices?.length) parts.push(...space.offices.map(o => o.name));
+                    if (space.departments?.length) parts.push(...space.departments.map(d => d.name));
+                    if (space.projects?.length) parts.push(...space.projects.map(p => p.name));
+                    
+                    if (parts.length === 0) return ' · Private';
+                    if (parts.length <= 2) return ` · ${parts.join(' + ')}`;
+                    return ` · ${parts.length} criteria`;
                   })()}
                 </p>
               </div>
