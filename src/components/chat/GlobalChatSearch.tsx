@@ -1,10 +1,7 @@
-import { useState, useRef, useEffect, useMemo } from "react";
-import { Input } from "@/components/ui/input";
+import { useState, useMemo, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Search,
-  X,
   MessageSquare,
   Users,
   Hash,
@@ -16,49 +13,62 @@ import { useGlobalChatSearch, GlobalSearchResult } from "@/hooks/useGlobalChatSe
 import { useTeamPresence } from "@/services/useTeamData";
 import { format } from "date-fns";
 import type { ActiveChat } from "@/types/chat";
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Badge } from "@/components/ui/badge";
 
 interface GlobalChatSearchProps {
   onSelectResult: (result: GlobalSearchResult, chat: ActiveChat) => void;
   onStartDM: (employeeId: string, name: string) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const resultTypeConfig = {
   message: {
     icon: MessageSquare,
     label: "Messages",
-    bgClass: "bg-blue-500/10",
-    borderClass: "border-l-blue-500",
     iconClass: "text-blue-600",
+    badgeClass: "bg-blue-500/10 text-blue-600 border-blue-500/20",
   },
   conversation: {
     icon: Users,
     label: "Groups & DMs",
-    bgClass: "bg-green-500/10",
-    borderClass: "border-l-green-500",
     iconClass: "text-green-600",
+    badgeClass: "bg-green-500/10 text-green-600 border-green-500/20",
   },
   space: {
     icon: Hash,
     label: "Spaces",
-    bgClass: "bg-purple-500/10",
-    borderClass: "border-l-purple-500",
     iconClass: "text-purple-600",
+    badgeClass: "bg-purple-500/10 text-purple-600 border-purple-500/20",
   },
   member: {
     icon: User,
     label: "Members",
-    bgClass: "bg-amber-500/10",
-    borderClass: "border-l-amber-500",
     iconClass: "text-amber-600",
+    badgeClass: "bg-amber-500/10 text-amber-600 border-amber-500/20",
   },
 };
 
-const GlobalChatSearch = ({ onSelectResult, onStartDM }: GlobalChatSearchProps) => {
+const GlobalChatSearch = ({ 
+  onSelectResult, 
+  onStartDM,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+}: GlobalChatSearchProps) => {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [isOpen, setIsOpen] = useState(false);
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Support both controlled and uncontrolled modes
+  const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setIsOpen = controlledOnOpenChange || setInternalOpen;
 
   const { groupedResults, isLoading, hasResults } = useGlobalChatSearch(query);
 
@@ -69,72 +79,32 @@ const GlobalChatSearch = ({ onSelectResult, onStartDM }: GlobalChatSearchProps) 
 
   const onlineStatuses = useTeamPresence(memberEmployeeIds);
 
-  // Flatten results for keyboard navigation
-  const flatResults: GlobalSearchResult[] = [
-    ...groupedResults.message,
-    ...groupedResults.conversation,
-    ...groupedResults.space,
-    ...groupedResults.member,
-  ];
-
-  // Close dropdown when clicking outside
+  // Register global keyboard shortcut
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node) &&
-        inputRef.current &&
-        !inputRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + K to open search
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsOpen(true);
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [setIsOpen]);
 
-  // Open dropdown when typing
+  // Reset query when dialog closes
   useEffect(() => {
-    if (query.length >= 2) {
-      setIsOpen(true);
-      setSelectedIndex(0);
-    } else {
-      setIsOpen(false);
+    if (!isOpen) {
+      setQuery("");
     }
-  }, [query]);
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!isOpen || flatResults.length === 0) return;
-
-    switch (e.key) {
-      case "ArrowDown":
-        e.preventDefault();
-        setSelectedIndex((prev) => (prev + 1) % flatResults.length);
-        break;
-      case "ArrowUp":
-        e.preventDefault();
-        setSelectedIndex((prev) => (prev - 1 + flatResults.length) % flatResults.length);
-        break;
-      case "Enter":
-        e.preventDefault();
-        if (flatResults[selectedIndex]) {
-          handleSelectResult(flatResults[selectedIndex]);
-        }
-        break;
-      case "Escape":
-        setIsOpen(false);
-        break;
-    }
-  };
+  }, [isOpen]);
 
   const handleSelectResult = (result: GlobalSearchResult) => {
     if (result.type === 'member') {
-      // Start DM with member
       const employeeId = result.id.replace('member-', '');
       onStartDM(employeeId, result.title);
     } else if (result.type === 'message') {
-      // Navigate to the message in conversation/space
       const chat: ActiveChat = result.conversationId
         ? { type: 'conversation', id: result.conversationId, name: result.subtitle || 'Chat' }
         : { type: 'space', id: result.spaceId!, name: result.subtitle || 'Space' };
@@ -157,7 +127,6 @@ const GlobalChatSearch = ({ onSelectResult, onStartDM }: GlobalChatSearchProps) 
       onSelectResult(result, chat);
     }
 
-    setQuery("");
     setIsOpen(false);
   };
 
@@ -170,130 +139,167 @@ const GlobalChatSearch = ({ onSelectResult, onStartDM }: GlobalChatSearchProps) 
       .slice(0, 2);
   };
 
-  const renderResultGroup = (type: GlobalSearchResult['type'], results: GlobalSearchResult[]) => {
-    if (results.length === 0) return null;
-
-    const config = resultTypeConfig[type];
+  const renderResultItem = (result: GlobalSearchResult) => {
+    const config = resultTypeConfig[result.type];
     const Icon = config.icon;
 
     return (
-      <div key={type} className="mb-3">
-        <div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          <Icon className={cn("h-3.5 w-3.5", config.iconClass)} />
-          {config.label}
-        </div>
-        <div className="space-y-1 px-2 py-1">
-          {results.map((result, idx) => {
-            const globalIndex = flatResults.findIndex((r) => r.id === result.id);
-            const isSelected = globalIndex === selectedIndex;
-
-            return (
-              <button
-                key={result.id}
-                onClick={() => handleSelectResult(result)}
-                className={cn(
-                  "flex items-center gap-3 w-full px-3 py-2 rounded-md text-left transition-colors border-l-2",
-                  config.bgClass,
-                  config.borderClass,
-                  isSelected && "ring-2 ring-primary ring-offset-1"
-                )}
-              >
-                {type === 'space' ? (
-                  <div className="flex items-center justify-center h-8 w-8 rounded bg-purple-500/20 text-purple-600 font-semibold text-sm shrink-0">
-                    {result.title.charAt(0).toUpperCase()}
-                  </div>
+      <CommandItem
+        key={result.id}
+        value={result.id}
+        onSelect={() => handleSelectResult(result)}
+        className="flex items-center gap-3 px-3 py-2.5 cursor-pointer"
+      >
+        {result.type === 'space' ? (
+          <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-purple-500/15 text-purple-600 font-semibold text-sm shrink-0">
+            <Hash className="h-4 w-4" />
+          </div>
+        ) : (
+          <div className="relative">
+            <Avatar className="h-9 w-9 shrink-0">
+              <AvatarImage src={result.avatarUrl || undefined} />
+              <AvatarFallback className="text-xs bg-muted">
+                {result.type === 'conversation' ? (
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                ) : result.type === 'message' ? (
+                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
                 ) : (
-                  <div className="relative">
-                    <Avatar className="h-8 w-8 shrink-0">
-                      <AvatarImage src={result.avatarUrl || undefined} />
-                      <AvatarFallback className="text-[10px]">
-                        {type === 'conversation' ? <Users className="h-4 w-4" /> : getInitials(result.title)}
-                      </AvatarFallback>
-                    </Avatar>
-                    {type === 'member' && onlineStatuses[result.id.replace('member-', '')] && (
-                      <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-green-500 border-2 border-background" />
-                    )}
-                  </div>
+                  getInitials(result.title)
                 )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">
-                    {result.title}
-                  </p>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="truncate">{result.subtitle}</span>
-                    {result.createdAt && (
-                      <span className="shrink-0">
-                        · {format(new Date(result.createdAt), "MMM d")}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </button>
-            );
-          })}
+              </AvatarFallback>
+            </Avatar>
+            {result.type === 'member' && onlineStatuses[result.id.replace('member-', '')] && (
+              <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-background" />
+            )}
+          </div>
+        )}
+        
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium text-foreground truncate">
+              {result.title}
+            </p>
+            {result.type === 'member' && onlineStatuses[result.id.replace('member-', '')] && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-green-500/10 text-green-600 border-green-500/20">
+                Online
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="truncate">{result.subtitle}</span>
+            {result.createdAt && (
+              <span className="shrink-0">
+                · {format(new Date(result.createdAt), "MMM d")}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+
+        <Icon className={cn("h-4 w-4 shrink-0 opacity-50", config.iconClass)} />
+      </CommandItem>
     );
   };
 
-  return (
-    <div className="relative">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          ref={inputRef}
-          placeholder="Search chat..."
-          className="pl-9 pr-8"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onFocus={() => query.length >= 2 && setIsOpen(true)}
-        />
-        {query && (
-          <button
-            onClick={() => {
-              setQuery("");
-              setIsOpen(false);
-            }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </div>
+  const hasAnyResults = hasResults && query.length >= 2;
+  const showEmptyState = !isLoading && query.length >= 2 && !hasResults;
+  const showInitialState = query.length < 2;
 
-      {/* Dropdown */}
-      {isOpen && (
-        <div
-          ref={dropdownRef}
-          className="absolute left-0 top-full mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg overflow-hidden"
-          style={{ width: 'calc(200% + 1rem)' }}
-        >
-          <ScrollArea className="h-[400px]">
-            <div className="py-2">
-              {isLoading ? (
-                <div className="flex items-center justify-center py-6 text-muted-foreground">
-                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                  Searching...
-                </div>
-              ) : !hasResults && query.length >= 2 ? (
-                <div className="text-center py-6 text-muted-foreground">
-                  <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No results found for "{query}"</p>
-                </div>
-              ) : (
-                <>
-                  {renderResultGroup('message', groupedResults.message)}
-                  {renderResultGroup('conversation', groupedResults.conversation)}
-                  {renderResultGroup('space', groupedResults.space)}
-                  {renderResultGroup('member', groupedResults.member)}
-                </>
-              )}
+  return (
+    <>
+      {/* Search Trigger Button */}
+      <button
+        onClick={() => setIsOpen(true)}
+        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground bg-muted/50 hover:bg-muted border border-border rounded-md transition-colors"
+      >
+        <Search className="h-4 w-4" />
+        <span className="flex-1 text-left">Search chat...</span>
+        <kbd className="hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+          <span className="text-xs">⌘</span>K
+        </kbd>
+      </button>
+
+      {/* Search Dialog */}
+      <CommandDialog open={isOpen} onOpenChange={setIsOpen}>
+        <CommandInput
+          placeholder="Search messages, people, and spaces..."
+          value={query}
+          onValueChange={setQuery}
+        />
+        <CommandList className="max-h-[400px]">
+          {isLoading && (
+            <div className="flex items-center justify-center py-8 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin mr-2" />
+              <span className="text-sm">Searching...</span>
             </div>
-          </ScrollArea>
+          )}
+
+          {showEmptyState && (
+            <CommandEmpty>
+              <div className="flex flex-col items-center py-6 text-muted-foreground">
+                <Search className="h-10 w-10 mb-3 opacity-30" />
+                <p className="text-sm font-medium">No results found</p>
+                <p className="text-xs mt-1">Try a different search term</p>
+              </div>
+            </CommandEmpty>
+          )}
+
+          {showInitialState && !isLoading && (
+            <div className="flex flex-col items-center py-8 text-muted-foreground">
+              <Search className="h-10 w-10 mb-3 opacity-30" />
+              <p className="text-sm font-medium">Search messages, people, and spaces</p>
+              <p className="text-xs mt-1">Type at least 2 characters to search</p>
+            </div>
+          )}
+
+          {hasAnyResults && !isLoading && (
+            <>
+              {groupedResults.message.length > 0 && (
+                <CommandGroup heading="Messages">
+                  {groupedResults.message.map(renderResultItem)}
+                </CommandGroup>
+              )}
+
+              {groupedResults.conversation.length > 0 && (
+                <CommandGroup heading="Groups & DMs">
+                  {groupedResults.conversation.map(renderResultItem)}
+                </CommandGroup>
+              )}
+
+              {groupedResults.space.length > 0 && (
+                <CommandGroup heading="Spaces">
+                  {groupedResults.space.map(renderResultItem)}
+                </CommandGroup>
+              )}
+
+              {groupedResults.member.length > 0 && (
+                <CommandGroup heading="Members">
+                  {groupedResults.member.map(renderResultItem)}
+                </CommandGroup>
+              )}
+            </>
+          )}
+        </CommandList>
+
+        {/* Footer with keyboard hints */}
+        <div className="flex items-center justify-between px-3 py-2 border-t border-border text-xs text-muted-foreground bg-muted/30">
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-background border text-[10px]">↑</kbd>
+              <kbd className="px-1.5 py-0.5 rounded bg-background border text-[10px]">↓</kbd>
+              <span className="ml-1">navigate</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-background border text-[10px]">↵</kbd>
+              <span className="ml-1">select</span>
+            </span>
+            <span className="flex items-center gap-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-background border text-[10px]">esc</kbd>
+              <span className="ml-1">close</span>
+            </span>
+          </div>
         </div>
-      )}
-    </div>
+      </CommandDialog>
+    </>
   );
 };
 
