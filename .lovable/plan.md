@@ -1,55 +1,74 @@
 
-# Fix Database Error: "column 'role' does not exist"
 
-## Problem Analysis
+# Fix Project Auto-Sync: Restore Correct Filter Condition
 
-The `sync_project_space_members()` function incorrectly queries `employees.role` on lines 31-36, but the `employees` table has no `role` column. User roles are stored in the separate `user_roles` table.
+## Root Cause Identified
 
-**Current broken code (lines 31-36):**
+The recent migration `20260128125848` introduced a bug by changing the query filter from the correct `access_scope = 'projects'` to the incorrect `space_type = 'project'`.
+
+**Current broken query (line 22):**
 ```sql
--- Get system employee for notifications
-SELECT id INTO v_system_employee_id
-FROM employees
-WHERE organization_id = NEW.organization_id
-AND role = 'admin'   -- ❌ 'role' column does not exist!
-LIMIT 1;
+WHERE cs.space_type = 'project'  -- WRONG!
 ```
 
-**Database schema confirmed:**
-| Table | Columns |
-|-------|---------|
-| `employees` | `id`, `user_id`, `organization_id`, `position`, `department`, etc. (NO `role` column) |
-| `user_roles` | `id`, `user_id`, `organization_id`, `role`, `created_at` |
+**The "All GlobalyOS" space has:**
+| Field | Value |
+|-------|-------|
+| `space_type` | `collaboration` |
+| `access_scope` | `projects` |
+| `auto_sync_members` | `true` |
+
+The filter should check `access_scope`, not `space_type`.
 
 ---
 
 ## Solution
 
-Align `sync_project_space_members()` with the working pattern from `sync_company_space_members()`:
+Restore the correct query logic from migration `20260128121722`:
 
-1. **Use the employee being added as the sender** for system messages (like the other sync functions do)
-2. **Remove the broken admin lookup query entirely**
-3. **Simplify the message content** to match the established pattern
+```sql
+WHERE cs.access_scope = 'projects'
+  AND cs.auto_sync_members = true
+  AND cs.archived_at IS NULL
+```
+
+Also fix the profile JOIN to use `p.user_id = e.user_id` (not `p.id = e.user_id`).
 
 ---
 
 ## Database Migration
 
-A new migration will replace the function with the correct version that:
-- Uses `NEW.employee_id` as the sender for system messages
-- Removes the query that references non-existent `employees.role`
-- Follows the same pattern as `sync_company_space_members()`
+The new migration will:
+1. Fix the `sync_project_space_members()` function with correct filters
+2. Handle both INSERT and DELETE operations
+3. Use proper JOIN for profiles table
+4. Match the pattern of other working sync functions
 
 ---
 
-## Technical Details
+## Technical Comparison
 
-| Aspect | Current (Broken) | Fixed |
+| Aspect | Broken (Current) | Fixed |
 |--------|------------------|-------|
-| System message sender | Query for admin via `employees.role` (fails) | Use `NEW.employee_id` (the member being added) |
-| Admin lookup | `SELECT id FROM employees WHERE role = 'admin'` | Removed (not needed) |
-| Message content | `v_employee_name || ' was added to the project'` | Same (keep existing) |
-| Error handling | None (query fails) | Skip system message if no space exists |
+| Filter | `space_type = 'project'` | `access_scope = 'projects'` |
+| Profile JOIN | `p.id = e.user_id` | `p.user_id = e.user_id` |
+| Archived check | Missing | `archived_at IS NULL` |
+| DELETE handling | Missing | Properly removes members when project removed |
+
+---
+
+## Verification Data
+
+**Employee_projects entry (Sarah):**
+- Employee ID: `ee06e718-7a28-4e72-ad05-ec64a93a1c1c`
+- Project ID: `1fbbfbe0-ee3e-44a9-8b7f-bb6f647e5b4b` (GlobalyOS)
+- Created: `2026-01-28 13:00:50`
+
+**Space already linked to project:**
+- Space ID: `568b895b-e74d-4d49-8ac5-87af6e99dd20` (All GlobalyOS)
+- Project ID: `1fbbfbe0-ee3e-44a9-8b7f-bb6f647e5b4b` (GlobalyOS)
+
+**Sarah is NOT in space members** - confirms the auto-sync failed.
 
 ---
 
@@ -57,13 +76,20 @@ A new migration will replace the function with the correct version that:
 
 | Resource | Action | Description |
 |----------|--------|-------------|
-| Database migration | Add | Fix `sync_project_space_members()` to remove invalid column reference |
+| Database migration | Add | Fix `sync_project_space_members()` with correct `access_scope` filter |
 
 ---
 
 ## After Fix
 
-- Assigning projects to team members will work without errors
-- System messages will show "[Name] was added to the project" in project chat spaces
-- Auto-sync will properly add employees to project-scoped chat spaces
-- Aligns with the pattern used by other sync functions
+- Auto-sync will correctly trigger when projects are assigned to employees
+- Sarah will be auto-added to "All GlobalyOS" space when project is assigned
+- DELETE operations will properly remove members when projects are unassigned
+- System messages will correctly display in the chat space
+
+---
+
+## Manual Fix Required
+
+After the migration, Sarah's existing project assignment won't auto-trigger (since the trigger fires on INSERT). I'll also provide a one-time data fix to add Sarah to the space.
+
