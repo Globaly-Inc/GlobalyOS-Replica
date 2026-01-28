@@ -1,54 +1,55 @@
 
+# Fix Database Error: "column 'role' does not exist"
 
-# Fix Database Error: "column e.first_name does not exist"
+## Problem Analysis
 
-## Problem Identified
+The `sync_project_space_members()` function incorrectly queries `employees.role` on lines 31-36, but the `employees` table has no `role` column. User roles are stored in the separate `user_roles` table.
 
-The migration `20260128124657` incorrectly references `e.first_name` and `e.last_name` in the `sync_project_space_members()` function, but the `employees` table does NOT have these columns.
-
-**Schema Facts:**
-| Table | Name Storage |
-|-------|--------------|
-| `employees` | No name columns (`first_name`, `last_name` do not exist) |
-| `profiles` | `full_name` column (linked via `employees.user_id = profiles.id`) |
-
-**Broken code (line 26 of migration):**
+**Current broken code (lines 31-36):**
 ```sql
-SELECT COALESCE(e.first_name || ' ' || e.last_name, e.first_name, 'Team member')
-INTO v_employee_name
-FROM employees e
-WHERE e.id = NEW.employee_id;
+-- Get system employee for notifications
+SELECT id INTO v_system_employee_id
+FROM employees
+WHERE organization_id = NEW.organization_id
+AND role = 'admin'   -- ❌ 'role' column does not exist!
+LIMIT 1;
 ```
+
+**Database schema confirmed:**
+| Table | Columns |
+|-------|---------|
+| `employees` | `id`, `user_id`, `organization_id`, `position`, `department`, etc. (NO `role` column) |
+| `user_roles` | `id`, `user_id`, `organization_id`, `role`, `created_at` |
 
 ---
 
 ## Solution
 
-Fix the function to get the employee name from the `profiles` table via a JOIN, following the same pattern used by `sync_company_space_members()` and `sync_office_space_members()`:
+Align `sync_project_space_members()` with the working pattern from `sync_company_space_members()`:
 
-```sql
-SELECT COALESCE(p.full_name, 'Team member')
-INTO v_employee_name
-FROM employees e
-LEFT JOIN profiles p ON p.id = e.user_id
-WHERE e.id = NEW.employee_id;
-```
+1. **Use the employee being added as the sender** for system messages (like the other sync functions do)
+2. **Remove the broken admin lookup query entirely**
+3. **Simplify the message content** to match the established pattern
 
 ---
 
 ## Database Migration
 
-A new migration will replace the `sync_project_space_members()` function with the correct JOIN to fetch the employee name from `profiles.full_name`.
+A new migration will replace the function with the correct version that:
+- Uses `NEW.employee_id` as the sender for system messages
+- Removes the query that references non-existent `employees.role`
+- Follows the same pattern as `sync_company_space_members()`
 
 ---
 
 ## Technical Details
 
-| Aspect | Broken (Current) | Fixed |
+| Aspect | Current (Broken) | Fixed |
 |--------|------------------|-------|
-| Name lookup | `e.first_name`, `e.last_name` | `p.full_name` via JOIN |
-| JOIN | None | `LEFT JOIN profiles p ON p.id = e.user_id` |
-| Fallback | `'Team member'` | `'Team member'` (unchanged) |
+| System message sender | Query for admin via `employees.role` (fails) | Use `NEW.employee_id` (the member being added) |
+| Admin lookup | `SELECT id FROM employees WHERE role = 'admin'` | Removed (not needed) |
+| Message content | `v_employee_name || ' was added to the project'` | Same (keep existing) |
+| Error handling | None (query fails) | Skip system message if no space exists |
 
 ---
 
@@ -56,13 +57,13 @@ A new migration will replace the `sync_project_space_members()` function with th
 
 | Resource | Action | Description |
 |----------|--------|-------------|
-| Database migration | Add | Fix employee name lookup to use `profiles.full_name` |
+| Database migration | Add | Fix `sync_project_space_members()` to remove invalid column reference |
 
 ---
 
 ## After Fix
 
-- Assigning projects to team members will work correctly
-- System messages will display the employee's full name from their profile
+- Assigning projects to team members will work without errors
+- System messages will show "[Name] was added to the project" in project chat spaces
 - Auto-sync will properly add employees to project-scoped chat spaces
-
+- Aligns with the pattern used by other sync functions
