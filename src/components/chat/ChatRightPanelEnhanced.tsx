@@ -613,11 +613,7 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
                 : "bg-gradient-to-br from-sky-500/20 to-sky-500/5"
           )}>
             {activeChat.type === 'space' ? (
-              spaceIconUrl ? (
-                <img src={spaceIconUrl} alt="" className="w-full h-full rounded-full object-cover" />
-              ) : (
-                <Hash className="h-4 w-4 text-primary" />
-              )
+              <Hash className="h-4 w-4 text-primary" />
             ) : activeChat.isGroup ? (
               <Users className="h-4 w-4 text-violet-500" />
             ) : (
