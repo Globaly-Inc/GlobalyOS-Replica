@@ -526,7 +526,7 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>
+            <TooltipContent side="bottom">
               {(activeChat.type === 'space' ? spaceNotificationSetting === 'mute' : isMuted)
                 ? 'Unmute notifications'
                 : 'Mute notifications'}
@@ -547,7 +547,7 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
                 <Star className={cn("h-4 w-4", isFavorited && "fill-orange-500 text-orange-500")} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>
+            <TooltipContent side="bottom">
               {isFavorited ? 'Remove from favorites' : 'Add to favorites'}
             </TooltipContent>
           </Tooltip>
@@ -563,7 +563,7 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
                 <Search className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Search messages</TooltipContent>
+            <TooltipContent side="bottom">Search messages</TooltipContent>
           </Tooltip>
         </div>
       </div>
