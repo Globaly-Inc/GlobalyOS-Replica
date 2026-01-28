@@ -1,74 +1,67 @@
 
 
-# Fix Project Auto-Sync: Restore Correct Filter Condition
+# Fix Trigger Error: "column p.user_id does not exist"
 
 ## Root Cause Identified
 
-The recent migration `20260128125848` introduced a bug by changing the query filter from the correct `access_scope = 'projects'` to the incorrect `space_type = 'project'`.
-
-**Current broken query (line 22):**
-```sql
-WHERE cs.space_type = 'project'  -- WRONG!
+The DELETE request on `employee_projects` table is failing with error:
+```
+{"code":"42703","message":"column p.user_id does not exist"}
 ```
 
-**The "All GlobalyOS" space has:**
-| Field | Value |
-|-------|-------|
-| `space_type` | `collaboration` |
-| `access_scope` | `projects` |
-| `auto_sync_members` | `true` |
+**The most recent migration `20260128130534` introduced a bug** by using an incorrect JOIN condition:
 
-The filter should check `access_scope`, not `space_type`.
+```sql
+LEFT JOIN profiles p ON p.user_id = e.user_id  -- WRONG!
+```
+
+**Actual schema:**
+| Table | User ID Column | Notes |
+|-------|---------------|-------|
+| `employees` | `user_id` | References `auth.users.id` |
+| `profiles` | `id` | IS the user ID (directly references `auth.users.id`) |
+
+**Correct JOIN should be:**
+```sql
+LEFT JOIN profiles p ON p.id = e.user_id  -- CORRECT
+```
 
 ---
 
 ## Solution
 
-Restore the correct query logic from migration `20260128121722`:
+Fix the `sync_project_space_members()` function to use the correct JOIN:
+- Change `p.user_id = e.user_id` to `p.id = e.user_id`
 
-```sql
-WHERE cs.access_scope = 'projects'
-  AND cs.auto_sync_members = true
-  AND cs.archived_at IS NULL
-```
-
-Also fix the profile JOIN to use `p.user_id = e.user_id` (not `p.id = e.user_id`).
+This correction applies to both the INSERT and DELETE handlers in the function.
 
 ---
 
 ## Database Migration
 
-The new migration will:
-1. Fix the `sync_project_space_members()` function with correct filters
-2. Handle both INSERT and DELETE operations
-3. Use proper JOIN for profiles table
-4. Match the pattern of other working sync functions
+The migration will replace the `sync_project_space_members()` function with the corrected JOIN:
+
+```sql
+-- For INSERT handler (line ~29):
+FROM employees e
+LEFT JOIN profiles p ON p.id = e.user_id  -- Fixed
+WHERE e.id = NEW.employee_id;
+
+-- For DELETE handler (line ~80):
+FROM employees e
+LEFT JOIN profiles p ON p.id = e.user_id  -- Fixed
+WHERE e.id = OLD.employee_id;
+```
 
 ---
 
-## Technical Comparison
+## Technical Details
 
 | Aspect | Broken (Current) | Fixed |
 |--------|------------------|-------|
-| Filter | `space_type = 'project'` | `access_scope = 'projects'` |
-| Profile JOIN | `p.id = e.user_id` | `p.user_id = e.user_id` |
-| Archived check | Missing | `archived_at IS NULL` |
-| DELETE handling | Missing | Properly removes members when project removed |
-
----
-
-## Verification Data
-
-**Employee_projects entry (Sarah):**
-- Employee ID: `ee06e718-7a28-4e72-ad05-ec64a93a1c1c`
-- Project ID: `1fbbfbe0-ee3e-44a9-8b7f-bb6f647e5b4b` (GlobalyOS)
-- Created: `2026-01-28 13:00:50`
-
-**Space already linked to project:**
-- Space ID: `568b895b-e74d-4d49-8ac5-87af6e99dd20` (All GlobalyOS)
-- Project ID: `1fbbfbe0-ee3e-44a9-8b7f-bb6f647e5b4b` (GlobalyOS)
-
-**Sarah is NOT in space members** - confirms the auto-sync failed.
+| JOIN condition | `p.user_id = e.user_id` | `p.id = e.user_id` |
+| Error | `column p.user_id does not exist` | No error |
+| DELETE operations | Fail silently (trigger error) | Work correctly |
 
 ---
 
@@ -76,20 +69,14 @@ The new migration will:
 
 | Resource | Action | Description |
 |----------|--------|-------------|
-| Database migration | Add | Fix `sync_project_space_members()` with correct `access_scope` filter |
+| Database migration | Add | Fix profiles JOIN in `sync_project_space_members()` |
 
 ---
 
 ## After Fix
 
-- Auto-sync will correctly trigger when projects are assigned to employees
-- Sarah will be auto-added to "All GlobalyOS" space when project is assigned
-- DELETE operations will properly remove members when projects are unassigned
-- System messages will correctly display in the chat space
-
----
-
-## Manual Fix Required
-
-After the migration, Sarah's existing project assignment won't auto-trigger (since the trigger fires on INSERT). I'll also provide a one-time data fix to add Sarah to the space.
+- Unticking projects and saving will correctly remove the project assignment
+- DELETE operations on `employee_projects` will succeed
+- Members will be auto-removed from project-scoped chat spaces when unassigned
+- The trigger function will correctly look up employee names from profiles
 
