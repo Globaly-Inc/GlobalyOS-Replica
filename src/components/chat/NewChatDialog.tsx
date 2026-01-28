@@ -54,7 +54,10 @@ const NewChatDialog = ({ open, onOpenChange, onChatCreated }: NewChatDialogProps
   }>;
 
   const filteredEmployees = employees.filter(emp => {
+    // Exclude current user and inactive employees
     if (emp.id === currentEmployee?.id) return false;
+    if (emp.status !== 'active') return false;
+    
     const name = emp.profiles?.full_name || "";
     const email = emp.profiles?.email || "";
     return (
