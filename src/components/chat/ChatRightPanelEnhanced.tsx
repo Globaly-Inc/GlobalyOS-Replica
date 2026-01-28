@@ -828,6 +828,24 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
                               </>
                             )}
                             
+                            {/* Leave Space - only for self (space admin) */}
+                            {isSelf && isSpaceAdmin && spaceId && (
+                              <DropdownMenuItem 
+                                onClick={() => {
+                                  // Check if sole admin - need to transfer first
+                                  if (adminCount === 1) {
+                                    setShowTransferAdminDialog(true);
+                                  } else {
+                                    setShowLeaveConfirm(true);
+                                  }
+                                }}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <LogOut className="h-4 w-4 mr-2" />
+                                Leave Space
+                              </DropdownMenuItem>
+                            )}
+                            
                             {/* Leave Group - only for self (group admin) */}
                             {isSelf && isGroupAdmin && (
                               <DropdownMenuItem 
