@@ -10,15 +10,23 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, MoreVertical, Shield, UserMinus, Crown, Loader2 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Search, MoreVertical, Shield, UserMinus, Crown, Loader2, RefreshCw, Info } from "lucide-react";
 import { useSpaceMembers, useUpdateSpaceMemberRole, useRemoveSpaceMember } from "@/services/useChat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
+import { useOrganization } from "@/hooks/useOrganization";
+import { useExemptEmployeeIds } from "@/hooks/useExemptRoles";
 import { toast } from "sonner";
 import { showErrorToast } from "@/lib/errorUtils";
 import type { ChatSpaceMember } from "@/types/chat";
@@ -29,6 +37,7 @@ interface SpaceMembersDialogProps {
   spaceId: string;
   spaceName: string;
   onAddMembers: () => void;
+  autoSyncEnabled?: boolean;
 }
 
 const SpaceMembersDialog = ({
@@ -37,12 +46,18 @@ const SpaceMembersDialog = ({
   spaceId,
   spaceName,
   onAddMembers,
+  autoSyncEnabled = false,
 }: SpaceMembersDialogProps) => {
   const [search, setSearch] = useState("");
   const { data: members = [], isLoading } = useSpaceMembers(spaceId);
   const { data: currentEmployee } = useCurrentEmployee();
+  const { currentOrg } = useOrganization();
   const updateRole = useUpdateSpaceMemberRole();
   const removeMember = useRemoveSpaceMember();
+
+  // Get exempt roles for all members
+  const memberIds = members.map(m => m.employee_id);
+  const { exemptIds, isLoading: loadingRoles } = useExemptEmployeeIds(memberIds, currentOrg?.id || null);
 
   const currentMember = members.find(m => m.employee_id === currentEmployee?.id);
   const isCurrentAdmin = currentMember?.role === 'admin';
@@ -111,6 +126,17 @@ const SpaceMembersDialog = ({
     }
   };
 
+  // Check if a member can be removed (exempt members can always be removed, others only when auto-sync is off)
+  const canRemoveMember = (member: ChatSpaceMember) => {
+    if (!autoSyncEnabled) return true;
+    return exemptIds.has(member.employee_id);
+  };
+
+  // Check if a member is exempt from auto-sync
+  const isMemberExempt = (member: ChatSpaceMember) => {
+    return exemptIds.has(member.employee_id);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -119,6 +145,19 @@ const SpaceMembersDialog = ({
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Auto-sync banner */}
+          {autoSyncEnabled && (
+            <Alert className="bg-muted/50 border-border">
+              <RefreshCw className="h-4 w-4" />
+              <AlertDescription className="text-sm">
+                Auto-sync is enabled. Members are managed automatically.
+                <span className="block text-xs text-muted-foreground mt-1">
+                  Owner, Admin, and HR members can be managed manually.
+                </span>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Search and Add */}
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -131,15 +170,29 @@ const SpaceMembersDialog = ({
               />
             </div>
             {isCurrentAdmin && (
-              <Button onClick={onAddMembers}>
-                Add
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button 
+                      onClick={onAddMembers}
+                      disabled={autoSyncEnabled}
+                    >
+                      Add
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {autoSyncEnabled && (
+                  <TooltipContent>
+                    <p>Disable auto-sync to add members manually</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
             )}
           </div>
 
           {/* Members list */}
           <ScrollArea className="h-[300px]">
-            {isLoading ? (
+            {isLoading || loadingRoles ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
@@ -149,70 +202,95 @@ const SpaceMembersDialog = ({
               </div>
             ) : (
               <div className="space-y-1">
-                {filteredMembers.map((member) => (
-                  <div
-                    key={member.id}
-                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50"
-                  >
-                    <Avatar className="h-9 w-9">
-                      <AvatarImage src={member.employee?.profiles?.avatar_url || undefined} />
-                      <AvatarFallback className="text-xs">
-                        {getInitials(member.employee?.profiles?.full_name || "U")}
-                      </AvatarFallback>
-                    </Avatar>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm truncate">
-                          {member.employee?.profiles?.full_name}
-                        </span>
-                        {member.role === 'admin' && (
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                            <Crown className="h-3 w-3 mr-1" />
-                            Admin
-                          </Badge>
-                        )}
-                        {member.employee_id === currentEmployee?.id && (
-                          <span className="text-xs text-muted-foreground">(you)</span>
-                        )}
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {member.employee?.position}
-                      </span>
-                    </div>
+                {filteredMembers.map((member) => {
+                  const isExempt = isMemberExempt(member);
+                  const canRemove = canRemoveMember(member);
 
-                    {/* Actions - only for admins, can't modify self */}
-                    {isCurrentAdmin && member.employee_id !== currentEmployee?.id && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {member.role === 'member' ? (
-                            <DropdownMenuItem onClick={() => handlePromote(member)}>
-                              <Shield className="h-4 w-4 mr-2" />
-                              Make admin
-                            </DropdownMenuItem>
-                          ) : (
-                            <DropdownMenuItem onClick={() => handleDemote(member)}>
-                              <Shield className="h-4 w-4 mr-2" />
-                              Remove admin
-                            </DropdownMenuItem>
+                  return (
+                    <div
+                      key={member.id}
+                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50"
+                    >
+                      <Avatar className="h-9 w-9">
+                        <AvatarImage src={member.employee?.profiles?.avatar_url || undefined} />
+                        <AvatarFallback className="text-xs">
+                          {getInitials(member.employee?.profiles?.full_name || "U")}
+                        </AvatarFallback>
+                      </Avatar>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-sm truncate">
+                            {member.employee?.profiles?.full_name}
+                          </span>
+                          {member.role === 'admin' && (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                              <Crown className="h-3 w-3 mr-1" />
+                              Admin
+                            </Badge>
                           )}
-                          <DropdownMenuItem
-                            onClick={() => handleRemove(member)}
-                            className="text-destructive focus:text-destructive"
-                          >
-                            <UserMinus className="h-4 w-4 mr-2" />
-                            Remove from space
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </div>
-                ))}
+                          {autoSyncEnabled && isExempt && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-500/50 text-amber-600">
+                              <Shield className="h-3 w-3 mr-1" />
+                              Exempt
+                            </Badge>
+                          )}
+                          {member.employee_id === currentEmployee?.id && (
+                            <span className="text-xs text-muted-foreground">(you)</span>
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {member.employee?.position}
+                        </span>
+                      </div>
+
+                      {/* Actions - only for admins, can't modify self */}
+                      {isCurrentAdmin && member.employee_id !== currentEmployee?.id && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="bg-popover border shadow-lg z-50">
+                            {member.role === 'member' ? (
+                              <DropdownMenuItem onClick={() => handlePromote(member)}>
+                                <Shield className="h-4 w-4 mr-2" />
+                                Make admin
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem onClick={() => handleDemote(member)}>
+                                <Shield className="h-4 w-4 mr-2" />
+                                Remove admin
+                              </DropdownMenuItem>
+                            )}
+                            {canRemove ? (
+                              <DropdownMenuItem
+                                onClick={() => handleRemove(member)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <UserMinus className="h-4 w-4 mr-2" />
+                                Remove from space
+                              </DropdownMenuItem>
+                            ) : (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="relative flex cursor-not-allowed select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none opacity-50">
+                                    <UserMinus className="h-4 w-4 mr-2" />
+                                    Remove from space
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="left">
+                                  <p>Cannot remove - auto-sync is enabled</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </ScrollArea>
