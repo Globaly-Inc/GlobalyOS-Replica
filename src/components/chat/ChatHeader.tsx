@@ -14,6 +14,7 @@ import {
   X,
   Loader2,
   RefreshCw,
+  Megaphone,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -725,13 +726,19 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
                   >
                     <h2 className="font-semibold text-foreground text-base flex items-center gap-1 truncate">
                       {activeChat.name}
+                      {space?.space_type === 'announcements' && (
+                        <Megaphone className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0 ml-1" />
+                      )}
                       <Pencil className="h-3 w-3 text-muted-foreground flex-shrink-0 opacity-0 group-hover/name:opacity-100 transition-opacity" />
                     </h2>
                   </div>
                 ) : (
                   // Display mode for non-admins (read-only)
-                  <h2 className="font-semibold text-foreground text-base truncate">
+                  <h2 className="font-semibold text-foreground text-base flex items-center gap-1 truncate">
                     {activeChat.name}
+                    {space?.space_type === 'announcements' && (
+                      <Megaphone className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0 ml-1" />
+                    )}
                   </h2>
                 )}
                 <p className="text-xs text-muted-foreground flex items-center gap-1.5">
