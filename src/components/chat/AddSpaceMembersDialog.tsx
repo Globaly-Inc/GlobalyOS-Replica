@@ -128,10 +128,17 @@ const AddSpaceMembersDialog = ({
       return;
     }
 
+    // Get employee names for system event logging
+    const employeeNames = selectedIds.map(id => {
+      const emp = availableEmployees.find(e => e.id === id);
+      return emp?.profiles?.full_name || 'Unknown';
+    });
+
     try {
       await addMembers.mutateAsync({
         spaceId,
-        employeeIds: selectedIds
+        employeeIds: selectedIds,
+        employeeNames
       });
       toast.success(`Added ${selectedIds.length} member${selectedIds.length > 1 ? 's' : ''}`);
       setSelectedIds([]);

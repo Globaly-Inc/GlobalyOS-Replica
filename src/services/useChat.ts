@@ -1305,6 +1305,8 @@ export const useSpace = (spaceId: string | null) => {
 // Update space settings
 export const useUpdateSpace = () => {
   const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
 
   return useMutation({
     mutationFn: async ({
@@ -1314,6 +1316,8 @@ export const useUpdateSpace = () => {
       spaceType,
       iconUrl,
       autoSyncMembers,
+      oldName,
+      oldIconUrl,
     }: {
       spaceId: string;
       name?: string;
@@ -1321,7 +1325,11 @@ export const useUpdateSpace = () => {
       spaceType?: 'collaboration' | 'announcements';
       iconUrl?: string | null;
       autoSyncMembers?: boolean;
+      oldName?: string;
+      oldIconUrl?: string | null;
     }) => {
+      if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
+
       const updateData: Record<string, any> = {
         updated_at: new Date().toISOString(),
       };
@@ -1338,10 +1346,51 @@ export const useUpdateSpace = () => {
         .eq('id', spaceId);
 
       if (error) throw error;
+
+      const actorName = currentEmployee.profiles?.full_name || 'Someone';
+
+      // Log name change
+      if (name !== undefined && oldName !== undefined && name !== oldName) {
+        await supabase.from('chat_messages').insert({
+          organization_id: currentOrg.id,
+          space_id: spaceId,
+          sender_id: currentEmployee.id,
+          content: `${actorName} changed the space name`,
+          content_type: 'system_event',
+          system_event_data: {
+            event_type: 'space_name_changed',
+            target_employee_id: currentEmployee.id,
+            target_name: actorName,
+            actor_employee_id: currentEmployee.id,
+            actor_name: actorName,
+            old_value: oldName,
+            new_value: name
+          }
+        });
+      }
+
+      // Log photo change
+      if (iconUrl !== undefined && oldIconUrl !== iconUrl) {
+        await supabase.from('chat_messages').insert({
+          organization_id: currentOrg.id,
+          space_id: spaceId,
+          sender_id: currentEmployee.id,
+          content: `${actorName} updated the space photo`,
+          content_type: 'system_event',
+          system_event_data: {
+            event_type: 'space_photo_changed',
+            target_employee_id: currentEmployee.id,
+            target_name: actorName,
+            actor_employee_id: currentEmployee.id,
+            actor_name: actorName
+          }
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
       queryClient.invalidateQueries({ queryKey: ['chat-space'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-messages'] });
     },
   });
 };
@@ -1512,16 +1561,19 @@ export const useJoinSpaceAsAdmin = () => {
 export const useAddSpaceMembers = () => {
   const queryClient = useQueryClient();
   const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
 
   return useMutation({
     mutationFn: async ({
       spaceId,
       employeeIds,
+      employeeNames,
     }: {
       spaceId: string;
       employeeIds: string[];
+      employeeNames?: string[];
     }) => {
-      if (!currentOrg?.id) throw new Error('Not authenticated');
+      if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
 
       const members = employeeIds.map((empId) => ({
         space_id: spaceId,
@@ -1535,10 +1587,36 @@ export const useAddSpaceMembers = () => {
         .insert(members);
 
       if (error) throw error;
+
+      // Log system events if names provided
+      if (employeeNames?.length) {
+        const actorName = currentEmployee.profiles?.full_name || 'Someone';
+        
+        for (let i = 0; i < employeeIds.length; i++) {
+          const empId = employeeIds[i];
+          const empName = employeeNames[i] || 'Someone';
+
+          await supabase.from('chat_messages').insert({
+            organization_id: currentOrg.id,
+            space_id: spaceId,
+            sender_id: currentEmployee.id,
+            content: `${empName} was added by ${actorName}`,
+            content_type: 'system_event',
+            system_event_data: {
+              event_type: 'member_added',
+              target_employee_id: empId,
+              target_name: empName,
+              actor_employee_id: currentEmployee.id,
+              actor_name: actorName
+            }
+          });
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat-space-members'] });
       queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-messages'] });
     },
   });
 };
@@ -1546,17 +1624,23 @@ export const useAddSpaceMembers = () => {
 // Update space member role
 export const useUpdateSpaceMemberRole = () => {
   const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
 
   return useMutation({
     mutationFn: async ({
       spaceId,
       employeeId,
+      employeeName,
       role,
     }: {
       spaceId: string;
       employeeId: string;
+      employeeName?: string;
       role: 'admin' | 'member';
     }) => {
+      if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
+
       const { error } = await supabase
         .from('chat_space_members')
         .update({ role })
@@ -1564,9 +1648,33 @@ export const useUpdateSpaceMemberRole = () => {
         .eq('employee_id', employeeId);
 
       if (error) throw error;
+
+      // Log system event for role change
+      if (employeeName) {
+        const eventType = role === 'admin' ? 'admin_added' : 'admin_removed';
+        const actorName = currentEmployee.profiles?.full_name || 'Someone';
+
+        await supabase.from('chat_messages').insert({
+          organization_id: currentOrg.id,
+          space_id: spaceId,
+          sender_id: currentEmployee.id,
+          content: role === 'admin' 
+            ? `${employeeName} was made an admin`
+            : `${employeeName} is no longer an admin`,
+          content_type: 'system_event',
+          system_event_data: {
+            event_type: eventType,
+            target_employee_id: employeeId,
+            target_name: employeeName,
+            actor_employee_id: currentEmployee.id,
+            actor_name: actorName
+          }
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat-space-members'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-messages'] });
     },
   });
 };
@@ -1574,15 +1682,41 @@ export const useUpdateSpaceMemberRole = () => {
 // Remove member from space
 export const useRemoveSpaceMember = () => {
   const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
 
   return useMutation({
     mutationFn: async ({
       spaceId,
       employeeId,
+      employeeName,
     }: {
       spaceId: string;
       employeeId: string;
+      employeeName?: string;
     }) => {
+      if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
+
+      // Log system event before delete (if name provided)
+      if (employeeName) {
+        const actorName = currentEmployee.profiles?.full_name || 'Someone';
+
+        await supabase.from('chat_messages').insert({
+          organization_id: currentOrg.id,
+          space_id: spaceId,
+          sender_id: currentEmployee.id,
+          content: `${employeeName} was removed by ${actorName}`,
+          content_type: 'system_event',
+          system_event_data: {
+            event_type: 'member_removed',
+            target_employee_id: employeeId,
+            target_name: employeeName,
+            actor_employee_id: currentEmployee.id,
+            actor_name: actorName
+          }
+        });
+      }
+
       const { error } = await supabase
         .from('chat_space_members')
         .delete()
@@ -1593,7 +1727,8 @@ export const useRemoveSpaceMember = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat-space-members'] });
-    queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-messages'] });
     },
   });
 };
@@ -2044,7 +2179,23 @@ export const useLeaveSpace = () => {
 
   return useMutation({
     mutationFn: async (spaceId: string) => {
-      if (!currentEmployee?.id) throw new Error('Not authenticated');
+      if (!currentEmployee?.id || !currentOrg?.id) throw new Error('Not authenticated');
+
+      const leavingEmployeeName = currentEmployee.profiles?.full_name || 'Someone';
+
+      // Log system event for leaving
+      await supabase.from('chat_messages').insert({
+        organization_id: currentOrg.id,
+        space_id: spaceId,
+        sender_id: currentEmployee.id,
+        content: `${leavingEmployeeName} left the space`,
+        content_type: 'system_event',
+        system_event_data: {
+          event_type: 'member_left',
+          target_employee_id: currentEmployee.id,
+          target_name: leavingEmployeeName
+        }
+      });
 
       const { error } = await supabase
         .from('chat_space_members')
@@ -2057,6 +2208,7 @@ export const useLeaveSpace = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat-spaces', currentOrg?.id] });
       queryClient.invalidateQueries({ queryKey: ['chat-space-members'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-messages'] });
     },
   });
 };
