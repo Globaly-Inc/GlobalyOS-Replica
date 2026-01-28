@@ -29,7 +29,7 @@ import {
 import { useOrganization } from "@/hooks/useOrganization";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { supabase } from "@/integrations/supabase/client";
-import MessageSearch from "./MessageSearch";
+import InlineSearchResults from "./InlineSearchResults";
 import EditGroupChatDialog from "./EditGroupChatDialog";
 import type { ActiveChat } from "@/types/chat";
 
@@ -57,6 +57,9 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
   
   const [otherParticipant, setOtherParticipant] = useState<OtherParticipant | null>(null);
   const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchCurrentIndex, setSearchCurrentIndex] = useState(0);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [showEditGroupDialog, setShowEditGroupDialog] = useState(false);
   const [groupIconUrl, setGroupIconUrl] = useState<string | null>(activeChat.iconUrl || null);
   const [groupName, setGroupName] = useState(activeChat.name);
@@ -66,6 +69,27 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
   const [isSavingName, setIsSavingName] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus input when search opens
+  useEffect(() => {
+    if (showSearch && searchInputRef.current) {
+      setTimeout(() => searchInputRef.current?.focus(), 50);
+    }
+  }, [showSearch]);
+
+  // Clear search when closed
+  const handleCloseSearch = () => {
+    setShowSearch(false);
+    setSearchQuery("");
+    setSearchCurrentIndex(0);
+  };
+
+  // Handle keyboard navigation for search
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      handleCloseSearch();
+    }
+  };
 
   const updateConversation = useUpdateConversation();
   const { currentOrg } = useOrganization();
@@ -510,7 +534,56 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
           </div>
         </div>
 
-        <div className="flex items-center gap-0.5 flex-shrink-0">
+        {/* Right section - Actions with inline search */}
+        <div className="relative flex items-center gap-0.5 flex-shrink-0">
+          {/* Inline Search Bar */}
+          {showSearch ? (
+            <div className="flex items-center gap-1.5 mr-1">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search messages..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
+                  className="h-8 w-[200px] md:w-[260px] pl-8 pr-7 text-sm"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={handleCloseSearch}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9"
+                  onClick={() => setShowSearch(true)}
+                >
+                  <Search className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Search messages</TooltipContent>
+            </Tooltip>
+          )}
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -552,30 +625,20 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
             </TooltipContent>
           </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn("h-9 w-9", showSearch && "bg-accent")}
-                onClick={() => setShowSearch(!showSearch)}
-              >
-                <Search className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Search messages</TooltipContent>
-          </Tooltip>
+          {/* Inline search results dropdown */}
+          {showSearch && searchQuery.trim() && (
+            <InlineSearchResults
+              query={searchQuery}
+              conversationId={conversationId}
+              spaceId={spaceId}
+              onResultClick={handleSearchResultClick}
+              onClose={handleCloseSearch}
+              currentIndex={searchCurrentIndex}
+              setCurrentIndex={setSearchCurrentIndex}
+            />
+          )}
         </div>
       </div>
-
-      {/* Message Search */}
-      <MessageSearch
-        conversationId={conversationId}
-        spaceId={spaceId}
-        isOpen={showSearch}
-        onClose={() => setShowSearch(false)}
-        onResultClick={handleSearchResultClick}
-      />
 
       {/* Edit Group Chat Dialog */}
       {activeChat.type === 'conversation' && activeChat.isGroup && (
