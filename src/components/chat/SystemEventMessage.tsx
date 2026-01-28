@@ -65,7 +65,7 @@ const SystemEventMessage = ({ eventData, timestamp }: SystemEventMessageProps) =
   const time = format(new Date(timestamp), "h:mm a");
 
   return (
-    <div className="flex items-center justify-center py-2 px-4">
+    <div className="flex items-center justify-start py-2 px-4">
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/50 text-xs">
         <Icon className={cn("h-3.5 w-3.5", config.className)} />
         <span className="text-muted-foreground">{text}</span>
