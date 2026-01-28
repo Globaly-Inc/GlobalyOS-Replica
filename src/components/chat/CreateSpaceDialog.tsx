@@ -206,49 +206,49 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
             {/* Space Type */}
             <div className="space-y-3">
               <Label className="text-base font-semibold">Space type</Label>
-              <RadioGroup
-                value={spaceType}
-                onValueChange={(v) => setSpaceType(v as 'collaboration' | 'announcements')}
-                className="space-y-2"
+            <RadioGroup
+              value={spaceType}
+              onValueChange={(v) => setSpaceType(v as 'collaboration' | 'announcements')}
+              className="grid grid-cols-2 gap-3"
+            >
+              <div 
+                className={cn(
+                  "flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors",
+                  spaceType === 'collaboration' 
+                    ? 'border-primary bg-primary/5' 
+                    : 'border-border hover:bg-muted/50'
+                )}
+                onClick={() => setSpaceType('collaboration')}
               >
-                <div 
-                  className={cn(
-                    "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
-                    spaceType === 'collaboration' 
-                      ? 'border-primary bg-primary/5' 
-                      : 'border-border hover:bg-muted/50'
-                  )}
-                  onClick={() => setSpaceType('collaboration')}
-                >
-                  <RadioGroupItem value="collaboration" id="collaboration" className="mt-1" />
-                  <MessageSquare className={cn("h-5 w-5 mt-0.5", spaceType === 'collaboration' ? 'text-primary' : 'text-muted-foreground')} />
-                  <div className="flex-1">
-                    <Label htmlFor="collaboration" className="font-medium cursor-pointer">
-                      Collaboration
-                    </Label>
-                    <p className="text-sm text-muted-foreground">Everyone can post messages</p>
-                  </div>
+                <RadioGroupItem value="collaboration" id="collaboration" />
+                <MessageSquare className={cn("h-4 w-4", spaceType === 'collaboration' ? 'text-primary' : 'text-muted-foreground')} />
+                <div className="flex-1 min-w-0">
+                  <Label htmlFor="collaboration" className="font-medium cursor-pointer text-sm">
+                    Collaboration
+                  </Label>
+                  <p className="text-xs text-muted-foreground truncate">Everyone can post</p>
                 </div>
-                
-                <div 
-                  className={cn(
-                    "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
-                    spaceType === 'announcements' 
-                      ? 'border-primary bg-primary/5' 
-                      : 'border-border hover:bg-muted/50'
-                  )}
-                  onClick={() => setSpaceType('announcements')}
-                >
-                  <RadioGroupItem value="announcements" id="announcements" className="mt-1" />
-                  <Megaphone className={cn("h-5 w-5 mt-0.5", spaceType === 'announcements' ? 'text-primary' : 'text-muted-foreground')} />
-                  <div className="flex-1">
-                    <Label htmlFor="announcements" className="font-medium cursor-pointer">
-                      Announcement
-                    </Label>
-                    <p className="text-sm text-muted-foreground">Only admins can post, members can view</p>
-                  </div>
+              </div>
+              
+              <div 
+                className={cn(
+                  "flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors",
+                  spaceType === 'announcements' 
+                    ? 'border-primary bg-primary/5' 
+                    : 'border-border hover:bg-muted/50'
+                )}
+                onClick={() => setSpaceType('announcements')}
+              >
+                <RadioGroupItem value="announcements" id="announcements" />
+                <Megaphone className={cn("h-4 w-4", spaceType === 'announcements' ? 'text-primary' : 'text-muted-foreground')} />
+                <div className="flex-1 min-w-0">
+                  <Label htmlFor="announcements" className="font-medium cursor-pointer text-sm">
+                    Announcement
+                  </Label>
+                  <p className="text-xs text-muted-foreground truncate">Only admins can post</p>
                 </div>
-              </RadioGroup>
+              </div>
+            </RadioGroup>
             </div>
 
             {/* Access settings */}
