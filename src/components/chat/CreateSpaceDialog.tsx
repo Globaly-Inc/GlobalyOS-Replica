@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, HelpCircle } from "lucide-react";
+import { Loader2, MessageSquare, Megaphone } from "lucide-react";
 import { useCreateSpace } from "@/services/useChat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { showErrorToast } from "@/lib/errorUtils";
@@ -19,13 +19,9 @@ import SpaceImagePicker from "./SpaceImagePicker";
 import AccessScopeSelector, { type AccessScope } from "./AccessScopeSelector";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { cn } from "@/lib/utils";
 
 interface CreateSpaceDialogProps {
   open: boolean;
@@ -37,6 +33,7 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
   const [name, setName] = useState("");
   const [iconUrl, setIconUrl] = useState<string | null>(null);
   const [description, setDescription] = useState("");
+  const [spaceType, setSpaceType] = useState<'collaboration' | 'announcements'>('collaboration');
   const [accessScope, setAccessScope] = useState<AccessScope>("company");
   
   // Multi-criteria selections for 'custom' scope
@@ -47,12 +44,14 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
   const [departmentsEnabled, setDepartmentsEnabled] = useState(false);
   const [projectsEnabled, setProjectsEnabled] = useState(false);
   
-  // Member selection for 'members' scope
+  // Member selection for 'members' scope and additional invites
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   
-  // Membership options
+  // Enable manual member invites alongside Group Access
+  const [inviteAdditionalMembers, setInviteAdditionalMembers] = useState(false);
+  
+  // Membership option - add all matching members now
   const [addAllMembers, setAddAllMembers] = useState(false);
-  const [autoSync, setAutoSync] = useState(false);
   
   const createSpace = useCreateSpace();
   const { data: currentEmployee } = useCurrentEmployee();
@@ -67,7 +66,7 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
         (departmentsEnabled && selectedDepartmentIds.length > 0) ||
         (projectsEnabled && selectedProjectIds.length > 0);
       if (!hasAnyCriteria) {
-        return "Please select at least one criterion for custom access";
+        return "Please select at least one criterion for group access";
       }
     }
     if (accessScope === 'members' && selectedMemberIds.length === 0) {
@@ -76,11 +75,18 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
     return null;
   };
 
-  // Reset membership options when switching to 'members' scope
+  // Clear related state when switching scopes
   useEffect(() => {
     if (accessScope === 'members') {
       setAddAllMembers(false);
-      setAutoSync(false);
+      setInviteAdditionalMembers(false);
+    }
+    if (accessScope !== 'custom') {
+      setInviteAdditionalMembers(false);
+      // Clear additional members when not in custom scope (but keep for members scope)
+      if (accessScope !== 'members') {
+        setSelectedMemberIds([]);
+      }
     }
   }, [accessScope]);
 
@@ -96,13 +102,18 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
         name: name.trim(),
         description: description.trim() || undefined,
         iconUrl: iconUrl || undefined,
+        spaceType,
         accessScope,
         officeIds: accessScope === 'custom' && officesEnabled ? selectedOfficeIds : undefined,
         departmentIds: accessScope === 'custom' && departmentsEnabled ? selectedDepartmentIds : undefined,
         projectIds: accessScope === 'custom' && projectsEnabled ? selectedProjectIds : undefined,
-        memberIds: accessScope === 'members' ? selectedMemberIds : undefined,
-        addAllMembers: accessScope !== 'members' ? addAllMembers : false,
-        autoSync: accessScope !== 'members' ? autoSync : false,
+        // For 'members' scope: pass selected members
+        // For 'custom' scope with inviteAdditionalMembers: also pass selected members
+        memberIds: accessScope === 'members' 
+          ? selectedMemberIds 
+          : (accessScope === 'custom' && inviteAdditionalMembers ? selectedMemberIds : undefined),
+        addAllMembers: (accessScope === 'company' || accessScope === 'custom') ? addAllMembers : false,
+        autoSync: accessScope !== 'members', // Always true for company/group
       });
 
       onSpaceCreated({
@@ -128,6 +139,7 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
     setName("");
     setIconUrl(null);
     setDescription("");
+    setSpaceType("collaboration");
     setAccessScope("company");
     setSelectedOfficeIds([]);
     setSelectedDepartmentIds([]);
@@ -137,7 +149,7 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
     setProjectsEnabled(false);
     setSelectedMemberIds([]);
     setAddAllMembers(false);
-    setAutoSync(false);
+    setInviteAdditionalMembers(false);
   };
 
   const handleClose = () => {
@@ -145,8 +157,8 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
     onOpenChange(false);
   };
 
-  // Show membership options for company and custom scopes only
-  const showMembershipOptions = accessScope !== 'members';
+  // Show membership options for company-wide and group access scopes
+  const showMembershipOptions = accessScope === 'company' || accessScope === 'custom';
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -191,6 +203,54 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
               </p>
             </div>
 
+            {/* Space Type */}
+            <div className="space-y-3">
+              <Label className="text-base font-semibold">Space type</Label>
+              <RadioGroup
+                value={spaceType}
+                onValueChange={(v) => setSpaceType(v as 'collaboration' | 'announcements')}
+                className="space-y-2"
+              >
+                <div 
+                  className={cn(
+                    "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
+                    spaceType === 'collaboration' 
+                      ? 'border-primary bg-primary/5' 
+                      : 'border-border hover:bg-muted/50'
+                  )}
+                  onClick={() => setSpaceType('collaboration')}
+                >
+                  <RadioGroupItem value="collaboration" id="collaboration" className="mt-1" />
+                  <MessageSquare className={cn("h-5 w-5 mt-0.5", spaceType === 'collaboration' ? 'text-primary' : 'text-muted-foreground')} />
+                  <div className="flex-1">
+                    <Label htmlFor="collaboration" className="font-medium cursor-pointer">
+                      Collaboration
+                    </Label>
+                    <p className="text-sm text-muted-foreground">Everyone can post messages</p>
+                  </div>
+                </div>
+                
+                <div 
+                  className={cn(
+                    "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
+                    spaceType === 'announcements' 
+                      ? 'border-primary bg-primary/5' 
+                      : 'border-border hover:bg-muted/50'
+                  )}
+                  onClick={() => setSpaceType('announcements')}
+                >
+                  <RadioGroupItem value="announcements" id="announcements" className="mt-1" />
+                  <Megaphone className={cn("h-5 w-5 mt-0.5", spaceType === 'announcements' ? 'text-primary' : 'text-muted-foreground')} />
+                  <div className="flex-1">
+                    <Label htmlFor="announcements" className="font-medium cursor-pointer">
+                      Announcement
+                    </Label>
+                    <p className="text-sm text-muted-foreground">Only admins can post, members can view</p>
+                  </div>
+                </div>
+              </RadioGroup>
+            </div>
+
             {/* Access settings */}
             <AccessScopeSelector
               value={accessScope}
@@ -210,14 +270,21 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
               selectedMemberIds={selectedMemberIds}
               onMemberIdsChange={setSelectedMemberIds}
               currentEmployeeId={currentEmployee?.id}
+              inviteAdditionalMembers={inviteAdditionalMembers}
+              onInviteAdditionalMembersChange={setInviteAdditionalMembers}
             />
 
-            {/* Membership Options Section */}
+            {/* Membership Options Section - for Company-wide & Group */}
             {showMembershipOptions && (
               <>
                 <Separator />
                 <div className="space-y-4">
-                  <Label className="text-base font-semibold">Membership options</Label>
+                  <Label className="text-base font-semibold">
+                    Membership options
+                    <span className="text-xs font-normal text-muted-foreground ml-2">
+                      (for Company-wide & Group)
+                    </span>
+                  </Label>
                   
                   {/* Add all matching members checkbox */}
                   <div className="flex items-start gap-3">
@@ -233,34 +300,6 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
                       </Label>
                       <p className="text-xs text-muted-foreground">
                         Add all employees who meet the access criteria
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {/* Auto-sync toggle */}
-                  <div className="flex items-start gap-3">
-                    <Switch
-                      id="autoSync"
-                      checked={autoSync}
-                      onCheckedChange={setAutoSync}
-                      className="mt-0.5"
-                    />
-                    <div className="flex-1 space-y-0.5">
-                      <div className="flex items-center gap-2">
-                        <Label htmlFor="autoSync" className="text-sm font-medium cursor-pointer">
-                          Auto-sync members
-                        </Label>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-xs">
-                            Automatically add/remove members when team members join or leave the organization, change departments, or are assigned to/removed from projects
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Automatically add/remove members when team changes
                       </p>
                     </div>
                   </div>
