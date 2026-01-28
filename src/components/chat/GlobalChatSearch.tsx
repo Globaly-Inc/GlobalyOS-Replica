@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Search,
@@ -7,6 +7,7 @@ import {
   Hash,
   User,
   Loader2,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useGlobalChatSearch, GlobalSearchResult } from "@/hooks/useGlobalChatSearch";
@@ -14,14 +15,19 @@ import { useTeamPresence } from "@/services/useTeamData";
 import { format } from "date-fns";
 import type { ActiveChat } from "@/types/chat";
 import {
-  CommandDialog,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
   CommandEmpty,
   CommandGroup,
-  CommandInput,
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 
 interface GlobalChatSearchProps {
   onSelectResult: (result: GlobalSearchResult, chat: ActiveChat) => void;
@@ -31,30 +37,47 @@ interface GlobalChatSearchProps {
 }
 
 const resultTypeConfig = {
-  message: {
-    icon: MessageSquare,
-    label: "Messages",
-    iconClass: "text-blue-600",
-    badgeClass: "bg-blue-500/10 text-blue-600 border-blue-500/20",
+  member: {
+    icon: User,
+    label: "Members",
+    iconClass: "text-amber-600",
   },
   conversation: {
     icon: Users,
     label: "Groups & DMs",
     iconClass: "text-green-600",
-    badgeClass: "bg-green-500/10 text-green-600 border-green-500/20",
   },
   space: {
     icon: Hash,
     label: "Spaces",
     iconClass: "text-purple-600",
-    badgeClass: "bg-purple-500/10 text-purple-600 border-purple-500/20",
   },
-  member: {
-    icon: User,
-    label: "Members",
-    iconClass: "text-amber-600",
-    badgeClass: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+  message: {
+    icon: MessageSquare,
+    label: "Messages",
+    iconClass: "text-blue-600",
   },
+};
+
+// Helper to highlight matching text
+const HighlightedText = ({ text, query }: { text: string; query: string }) => {
+  if (!query || query.length < 2) return <>{text}</>;
+  
+  const parts = text.split(new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
+  
+  return (
+    <>
+      {parts.map((part, i) => 
+        part.toLowerCase() === query.toLowerCase() ? (
+          <mark key={i} className="bg-primary/20 text-foreground rounded px-0.5">
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      )}
+    </>
+  );
 };
 
 const GlobalChatSearch = ({ 
@@ -65,6 +88,7 @@ const GlobalChatSearch = ({
 }: GlobalChatSearchProps) => {
   const [internalOpen, setInternalOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Support both controlled and uncontrolled modes
   const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
@@ -79,21 +103,14 @@ const GlobalChatSearch = ({
 
   const onlineStatuses = useTeamPresence(memberEmployeeIds);
 
-  // Register global keyboard shortcut
+  // Focus input when dropdown opens
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd/Ctrl + K to open search
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        setIsOpen(true);
-      }
-    };
+    if (isOpen && inputRef.current) {
+      setTimeout(() => inputRef.current?.focus(), 0);
+    }
+  }, [isOpen]);
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [setIsOpen]);
-
-  // Reset query when dialog closes
+  // Reset query when dropdown closes
   useEffect(() => {
     if (!isOpen) {
       setQuery("");
@@ -139,6 +156,12 @@ const GlobalChatSearch = ({
       .slice(0, 2);
   };
 
+  const handleClearQuery = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setQuery("");
+    inputRef.current?.focus();
+  };
+
   const renderResultItem = (result: GlobalSearchResult) => {
     const config = resultTypeConfig[result.type];
     const Icon = config.icon;
@@ -148,15 +171,15 @@ const GlobalChatSearch = ({
         key={result.id}
         value={result.id}
         onSelect={() => handleSelectResult(result)}
-        className="flex items-center gap-3 px-3 py-2.5 cursor-pointer"
+        className="flex items-center gap-3 px-3 py-2 cursor-pointer"
       >
         {result.type === 'space' ? (
-          <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-purple-500/15 text-purple-600 font-semibold text-sm shrink-0">
+          <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-purple-500/15 text-purple-600 font-semibold text-sm shrink-0">
             <Hash className="h-4 w-4" />
           </div>
         ) : (
           <div className="relative">
-            <Avatar className="h-9 w-9 shrink-0">
+            <Avatar className="h-8 w-8 shrink-0">
               <AvatarImage src={result.avatarUrl || undefined} />
               <AvatarFallback className="text-xs bg-muted">
                 {result.type === 'conversation' ? (
@@ -177,7 +200,7 @@ const GlobalChatSearch = ({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <p className="text-sm font-medium text-foreground truncate">
-              {result.title}
+              <HighlightedText text={result.title} query={query} />
             </p>
             {result.type === 'member' && onlineStatuses[result.id.replace('member-', '')] && (
               <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-green-500/10 text-green-600 border-green-500/20">
@@ -186,7 +209,13 @@ const GlobalChatSearch = ({
             )}
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="truncate">{result.subtitle}</span>
+            <span className="truncate">
+              {result.type === 'message' ? (
+                <HighlightedText text={result.subtitle || ''} query={query} />
+              ) : (
+                result.subtitle
+              )}
+            </span>
             {result.createdAt && (
               <span className="shrink-0">
                 · {format(new Date(result.createdAt), "MMM d")}
@@ -195,7 +224,7 @@ const GlobalChatSearch = ({
           </div>
         </div>
 
-        <Icon className={cn("h-4 w-4 shrink-0 opacity-50", config.iconClass)} />
+        <Icon className={cn("h-4 w-4 shrink-0 opacity-40", config.iconClass)} />
       </CommandItem>
     );
   };
@@ -204,102 +233,122 @@ const GlobalChatSearch = ({
   const showEmptyState = !isLoading && query.length >= 2 && !hasResults;
   const showInitialState = query.length < 2;
 
+  // Result counts
+  const memberCount = groupedResults.member.length;
+  const conversationCount = groupedResults.conversation.length;
+  const spaceCount = groupedResults.space.length;
+  const messageCount = groupedResults.message.length;
+
   return (
-    <>
-      {/* Search Trigger Button */}
-      <button
-        onClick={() => setIsOpen(true)}
-        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground bg-muted/50 hover:bg-muted border border-border rounded-md transition-colors"
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <div className="relative w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search chat..."
+            className="w-full pl-9 pr-8 h-9 bg-muted/50 border-border focus-visible:bg-background"
+            onClick={() => !isOpen && setIsOpen(true)}
+          />
+          {query && (
+            <button
+              onClick={handleClearQuery}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-sm hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      </PopoverTrigger>
+
+      <PopoverContent 
+        className="w-[var(--radix-popover-trigger-width)] p-0 shadow-lg" 
+        align="start" 
+        sideOffset={4}
+        onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <Search className="h-4 w-4" />
-        <span className="flex-1 text-left">Search chat...</span>
-        <kbd className="hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
-          <span className="text-xs">⌘</span>K
-        </kbd>
-      </button>
-
-      {/* Search Dialog */}
-      <CommandDialog open={isOpen} onOpenChange={setIsOpen}>
-        <CommandInput
-          placeholder="Search messages, people, and spaces..."
-          value={query}
-          onValueChange={setQuery}
-        />
-        <CommandList className="max-h-[400px]">
-          {isLoading && (
-            <div className="flex items-center justify-center py-8 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin mr-2" />
-              <span className="text-sm">Searching...</span>
-            </div>
-          )}
-
-          {showEmptyState && (
-            <CommandEmpty>
-              <div className="flex flex-col items-center py-6 text-muted-foreground">
-                <Search className="h-10 w-10 mb-3 opacity-30" />
-                <p className="text-sm font-medium">No results found</p>
-                <p className="text-xs mt-1">Try a different search term</p>
+        <Command className="rounded-lg" shouldFilter={false}>
+          <CommandList className="max-h-[320px]">
+            {isLoading && (
+              <div className="flex items-center justify-center py-6 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span className="text-sm">Searching...</span>
               </div>
-            </CommandEmpty>
-          )}
+            )}
 
-          {showInitialState && !isLoading && (
-            <div className="flex flex-col items-center py-8 text-muted-foreground">
-              <Search className="h-10 w-10 mb-3 opacity-30" />
-              <p className="text-sm font-medium">Search messages, people, and spaces</p>
-              <p className="text-xs mt-1">Type at least 2 characters to search</p>
-            </div>
-          )}
+            {showEmptyState && (
+              <CommandEmpty>
+                <div className="flex flex-col items-center py-6 text-muted-foreground">
+                  <Search className="h-8 w-8 mb-2 opacity-30" />
+                  <p className="text-sm font-medium">No results for "{query}"</p>
+                  <p className="text-xs mt-1">Try a different search term</p>
+                </div>
+              </CommandEmpty>
+            )}
 
-          {hasAnyResults && !isLoading && (
-            <>
-              {groupedResults.message.length > 0 && (
-                <CommandGroup heading="Messages">
-                  {groupedResults.message.map(renderResultItem)}
-                </CommandGroup>
-              )}
+            {showInitialState && !isLoading && (
+              <div className="flex flex-col items-center py-6 text-muted-foreground">
+                <Search className="h-8 w-8 mb-2 opacity-30" />
+                <p className="text-sm">Search members, groups, spaces & messages</p>
+                <p className="text-xs mt-1 opacity-70">Type at least 2 characters</p>
+              </div>
+            )}
 
-              {groupedResults.conversation.length > 0 && (
-                <CommandGroup heading="Groups & DMs">
-                  {groupedResults.conversation.map(renderResultItem)}
-                </CommandGroup>
-              )}
+            {hasAnyResults && !isLoading && (
+              <>
+                {/* Members - First priority */}
+                {memberCount > 0 && (
+                  <CommandGroup heading={`Members (${memberCount})`}>
+                    {groupedResults.member.map(renderResultItem)}
+                  </CommandGroup>
+                )}
 
-              {groupedResults.space.length > 0 && (
-                <CommandGroup heading="Spaces">
-                  {groupedResults.space.map(renderResultItem)}
-                </CommandGroup>
-              )}
+                {/* Groups & DMs - Second priority */}
+                {conversationCount > 0 && (
+                  <CommandGroup heading={`Groups & DMs (${conversationCount})`}>
+                    {groupedResults.conversation.map(renderResultItem)}
+                  </CommandGroup>
+                )}
 
-              {groupedResults.member.length > 0 && (
-                <CommandGroup heading="Members">
-                  {groupedResults.member.map(renderResultItem)}
-                </CommandGroup>
-              )}
-            </>
-          )}
-        </CommandList>
+                {/* Spaces - Third priority */}
+                {spaceCount > 0 && (
+                  <CommandGroup heading={`Spaces (${spaceCount})`}>
+                    {groupedResults.space.map(renderResultItem)}
+                  </CommandGroup>
+                )}
 
-        {/* Footer with keyboard hints */}
-        <div className="flex items-center justify-between px-3 py-2 border-t border-border text-xs text-muted-foreground bg-muted/30">
-          <div className="flex items-center gap-3">
+                {/* Messages - Fourth priority */}
+                {messageCount > 0 && (
+                  <CommandGroup heading={`Messages (${messageCount})`}>
+                    {groupedResults.message.map(renderResultItem)}
+                  </CommandGroup>
+                )}
+              </>
+            )}
+          </CommandList>
+
+          {/* Footer with keyboard hints */}
+          <div className="flex items-center justify-center px-3 py-1.5 border-t border-border text-[10px] text-muted-foreground bg-muted/30">
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 rounded bg-background border text-[10px]">↑</kbd>
-              <kbd className="px-1.5 py-0.5 rounded bg-background border text-[10px]">↓</kbd>
-              <span className="ml-1">navigate</span>
+              <kbd className="px-1 py-0.5 rounded bg-background border">↑↓</kbd>
+              <span>navigate</span>
             </span>
+            <span className="mx-2">·</span>
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 rounded bg-background border text-[10px]">↵</kbd>
-              <span className="ml-1">select</span>
+              <kbd className="px-1 py-0.5 rounded bg-background border">↵</kbd>
+              <span>select</span>
             </span>
+            <span className="mx-2">·</span>
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 rounded bg-background border text-[10px]">esc</kbd>
-              <span className="ml-1">close</span>
+              <kbd className="px-1 py-0.5 rounded bg-background border">esc</kbd>
+              <span>close</span>
             </span>
           </div>
-        </div>
-      </CommandDialog>
-    </>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 };
 
