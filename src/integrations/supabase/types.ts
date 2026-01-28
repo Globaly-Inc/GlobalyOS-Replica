@@ -8798,6 +8798,39 @@ export type Database = {
           },
         ]
       }
+      super_admin_master_codes: {
+        Row: {
+          code: string
+          created_at: string | null
+          created_by: string
+          id: string
+          last_used_at: string | null
+          target_email: string
+          target_user_id: string
+          use_count: number | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          created_by: string
+          id?: string
+          last_used_at?: string | null
+          target_email: string
+          target_user_id: string
+          use_count?: number | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          created_by?: string
+          id?: string
+          last_used_at?: string | null
+          target_email?: string
+          target_user_id?: string
+          use_count?: number | null
+        }
+        Relationships: []
+      }
       support_articles: {
         Row: {
           category_id: string | null
