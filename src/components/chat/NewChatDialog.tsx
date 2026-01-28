@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Search, Loader2, Camera, X } from "lucide-react";
 import { useEmployees } from "@/services/useEmployees";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
-import { useCreateConversation } from "@/services/useChat";
+import { useCreateConversation, useConversations } from "@/services/useChat";
 import { useOrganization } from "@/hooks/useOrganization";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -39,6 +39,7 @@ const NewChatDialog = ({ open, onOpenChange, onChatCreated }: NewChatDialogProps
   const { data: currentEmployee } = useCurrentEmployee();
   const { currentOrg } = useOrganization();
   const createConversation = useCreateConversation();
+  const { data: conversations = [] } = useConversations();
 
   // Type the employees data properly
   const employees = (employeesData as unknown) as Array<{
@@ -118,6 +119,38 @@ const NewChatDialog = ({ open, onOpenChange, onChatCreated }: NewChatDialogProps
     try {
       setIsUploading(true);
       const isGroup = selectedEmployees.length > 1;
+
+      // FOR 1:1 CHATS: Check if conversation already exists
+      if (!isGroup) {
+        const targetEmployeeId = selectedEmployees[0];
+        const existingConv = conversations.find(conv => {
+          if (conv.is_group) return false;
+          return conv.participants?.some(p => p.employee_id === targetEmployeeId);
+        });
+
+        if (existingConv) {
+          // Navigate to existing conversation instead of creating new
+          const otherParticipant = existingConv.participants?.find(
+            p => p.employee_id !== currentEmployee?.id
+          );
+          const name = otherParticipant?.employee?.profiles?.full_name || "Chat";
+          
+          onChatCreated({
+            type: 'conversation',
+            id: existingConv.id,
+            name,
+            isGroup: false,
+          });
+          
+          // Reset and close
+          setSelectedEmployees([]);
+          setSearchQuery("");
+          onOpenChange(false);
+          toast.info("Opened existing conversation");
+          return;
+        }
+      }
+
       let iconUrl: string | undefined;
 
       // Upload icon if provided (for group chats)
