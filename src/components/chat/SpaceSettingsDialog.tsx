@@ -26,7 +26,7 @@ import {
 import { Loader2, Trash2, Users, Megaphone, Archive, RefreshCw, Shield, Info } from "lucide-react";
 import { useSpace, useUpdateSpace, useDeleteSpace, useArchiveSpace, useSpaceMembers, useAddSpaceMembers, useRemoveSpaceMember } from "@/services/useChat";
 import { useOrganization } from "@/hooks/useOrganization";
-import { useExemptEmployeeIds, isExemptFromAutoSync } from "@/hooks/useExemptRoles";
+
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -75,9 +75,8 @@ const SpaceSettingsDialog = ({
   const [showSyncPreview, setShowSyncPreview] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Get current member employee IDs for exempt role check
+  // Get current member employee IDs
   const currentMemberIds = useMemo(() => spaceMembers.map(m => m.employee_id), [spaceMembers]);
-  const { exemptIds, roleMap } = useExemptEmployeeIds(currentMemberIds, currentOrg?.id || null);
 
   // Fetch employees based on access scope for sync preview
   const { data: scopedEmployees = [] } = useQuery({
@@ -114,7 +113,7 @@ const SpaceSettingsDialog = ({
     enabled: !!currentOrg?.id && !!space && (space.access_scope === 'company' || space.access_scope === 'offices') && open,
   });
 
-  // Calculate sync diff
+  // Calculate sync diff - only for preview (members not in expected scope will be removed)
   const syncPreview = useMemo(() => {
     const currentMemberSet = new Set(currentMemberIds);
     const expectedMemberSet = new Set(scopedEmployees.map(e => e.id));
@@ -128,8 +127,13 @@ const SpaceSettingsDialog = ({
         avatar_url: e.profiles?.avatar_url,
       }));
 
+    // Members to remove: those not in expected scope AND not manually added
     const membersToRemove = spaceMembers
-      .filter(m => !expectedMemberSet.has(m.employee_id) && !exemptIds.has(m.employee_id))
+      .filter(m => {
+        const memberSource = (m as any).source;
+        // Only auto-sync or space_creation members can be auto-removed
+        return !expectedMemberSet.has(m.employee_id) && memberSource !== 'manual';
+      })
       .map(m => ({
         id: m.employee_id,
         name: m.employee?.profiles?.full_name || 'Unknown',
@@ -137,18 +141,8 @@ const SpaceSettingsDialog = ({
         avatar_url: m.employee?.profiles?.avatar_url,
       }));
 
-    const exemptMembersList = spaceMembers
-      .filter(m => exemptIds.has(m.employee_id))
-      .map(m => ({
-        id: m.employee_id,
-        name: m.employee?.profiles?.full_name || 'Unknown',
-        position: m.employee?.position,
-        avatar_url: m.employee?.profiles?.avatar_url,
-        isExempt: true,
-      }));
-
-    return { membersToAdd, membersToRemove, exemptMembers: exemptMembersList };
-  }, [currentMemberIds, scopedEmployees, spaceMembers, exemptIds]);
+    return { membersToAdd, membersToRemove };
+  }, [currentMemberIds, scopedEmployees, spaceMembers]);
 
   useEffect(() => {
     if (space) {
@@ -389,9 +383,9 @@ const SpaceSettingsDialog = ({
 
                 {autoSyncMembers && (
                   <Alert className="bg-muted/50 border-border">
-                    <Shield className="h-4 w-4" />
+                    <Info className="h-4 w-4" />
                     <AlertDescription className="text-sm">
-                      Owner, Admin, and HR members are exempt from auto-sync and can be manually managed.
+                      Only manually invited members can be removed. Auto-synced members are managed by the system.
                     </AlertDescription>
                   </Alert>
                 )}
@@ -489,7 +483,6 @@ const SpaceSettingsDialog = ({
         onOpenChange={setShowSyncPreview}
         membersToAdd={syncPreview.membersToAdd}
         membersToRemove={syncPreview.membersToRemove}
-        exemptMembers={syncPreview.exemptMembers}
         onConfirm={handleExecuteSync}
         isPending={isSyncing}
       />

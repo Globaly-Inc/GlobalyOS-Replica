@@ -86,7 +86,7 @@ import {
 } from "@/services/useChat";
 import { useSpaceMembersRealtime } from "@/services/useSpaceMembersRealtime";
 import { useSpaceMemberLogs } from "@/services/useSpaceMemberLogs";
-import { useExemptEmployeeIds, isExemptFromAutoSync } from "@/hooks/useExemptRoles";
+
 import { useTeamPresence } from "@/services/useTeamData";
 import { useOrganization } from "@/hooks/useOrganization";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -240,9 +240,6 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
   const autoSyncEnabled = spaceData?.auto_sync_members || false;
   const autoSyncLogs = memberLogs.filter(log => log.source === 'auto_sync');
   
-  // Get exempt member IDs for auto-sync restrictions
-  const spaceMemberIds = spaceMembers.map(m => m.employee_id);
-  const { exemptIds } = useExemptEmployeeIds(spaceMemberIds, currentOrg?.id || null);
   
   const { data: conversationParticipants = [] } = useConversationParticipants(
     activeChat.isGroup ? conversationId : null
@@ -821,8 +818,8 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
                         const profile = employee?.profiles;
                         const isAdmin = member.role === 'admin';
                         const isSelf = member.employee_id === currentEmployee?.id;
-                        const isMemberExempt = exemptIds.has(member.employee_id);
-                        const canRemoveThisMember = !autoSyncEnabled || isMemberExempt || !spaceId;
+                        const memberSource = (member as any).source;
+                        const canRemoveThisMember = memberSource === 'manual' || !spaceId;
 
                         return (
                           <div 
@@ -848,9 +845,9 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
                                     Admin
                                   </span>
                                 )}
-                                {spaceId && autoSyncEnabled && isMemberExempt && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 shrink-0">
-                                    Exempt
+                                {spaceId && memberSource === 'manual' && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-600 shrink-0">
+                                    Invited
                                   </span>
                                 )}
                               </div>
@@ -1178,7 +1175,6 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
             onOpenChange={setShowAddMembersDialog}
             spaceId={spaceId}
             spaceName={activeChat.name}
-            autoSyncEnabled={autoSyncEnabled}
           />
           <SpaceSettingsDialog
             open={showSettingsDialog}

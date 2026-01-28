@@ -8,15 +8,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, UserPlus, UserMinus, Info, Shield } from "lucide-react";
+import { Loader2, UserPlus, UserMinus, Info } from "lucide-react";
 
 interface SyncMember {
   id: string;
   name: string;
   position?: string;
   avatar_url?: string | null;
-  isExempt?: boolean;
 }
 
 interface AutoSyncPreviewDialogProps {
@@ -24,7 +22,6 @@ interface AutoSyncPreviewDialogProps {
   onOpenChange: (open: boolean) => void;
   membersToAdd: SyncMember[];
   membersToRemove: SyncMember[];
-  exemptMembers: SyncMember[];
   onConfirm: () => Promise<void>;
   isPending: boolean;
 }
@@ -34,7 +31,6 @@ const AutoSyncPreviewDialog = ({
   onOpenChange,
   membersToAdd,
   membersToRemove,
-  exemptMembers,
   onConfirm,
   isPending,
 }: AutoSyncPreviewDialogProps) => {
@@ -139,16 +135,6 @@ const AutoSyncPreviewDialog = ({
                 </div>
               )}
             </>
-          )}
-
-          {/* Exempt Members Notice */}
-          {exemptMembers.length > 0 && (
-            <Alert className="bg-muted border-border">
-              <Shield className="h-4 w-4 text-muted-foreground" />
-              <AlertDescription className="text-sm">
-                <strong>{exemptMembers.length}</strong> Owner/Admin/HR member{exemptMembers.length !== 1 ? 's are' : ' is'} exempt and will not be affected by auto-sync.
-              </AlertDescription>
-            </Alert>
           )}
 
           {/* Actions */}
