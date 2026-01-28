@@ -68,9 +68,9 @@ const SystemEventMessage = ({ eventData, timestamp }: SystemEventMessageProps) =
     <div className="flex items-center justify-start py-2 px-4">
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/50 text-xs">
         <Icon className={cn("h-3.5 w-3.5", config.className)} />
-        <span className="text-muted-foreground">{text}</span>
-        <span className="text-muted-foreground/60">·</span>
-        <span className="text-muted-foreground/60">{time}</span>
+        <span className="text-muted-foreground">
+          {text} <span className="text-muted-foreground/60 ml-1">{time}</span>
+        </span>
       </div>
     </div>
   );
