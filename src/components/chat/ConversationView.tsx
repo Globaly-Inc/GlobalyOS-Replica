@@ -758,8 +758,16 @@ const ConversationView = ({
                   </>
                 ) : (
                   <>
-                    <div className="flex items-center justify-center h-20 w-20 rounded-lg bg-primary/10 text-primary font-bold text-3xl mb-4">
-                      {activeChat.name.charAt(0).toUpperCase()}
+                    <div className="flex items-center justify-center h-20 w-20 rounded-lg bg-primary/10 text-primary font-bold text-3xl mb-4 overflow-hidden">
+                      {activeChat.iconUrl ? (
+                        <img 
+                          src={activeChat.iconUrl} 
+                          alt={activeChat.name} 
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        activeChat.name.charAt(0).toUpperCase()
+                      )}
                     </div>
                     <h3 className="text-lg font-semibold">{activeChat.name}</h3>
                     <p className="text-sm text-muted-foreground mt-1">
