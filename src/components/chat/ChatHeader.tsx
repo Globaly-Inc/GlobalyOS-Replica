@@ -29,7 +29,7 @@ import {
 import { useOrganization } from "@/hooks/useOrganization";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { supabase } from "@/integrations/supabase/client";
-import InlineSearchResults from "./InlineSearchResults";
+import MessageSearch from "./MessageSearch";
 import EditGroupChatDialog from "./EditGroupChatDialog";
 import type { ActiveChat } from "@/types/chat";
 
@@ -57,8 +57,6 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
   
   const [otherParticipant, setOtherParticipant] = useState<OtherParticipant | null>(null);
   const [showSearch, setShowSearch] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResultIndex, setSearchResultIndex] = useState(0);
   const [showEditGroupDialog, setShowEditGroupDialog] = useState(false);
   const [groupIconUrl, setGroupIconUrl] = useState<string | null>(activeChat.iconUrl || null);
   const [groupName, setGroupName] = useState(activeChat.name);
@@ -68,7 +66,6 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
   const [isSavingName, setIsSavingName] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const updateConversation = useUpdateConversation();
   const { currentOrg } = useOrganization();
@@ -96,20 +93,6 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
     (spaceId && f.space_id === spaceId)
   );
 
-  // Focus search input when opened
-  useEffect(() => {
-    if (showSearch && searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
-  }, [showSearch]);
-
-  // Close search when chat changes
-  useEffect(() => {
-    setShowSearch(false);
-    setSearchQuery("");
-    setSearchResultIndex(0);
-  }, [activeChat.id]);
-
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -133,21 +116,6 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
       const newSetting = spaceNotificationSetting === 'mute' ? 'all' : 'mute';
       await updateSpaceNotification.mutateAsync({ spaceId, setting: newSetting });
     }
-  };
-
-  // Handle search keyboard events
-  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      setShowSearch(false);
-      setSearchQuery("");
-      setSearchResultIndex(0);
-    }
-  };
-
-  const handleCloseSearch = () => {
-    setShowSearch(false);
-    setSearchQuery("");
-    setSearchResultIndex(0);
   };
 
   // Inline name editing handlers
@@ -385,222 +353,163 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
 
   return (
     <>
-      <div className="relative flex items-center justify-between px-4 py-3 border-b border-border/50 bg-card/80 backdrop-blur-md flex-shrink-0">
-        {/* LEFT SECTION - Search (toggles between icon and input) */}
-        <div className={cn(
-          "flex items-center gap-2 transition-all duration-200 ease-in-out",
-          showSearch ? "flex-1 max-w-[400px]" : "w-auto"
-        )}>
-          {showSearch ? (
-            // Expanded search bar
-            <div className="flex items-center gap-2 flex-1">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  ref={searchInputRef}
-                  type="text"
-                  placeholder="Search messages..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={handleSearchKeyDown}
-                  className="pl-9 pr-8 h-9"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-muted transition-colors"
-                  >
-                    <X className="h-3.5 w-3.5 text-muted-foreground" />
-                  </button>
-                )}
-              </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-9 w-9 flex-shrink-0"
-                onClick={handleCloseSearch}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          ) : (
-            // Collapsed search icon
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-9 w-9" 
-                  onClick={() => setShowSearch(true)}
-                >
-                  <Search className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Search messages</TooltipContent>
-            </Tooltip>
-          )}
-        </div>
-
-        {/* MIDDLE SECTION - Avatar + Chat Info (hidden when searching) */}
-        {!showSearch && (
-          <div className="flex items-center gap-3 flex-1 min-w-0 ml-2">
-            {activeChat.type === 'conversation' && !activeChat.isGroup ? (
-              // Direct message - show other participant (clickable)
-              <div 
-                className="relative flex-shrink-0 cursor-pointer"
-                onClick={() => otherParticipant?.id && navigate(`/org/${orgCode}/team/${otherParticipant.id}`)}
-              >
-                <Avatar className="h-10 w-10 transition-opacity hover:opacity-80">
-                  <AvatarImage src={otherParticipant?.avatar_url || undefined} alt={activeChat.name} />
-                  <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                    {getInitials(activeChat.name)}
-                  </AvatarFallback>
-                </Avatar>
-                {otherParticipant?.is_online && (
-                  <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-card" />
-                )}
-              </div>
-            ) : activeChat.type === 'conversation' && activeChat.isGroup ? (
-              // Group chat - show group icon with direct photo upload (admin only)
-              <>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handlePhotoSelect}
-                />
-                <div 
-                  className={cn(
-                    "relative h-10 w-10 rounded-full flex-shrink-0",
-                    isGroupAdmin ? "cursor-pointer group" : ""
-                  )}
-                  onClick={() => isGroupAdmin && !isUploadingPhoto && fileInputRef.current?.click()}
-                >
-                  {groupIconUrl ? (
-                    <img 
-                      src={groupIconUrl} 
-                      alt={groupName} 
-                      className="h-full w-full rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full w-full rounded-full bg-primary/10 text-primary font-semibold text-sm">
-                      {getInitials(groupName || "GC")}
-                    </div>
-                  )}
-                  {isGroupAdmin && (
-                    <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      {isUploadingPhoto ? (
-                        <Loader2 className="h-4 w-4 text-white animate-spin" />
-                      ) : (
-                        <Camera className="h-4 w-4 text-white" />
-                      )}
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : (
-              // Space
-              <div className="flex items-center justify-center h-10 w-10 rounded bg-primary/10 text-primary font-semibold text-sm flex-shrink-0 overflow-hidden">
-                {space?.icon_url ? (
-                  <img src={space.icon_url} alt={activeChat.name} className="h-full w-full object-cover" />
-                ) : (
-                  activeChat.name.charAt(0).toUpperCase()
-                )}
-              </div>
-            )}
-            
-            <div className="flex-1 min-w-0">
-              {activeChat.type === 'conversation' && activeChat.isGroup ? (
-                // Group chat info with inline editing (admin only)
-                <div className="group/name">
-                  {isEditingName && isGroupAdmin ? (
-                    // Editing mode (admin only)
-                    <div className="flex items-center gap-1.5">
-                      <Input
-                        value={editNameValue}
-                        onChange={(e) => setEditNameValue(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSaveGroupName();
-                          if (e.key === 'Escape') handleCancelEdit();
-                        }}
-                        className="h-7 text-base font-semibold py-0 px-2 w-auto min-w-[120px]"
-                        autoFocus
-                      />
-                      <button
-                        onClick={handleSaveGroupName}
-                        disabled={isSavingName}
-                        className="p-1 rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
-                      >
-                        {isSavingName ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <Check className="h-3 w-3" />
-                        )}
-                      </button>
-                      <button
-                        onClick={handleCancelEdit}
-                        disabled={isSavingName}
-                        className="p-1 rounded bg-muted hover:bg-muted/80 transition-colors disabled:opacity-50"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ) : isGroupAdmin ? (
-                    // Display mode for admins (editable)
-                    <div 
-                      className="cursor-pointer"
-                      onClick={() => {
-                        setEditNameValue(groupName);
-                        setIsEditingName(true);
-                      }}
-                    >
-                      <h2 className="font-semibold text-foreground text-base flex items-center gap-1 truncate">
-                        {groupName}
-                        <Pencil className="h-3 w-3 text-muted-foreground flex-shrink-0 opacity-0 group-hover/name:opacity-100 transition-opacity" />
-                      </h2>
-                    </div>
-                  ) : (
-                    // Display mode for non-admins (read-only)
-                    <h2 className="font-semibold text-foreground text-base truncate">
-                      {groupName}
-                    </h2>
-                  )}
-                  <p className="text-xs text-muted-foreground truncate">
-                    {conversationParticipants
-                      .filter(p => p.employee_id !== currentEmployee?.id)
-                      .map(p => p.employee?.profiles?.full_name?.split(' ')[0])
-                      .filter(Boolean)
-                      .join(', ') || 'Group members'}
-                  </p>
-                </div>
-              ) : activeChat.type === 'conversation' ? (
-                // Direct message info (clickable)
-                <div 
-                  className="cursor-pointer hover:opacity-80 transition-opacity"
-                  onClick={() => otherParticipant?.id && navigate(`/org/${orgCode}/team/${otherParticipant.id}`)}
-                >
-                  <div className="flex items-center gap-1.5">
-                    <h2 className="font-semibold text-foreground text-base truncate">{activeChat.name}</h2>
-                  </div>
-                  {otherParticipant?.position && (
-                    <p className="text-xs text-muted-foreground">{otherParticipant.position}</p>
-                  )}
-                </div>
-              ) : (
-                // Space info
-                <div>
-                  <h2 className="font-semibold text-foreground text-base truncate">{activeChat.name}</h2>
-                  <p className="text-xs text-muted-foreground">
-                    {spaceMembers.length} member{spaceMembers.length !== 1 ? 's' : ''}
-                  </p>
-                </div>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-card/80 backdrop-blur-md flex-shrink-0">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          {activeChat.type === 'conversation' && !activeChat.isGroup ? (
+            // Direct message - show other participant (clickable)
+            <div 
+              className="relative flex-shrink-0 cursor-pointer"
+              onClick={() => otherParticipant?.id && navigate(`/org/${orgCode}/team/${otherParticipant.id}`)}
+            >
+              <Avatar className="h-10 w-10 transition-opacity hover:opacity-80">
+                <AvatarImage src={otherParticipant?.avatar_url || undefined} alt={activeChat.name} />
+                <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                  {getInitials(activeChat.name)}
+                </AvatarFallback>
+              </Avatar>
+              {otherParticipant?.is_online && (
+                <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-card" />
               )}
             </div>
+          ) : activeChat.type === 'conversation' && activeChat.isGroup ? (
+            // Group chat - show group icon with direct photo upload (admin only)
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePhotoSelect}
+              />
+              <div 
+                className={cn(
+                  "relative h-10 w-10 rounded-full flex-shrink-0",
+                  isGroupAdmin ? "cursor-pointer group" : ""
+                )}
+                onClick={() => isGroupAdmin && !isUploadingPhoto && fileInputRef.current?.click()}
+              >
+                {groupIconUrl ? (
+                  <img 
+                    src={groupIconUrl} 
+                    alt={groupName} 
+                    className="h-full w-full rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full w-full rounded-full bg-primary/10 text-primary font-semibold text-sm">
+                    {getInitials(groupName || "GC")}
+                  </div>
+                )}
+                {isGroupAdmin && (
+                  <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    {isUploadingPhoto ? (
+                      <Loader2 className="h-4 w-4 text-white animate-spin" />
+                    ) : (
+                      <Camera className="h-4 w-4 text-white" />
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            // Space
+            <div className="flex items-center justify-center h-10 w-10 rounded bg-primary/10 text-primary font-semibold text-sm flex-shrink-0 overflow-hidden">
+              {space?.icon_url ? (
+                <img src={space.icon_url} alt={activeChat.name} className="h-full w-full object-cover" />
+              ) : (
+                activeChat.name.charAt(0).toUpperCase()
+              )}
+            </div>
+          )}
+          
+          <div className="flex-1 min-w-0">
+            {activeChat.type === 'conversation' && activeChat.isGroup ? (
+              // Group chat info with inline editing (admin only)
+              <div className="group/name">
+                {isEditingName && isGroupAdmin ? (
+                  // Editing mode (admin only)
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      value={editNameValue}
+                      onChange={(e) => setEditNameValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSaveGroupName();
+                        if (e.key === 'Escape') handleCancelEdit();
+                      }}
+                      className="h-7 text-base font-semibold py-0 px-2 w-auto min-w-[120px]"
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleSaveGroupName}
+                      disabled={isSavingName}
+                      className="p-1 rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                    >
+                      {isSavingName ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Check className="h-3 w-3" />
+                      )}
+                    </button>
+                    <button
+                      onClick={handleCancelEdit}
+                      disabled={isSavingName}
+                      className="p-1 rounded bg-muted hover:bg-muted/80 transition-colors disabled:opacity-50"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : isGroupAdmin ? (
+                  // Display mode for admins (editable)
+                  <div 
+                    className="cursor-pointer"
+                    onClick={() => {
+                      setEditNameValue(groupName);
+                      setIsEditingName(true);
+                    }}
+                  >
+                    <h2 className="font-semibold text-foreground text-base flex items-center gap-1 truncate">
+                      {groupName}
+                      <Pencil className="h-3 w-3 text-muted-foreground flex-shrink-0 opacity-0 group-hover/name:opacity-100 transition-opacity" />
+                    </h2>
+                  </div>
+                ) : (
+                  // Display mode for non-admins (read-only)
+                  <h2 className="font-semibold text-foreground text-base truncate">
+                    {groupName}
+                  </h2>
+                )}
+                <p className="text-xs text-muted-foreground truncate">
+                  {conversationParticipants
+                    .filter(p => p.employee_id !== currentEmployee?.id)
+                    .map(p => p.employee?.profiles?.full_name?.split(' ')[0])
+                    .filter(Boolean)
+                    .join(', ') || 'Group members'}
+                </p>
+              </div>
+            ) : activeChat.type === 'conversation' ? (
+              // Direct message info (clickable)
+              <div 
+                className="cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => otherParticipant?.id && navigate(`/org/${orgCode}/team/${otherParticipant.id}`)}
+              >
+                <div className="flex items-center gap-1.5">
+                  <h2 className="font-semibold text-foreground text-base truncate">{activeChat.name}</h2>
+                </div>
+                {otherParticipant?.position && (
+                  <p className="text-xs text-muted-foreground">{otherParticipant.position}</p>
+                )}
+              </div>
+            ) : (
+              // Space info
+              <div>
+                <h2 className="font-semibold text-foreground text-base truncate">{activeChat.name}</h2>
+                <p className="text-xs text-muted-foreground">
+                  {spaceMembers.length} member{spaceMembers.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
-        {/* RIGHT SECTION - Mute + Favorite buttons */}
         <div className="flex items-center gap-0.5 flex-shrink-0">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -642,21 +551,31 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
               {isFavorited ? 'Remove from favorites' : 'Add to favorites'}
             </TooltipContent>
           </Tooltip>
-        </div>
 
-        {/* Inline search results dropdown */}
-        {showSearch && searchQuery.trim() && (
-          <InlineSearchResults
-            query={searchQuery}
-            conversationId={conversationId}
-            spaceId={spaceId}
-            onResultClick={handleSearchResultClick}
-            onClose={handleCloseSearch}
-            currentIndex={searchResultIndex}
-            setCurrentIndex={setSearchResultIndex}
-          />
-        )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn("h-9 w-9", showSearch && "bg-accent")}
+                onClick={() => setShowSearch(!showSearch)}
+              >
+                <Search className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Search messages</TooltipContent>
+          </Tooltip>
+        </div>
       </div>
+
+      {/* Message Search */}
+      <MessageSearch
+        conversationId={conversationId}
+        spaceId={spaceId}
+        isOpen={showSearch}
+        onClose={() => setShowSearch(false)}
+        onResultClick={handleSearchResultClick}
+      />
 
       {/* Edit Group Chat Dialog */}
       {activeChat.type === 'conversation' && activeChat.isGroup && (
