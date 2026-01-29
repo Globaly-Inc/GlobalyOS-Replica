@@ -16,6 +16,7 @@ import { AITemplateTools } from "@/components/super-admin/templates/AITemplateTo
 import { TemplateHolidaysTab } from "@/components/super-admin/templates/TemplateHolidaysTab";
 import { TemplateLeaveTypesTab } from "@/components/super-admin/templates/TemplateLeaveTypesTab";
 import { TemplateEmploymentTypesTab } from "@/components/super-admin/templates/TemplateEmploymentTypesTab";
+import { TemplateWikiTab } from "@/components/super-admin/templates/TemplateWikiTab";
 import { BUSINESS_CATEGORIES } from "@/constants/businessCategories";
 import { 
   Building2, 
@@ -26,7 +27,8 @@ import {
   LayoutTemplate,
   Calendar,
   CalendarDays,
-  UserCheck
+  UserCheck,
+  FileText
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -273,6 +275,10 @@ export default function SuperAdminTemplates() {
                 <UserCheck className="h-4 w-4" />
                 Employment Types
               </TabsTrigger>
+              <TabsTrigger value="wiki-templates" className="gap-2">
+                <FileText className="h-4 w-4" />
+                Wiki Templates
+              </TabsTrigger>
             </TabsList>
 
             <div className="flex items-center gap-2">
@@ -371,6 +377,11 @@ export default function SuperAdminTemplates() {
           {/* Employment Types Tab */}
           <TabsContent value="employment-types" className="mt-4">
             <TemplateEmploymentTypesTab />
+          </TabsContent>
+
+          {/* Wiki Templates Tab */}
+          <TabsContent value="wiki-templates" className="mt-4">
+            <TemplateWikiTab />
           </TabsContent>
         </Tabs>
       </div>
