@@ -913,6 +913,11 @@ const ConversationView = ({
               ref={composerRef}
               conversationId={conversationId}
               spaceId={spaceId}
+              messages={messages}
+              spaceName={space?.name || activeChat.name}
+              spaceDescription={space?.description}
+              conversationName={activeChat.name}
+              isGroup={activeChat.isGroup}
             />
           )}
         </div>

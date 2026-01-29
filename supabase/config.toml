@@ -275,3 +275,6 @@ verify_jwt = false
 
 [functions.delete-master-code]
 verify_jwt = false
+
+[functions.ai-chat-assist]
+verify_jwt = false
