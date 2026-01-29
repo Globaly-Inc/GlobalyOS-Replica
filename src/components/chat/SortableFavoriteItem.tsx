@@ -7,9 +7,10 @@ interface SortableFavoriteItemProps {
   id: string;
   children: React.ReactNode;
   disabled?: boolean;
+  showHandle?: boolean;
 }
 
-const SortableFavoriteItem = ({ id, children, disabled }: SortableFavoriteItemProps) => {
+const SortableFavoriteItem = ({ id, children, disabled, showHandle = true }: SortableFavoriteItemProps) => {
   const {
     attributes,
     listeners,
@@ -33,17 +34,19 @@ const SortableFavoriteItem = ({ id, children, disabled }: SortableFavoriteItemPr
         isDragging && "opacity-50 z-50 bg-background shadow-lg rounded-md"
       )}
     >
-      <div
-        {...attributes}
-        {...listeners}
-        className={cn(
-          "flex items-center justify-center w-4 h-6 cursor-grab active:cursor-grabbing opacity-0 group-hover/sortable:opacity-100 transition-opacity",
-          isDragging && "opacity-100 cursor-grabbing",
-          disabled && "cursor-not-allowed"
-        )}
-      >
-        <GripVertical className="h-3 w-3 text-muted-foreground" />
-      </div>
+      {showHandle && (
+        <div
+          {...attributes}
+          {...listeners}
+          className={cn(
+            "flex items-center justify-center w-4 h-6 cursor-grab active:cursor-grabbing transition-opacity",
+            isDragging && "cursor-grabbing",
+            disabled && "cursor-not-allowed"
+          )}
+        >
+          <GripVertical className="h-3 w-3 text-muted-foreground" />
+        </div>
+      )}
       <div className="flex-1 min-w-0">
         {children}
       </div>

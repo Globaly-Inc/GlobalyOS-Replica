@@ -1,4 +1,4 @@
-import { Star, ChevronRight } from "lucide-react";
+import { Star, ChevronRight, GripVertical } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useChatFavorites, useToggleFavorite, useReorderFavorites } from "@/hooks/useChatFavorites";
@@ -31,6 +31,7 @@ interface FavoritesSectionProps {
 
 const FavoritesSection = ({ activeChat, onSelectChat, onlineStatuses }: FavoritesSectionProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
+  const [isArranging, setIsArranging] = useState(false);
   const { data: favorites = [] } = useChatFavorites();
   const { data: conversations = [] } = useConversations();
   const { data: spaces = [] } = useSpaces();
@@ -125,19 +126,36 @@ const FavoritesSection = ({ activeChat, onSelectChat, onlineStatuses }: Favorite
 
   return (
     <div className="px-3 py-3">
-      <button 
-        className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-2 hover:text-foreground transition-colors"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <ChevronRight 
-          className={cn(
-            "h-3 w-3 transition-transform",
-            isExpanded && "rotate-90"
-          )} 
-        />
-        <Star className="h-3 w-3 text-orange-500 fill-orange-500" />
-        Favorites
-      </button>
+      <div className="flex items-center justify-between mb-2 px-2">
+        <button 
+          className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
+          <ChevronRight 
+            className={cn(
+              "h-3 w-3 transition-transform",
+              isExpanded && "rotate-90"
+            )} 
+          />
+          <Star className="h-3 w-3 text-orange-500 fill-orange-500" />
+          Favorites
+        </button>
+        {isExpanded && favoriteItems.length > 1 && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsArranging(!isArranging);
+            }}
+            className={cn(
+              "p-1 rounded hover:bg-muted/60 transition-colors",
+              isArranging && "bg-primary/10 text-primary"
+            )}
+            title={isArranging ? "Done arranging" : "Arrange favorites"}
+          >
+            <GripVertical className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
       
       {isExpanded && (
         <DndContext
@@ -168,7 +186,7 @@ const FavoritesSection = ({ activeChat, onSelectChat, onlineStatuses }: Favorite
                 const isOnline = otherParticipantId ? onlineStatuses[otherParticipantId] : false;
 
                 return (
-                  <SortableFavoriteItem key={favoriteId} id={favoriteId}>
+                  <SortableFavoriteItem key={favoriteId} id={favoriteId} showHandle={isArranging}>
                     <button
                       onClick={() => onSelectChat({
                         type: isConversation ? 'conversation' : 'space',
