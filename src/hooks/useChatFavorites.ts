@@ -10,6 +10,7 @@ export interface ChatFavorite {
   conversation_id: string | null;
   space_id: string | null;
   created_at: string;
+  sort_order: number;
 }
 
 export const useChatFavorites = () => {
@@ -26,7 +27,7 @@ export const useChatFavorites = () => {
         .select('*')
         .eq('organization_id', currentOrg.id)
         .eq('employee_id', currentEmployee.id)
-        .order('created_at', { ascending: true });
+        .order('sort_order', { ascending: true });
 
       if (error) throw error;
       return (data || []) as ChatFavorite[];
@@ -104,4 +105,63 @@ export const useIsFavorite = (conversationId?: string, spaceId?: string) => {
     return favorites.some(f => f.space_id === spaceId);
   }
   return false;
+};
+
+export const useReorderFavorites = () => {
+  const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+
+  return useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      // Update each favorite with its new sort_order
+      const updates = orderedIds.map((id, index) => 
+        supabase
+          .from('chat_favorites')
+          .update({ sort_order: index })
+          .eq('id', id)
+      );
+      await Promise.all(updates);
+    },
+    onMutate: async (orderedIds) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ 
+        queryKey: ['chat-favorites', currentOrg?.id, currentEmployee?.id] 
+      });
+      
+      // Snapshot previous value
+      const previous = queryClient.getQueryData<ChatFavorite[]>(
+        ['chat-favorites', currentOrg?.id, currentEmployee?.id]
+      );
+      
+      // Optimistically update the cache order
+      if (previous) {
+        const reordered = orderedIds
+          .map(id => previous.find(f => f.id === id))
+          .filter((f): f is ChatFavorite => !!f)
+          .map((f, index) => ({ ...f, sort_order: index }));
+        
+        queryClient.setQueryData(
+          ['chat-favorites', currentOrg?.id, currentEmployee?.id],
+          reordered
+        );
+      }
+      
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      // Rollback on error
+      if (context?.previous) {
+        queryClient.setQueryData(
+          ['chat-favorites', currentOrg?.id, currentEmployee?.id],
+          context.previous
+        );
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ 
+        queryKey: ['chat-favorites', currentOrg?.id, currentEmployee?.id] 
+      });
+    },
+  });
 };

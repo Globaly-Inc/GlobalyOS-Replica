@@ -1,11 +1,27 @@
 import { Star, ChevronRight } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { useChatFavorites, useToggleFavorite } from "@/hooks/useChatFavorites";
+import { useChatFavorites, useToggleFavorite, useReorderFavorites } from "@/hooks/useChatFavorites";
 import { useConversations, useSpaces } from "@/services/useChat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import type { ActiveChat, ChatConversation, ChatSpace } from "@/types/chat";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import SortableFavoriteItem from "./SortableFavoriteItem";
 
 interface FavoritesSectionProps {
   activeChat: ActiveChat | null;
@@ -20,6 +36,18 @@ const FavoritesSection = ({ activeChat, onSelectChat, onlineStatuses }: Favorite
   const { data: spaces = [] } = useSpaces();
   const { data: currentEmployee } = useCurrentEmployee();
   const toggleFavorite = useToggleFavorite();
+  const reorderFavorites = useReorderFavorites();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const getInitials = (name: string) => {
     return name
@@ -51,25 +79,48 @@ const FavoritesSection = ({ activeChat, onSelectChat, onlineStatuses }: Favorite
     return otherParticipant?.employee?.profiles?.avatar_url || null;
   };
 
-  // Build list of favorited items
-  const favoriteItems: Array<{ type: 'conversation' | 'space'; item: ChatConversation | ChatSpace }> = [];
+  // Build list of favorited items preserving the order from favorites
+  const favoriteItems = useMemo(() => {
+    const items: Array<{ 
+      favoriteId: string;
+      type: 'conversation' | 'space'; 
+      item: ChatConversation | ChatSpace;
+    }> = [];
 
-  favorites.forEach(fav => {
-    if (fav.conversation_id) {
-      const conv = conversations.find(c => c.id === fav.conversation_id);
-      if (conv) {
-        favoriteItems.push({ type: 'conversation', item: conv });
+    favorites.forEach(fav => {
+      if (fav.conversation_id) {
+        const conv = conversations.find(c => c.id === fav.conversation_id);
+        if (conv) {
+          items.push({ favoriteId: fav.id, type: 'conversation', item: conv });
+        }
+      } else if (fav.space_id) {
+        const space = spaces.find(s => s.id === fav.space_id);
+        if (space) {
+          items.push({ favoriteId: fav.id, type: 'space', item: space });
+        }
       }
-    } else if (fav.space_id) {
-      const space = spaces.find(s => s.id === fav.space_id);
-      if (space) {
-        favoriteItems.push({ type: 'space', item: space });
+    });
+
+    return items;
+  }, [favorites, conversations, spaces]);
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = favoriteItems.findIndex(item => item.favoriteId === active.id);
+      const newIndex = favoriteItems.findIndex(item => item.favoriteId === over.id);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const reordered = arrayMove(favoriteItems, oldIndex, newIndex);
+        const orderedIds = reordered.map(item => item.favoriteId);
+        reorderFavorites.mutate(orderedIds);
       }
     }
-  });
+  };
 
   if (favoriteItems.length === 0) {
-    return null; // Don't show section if no favorites
+    return null;
   }
 
   return (
@@ -89,81 +140,93 @@ const FavoritesSection = ({ activeChat, onSelectChat, onlineStatuses }: Favorite
       </button>
       
       {isExpanded && (
-        <div className="space-y-0.5">
-          {favoriteItems.map(({ type, item }) => {
-            const isConversation = type === 'conversation';
-            const conv = isConversation ? item as ChatConversation : null;
-            const space = !isConversation ? item as ChatSpace : null;
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={favoriteItems.map(item => item.favoriteId)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-0.5">
+              {favoriteItems.map(({ favoriteId, type, item }) => {
+                const isConversation = type === 'conversation';
+                const conv = isConversation ? item as ChatConversation : null;
+                const space = !isConversation ? item as ChatSpace : null;
 
-            const isActive = activeChat?.id === item.id && 
-              ((isConversation && activeChat?.type === 'conversation') || 
-               (!isConversation && activeChat?.type === 'space'));
+                const isActive = activeChat?.id === item.id && 
+                  ((isConversation && activeChat?.type === 'conversation') || 
+                   (!isConversation && activeChat?.type === 'space'));
 
-            const name = isConversation ? getConversationName(conv!) : space!.name;
-            const avatarUrl = isConversation ? getConversationAvatar(conv!) : space!.icon_url;
-            
-            const otherParticipantId = isConversation && !conv!.is_group 
-              ? getOtherParticipantId(conv!) 
-              : undefined;
-            const isOnline = otherParticipantId ? onlineStatuses[otherParticipantId] : false;
+                const name = isConversation ? getConversationName(conv!) : space!.name;
+                const avatarUrl = isConversation ? getConversationAvatar(conv!) : space!.icon_url;
+                
+                const otherParticipantId = isConversation && !conv!.is_group 
+                  ? getOtherParticipantId(conv!) 
+                  : undefined;
+                const isOnline = otherParticipantId ? onlineStatuses[otherParticipantId] : false;
 
-            return (
-              <button
-                key={item.id}
-                onClick={() => onSelectChat({
-                  type: isConversation ? 'conversation' : 'space',
-                  id: item.id,
-                  name,
-                  isGroup: isConversation ? conv!.is_group : undefined,
-                  iconUrl: avatarUrl,
-                })}
-                className={cn(
-                  "flex items-center gap-2.5 w-full px-2 py-1.5 rounded-md text-sm transition-colors group",
-                  isActive 
-                    ? "bg-primary/10 text-primary font-medium border-l-2 border-primary" 
-                    : "hover:bg-muted/60"
-                )}
-              >
-                <div className="relative flex-shrink-0">
-                  {isConversation ? (
-                    <Avatar className="h-6 w-6">
-                      <AvatarImage src={avatarUrl || undefined} alt={name} />
-                      <AvatarFallback className="text-[10px] bg-muted">
-                        {getInitials(name)}
-                      </AvatarFallback>
-                    </Avatar>
-                  ) : (
-                    <div className="flex items-center justify-center h-6 w-6 rounded bg-muted text-muted-foreground font-medium text-[10px]">
-                      {space?.icon_url ? (
-                        <img src={space.icon_url} alt={name} className="h-6 w-6 rounded object-cover" />
-                      ) : (
-                        name.charAt(0).toUpperCase()
+                return (
+                  <SortableFavoriteItem key={favoriteId} id={favoriteId}>
+                    <button
+                      onClick={() => onSelectChat({
+                        type: isConversation ? 'conversation' : 'space',
+                        id: item.id,
+                        name,
+                        isGroup: isConversation ? conv!.is_group : undefined,
+                        iconUrl: avatarUrl,
+                      })}
+                      className={cn(
+                        "flex items-center gap-2.5 w-full px-2 py-1.5 rounded-md text-sm transition-colors group",
+                        isActive 
+                          ? "bg-primary/10 text-primary font-medium border-l-2 border-primary" 
+                          : "hover:bg-muted/60"
                       )}
-                    </div>
-                  )}
-                  {isOnline && (
-                    <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-green-500 border-[1.5px] border-card" />
-                  )}
-                </div>
+                    >
+                      <div className="relative flex-shrink-0">
+                        {isConversation ? (
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={avatarUrl || undefined} alt={name} />
+                            <AvatarFallback className="text-[10px] bg-muted">
+                              {getInitials(name)}
+                            </AvatarFallback>
+                          </Avatar>
+                        ) : (
+                          <div className="flex items-center justify-center h-6 w-6 rounded bg-muted text-muted-foreground font-medium text-[10px]">
+                            {space?.icon_url ? (
+                              <img src={space.icon_url} alt={name} className="h-6 w-6 rounded object-cover" />
+                            ) : (
+                              name.charAt(0).toUpperCase()
+                            )}
+                          </div>
+                        )}
+                        {isOnline && (
+                          <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-green-500 border-[1.5px] border-card" />
+                        )}
+                      </div>
 
-                <span className="truncate flex-1 text-left">
-                  {name}
-                </span>
+                      <span className="truncate flex-1 text-left">
+                        {name}
+                      </span>
 
-                <Star 
-                  className="h-3 w-3 text-orange-500 fill-orange-500 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleFavorite.mutate({
-                      conversationId: isConversation ? item.id : undefined,
-                      spaceId: !isConversation ? item.id : undefined,
-                    });
-                  }}
-                />
-              </button>
-            );
-          })}
-        </div>
+                      <Star 
+                        className="h-3 w-3 text-orange-500 fill-orange-500 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFavorite.mutate({
+                            conversationId: isConversation ? item.id : undefined,
+                            spaceId: !isConversation ? item.id : undefined,
+                          });
+                        }}
+                      />
+                    </button>
+                  </SortableFavoriteItem>
+                );
+              })}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
     </div>
   );

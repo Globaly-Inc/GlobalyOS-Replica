@@ -1598,6 +1598,7 @@ export type Database = {
           employee_id: string
           id: string
           organization_id: string
+          sort_order: number | null
           space_id: string | null
         }
         Insert: {
@@ -1606,6 +1607,7 @@ export type Database = {
           employee_id: string
           id?: string
           organization_id: string
+          sort_order?: number | null
           space_id?: string | null
         }
         Update: {
@@ -1614,6 +1616,7 @@ export type Database = {
           employee_id?: string
           id?: string
           organization_id?: string
+          sort_order?: number | null
           space_id?: string | null
         }
         Relationships: [
