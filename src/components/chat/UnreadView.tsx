@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { ActiveChat } from "@/types/chat";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { UnreadMessageSkeleton } from "./UnreadMessageSkeleton";
 
 interface UnreadViewProps {
   onNavigateToChat: (chat: ActiveChat, messageId?: string) => void;
@@ -82,7 +83,7 @@ const UnreadView = ({ onNavigateToChat, onBack }: UnreadViewProps) => {
       <ScrollArea className="flex-1">
         <div className="px-4 py-4 space-y-3">
           {isLoading ? (
-            <div className="text-center text-muted-foreground py-8">Loading...</div>
+            <UnreadMessageSkeleton count={5} />
           ) : messages.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
               <MessageCircle className="h-12 w-12 mx-auto mb-3 opacity-30" />
