@@ -194,30 +194,26 @@ const CalendarPage = () => {
     enabled: !!user?.id,
   });
 
-  // Fetch all employees for birthdays and anniversaries
+  // SECURITY: Fetch birthday/anniversary data using secure RPC
+  // This returns only month/day for birthdays (not full DOB with year)
   const { data: employees = [] } = useQuery({
     queryKey: ["calendar-employees", currentOrg?.id],
     queryFn: async () => {
       if (!currentOrg?.id) return [];
       
-      // Fetch from employees table to get date_of_birth
-      const { data: empData, error: empError } = await supabase
-        .from("employees")
-        .select("id, join_date, date_of_birth, user_id")
-        .eq("organization_id", currentOrg.id)
-        .eq("status", "active");
-      if (empError) throw empError;
+      // Use secure RPC that masks full date_of_birth, returning only MM-DD
+      const { data, error } = await supabase
+        .rpc('get_birthday_calendar_data', { org_id: currentOrg.id });
       
-      // Fetch profiles for names
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("id, full_name");
-      if (profileError) throw profileError;
+      if (error) throw error;
       
-      // Combine data
-      return empData.map(emp => ({
-        ...emp,
-        full_name: profileData?.find(p => p.id === emp.user_id)?.full_name || "Employee"
+      // Map to expected format
+      return (data || []).map((emp: any) => ({
+        id: emp.employee_id,
+        join_date: emp.join_date,
+        birthday_month_day: emp.birthday_month_day,
+        full_name: emp.full_name,
+        avatar_url: emp.avatar_url
       }));
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
@@ -431,15 +427,18 @@ const CalendarPage = () => {
     });
 
     // Add birthdays (show for next 3 months for upcoming section)
+    // SECURITY: Using birthday_month_day (MM-DD format) from secure RPC
     employees.forEach((emp) => {
-      if (emp.date_of_birth) {
-        const dob = parseISO(emp.date_of_birth);
+      if (emp.birthday_month_day) {
+        // Parse MM-DD format
+        const [month, day] = emp.birthday_month_day.split('-').map(Number);
         for (let monthOffset = 0; monthOffset < 3; monthOffset++) {
           const targetMonth = (currentMonth + monthOffset) % 12;
           const targetYear = currentMonth + monthOffset >= 12 ? currentYear + 1 : currentYear;
           
-          if (dob.getMonth() === targetMonth) {
-            const birthdayThisYear = new Date(targetYear, dob.getMonth(), dob.getDate());
+          // month from MM-DD is 1-indexed, need to convert to 0-indexed for comparison
+          if ((month - 1) === targetMonth) {
+            const birthdayThisYear = new Date(targetYear, month - 1, day);
             items.push({
               id: `birthday-${emp.id}-${targetYear}-${targetMonth}`,
               title: `${emp.full_name}'s Birthday`,

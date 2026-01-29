@@ -12748,6 +12748,16 @@ export type Database = {
           total_page_visits: number
         }[]
       }
+      get_birthday_calendar_data: {
+        Args: { org_id: string }
+        Returns: {
+          avatar_url: string
+          birthday_month_day: string
+          employee_id: string
+          full_name: string
+          join_date: string
+        }[]
+      }
       get_current_employee_id: { Args: never; Returns: string }
       get_current_employee_id_for_org: {
         Args: { _org_id: string }
