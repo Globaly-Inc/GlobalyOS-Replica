@@ -15,6 +15,7 @@ import {
   Loader2,
   RefreshCw,
   Megaphone,
+  Settings,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -764,18 +765,9 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
                     })()}
                   </span>
                   {space?.auto_sync_members && (
-                    <span 
-                      className={cn(
-                        "inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[10px] font-medium group/sync",
-                        isSpaceAdmin && "cursor-pointer hover:bg-muted/80 transition-colors"
-                      )}
-                      onClick={isSpaceAdmin ? () => setShowSettingsDialog(true) : undefined}
-                    >
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[10px] font-medium">
                       <RefreshCw className="h-2.5 w-2.5" />
                       Auto Sync
-                      {isSpaceAdmin && (
-                        <Pencil className="h-2.5 w-2.5 opacity-0 group-hover/sync:opacity-100 transition-opacity" />
-                      )}
                     </span>
                   )}
                 </p>
@@ -905,6 +897,23 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
               {isFavorited ? 'Remove from favorites' : 'Add to favorites'}
             </TooltipContent>
           </Tooltip>
+
+          {/* Space Settings - only for space admins */}
+          {spaceId && isSpaceAdmin && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9"
+                  onClick={() => setShowSettingsDialog(true)}
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">Space settings</TooltipContent>
+            </Tooltip>
+          )}
 
         </div>
       </div>
