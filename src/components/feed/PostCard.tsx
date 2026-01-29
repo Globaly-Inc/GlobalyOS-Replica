@@ -194,7 +194,7 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
                 to={`/team/${recipient.id}`}
                 className="font-medium text-pink-600 hover:text-pink-700 dark:text-pink-400"
               >
-                {recipient.profiles.full_name}
+                {recipient.profiles?.full_name || 'Unknown'}
               </OrgLink>
               {idx < post.kudos_recipients!.length - 1 && ', '}
             </span>
@@ -409,7 +409,7 @@ export const PostCard = ({ post, onEdit }: PostCardProps) => {
                   to={`/team/${mention.employee_id}`}
                   className="text-primary hover:underline"
                 >
-                  @{mention.employee.profiles.full_name}
+                  @{mention.employee?.profiles?.full_name || 'Unknown'}
                 </OrgLink>
                 {idx < post.post_mentions!.length - 1 && ', '}
               </span>
