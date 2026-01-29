@@ -36,11 +36,37 @@ interface Notification {
 const Notifications = () => {
   const { navigateOrg } = useOrgNavigation();
   const { user } = useAuth();
-  const { isSupported, isSubscribed, loading: pushLoading, subscribe, unsubscribe } = usePushNotifications();
+  const { isSupported, isSubscribed, permission, loading: pushLoading, subscribe, unsubscribe } = usePushNotifications();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
   const [markingAllRead, setMarkingAllRead] = useState(false);
+  const [testingSend, setTestingSend] = useState(false);
+
+  const sendTestNotification = async () => {
+    if (!user) return;
+    
+    try {
+      setTestingSend(true);
+      const { error } = await supabase.functions.invoke("send-push-notification", {
+        body: {
+          user_id: user.id,
+          title: "Test Notification 🔔",
+          body: "This is how push notifications look in your browser. You're all set!",
+          url: "/notifications",
+          tag: "test-notification",
+        },
+      });
+      
+      if (error) throw error;
+      toast.success("Test notification sent! Check your browser.");
+    } catch (error) {
+      console.error("Error sending test notification:", error);
+      toast.error("Failed to send test notification");
+    } finally {
+      setTestingSend(false);
+    }
+  };
 
   const handlePushToggle = async () => {
     if (isSubscribed) {
@@ -324,29 +350,72 @@ const Notifications = () => {
 
         {/* Push Notification Settings */}
         {isSupported && (
-          <Card className="mb-4 sm:mb-6">
-            <CardContent className="flex items-center justify-between p-3 sm:p-4 gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                {isSubscribed ? (
-                  <BellRing className="h-5 w-5 text-primary flex-shrink-0" />
-                ) : (
-                  <BellOff className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                )}
-                <div className="min-w-0">
-                  <p className="font-medium text-sm">Push Notifications</p>
-                  <p className="text-xs text-muted-foreground truncate sm:whitespace-normal">
-                    {isSubscribed 
-                      ? "Receive notifications in background" 
-                      : "Enable for background notifications"}
+          <Card className="mb-4 sm:mb-6 border-primary/10">
+            <CardContent className="p-4 sm:p-5 space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`p-2 rounded-lg ${isSubscribed ? 'bg-primary/10' : 'bg-muted'}`}>
+                    {isSubscribed ? (
+                      <BellRing className="h-5 w-5 text-primary" />
+                    ) : (
+                      <BellOff className="h-5 w-5 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm sm:text-base">Push Notifications</p>
+                    <p className="text-xs text-muted-foreground">
+                      {isSubscribed 
+                        ? "Receive real-time notifications even when the app is closed" 
+                        : "Get notified instantly, even when you're not using the app"}
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={isSubscribed}
+                  onCheckedChange={handlePushToggle}
+                  disabled={pushLoading}
+                  className="flex-shrink-0"
+                />
+              </div>
+              
+              {!isSubscribed && permission !== 'denied' && (
+                <p className="text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
+                  💡 When you enable push notifications, your browser will ask for permission. Click "Allow" to receive notifications.
+                </p>
+              )}
+              
+              {permission === 'denied' && (
+                <p className="text-xs text-destructive bg-destructive/10 rounded-md px-3 py-2">
+                  ⚠️ Notifications are blocked. Please enable them in your browser settings to receive push notifications.
+                </p>
+              )}
+              
+              {isSubscribed && (
+                <div className="pt-2 border-t border-border/50">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={sendTestNotification}
+                    disabled={testingSend}
+                    className="w-full sm:w-auto"
+                  >
+                    {testingSend ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Bell className="h-4 w-4 mr-2" />
+                        Send Test Notification
+                      </>
+                    )}
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    See how notifications appear in your browser
                   </p>
                 </div>
-              </div>
-              <Switch
-                checked={isSubscribed}
-                onCheckedChange={handlePushToggle}
-                disabled={pushLoading}
-                className="flex-shrink-0"
-              />
+              )}
             </CardContent>
           </Card>
         )}
