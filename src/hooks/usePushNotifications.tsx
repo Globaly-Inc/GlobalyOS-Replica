@@ -22,11 +22,12 @@ export const usePushNotifications = () => {
 
   // Check if push notifications are supported
   const isSupported = () => {
-    return (
-      "serviceWorker" in navigator &&
-      "PushManager" in window &&
-      "Notification" in window
-    );
+    const hasServiceWorker = "serviceWorker" in navigator;
+    const hasPushManager = "PushManager" in window;
+    const hasNotification = "Notification" in window;
+    const supported = hasServiceWorker && hasPushManager && hasNotification;
+    console.log('[Push] isSupported check:', { hasServiceWorker, hasPushManager, hasNotification, supported });
+    return supported;
   };
 
   // Get VAPID public key from edge function
