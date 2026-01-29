@@ -138,7 +138,12 @@ const RichTextMessage = ({ content, className = "" }: RichTextMessageProps) => {
 };
 
 /**
- * Render text with markdown formatting (bold, italic, strikethrough)
+ * Mention pattern for detecting @username
+ */
+const MENTION_PATTERN = /@(\w+(?:\s+\w+)*)/g;
+
+/**
+ * Render text with markdown formatting (bold, italic, strikethrough, mentions)
  */
 function renderFormattedText(text: string, key: string | number): React.ReactNode {
   // Escape HTML first to prevent XSS
@@ -162,11 +167,17 @@ function renderFormattedText(text: string, key: string | number): React.ReactNod
     '<del>$1</del>'
   );
 
+  // Mentions @username - style with primary color
+  processed = processed.replace(
+    /@(\w+(?:\s+\w+)*)/g,
+    '<span class="text-primary font-medium">@$1</span>'
+  );
+
   if (processed !== escapeHtml(text)) {
     // Sanitize with DOMPurify as defense-in-depth
     const sanitized = DOMPurify.sanitize(processed, {
-      ALLOWED_TAGS: ['strong', 'em', 'del'],
-      ALLOWED_ATTR: [],
+      ALLOWED_TAGS: ['strong', 'em', 'del', 'span'],
+      ALLOWED_ATTR: ['class'],
     });
     return (
       <span
