@@ -167,9 +167,9 @@ function renderFormattedText(text: string, key: string | number): React.ReactNod
     '<del>$1</del>'
   );
 
-  // Mentions @username - style with primary color
+  // Mentions @username or @everyone - style with primary color (limit to 1-2 words for names)
   processed = processed.replace(
-    /@(\w+(?:\s+\w+)*)/g,
+    /@(everyone|\w+(?:\s+\w+)?)\b/g,
     '<span class="text-primary font-medium">@$1</span>'
   );
 
