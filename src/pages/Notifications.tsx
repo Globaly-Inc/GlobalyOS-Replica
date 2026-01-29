@@ -391,28 +391,38 @@ const Notifications = () => {
               )}
               
               {isSubscribed && (
-                <div className="pt-2 border-t border-border/50">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={sendTestNotification}
-                    disabled={testingSend}
-                    className="w-full sm:w-auto"
-                  >
-                    {testingSend ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        <Bell className="h-4 w-4 mr-2" />
-                        Send Test Notification
-                      </>
-                    )}
-                  </Button>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    See how notifications appear in your browser
+                <div className="space-y-3">
+                  <div className="pt-2 border-t border-border/50">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={sendTestNotification}
+                      disabled={testingSend}
+                      className="w-full sm:w-auto"
+                    >
+                      {testingSend ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Bell className="h-4 w-4 mr-2" />
+                          Send Test Notification
+                        </>
+                      )}
+                    </Button>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      See how notifications appear in your browser
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
+                    💡 <strong>Not seeing notifications?</strong> Check that:
+                    <ul className="list-disc ml-4 mt-1 space-y-0.5">
+                      <li>Chrome notifications are enabled in your OS settings</li>
+                      <li>GlobalyOS isn't muted in Chrome's notification settings</li>
+                      <li>Do Not Disturb mode is off</li>
+                    </ul>
                   </p>
                 </div>
               )}
