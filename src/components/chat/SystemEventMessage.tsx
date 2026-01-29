@@ -1,4 +1,4 @@
-import { UserPlus, UserMinus, LogOut, Crown, ShieldOff, Pencil, Camera } from "lucide-react";
+import { UserPlus, UserMinus, LogOut, Crown, ShieldOff, Pencil, Camera, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import type { SystemEventData } from "@/types/chat";
@@ -8,17 +8,65 @@ interface SystemEventMessageProps {
   timestamp: string;
 }
 
+const getSyncReasonLabel = (reason?: string): string => {
+  switch (reason) {
+    case 'office': return 'office';
+    case 'department': return 'department';
+    case 'project': return 'project';
+    case 'company': return 'company-wide access';
+    default: return 'access groups';
+  }
+};
+
+const getAddedText = (data: SystemEventData): string => {
+  const baseName = data.target_name;
+  
+  if (data.source === 'auto_sync') {
+    const reasonLabel = getSyncReasonLabel(data.sync_reason);
+    if (data.access_group_name) {
+      return `${baseName} was added by auto-sync (${reasonLabel}: ${data.access_group_name})`;
+    }
+    return `${baseName} was added by auto-sync on ${reasonLabel}`;
+  }
+  
+  if (data.source === 'space_creation') {
+    return `${baseName} was added when the space was created`;
+  }
+  
+  if (data.actor_name) {
+    return `${baseName} was invited by ${data.actor_name}`;
+  }
+  
+  return `${baseName} was added`;
+};
+
+const getRemovedText = (data: SystemEventData): string => {
+  const baseName = data.target_name;
+  
+  if (data.source === 'auto_sync') {
+    const reasonLabel = getSyncReasonLabel(data.sync_reason);
+    if (data.access_group_name) {
+      return `${baseName} was removed by auto-sync (no longer in ${reasonLabel}: ${data.access_group_name})`;
+    }
+    return `${baseName} was removed by auto-sync (no longer matches ${reasonLabel})`;
+  }
+  
+  if (data.actor_name) {
+    return `${baseName} was removed by ${data.actor_name}`;
+  }
+  
+  return `${baseName} was removed`;
+};
+
 const eventConfig = {
   member_added: {
     icon: UserPlus,
-    getText: (data: SystemEventData) => 
-      `${data.target_name} was added${data.actor_name ? ` by ${data.actor_name}` : ''}`,
+    getText: getAddedText,
     className: "text-emerald-600 dark:text-emerald-400",
   },
   member_removed: {
     icon: UserMinus,
-    getText: (data: SystemEventData) => 
-      `${data.target_name} was removed${data.actor_name ? ` by ${data.actor_name}` : ''}`,
+    getText: getRemovedText,
     className: "text-destructive",
   },
   member_left: {
@@ -30,13 +78,17 @@ const eventConfig = {
   admin_added: {
     icon: Crown,
     getText: (data: SystemEventData) => 
-      `${data.target_name} was made an admin`,
+      data.actor_name 
+        ? `${data.target_name} was made an admin by ${data.actor_name}`
+        : `${data.target_name} was made an admin`,
     className: "text-amber-600 dark:text-amber-400",
   },
   admin_removed: {
     icon: ShieldOff,
     getText: (data: SystemEventData) => 
-      `${data.target_name} is no longer an admin`,
+      data.actor_name 
+        ? `${data.target_name} is no longer an admin (changed by ${data.actor_name})`
+        : `${data.target_name} is no longer an admin`,
     className: "text-muted-foreground",
   },
   group_name_changed: {
@@ -77,11 +129,15 @@ const SystemEventMessage = ({ eventData, timestamp }: SystemEventMessageProps) =
   const Icon = config.icon;
   const text = config.getText(eventData);
   const time = format(new Date(timestamp), "h:mm a");
+  
+  // Use sync icon for auto-sync events
+  const isAutoSync = eventData.source === 'auto_sync';
+  const DisplayIcon = isAutoSync ? RefreshCw : Icon;
 
   return (
     <div className="flex items-center justify-start py-2 px-4">
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/50 text-xs">
-        <Icon className={cn("h-3.5 w-3.5", config.className)} />
+        <DisplayIcon className={cn("h-3.5 w-3.5", config.className)} />
         <span className="text-muted-foreground">
           {text} <span className="text-muted-foreground/60 ml-1">{time}</span>
         </span>

@@ -1714,7 +1714,8 @@ export const useAddSpaceMembers = () => {
               target_employee_id: empId,
               target_name: empName,
               actor_employee_id: currentEmployee.id,
-              actor_name: actorName
+              actor_name: actorName,
+              source: 'manual'
             }
           });
         }
@@ -1819,7 +1820,8 @@ export const useRemoveSpaceMember = () => {
             target_employee_id: employeeId,
             target_name: employeeName,
             actor_employee_id: currentEmployee.id,
-            actor_name: actorName
+            actor_name: actorName,
+            source: 'manual'
           }
         });
       }
@@ -2196,7 +2198,8 @@ export const useRemoveGroupMember = () => {
           target_employee_id: employeeId,
           target_name: employeeName,
           actor_employee_id: currentEmployee.id,
-          actor_name: actorName
+          actor_name: actorName,
+          source: 'manual'
         }
       });
 
@@ -2265,7 +2268,8 @@ export const useAddGroupMembers = () => {
             target_employee_id: empId,
             target_name: empName,
             actor_employee_id: currentEmployee.id,
-            actor_name: actorName
+            actor_name: actorName,
+            source: 'manual'
           }
         });
       }

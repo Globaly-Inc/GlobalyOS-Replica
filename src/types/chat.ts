@@ -105,6 +105,12 @@ export interface SystemEventData {
   actor_name?: string;
   old_value?: string;
   new_value?: string;
+  /** Source of the membership change: 'auto_sync', 'manual', 'space_creation' */
+  source?: 'auto_sync' | 'manual' | 'space_creation';
+  /** Reason for auto-sync: office, department, project, or company-wide */
+  sync_reason?: 'office' | 'department' | 'project' | 'company';
+  /** Name of the access group (office/department/project name) */
+  access_group_name?: string;
 }
 
 export type MessageDeliveryStatus = 'sending' | 'sent' | 'delivered' | 'read';
