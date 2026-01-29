@@ -92,6 +92,9 @@ export const useEmployeeProfile = (employeeId: string | undefined) => {
       const { data: relatedData, error: relatedError } = await supabase
         .from('employees')
         .select(`
+          organization_id,
+          gender,
+          last_working_day,
           profiles!inner(
             id,
             full_name,
@@ -99,7 +102,7 @@ export const useEmployeeProfile = (employeeId: string | undefined) => {
             avatar_url,
             timezone
           ),
-          office:offices(id, name, city, country),
+          offices(id, name, city, country),
           manager:employees!employees_manager_id_fkey(
             id,
             profiles!inner(full_name, avatar_url)
@@ -114,6 +117,7 @@ export const useEmployeeProfile = (employeeId: string | undefined) => {
       return {
         id: employee.emp_id,
         user_id: employee.emp_user_id,
+        organization_id: relatedData?.organization_id,
         position: employee.emp_position,
         department: employee.emp_department,
         office_id: employee.emp_office_id,
@@ -129,6 +133,8 @@ export const useEmployeeProfile = (employeeId: string | undefined) => {
         postcode: employee.emp_postcode,
         country: employee.emp_country,
         date_of_birth: employee.emp_date_of_birth,
+        gender: relatedData?.gender,
+        last_working_day: relatedData?.last_working_day,
         // Financial fields - will be NULL unless viewer is self/HR/admin
         salary: employee.emp_salary,
         remuneration: employee.emp_remuneration,
@@ -142,7 +148,7 @@ export const useEmployeeProfile = (employeeId: string | undefined) => {
         position_effective_date: null,
         // Related data from second query
         profiles: relatedData?.profiles,
-        office: relatedData?.office,
+        offices: relatedData?.offices,
         manager: relatedData?.manager,
       };
     },

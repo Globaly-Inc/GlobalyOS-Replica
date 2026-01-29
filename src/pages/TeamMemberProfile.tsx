@@ -55,6 +55,7 @@ import { icons } from "lucide-react";
 import { ProfileActivityFeed } from "@/components/feed/ProfileActivityFeed";
 import { PositionAIDescription } from "@/components/PositionAIDescription";
 import { OffboardingPanel } from "@/components/workflows/OffboardingPanel";
+import { useEmployeeProfile } from "@/services/useEmployees";
 import { Database } from "@/integrations/supabase/types";
 type AppRole = Database["public"]["Enums"]["app_role"];
 interface EmployeeProject {
@@ -91,10 +92,12 @@ const TeamMemberProfile = () => {
     isAdmin,
     isOwner
   } = useUserRole();
-  const [employee, setEmployee] = useState<any>(null);
+
+  // Use secure hook that enforces field-level access control via get_employee_for_viewer RPC
+  const { data: employee, isLoading: loading, refetch: refetchEmployee } = useEmployeeProfile(id);
+
   const [kudos, setKudos] = useState<any[]>([]);
   const [wins, setWins] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [positionHistory, setPositionHistory] = useState<any[]>([]);
   const [manager, setManager] = useState<any>(null);
   const [directReports, setDirectReports] = useState<any[]>([]);
@@ -173,6 +176,7 @@ const TeamMemberProfile = () => {
 
   // Can add learning records - everyone can add
   const canAddLearning = true;
+
   const updateEmployeeField = async (field: string, value: string) => {
     if (!id) return;
     const {
@@ -191,11 +195,29 @@ const TeamMemberProfile = () => {
     toast({
       title: "Updated successfully"
     });
-    loadEmployee();
+    refetchEmployee();
   };
+
+  // Load manager when employee data is available
+  useEffect(() => {
+    if (employee?.manager_id) {
+      loadManager(employee.manager_id);
+    } else {
+      setManager(null);
+    }
+  }, [employee?.manager_id]);
+
+  // Load office employee count when office_id is available
+  useEffect(() => {
+    if (employee?.office_id) {
+      loadOfficeEmployeeCount(employee.office_id);
+    } else {
+      setOfficeEmployeeCount(0);
+    }
+  }, [employee?.office_id]);
+
   useEffect(() => {
     if (id) {
-      loadEmployee();
       loadKudos();
       loadWins();
       loadPositionHistory();
@@ -361,85 +383,28 @@ const TeamMemberProfile = () => {
     });
     if (data) setPositionHistory(data);
   };
-  const loadEmployee = async () => {
-    const {
-      data
-    } = await supabase.from("employees").select(`
+  // Helper function to load manager data
+  const loadManager = async (managerId: string) => {
+    const { data: managerData } = await supabase
+      .from("employees")
+      .select(`
         id,
-        user_id,
-        status,
         position,
-        department,
-        salary,
-        join_date,
-        date_of_birth,
-        phone,
-        superpowers,
-        manager_id,
-        office_id,
-        organization_id,
-        personal_email,
-        street,
-        city,
-        state,
-        postcode,
-        country,
-        id_number,
-        tax_number,
-        remuneration,
-        remuneration_currency,
-        employment_type,
-        emergency_contact_name,
-        emergency_contact_phone,
-        emergency_contact_relationship,
-        bank_details,
-        position_effective_date,
-        gender,
-        last_working_day,
-        profiles!inner(
-          full_name,
-          email,
-          avatar_url
-        ),
-        offices(
-          name,
-          city,
-          country
-        )
-      `).eq("id", id).single();
-    if (data) {
-      setEmployee(data);
-      // Load manager if exists
-      if (data.manager_id) {
-        const {
-          data: managerData
-        } = await supabase.from("employees").select(`
-            id,
-            position,
-            profiles!inner(full_name, avatar_url)
-          `).eq("id", data.manager_id).single();
-        if (managerData) {
-          setManager(managerData);
-        } else {
-          setManager(null);
-        }
-      } else {
-        setManager(null);
-      }
-      // Load office employee count
-      if (data.office_id) {
-        const {
-          count
-        } = await supabase.from("employees").select("id", {
-          count: "exact",
-          head: true
-        }).eq("office_id", data.office_id).eq("status", "active");
-        setOfficeEmployeeCount(count || 0);
-      } else {
-        setOfficeEmployeeCount(0);
-      }
-    }
-    setLoading(false);
+        profiles!inner(full_name, avatar_url)
+      `)
+      .eq("id", managerId)
+      .single();
+    setManager(managerData || null);
+  };
+
+  // Helper function to load office employee count
+  const loadOfficeEmployeeCount = async (officeId: string) => {
+    const { count } = await supabase
+      .from("employees")
+      .select("id", { count: "exact", head: true })
+      .eq("office_id", officeId)
+      .eq("status", "active");
+    setOfficeEmployeeCount(count || 0);
   };
   const loadDirectReports = async () => {
     if (!id) return;
@@ -677,7 +642,7 @@ const TeamMemberProfile = () => {
                   </AvatarFallback>
                 </Avatar>
                 {(isAdminOrHR || isOwnProfile) && <span className="absolute -bottom-1 -right-1 hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
-                    <EditAvatarDialog userId={employee.user_id} currentAvatarUrl={employee.profiles.avatar_url} userName={employee.profiles.full_name} onSuccess={loadEmployee} />
+                    <EditAvatarDialog userId={employee.user_id} currentAvatarUrl={employee.profiles.avatar_url} userName={employee.profiles.full_name} onSuccess={refetchEmployee} />
                   </span>}
               </div>
               <div className="flex-1 space-y-1.5 flex flex-col justify-center min-w-0">
@@ -685,7 +650,7 @@ const TeamMemberProfile = () => {
                 <div className="group flex items-center gap-2 flex-wrap">
                   <h1 className="text-2xl font-bold text-foreground">{employee.profiles.full_name}</h1>
                   {isAdminOrHR && <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
-                      <EditNameDialog userId={employee.user_id} currentName={employee.profiles.full_name} onSuccess={loadEmployee} />
+                      <EditNameDialog userId={employee.user_id} currentName={employee.profiles.full_name} onSuccess={refetchEmployee} />
                     </span>}
                   <Badge variant={employee.status === 'active' ? 'default' : employee.status === 'invited' ? 'secondary' : 'outline'} className={`text-xs ${employee.status === 'active' ? 'bg-green-500/10 text-green-600 border-green-500/20' : employee.status === 'invited' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-muted text-muted-foreground'}`}>
                     {employee.status === 'active' ? 'Active' : employee.status === 'invited' ? 'Invited' : 'Inactive'}
@@ -745,7 +710,7 @@ const TeamMemberProfile = () => {
                   <Mail className="h-3.5 w-3.5 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">{employee.profiles.email}</span>
                   {isAdminOrHR && <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
-                      <EditEmailDialog userId={employee.user_id} currentEmail={employee.profiles.email} onSuccess={loadEmployee} />
+                      <EditEmailDialog userId={employee.user_id} currentEmail={employee.profiles.email} onSuccess={refetchEmployee} />
                     </span>}
                   <span className="text-muted-foreground">·</span>
                   <Badge variant={userRole === 'owner' ? 'default' : userRole === 'admin' ? 'default' : userRole === 'hr' ? 'secondary' : 'outline'} className="text-xs">
@@ -773,7 +738,7 @@ const TeamMemberProfile = () => {
                         </OrgLink>
                         {canEditManager && <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
                             <EditManagerDialog employeeId={id!} currentManagerId={employee.manager_id} onSuccess={() => {
-                        loadEmployee();
+                        refetchEmployee();
                         loadDirectReports();
                       }} />
                           </span>}
@@ -781,7 +746,7 @@ const TeamMemberProfile = () => {
                         <span className="text-xs text-muted-foreground italic">Not assigned</span>
                         {canEditManager && <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
                             <EditManagerDialog employeeId={id!} currentManagerId={employee.manager_id} onSuccess={() => {
-                        loadEmployee();
+                        refetchEmployee();
                         loadDirectReports();
                       }} />
                           </span>}
@@ -960,7 +925,7 @@ const TeamMemberProfile = () => {
                     currency={employee.remuneration_currency || "USD"}
                     onRefresh={() => {
                       loadPositionHistory();
-                      loadEmployee();
+                      refetchEmployee();
                     }} 
                   />
                 </div>
@@ -979,7 +944,7 @@ const TeamMemberProfile = () => {
                 existingPositions={positionHistory}
                 onSuccess={() => {
                   loadPositionHistory();
-                  loadEmployee();
+                  refetchEmployee();
                 }}
               />
             )}
@@ -1086,7 +1051,7 @@ const TeamMemberProfile = () => {
                           toast({
                             title: "Address updated"
                           });
-                          loadEmployee();
+                          refetchEmployee();
                         }
                       }} />
                           </span>}
@@ -1168,7 +1133,7 @@ const TeamMemberProfile = () => {
                     <div className="flex items-center gap-2">
                       <p className="text-sm text-muted-foreground">Office</p>
                       {canEditJoinDateAndOffice && <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
-                          <EditOfficeDialog employeeId={id!} currentOfficeId={employee.office_id} onSuccess={loadEmployee} />
+                          <EditOfficeDialog employeeId={id!} currentOfficeId={employee.office_id} onSuccess={refetchEmployee} />
                         </span>}
                     </div>
                     {employee.offices ? <>
@@ -1367,11 +1332,11 @@ const TeamMemberProfile = () => {
         </div>
       </div>
       
-      {isAdminOrHR && <EditStatusDialog open={editStatusOpen} onOpenChange={setEditStatusOpen} employeeId={id!} currentStatus={employee?.status || 'invited'} onSuccess={loadEmployee} />}
+      {isAdminOrHR && <EditStatusDialog open={editStatusOpen} onOpenChange={setEditStatusOpen} employeeId={id!} currentStatus={employee?.status || 'invited'} onSuccess={refetchEmployee} />}
 
       {isAdminOrHR && employee?.organization_id && <EditScheduleDialog open={editScheduleOpen} onOpenChange={setEditScheduleOpen} employeeId={id!} organizationId={employee.organization_id} currentSchedule={employeeSchedule} onSuccess={loadEmployeeSchedule} />}
 
-      {isAdminOrHR && <SetResignationDialog open={resignationDialogOpen} onOpenChange={setResignationDialogOpen} employeeId={id!} employeeName={employee.profiles.full_name} onSuccess={loadEmployee} />}
+      {isAdminOrHR && <SetResignationDialog open={resignationDialogOpen} onOpenChange={setResignationDialogOpen} employeeId={id!} employeeName={employee.profiles.full_name} onSuccess={refetchEmployee} />}
 
       {isAdminOrHR && (
         <TeamMemberOffboardTransferDialog
@@ -1390,7 +1355,7 @@ const TeamMemberProfile = () => {
               return;
             }
             toast({ title: "Employee deactivated", description: `${employee.profiles.full_name} has been set to inactive.` });
-            loadEmployee();
+            refetchEmployee();
           }}
           onSkip={async () => {
             const { error } = await supabase
@@ -1402,7 +1367,7 @@ const TeamMemberProfile = () => {
               return;
             }
             toast({ title: "Employee deactivated", description: `${employee.profiles.full_name} has been set to inactive.` });
-            loadEmployee();
+            refetchEmployee();
           }}
         />
       )}
