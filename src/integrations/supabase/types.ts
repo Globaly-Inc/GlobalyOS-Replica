@@ -9717,6 +9717,118 @@ export type Database = {
         }
         Relationships: []
       }
+      template_wiki_documents: {
+        Row: {
+          business_category: string | null
+          category: Database["public"]["Enums"]["wiki_template_category"]
+          content: string | null
+          country_code: string | null
+          created_at: string
+          description: string | null
+          folder_id: string | null
+          icon_name: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          sort_order: number | null
+          subcategory: string | null
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          business_category?: string | null
+          category: Database["public"]["Enums"]["wiki_template_category"]
+          content?: string | null
+          country_code?: string | null
+          created_at?: string
+          description?: string | null
+          folder_id?: string | null
+          icon_name?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          sort_order?: number | null
+          subcategory?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          business_category?: string | null
+          category?: Database["public"]["Enums"]["wiki_template_category"]
+          content?: string | null
+          country_code?: string | null
+          created_at?: string
+          description?: string | null
+          folder_id?: string | null
+          icon_name?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          sort_order?: number | null
+          subcategory?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_wiki_documents_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "template_wiki_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      template_wiki_folders: {
+        Row: {
+          business_category: string | null
+          country_code: string | null
+          created_at: string
+          description: string | null
+          icon_name: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          parent_id: string | null
+          sort_order: number | null
+          updated_at: string
+        }
+        Insert: {
+          business_category?: string | null
+          country_code?: string | null
+          created_at?: string
+          description?: string | null
+          icon_name?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          parent_id?: string | null
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Update: {
+          business_category?: string | null
+          country_code?: string | null
+          created_at?: string
+          description?: string | null
+          icon_name?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          parent_id?: string | null
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_wiki_folders_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "template_wiki_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       test_results: {
         Row: {
           created_at: string | null
@@ -13098,6 +13210,13 @@ export type Database = {
         | "closed"
         | "wont_fix"
       support_request_type: "bug" | "feature"
+      wiki_template_category:
+        | "policies"
+        | "sops"
+        | "business_plans"
+        | "hr_documents"
+        | "compliance"
+        | "operations"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -13245,6 +13364,14 @@ export const Constants = {
         "wont_fix",
       ],
       support_request_type: ["bug", "feature"],
+      wiki_template_category: [
+        "policies",
+        "sops",
+        "business_plans",
+        "hr_documents",
+        "compliance",
+        "operations",
+      ],
     },
   },
 } as const
