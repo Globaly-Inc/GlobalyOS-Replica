@@ -69,21 +69,6 @@ const Notifications = () => {
     }
   };
 
-  const showLocalTestNotification = async () => {
-    try {
-      const registration = await navigator.serviceWorker.ready;
-      await registration.showNotification('Local Test 🔔', {
-        body: 'This notification bypasses the push pipeline - if you see this, notifications work!',
-        icon: '/favicon.png',
-        tag: `local-${Date.now()}`,
-        requireInteraction: true,
-      });
-      toast.success("Local notification shown!");
-    } catch (error) {
-      console.error("Local notification error:", error);
-      toast.error("Failed to show local notification");
-    }
-  };
 
   const handlePushToggle = async () => {
     if (isSubscribed) {
@@ -368,8 +353,10 @@ const Notifications = () => {
         {/* Push Notification Settings */}
         {isSupported && (
           <Card className="mb-4 sm:mb-6 border-primary/10">
-            <CardContent className="p-4 sm:p-5 space-y-4">
+            <CardContent className="p-4 sm:p-5">
+              {/* Single row: Header left, Controls right */}
               <div className="flex items-center justify-between gap-3">
+                {/* Left: Icon + Text */}
                 <div className="flex items-center gap-3 min-w-0">
                   <div className={`p-2 rounded-lg ${isSubscribed ? 'bg-primary/10' : 'bg-muted'}`}>
                     {isSubscribed ? (
@@ -387,70 +374,43 @@ const Notifications = () => {
                     </p>
                   </div>
                 </div>
-                <Switch
-                  checked={isSubscribed}
-                  onCheckedChange={handlePushToggle}
-                  disabled={pushLoading}
-                  className="flex-shrink-0"
-                />
-              </div>
-              
-              {!isSubscribed && permission !== 'denied' && (
-                <p className="text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
-                  💡 When you enable push notifications, your browser will ask for permission. Click "Allow" to receive notifications.
-                </p>
-              )}
-              
-              {permission === 'denied' && (
-                <p className="text-xs text-destructive bg-destructive/10 rounded-md px-3 py-2">
-                  ⚠️ Notifications are blocked. Please enable them in your browser settings to receive push notifications.
-                </p>
-              )}
-              
-              {isSubscribed && (
-                <div className="space-y-3">
-                  <div className="pt-2 border-t border-border/50 flex flex-col sm:flex-row gap-2">
+                
+                {/* Right: Test button (when subscribed) + Toggle */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {isSubscribed && (
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={sendTestNotification}
                       disabled={testingSend}
-                      className="w-full sm:w-auto"
                     >
                       {testingSend ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Sending...
-                        </>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       ) : (
-                        <>
-                          <Bell className="h-4 w-4 mr-2" />
-                          Send Push Test
-                        </>
+                        <Bell className="h-4 w-4 mr-2" />
                       )}
+                      {testingSend ? "Sending..." : "Send Test"}
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={showLocalTestNotification}
-                      className="w-full sm:w-auto"
-                    >
-                      <BellRing className="h-4 w-4 mr-2" />
-                      Show Local Test
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    <strong>Push Test:</strong> Via server → <strong>Local Test:</strong> Direct browser call (bypasses push pipeline)
-                  </p>
-                  <p className="text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
-                    💡 <strong>Not seeing notifications?</strong> Check that:
-                    <ul className="list-disc ml-4 mt-1 space-y-0.5">
-                      <li>Chrome notifications are enabled in your OS settings</li>
-                      <li>GlobalyOS isn't muted in Chrome's notification settings</li>
-                      <li>Do Not Disturb mode is off</li>
-                    </ul>
-                  </p>
+                  )}
+                  <Switch
+                    checked={isSubscribed}
+                    onCheckedChange={handlePushToggle}
+                    disabled={pushLoading}
+                  />
                 </div>
+              </div>
+              
+              {/* Permission prompts */}
+              {!isSubscribed && permission !== 'denied' && (
+                <p className="text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2 mt-3">
+                  💡 When you enable push notifications, your browser will ask for permission. Click "Allow" to receive notifications.
+                </p>
+              )}
+              
+              {permission === 'denied' && (
+                <p className="text-xs text-destructive bg-destructive/10 rounded-md px-3 py-2 mt-3">
+                  ⚠️ Notifications are blocked. Please enable them in your browser settings to receive push notifications.
+                </p>
               )}
             </CardContent>
           </Card>
