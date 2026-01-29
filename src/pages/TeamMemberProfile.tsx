@@ -339,27 +339,35 @@ const TeamMemberProfile = () => {
   };
   const loadPositionHistory = async () => {
     if (!id) return;
-    const {
-      data
-    } = await supabase.from("position_history").select(`
-        id,
-        position,
-        department,
-        salary,
-        manager_id,
-        effective_date,
-        end_date,
-        change_type,
-        notes,
-        employment_type,
-        is_current,
-        manager:employees!position_history_manager_id_fkey(
-          profiles!inner(full_name)
-        )
-      `).eq("employee_id", id).order("effective_date", {
-      ascending: false
-    });
-    if (data) setPositionHistory(data);
+    
+    // Use secure RPC that masks salary for unauthorized viewers
+    const { data, error } = await supabase
+      .rpc('get_position_history_for_viewer', { target_employee_id: id });
+
+    if (error) {
+      console.error('Error loading position history:', error);
+      return;
+    }
+
+    // Map RPC response fields to the component's expected structure
+    const mappedData = (data || []).map((entry: any) => ({
+      id: entry.ph_id,
+      position: entry.ph_position,
+      department: entry.ph_department,
+      salary: entry.ph_salary, // Will be NULL for unauthorized viewers
+      manager_id: entry.ph_manager_id,
+      effective_date: entry.ph_effective_date,
+      end_date: entry.ph_end_date,
+      change_type: entry.ph_change_type,
+      notes: entry.ph_notes,
+      employment_type: entry.ph_employment_type,
+      is_current: entry.ph_is_current,
+      manager: entry.ph_manager_name ? { 
+        profiles: { full_name: entry.ph_manager_name } 
+      } : null,
+    }));
+
+    setPositionHistory(mappedData);
   };
   const loadEmployee = async () => {
     if (!id) {
