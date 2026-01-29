@@ -1,185 +1,126 @@
 
-# Improving Push Notification Latency (3-5 seconds → Sub-second)
 
-## Current Architecture Analysis
+# Leave Approval Latency Optimization (5-10s to Under 1 second)
 
-Your push notification system has **two parallel paths** that both contribute to the 3-5 second delay:
+## Problem Summary
 
-```text
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│  CURRENT FLOW (Chat Messages)                                                   │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                 │
-│  1. User sends message → DB INSERT → useSendMessage.onSettled                   │
-│                             │                                                   │
-│                             ▼                                                   │
-│  2. Client calls edge function "send-chat-push-notification"                    │
-│                             │                                                   │
-│                             ▼ (1-2s cold start possible)                        │
-│  3. Edge function queries DB for recipients, sender info                        │
-│                             │                                                   │
-│                             ▼                                                   │
-│  4. For EACH recipient: calls "send-push-notification" sequentially             │
-│                             │                                                   │
-│                             ▼ (1-2s cold start possible)                        │
-│  5. send-push-notification: converts VAPID keys, queries subscriptions          │
-│                             │                                                   │
-│                             ▼                                                   │
-│  6. Sends to push service → Browser receives                                    │
-│                                                                                 │
-└─────────────────────────────────────────────────────────────────────────────────┘
+When a manager approves a leave request, the UI takes 5-10 seconds to respond. This creates a poor user experience.
 
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│  CURRENT FLOW (System Notifications)                                            │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                 │
-│  1. Notification INSERT → trigger_push_notification() (DB trigger)              │
-│                             │                                                   │
-│                             ▼                                                   │
-│  2. pg_net.http_post → edge function "send-push-notification"                   │
-│                             │                                                   │
-│                             ▼ (1-2s cold start possible)                        │
-│  3. Edge function processes and sends push                                      │
-│                                                                                 │
-└─────────────────────────────────────────────────────────────────────────────────┘
-```
+## Root Causes Identified
 
-## Root Causes of Delay
+| Issue | Time Impact |
+|-------|-------------|
+| Notification edge function blocks UI | 2-4 seconds |
+| Full data reload after approval | 1-2 seconds |
+| Sequential database queries | 0.5-1.5 seconds |
 
-| Source | Delay | Description |
-|--------|-------|-------------|
-| **Edge function cold start** | 1-2s | First invocation after idle requires container spin-up |
-| **Sequential recipient loop** | 0.5-1s per recipient | Chat function calls send-push serially for each user |
-| **VAPID key conversion** | 100-200ms | Cryptographic key conversion on every single request |
-| **DB queries per request** | 100-300ms | Fetching sender info, org slug, participants, subscriptions |
-| **Realtime to client** | ~100ms | Supabase postgres_changes propagation (already optimized) |
+## Solution Overview
+
+We will make three key changes to make leave approval feel instant:
+
+1. **Background notifications** - Send the email notification without waiting for it
+2. **Instant UI update** - Remove the approved request from the list immediately
+3. **Skip redundant data fetching** - Don't reload all data after each approval
 
 ---
 
-## Optimization Strategy
+## Technical Implementation
 
-### Phase 1: Eliminate Cold Starts (Biggest Impact)
+### Change 1: Fire-and-Forget Notification
 
-**Keep edge functions warm** by adding a scheduled ping:
+**File:** `src/components/PendingLeaveApprovals.tsx`
+
+Remove the `await` keyword so the notification runs in the background:
+
+```typescript
+// BEFORE (lines 503-515):
+try {
+  const reviewerName = (currentEmployee as any)?.profiles?.full_name || "Manager";
+  await supabase.functions.invoke("notify-leave-decision", {
+    body: { request_id: requestId, decision: approved ? "approved" : "rejected", reviewer_name: reviewerName },
+  });
+} catch (notifyError) {
+  console.error("Failed to send notification:", notifyError);
+}
+
+// AFTER:
+const reviewerName = (currentEmployee as any)?.profiles?.full_name || "Manager";
+supabase.functions.invoke("notify-leave-decision", {
+  body: { request_id: requestId, decision: approved ? "approved" : "rejected", reviewer_name: reviewerName },
+}).catch(err => console.error("Failed to send notification:", err));
+```
+
+**Time saved: 2-4 seconds**
+
+---
+
+### Change 2: Optimistic UI Update
+
+**File:** `src/components/PendingLeaveApprovals.tsx`
+
+Remove the request from the list immediately, before the database update completes:
+
+```typescript
+// Add at the START of handleApproval, after setProcessing(requestId):
+const previousRequests = [...pendingRequests];
+setPendingRequests(prev => prev.filter(r => r.id !== requestId));
+
+// Modify the error handling to rollback on failure:
+if (error) {
+  toast.error(getErrorMessage(error, "Failed to update leave request"));
+  console.error("Update leave status error:", error);
+  setPendingRequests(previousRequests); // Rollback
+} else {
+  // ... success handling ...
+  // REMOVE: loadPendingRequests(); // No longer needed
+  onApprovalChange?.();
+}
+```
+
+**Time saved: 1-2 seconds**
+
+---
+
+### Change 3: Add Edge Function to Warmup Schedule
+
+**File:** SQL migration (optional enhancement)
+
+Add the leave decision function to the warmup cron job:
 
 ```sql
--- Cron job to ping edge functions every 5 minutes
-SELECT cron.schedule(
-  'keep-push-functions-warm',
-  '*/5 * * * *',
-  $$
-  SELECT net.http_post(
-    url := 'https://rygowmzkvxgnxagqlyxf.supabase.co/functions/v1/send-push-notification',
-    headers := '{"Content-Type": "application/json"}'::jsonb,
-    body := '{"warmup": true}'::jsonb
-  );
-  $$
+-- Add to the existing warmup schedule
+SELECT net.http_post(
+  url := 'https://rygowmzkvxgnxagqlyxf.supabase.co/functions/v1/notify-leave-decision',
+  headers := '{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."}'::jsonb,
+  body := '{"warmup": true}'::jsonb
 );
 ```
 
-Add early return in edge functions for warmup pings:
+**File:** `supabase/functions/notify-leave-decision/index.ts`
+
+Add warmup handler:
+
 ```typescript
-// In send-push-notification/index.ts
-const body = await req.json();
-if (body.warmup) {
-  return new Response(JSON.stringify({ status: "warm" }), { 
-    headers: { ...corsHeaders, "Content-Type": "application/json" } 
+// Add after parsing request body
+const requestBody = await req.json();
+if (requestBody.warmup) {
+  console.log("Warmup ping received - keeping container warm");
+  return new Response(JSON.stringify({ status: "warm" }), {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" }
   });
 }
 ```
 
-**Expected improvement: 1-2 seconds saved per notification**
-
 ---
 
-### Phase 2: Cache VAPID Keys (Removes 100-200ms per request)
+## Files to Modify
 
-Currently, VAPID keys are converted from base64 to JWK format **on every request**. Cache this:
-
-```typescript
-// send-push-notification/index.ts
-
-// Module-level cache (persists across requests in warm container)
-let cachedAppServer: webpush.ApplicationServer | null = null;
-
-async function getAppServer() {
-  if (cachedAppServer) return cachedAppServer;
-  
-  const jwkKeys = await convertVapidKeysToJwk(
-    Deno.env.get("VAPID_PUBLIC_KEY")!,
-    Deno.env.get("VAPID_PRIVATE_KEY")!
-  );
-  const vapidKeys = await webpush.importVapidKeys(jwkKeys, { extractable: false });
-  cachedAppServer = await webpush.ApplicationServer.new({
-    contactInformation: "mailto:support@globalyhub.com",
-    vapidKeys,
-  });
-  return cachedAppServer;
-}
-```
-
----
-
-### Phase 3: Parallelize Recipient Processing (Removes 0.5-1s per recipient)
-
-In `send-chat-push-notification`, change the sequential loop to parallel:
-
-```typescript
-// BEFORE: Sequential (slow)
-for (const userId of recipientUserIds) {
-  await supabase.functions.invoke("send-push-notification", {...});
-}
-
-// AFTER: Parallel (fast)
-await Promise.allSettled(
-  recipientUserIds.map(userId => 
-    supabase.functions.invoke("send-push-notification", {
-      body: { user_id: userId, title, body, url: chatUrl, ... }
-    })
-  )
-);
-```
-
----
-
-### Phase 4: Combine Into Single Edge Function (Advanced)
-
-For chat notifications, eliminate the nested function call entirely:
-
-```typescript
-// send-chat-push-notification/index.ts
-// Instead of calling send-push-notification for each user,
-// directly call webpush for all recipients in parallel
-
-const appServer = await getAppServer(); // Cached
-
-// Fetch all subscriptions for all recipients in ONE query
-const { data: allSubscriptions } = await supabase
-  .from("push_subscriptions")
-  .select("id, user_id, endpoint, p256dh, auth")
-  .in("user_id", recipientUserIds);
-
-// Send all pushes in parallel
-await Promise.allSettled(
-  allSubscriptions.map(sub => {
-    const subscriber = appServer.subscribe({
-      endpoint: sub.endpoint,
-      keys: { p256dh: sub.p256dh, auth: sub.auth }
-    });
-    return subscriber.pushTextMessage(payload, {});
-  })
-);
-```
-
----
-
-## Implementation Summary
-
-| File | Changes |
-|------|---------|
-| **New migration** | Add cron job to keep functions warm |
-| `supabase/functions/send-push-notification/index.ts` | Add warmup handler + cache VAPID keys at module level |
-| `supabase/functions/send-chat-push-notification/index.ts` | Parallelize recipients OR inline push sending |
+| File | Change |
+|------|--------|
+| `src/components/PendingLeaveApprovals.tsx` | Fire-and-forget notification + optimistic UI update |
+| `supabase/functions/notify-leave-decision/index.ts` | Add warmup handler |
+| Database migration | Update cron job to include leave notification function |
 
 ---
 
@@ -187,15 +128,9 @@ await Promise.allSettled(
 
 | Metric | Before | After |
 |--------|--------|-------|
-| Cold start delay | 1-2s | 0s (always warm) |
-| VAPID conversion | 100-200ms per call | 0ms (cached) |
-| Multi-recipient chat | N × 500ms | 500ms total (parallel) |
-| **Total latency** | **3-5 seconds** | **200-500ms** |
+| Notification delay | 2-4s (blocking) | 0s (background) |
+| Data reload | 1-2s | 0s (optimistic) |
+| **Total perceived latency** | **5-10 seconds** | **Under 1 second** |
 
----
+The manager will see the leave request disappear instantly when they click approve, while the email notification and database operations complete in the background.
 
-## Technical Notes
-
-- The realtime subscription in `useChatRealtime.ts` already uses delta updates for instant UI changes - this is well-optimized
-- System notifications use a DB trigger with `pg_net.http_post` which is asynchronous and doesn't block the INSERT
-- The warmup cron job costs ~$0.01/month in function invocations but eliminates the most frustrating delay source
