@@ -194,19 +194,25 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
             )}
             {/* Export menu */}
             <WikiExportMenu pageTitle={page.title} pageContent={page.content} isMobile={isMobile} />
-            {versions.length > 0 && (
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <History className="h-4 w-4" />
-                    {!isMobile && <span className="ml-1">History</span>}
-                  </Button>
-                </SheetTrigger>
-                <SheetContent>
-                  <SheetHeader>
-                    <SheetTitle>Version History</SheetTitle>
-                  </SheetHeader>
-                  <ScrollArea className="h-[calc(100vh-100px)] mt-4">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <History className="h-4 w-4" />
+                  {!isMobile && <span className="ml-1">History</span>}
+                </Button>
+              </SheetTrigger>
+              <SheetContent>
+                <SheetHeader>
+                  <SheetTitle>Version History</SheetTitle>
+                </SheetHeader>
+                <ScrollArea className="h-[calc(100vh-100px)] mt-4">
+                  {versions.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
+                      <History className="h-12 w-12 mb-4 opacity-30" />
+                      <p className="font-medium">No previous versions</p>
+                      <p className="text-sm mt-1">Version history is created when you save changes to the page.</p>
+                    </div>
+                  ) : (
                     <div className="space-y-4">
                       {versions.map((version) => (
                         <div 
@@ -242,10 +248,10 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
                         </div>
                       ))}
                     </div>
-                  </ScrollArea>
-                </SheetContent>
-              </Sheet>
-            )}
+                  )}
+                </ScrollArea>
+              </SheetContent>
+            </Sheet>
             {canEdit && (
               <Button size="sm" onClick={handleStartEdit}>
                 <Pencil className="h-4 w-4" />

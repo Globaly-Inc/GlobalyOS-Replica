@@ -1,13 +1,14 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
-import { Save, X, Loader2 } from "lucide-react";
+import { Save, X, Loader2, Check, Cloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useAuth } from "@/hooks/useAuth";
 import { WikiRichEditor } from "@/components/wiki/WikiRichEditor";
 import { useWikiKeyboardShortcuts } from "@/hooks/useWikiKeyboardShortcuts";
 import { toast } from "sonner";
@@ -22,11 +23,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+// Local storage key for drafts
+const getDraftKey = (pageId: string) => `wiki-draft-${pageId}`;
+
 const WikiEditPage = () => {
   const { pageId } = useParams<{ pageId: string }>();
   const { navigateOrg } = useOrgNavigation();
   const { currentOrg } = useOrganization();
-  const { isAdmin, isHR, loading: roleLoading } = useUserRole();
+  const { user } = useAuth();
+  const { isAdmin, isHR, isOwner, loading: roleLoading } = useUserRole();
   const queryClient = useQueryClient();
   
   const [editTitle, setEditTitle] = useState("");
@@ -34,8 +39,34 @@ const WikiEditPage = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [draftSaveStatus, setDraftSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [showSavedIndicator, setShowSavedIndicator] = useState(false);
+  const autosaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const draftSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const canEdit = isAdmin || isHR;
+  // Check page-level edit permission using can_edit_wiki_item RPC
+  const { data: canEditPage, isLoading: permissionLoading } = useQuery({
+    queryKey: ["wiki-page-edit-permission", pageId, user?.id],
+    queryFn: async () => {
+      if (!pageId || !user?.id) return false;
+      const { data, error } = await supabase.rpc('can_edit_wiki_item', {
+        _item_type: 'page',
+        _item_id: pageId,
+        _user_id: user.id,
+      });
+      if (error) {
+        console.error("Error checking edit permission:", error);
+        return false;
+      }
+      return data === true;
+    },
+    enabled: !!pageId && !!user?.id,
+    staleTime: 30000,
+  });
+
+  // Combined permission check: role-based OR page-level permission
+  const hasGlobalAccess = isAdmin || isHR || isOwner;
+  const canEdit = hasGlobalAccess || canEditPage === true;
 
   // Fetch page details
   const { data: page, isLoading } = useQuery({
@@ -44,7 +75,7 @@ const WikiEditPage = () => {
       if (!pageId) return null;
       const { data, error } = await supabase
         .from("wiki_pages")
-        .select("id, title, content, folder_id")
+        .select("id, title, content, folder_id, updated_at")
         .eq("id", pageId)
         .single();
       if (error) throw error;
@@ -68,19 +99,78 @@ const WikiEditPage = () => {
     },
   });
 
-  // Initialize form values when page loads
+  // Initialize form values when page loads, check for draft
   useEffect(() => {
-    if (page && !hasInitialized) {
-      setEditTitle(page.title);
-      setEditContent(page.content || "");
+    if (page && !hasInitialized && pageId) {
+      const draftKey = getDraftKey(pageId);
+      const savedDraft = localStorage.getItem(draftKey);
+      
+      if (savedDraft) {
+        try {
+          const draft = JSON.parse(savedDraft);
+          const draftTime = new Date(draft.savedAt).getTime();
+          const pageTime = new Date(page.updated_at).getTime();
+          
+          // Use draft if it's newer than the server version
+          if (draftTime > pageTime) {
+            setEditTitle(draft.title || page.title);
+            setEditContent(draft.content || page.content || "");
+            toast.info("Draft restored", { description: "Your unsaved changes were recovered" });
+          } else {
+            setEditTitle(page.title);
+            setEditContent(page.content || "");
+            // Clear outdated draft
+            localStorage.removeItem(draftKey);
+          }
+        } catch {
+          setEditTitle(page.title);
+          setEditContent(page.content || "");
+        }
+      } else {
+        setEditTitle(page.title);
+        setEditContent(page.content || "");
+      }
       setHasInitialized(true);
     }
-  }, [page, hasInitialized]);
+  }, [page, hasInitialized, pageId]);
 
   // Check for unsaved changes
   const hasUnsavedChanges = hasInitialized && page && (
     editTitle !== page.title || editContent !== (page.content || "")
   );
+
+  // Autosave to localStorage with debounce
+  useEffect(() => {
+    if (!hasInitialized || !pageId || !hasUnsavedChanges) return;
+
+    // Clear previous timeout
+    if (draftSaveTimeoutRef.current) {
+      clearTimeout(draftSaveTimeoutRef.current);
+    }
+
+    setDraftSaveStatus("saving");
+
+    // Save draft after 2 seconds of inactivity
+    draftSaveTimeoutRef.current = setTimeout(() => {
+      const draftKey = getDraftKey(pageId);
+      const draft = {
+        title: editTitle,
+        content: editContent,
+        savedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(draftKey, JSON.stringify(draft));
+      setDraftSaveStatus("saved");
+      
+      // Reset status after 3 seconds
+      setTimeout(() => setDraftSaveStatus("idle"), 3000);
+    }, 2000);
+
+    return () => {
+      if (draftSaveTimeoutRef.current) {
+        clearTimeout(draftSaveTimeoutRef.current);
+      }
+    };
+  }, [editTitle, editContent, hasInitialized, pageId, hasUnsavedChanges]);
 
   // Handle browser beforeunload event
   useEffect(() => {
@@ -100,6 +190,14 @@ const WikiEditPage = () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [hasUnsavedChanges]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
+      if (draftSaveTimeoutRef.current) clearTimeout(draftSaveTimeoutRef.current);
+    };
+  }, []);
 
   // Save mutation
   const saveMutation = useMutation({
@@ -138,10 +236,17 @@ const WikiEditPage = () => {
       if (error) throw error;
     },
     onSuccess: () => {
+      // Clear draft on successful save
+      if (pageId) {
+        localStorage.removeItem(getDraftKey(pageId));
+      }
       queryClient.invalidateQueries({ queryKey: ["wiki-page"] });
       queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
       queryClient.invalidateQueries({ queryKey: ["wiki-page-versions"] });
       toast.success("Page saved");
+      // Show saved indicator
+      setShowSavedIndicator(true);
+      setTimeout(() => setShowSavedIndicator(false), 2000);
     },
     onError: () => {
       toast.error("Failed to save page");
@@ -200,15 +305,15 @@ const WikiEditPage = () => {
     enabled: !!page && canEdit,
   });
 
-  // Redirect if user can't edit (only after role has loaded)
+  // Redirect if user can't edit (only after all permission checks have loaded)
   useEffect(() => {
-    if (!isLoading && !roleLoading && !canEdit) {
+    if (!isLoading && !roleLoading && !permissionLoading && !canEdit) {
       toast.error("You don't have permission to edit this page");
       navigateOrg("/wiki");
     }
-  }, [isLoading, roleLoading, canEdit, navigateOrg]);
+  }, [isLoading, roleLoading, permissionLoading, canEdit, navigateOrg]);
 
-  if (isLoading || roleLoading) {
+  if (isLoading || roleLoading || permissionLoading) {
     return (
       <div className="fixed inset-0 bg-background flex items-center justify-center z-50">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -238,6 +343,28 @@ const WikiEditPage = () => {
               className="text-xl font-semibold border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-0 h-auto py-1"
               placeholder="Page title..."
             />
+          </div>
+
+          {/* Draft status indicator */}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {draftSaveStatus === "saving" && (
+              <span className="flex items-center gap-1">
+                <Cloud className="h-3.5 w-3.5 animate-pulse" />
+                Saving draft...
+              </span>
+            )}
+            {draftSaveStatus === "saved" && (
+              <span className="flex items-center gap-1 text-primary">
+                <Check className="h-3.5 w-3.5" />
+                Draft saved
+              </span>
+            )}
+            {showSavedIndicator && (
+              <span className="flex items-center gap-1 text-primary font-medium">
+                <Check className="h-3.5 w-3.5" />
+                Saved!
+              </span>
+            )}
           </div>
 
           {/* Actions */}

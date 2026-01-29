@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -6,9 +6,10 @@ import {
   List, ListOrdered, Link, Image, FileText, 
   Code, Quote, Minus, Table, Upload, Underline,
   Plus, Trash2, AlignLeft, AlignCenter, AlignRight,
-  Pencil, X, ExternalLink, Type
+  Pencil, X, ExternalLink, Type, Undo2, Redo2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -1857,10 +1858,55 @@ myFunction();`;
     execCommand('insertHTML', '<hr class="my-6 border-border" />');
   };
 
+  // Calculate word and character counts
+  const contentStats = useMemo(() => {
+    const text = value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    const words = text ? text.split(' ').filter(w => w.length > 0).length : 0;
+    const chars = text.length;
+    const readingTime = Math.max(1, Math.ceil(words / 200)); // 200 words per minute
+    return { words, chars, readingTime };
+  }, [value]);
+
+  // Undo/Redo handlers
+  const handleUndo = useCallback(() => {
+    document.execCommand('undo');
+    triggerUpdate();
+  }, [triggerUpdate]);
+
+  const handleRedo = useCallback(() => {
+    document.execCommand('redo');
+    triggerUpdate();
+  }, [triggerUpdate]);
+
   return (
+    <TooltipProvider>
     <div className={cn("border rounded-lg bg-background", className)}>
       {/* Sticky Toolbar */}
       <div className="sticky top-0 z-20 flex flex-wrap items-center gap-0.5 p-2 border-b bg-background/95 backdrop-blur-sm shadow-sm rounded-t-lg">
+        {/* Undo/Redo */}
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 p-0"
+          onClick={handleUndo}
+          title="Undo (Ctrl+Z)"
+        >
+          <Undo2 className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 p-0"
+          onClick={handleRedo}
+          title="Redo (Ctrl+Y)"
+        >
+          <Redo2 className="h-4 w-4" />
+        </Button>
+        
+        <div className="w-px h-5 bg-border mx-1" />
+        
         {/* Text formatting */}
         <Button
           type="button"
@@ -1930,30 +1976,36 @@ myFunction();`;
           <Heading3 className="h-4 w-4" />
         </Button>
         
-        {/* Text Size Input */}
-        <div className="flex items-center gap-1">
-          <Type className="h-4 w-4 text-muted-foreground" />
-          <Input
-            type="text"
-            value={textSizeInput}
-            onChange={(e) => {
-              const val = e.target.value;
-              // Allow only numbers or empty string while typing
-              if (val === '' || val === '-' || /^\d+$/.test(val)) {
-                handleTextSizeChange(val);
-              }
-            }}
-            onBlur={() => {
-              // Reset to default if invalid on blur
-              if (textSizeInput === '' || textSizeInput === '-') {
-                setTextSizeInput(String(activeTextSize === -1 ? DEFAULT_TEXT_SIZE : activeTextSize));
-              }
-            }}
-            onMouseDown={(e) => { e.stopPropagation(); saveSelection(); }}
-            className="h-7 w-12 text-xs text-center px-1"
-            title="Font size (8-72px)"
-          />
-        </div>
+        {/* Text Size Input with Tooltip */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center gap-1">
+              <Type className="h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                value={textSizeInput}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  // Allow only numbers or empty string while typing
+                  if (val === '' || val === '-' || /^\d+$/.test(val)) {
+                    handleTextSizeChange(val);
+                  }
+                }}
+                onBlur={() => {
+                  // Reset to default if invalid on blur
+                  if (textSizeInput === '' || textSizeInput === '-') {
+                    setTextSizeInput(String(activeTextSize === -1 ? DEFAULT_TEXT_SIZE : activeTextSize));
+                  }
+                }}
+                onMouseDown={(e) => { e.stopPropagation(); saveSelection(); }}
+                className="h-7 w-12 text-xs text-center px-1"
+              />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Font size (8-72px)</p>
+          </TooltipContent>
+        </Tooltip>
         
         <div className="w-px h-5 bg-border mx-1" />
         
@@ -2225,6 +2277,15 @@ myFunction();`;
           )}
           style={{ minHeight }}
         />
+      </div>
+
+      {/* Status Bar - Word/Character Count */}
+      <div className="flex items-center justify-between px-4 py-2 border-t bg-muted/30 text-xs text-muted-foreground rounded-b-lg">
+        <div className="flex items-center gap-4">
+          <span>{contentStats.words} words</span>
+          <span>{contentStats.chars} characters</span>
+          <span>~{contentStats.readingTime} min read</span>
+        </div>
       </div>
 
       {/* Image Toolbar Popover */}
@@ -2528,5 +2589,6 @@ myFunction();`;
         }
       `}</style>
     </div>
+    </TooltipProvider>
   );
 };
