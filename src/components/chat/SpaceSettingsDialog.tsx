@@ -466,80 +466,79 @@ const SpaceSettingsDialog = ({
                   </AlertDescription>
                 </Alert>
               )}
-
-              {/* Danger zone */}
-              <div className="pt-4 border-t space-y-4">
-                <h4 className="text-sm font-medium text-destructive">Danger zone</h4>
-                
-                <div className="flex flex-wrap gap-3">
-                  {/* Archive button */}
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="outline" className="gap-2">
-                        <Archive className="h-4 w-4" />
-                        Archive space
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Archive this space?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Archiving "{space?.name}" will hide it from the sidebar and make it read-only.
-                          All messages will be preserved and the space can be restored later.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleArchive}>
-                          {archiveSpace.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                          Archive
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-
-                  {/* Delete button */}
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" className="gap-2">
-                        <Trash2 className="h-4 w-4" />
-                        Delete space
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete this space?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This will permanently delete "{space?.name}" and all messages in it.
-                          This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={handleDelete}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          {deleteSpace.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </div>
             </div>
           </ScrollArea>
 
           {/* Actions */}
-          <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button variant="outline" onClick={handleClose}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={!name.trim() || updateSpace.isPending}>
-              {updateSpace.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Save changes
-            </Button>
+          <div className="flex justify-between gap-2 pt-4 border-t">
+            {/* Left side - Danger actions */}
+            <div className="flex gap-2">
+              {/* Archive button */}
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground">
+                    <Archive className="h-4 w-4" />
+                    Archive
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Archive this space?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Archiving "{space?.name}" will hide it from the sidebar and make it read-only.
+                      All messages will be preserved and the space can be restored later.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleArchive}>
+                      {archiveSpace.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                      Archive
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              {/* Delete button */}
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10">
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete this space?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete "{space?.name}" and all messages in it.
+                      This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDelete}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {deleteSpace.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+
+            {/* Right side - Primary actions */}
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleClose}>
+                Cancel
+              </Button>
+              <Button onClick={handleSave} disabled={!name.trim() || updateSpace.isPending}>
+                {updateSpace.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                Save changes
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
