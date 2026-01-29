@@ -760,8 +760,16 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
                       if (space.departments?.length) parts.push(...space.departments.map(d => d.name));
                       if (space.projects?.length) parts.push(...space.projects.map(p => p.name));
                       
-                      if (parts.length === 0) return ' · Private';
-                      return ` · ${parts.join(' + ')}`;
+                      // Count manual members
+                      const manualCount = spaceMembers.filter(m => m.source === 'manual').length;
+                      
+                      if (parts.length === 0 && manualCount === 0) return ' · Private';
+                      
+                      let result = parts.length > 0 ? ` · ${parts.join(' + ')}` : '';
+                      if (manualCount > 0) {
+                        result += parts.length > 0 ? ` + ${manualCount} Manual` : ` · ${manualCount} Manual`;
+                      }
+                      return result;
                     })()}
                   </span>
                   {space?.auto_sync_members && (

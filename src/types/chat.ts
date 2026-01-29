@@ -68,6 +68,7 @@ export interface ChatSpaceMember {
   joined_at: string;
   last_read_at: string | null;
   notification_setting: 'all' | 'mentions' | 'mute';
+  source?: 'auto_sync' | 'manual' | 'space_creation';
   employee?: {
     id: string;
     user_id: string;
