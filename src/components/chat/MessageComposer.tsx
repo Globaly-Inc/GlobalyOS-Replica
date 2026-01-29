@@ -22,6 +22,8 @@ import {
   FileIcon,
   AtSign,
   Video,
+  List,
+  ListOrdered,
 } from "lucide-react";
 import { useSendMessage, useTypingIndicator, useSaveMentions, useSpaceMembers, useConversationParticipants } from "@/services/useChat";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -351,18 +353,40 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
     const selectedText = message.substring(start, end);
     
     let formattedText = selectedText;
+    let cursorOffset = 0;
+    
     switch (format) {
       case 'bold':
         formattedText = `**${selectedText}**`;
+        cursorOffset = 2;
         break;
       case 'italic':
         formattedText = `_${selectedText}_`;
+        cursorOffset = 1;
         break;
       case 'strikethrough':
         formattedText = `~~${selectedText}~~`;
+        cursorOffset = 2;
         break;
       case 'code':
         formattedText = `\`${selectedText}\``;
+        cursorOffset = 1;
+        break;
+      case 'bullet':
+        // Add bullet point at the start of each line or insert new bullet
+        if (selectedText) {
+          formattedText = selectedText.split('\n').map(line => `• ${line}`).join('\n');
+        } else {
+          formattedText = '• ';
+        }
+        break;
+      case 'numbered':
+        // Add numbers at the start of each line or insert new numbered item
+        if (selectedText) {
+          formattedText = selectedText.split('\n').map((line, i) => `${i + 1}. ${line}`).join('\n');
+        } else {
+          formattedText = '1. ';
+        }
         break;
     }
     
@@ -521,6 +545,25 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
                 onClick={() => applyFormatting('strikethrough')}
               >
                 <Strikethrough className="h-3.5 w-3.5" />
+              </Button>
+              <Separator orientation="vertical" className="h-4 mx-1" />
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                onClick={() => applyFormatting('bullet')}
+                title="Bullet list"
+              >
+                <List className="h-3.5 w-3.5" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                onClick={() => applyFormatting('numbered')}
+                title="Numbered list"
+              >
+                <ListOrdered className="h-3.5 w-3.5" />
               </Button>
               <Separator orientation="vertical" className="h-4 mx-1" />
               <Button 
