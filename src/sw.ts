@@ -95,6 +95,9 @@ self.addEventListener('push', (event) => {
   const isIncomingCall = data.data?.type === 'incoming_call';
   const isChatMessage = data.data?.type === 'chat_message';
 
+  // Use unique tag if not provided to prevent silent replacement
+  const notificationTag = data.tag || `msg-${Date.now()}`;
+  
   const options: NotificationOptions & { vibrate?: number[]; renotify?: boolean; actions?: Array<{ action: string; title: string }> } = {
     body: data.body,
     icon: data.icon || '/favicon.png',
@@ -105,8 +108,8 @@ self.addEventListener('push', (event) => {
       url: data.url || '/',
       dateOfArrival: Date.now(),
     },
-    tag: data.tag || 'default',
-    renotify: true,
+    tag: notificationTag,
+    renotify: isIncomingCall, // Only renotify for calls to prevent silent replacement
     silent: false,
     requireInteraction: isIncomingCall || data.requireInteraction,
   };
@@ -126,11 +129,15 @@ self.addEventListener('push', (event) => {
 
   console.log('[SW Push] Showing notification:', data.title, JSON.stringify(options));
 
-  // Show notification with error handling
+  // Show notification with error handling and diagnostics
   event.waitUntil(
     self.registration.showNotification(data.title, options)
-      .then(() => {
+      .then(async () => {
         console.log('[SW Push] Notification shown successfully');
+        // Diagnostic: count active notifications to confirm creation
+        const activeNotifications = await self.registration.getNotifications();
+        console.log(`[SW Push] Active notifications: ${activeNotifications.length}`, 
+          activeNotifications.map(n => ({ tag: n.tag, title: n.title })));
       })
       .catch((error) => {
         console.error('[SW Push] Failed to show notification:', error);
