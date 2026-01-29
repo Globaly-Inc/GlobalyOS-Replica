@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -23,15 +22,19 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Trash2, Users, Megaphone, Archive, RefreshCw, Shield, Info } from "lucide-react";
+import { Loader2, Trash2, Megaphone, Archive, MessageSquare, Info } from "lucide-react";
 import { useSpace, useUpdateSpace, useDeleteSpace, useArchiveSpace, useSpaceMembers, useAddSpaceMembers, useRemoveSpaceMember } from "@/services/useChat";
 import { useOrganization } from "@/hooks/useOrganization";
-
+import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { showErrorToast } from "@/lib/errorUtils";
 import AutoSyncPreviewDialog from "./AutoSyncPreviewDialog";
+import AccessScopeSelector, { type AccessScope } from "./AccessScopeSelector";
+import SpaceImagePicker from "./SpaceImagePicker";
+import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface SpaceSettingsDialogProps {
   open: boolean;
@@ -61,6 +64,7 @@ const SpaceSettingsDialog = ({
   const { data: space, isLoading } = useSpace(spaceId);
   const { data: spaceMembers = [] } = useSpaceMembers(spaceId);
   const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
   const queryClient = useQueryClient();
   const updateSpace = useUpdateSpace();
   const deleteSpace = useDeleteSpace();
@@ -68,10 +72,24 @@ const SpaceSettingsDialog = ({
   const addMembers = useAddSpaceMembers();
   const removeMember = useRemoveSpaceMember();
 
+  // Basic settings
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [spaceType, setSpaceType] = useState<"collaboration" | "announcements">("collaboration");
-  const [autoSyncMembers, setAutoSyncMembers] = useState(false);
+  const [iconUrl, setIconUrl] = useState<string | null>(null);
+  
+  // Access scope settings
+  const [accessScope, setAccessScope] = useState<AccessScope>("company");
+  const [selectedOfficeIds, setSelectedOfficeIds] = useState<string[]>([]);
+  const [selectedDepartmentIds, setSelectedDepartmentIds] = useState<string[]>([]);
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
+  const [officesEnabled, setOfficesEnabled] = useState(false);
+  const [departmentsEnabled, setDepartmentsEnabled] = useState(false);
+  const [projectsEnabled, setProjectsEnabled] = useState(false);
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+  const [inviteAdditionalMembers, setInviteAdditionalMembers] = useState(false);
+  
+  // Auto-sync for preview dialog
   const [showSyncPreview, setShowSyncPreview] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -103,8 +121,6 @@ const SpaceSettingsDialog = ({
         const officeIds = space.offices.map(o => o.id);
         query = query.in('office_id', officeIds);
       }
-      // For 'company' scope, no additional filter (all employees)
-      // For 'members' or 'projects' scope, auto-sync doesn't apply or needs different handling
 
       const { data, error } = await query;
       if (error) throw error;
@@ -113,7 +129,7 @@ const SpaceSettingsDialog = ({
     enabled: !!currentOrg?.id && !!space && (space.access_scope === 'company' || space.access_scope === 'offices') && open,
   });
 
-  // Calculate sync diff - only for preview (members not in expected scope will be removed)
+  // Calculate sync diff
   const syncPreview = useMemo(() => {
     const currentMemberSet = new Set(currentMemberIds);
     const expectedMemberSet = new Set(scopedEmployees.map(e => e.id));
@@ -127,11 +143,9 @@ const SpaceSettingsDialog = ({
         avatar_url: e.profiles?.avatar_url,
       }));
 
-    // Members to remove: those not in expected scope AND not manually added
     const membersToRemove = spaceMembers
       .filter(m => {
         const memberSource = (m as any).source;
-        // Only auto-sync or space_creation members can be auto-removed
         return !expectedMemberSet.has(m.employee_id) && memberSource !== 'manual';
       })
       .map(m => ({
@@ -144,30 +158,57 @@ const SpaceSettingsDialog = ({
     return { membersToAdd, membersToRemove };
   }, [currentMemberIds, scopedEmployees, spaceMembers]);
 
+  // Initialize state from space data
   useEffect(() => {
     if (space) {
       setName(space.name);
       setDescription(space.description || "");
       setSpaceType(space.space_type);
-      setAutoSyncMembers(space.auto_sync_members || false);
+      setIconUrl(space.icon_url || null);
+      
+      // Initialize access scope - map legacy DB values to UI scope types
+      const dbScope = space.access_scope;
+      // Map legacy scopes to 'custom'
+      if (dbScope === 'offices' || dbScope === 'projects') {
+        setAccessScope('custom');
+      } else if (dbScope === 'company' || dbScope === 'members' || dbScope === 'custom') {
+        setAccessScope(dbScope as AccessScope);
+      } else {
+        setAccessScope('company');
+      }
+      
+      // Initialize office selections
+      if (space.offices?.length) {
+        setOfficesEnabled(true);
+        setSelectedOfficeIds(space.offices.map(o => o.id));
+      } else {
+        setOfficesEnabled(false);
+        setSelectedOfficeIds([]);
+      }
+      
+      // Initialize department selections
+      if (space.departments?.length) {
+        setDepartmentsEnabled(true);
+        setSelectedDepartmentIds(space.departments.map(d => d.id));
+      } else {
+        setDepartmentsEnabled(false);
+        setSelectedDepartmentIds([]);
+      }
+      
+      // Initialize project selections
+      if (space.projects?.length) {
+        setProjectsEnabled(true);
+        setSelectedProjectIds(space.projects.map(p => p.id));
+      } else {
+        setProjectsEnabled(false);
+        setSelectedProjectIds([]);
+      }
     }
   }, [space]);
-
-  // Handle auto-sync toggle
-  const handleAutoSyncToggle = (enabled: boolean) => {
-    if (enabled && !autoSyncMembers) {
-      // Turning ON - show preview dialog
-      setShowSyncPreview(true);
-    } else if (!enabled) {
-      // Turning OFF - just disable
-      setAutoSyncMembers(false);
-    }
-  };
 
   const handleExecuteSync = async () => {
     setIsSyncing(true);
     try {
-      // Add missing members
       if (syncPreview.membersToAdd.length > 0) {
         await addMembers.mutateAsync({
           spaceId,
@@ -175,7 +216,6 @@ const SpaceSettingsDialog = ({
         });
       }
 
-      // Remove out-of-scope members (non-exempt only)
       for (const member of syncPreview.membersToRemove) {
         await removeMember.mutateAsync({
           spaceId,
@@ -183,15 +223,8 @@ const SpaceSettingsDialog = ({
         });
       }
 
-      // Enable auto-sync
-      await updateSpace.mutateAsync({
-        spaceId,
-        autoSyncMembers: true,
-      });
-
-      setAutoSyncMembers(true);
       queryClient.invalidateQueries({ queryKey: ['chat-space-members', spaceId] });
-      toast.success("Auto-sync enabled and members synchronized");
+      toast.success("Members synchronized");
     } catch (error) {
       showErrorToast(error, "Failed to sync members", {
         componentName: "SpaceSettingsDialog",
@@ -209,14 +242,38 @@ const SpaceSettingsDialog = ({
       return;
     }
 
+    // Validate access scope settings
+    if (accessScope === 'custom') {
+      const hasAnyCriteria = 
+        (officesEnabled && selectedOfficeIds.length > 0) ||
+        (departmentsEnabled && selectedDepartmentIds.length > 0) ||
+        (projectsEnabled && selectedProjectIds.length > 0);
+      if (!hasAnyCriteria) {
+        toast.error("Please select at least one criterion for group access");
+        return;
+      }
+    }
+    if (accessScope === 'members' && selectedMemberIds.length === 0) {
+      toast.error("Please select at least one team member");
+      return;
+    }
+
     try {
       await updateSpace.mutateAsync({
         spaceId,
         name: name.trim(),
         description: description.trim() || null,
         spaceType,
-        autoSyncMembers,
+        iconUrl,
+        accessScope,
+        officeIds: accessScope === 'custom' && officesEnabled ? selectedOfficeIds : undefined,
+        departmentIds: accessScope === 'custom' && departmentsEnabled ? selectedDepartmentIds : undefined,
+        projectIds: accessScope === 'custom' && projectsEnabled ? selectedProjectIds : undefined,
+        memberIds: accessScope === 'members' 
+          ? selectedMemberIds 
+          : (accessScope === 'custom' && inviteAdditionalMembers ? selectedMemberIds : undefined),
         oldName: space?.name,
+        oldIconUrl: space?.icon_url,
       });
       toast.success("Space settings updated");
       onOpenChange(false);
@@ -264,13 +321,10 @@ const SpaceSettingsDialog = ({
       setName(space.name);
       setDescription(space.description || "");
       setSpaceType(space.space_type);
-      setAutoSyncMembers(space.auto_sync_members || false);
+      setIconUrl(space.icon_url || null);
     }
     onOpenChange(false);
   };
-
-  // Check if auto-sync is applicable (only for office/company scopes)
-  const isAutoSyncApplicable = space?.access_scope === 'company' || space?.access_scope === 'offices';
 
   if (isLoading) {
     return (
@@ -287,182 +341,191 @@ const SpaceSettingsDialog = ({
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Space Settings</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-6">
-            {/* Space name */}
-            <div className="space-y-2">
-              <Label>Space name</Label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                maxLength={128}
-              />
-              <p className="text-xs text-muted-foreground text-right">
-                {name.length}/128
-              </p>
-            </div>
-
-            {/* Description */}
-            <div className="space-y-2">
-              <Label>Description (optional)</Label>
-              <Textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="What's this space about?"
-                maxLength={500}
-                rows={3}
-              />
-              <p className="text-xs text-muted-foreground text-right">
-                {description.length}/500
-              </p>
-            </div>
-
-            {/* Space type */}
-            <div className="space-y-3">
-              <Label className="text-base font-semibold">Space type</Label>
-
-              <RadioGroup
-                value={spaceType}
-                onValueChange={(value) => setSpaceType(value as "collaboration" | "announcements")}
-                className="space-y-3"
-              >
-                <div className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer">
-                  <RadioGroupItem value="collaboration" id="settings-collaboration" className="mt-1" />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                      <Label htmlFor="settings-collaboration" className="font-medium cursor-pointer">
-                        Collaboration
-                      </Label>
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Everyone can post and reply
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer">
-                  <RadioGroupItem value="announcements" id="settings-announcements" className="mt-1" />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <Megaphone className="h-4 w-4 text-muted-foreground" />
-                      <Label htmlFor="settings-announcements" className="font-medium cursor-pointer">
-                        Announcements
-                      </Label>
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Only admins can post, everyone can reply
-                    </p>
-                  </div>
-                </div>
-              </RadioGroup>
-            </div>
-
-            {/* Auto-sync members - only show for office/project/company scopes */}
-            {isAutoSyncApplicable && (
-              <div className="space-y-3 pt-4 border-t">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-base font-semibold flex items-center gap-2">
-                      <RefreshCw className="h-4 w-4" />
-                      Auto-sync members
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Automatically add/remove members based on {space?.access_scope === 'company' ? 'organization' : space?.access_scope}
-                    </p>
-                  </div>
-                  <Switch
-                    checked={autoSyncMembers}
-                    onCheckedChange={handleAutoSyncToggle}
+          <ScrollArea className="flex-1 pr-4 -mr-4">
+            <div className="space-y-6 pb-2">
+              {/* Space name with icon picker */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <SpaceImagePicker value={iconUrl} onChange={setIconUrl} />
+                  <Input
+                    placeholder="Space name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="flex-1"
+                    maxLength={128}
                   />
                 </div>
-
-                {autoSyncMembers && (
-                  <Alert className="bg-muted/50 border-border">
-                    <Info className="h-4 w-4" />
-                    <AlertDescription className="text-sm">
-                      Only manually invited members can be removed. Auto-synced members are managed by the system.
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {!autoSyncMembers && (
-                  <Alert className="bg-muted/50 border-border">
-                    <Info className="h-4 w-4" />
-                    <AlertDescription className="text-sm">
-                      Members are managed manually. Enable auto-sync to automatically keep membership in sync.
-                    </AlertDescription>
-                  </Alert>
-                )}
+                <p className="text-xs text-muted-foreground text-right">
+                  {name.length}/128
+                </p>
               </div>
-            )}
 
-            {/* Danger zone */}
-            <div className="pt-4 border-t space-y-4">
-              <h4 className="text-sm font-medium text-destructive">Danger zone</h4>
-              
-              <div className="flex flex-wrap gap-3">
-                {/* Archive button */}
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" className="gap-2">
-                      <Archive className="h-4 w-4" />
-                      Archive space
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Archive this space?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Archiving "{space?.name}" will hide it from the sidebar and make it read-only.
-                        All messages will be preserved and the space can be restored later.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleArchive}>
-                        {archiveSpace.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                        Archive
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+              {/* Description */}
+              <div className="space-y-2">
+                <Label htmlFor="description">Description (optional)</Label>
+                <Textarea
+                  id="description"
+                  placeholder="What is this space about?"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="resize-none"
+                  rows={3}
+                  maxLength={500}
+                />
+                <p className="text-xs text-muted-foreground text-right">
+                  {description.length}/500
+                </p>
+              </div>
 
-                {/* Delete button */}
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" className="gap-2">
-                      <Trash2 className="h-4 w-4" />
-                      Delete space
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete this space?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will permanently delete "{space?.name}" and all messages in it.
-                        This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleDelete}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        {deleteSpace.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+              {/* Space Type - Grid style matching CreateSpaceDialog */}
+              <div className="space-y-3">
+                <Label className="text-base font-semibold">Space type</Label>
+                <RadioGroup
+                  value={spaceType}
+                  onValueChange={(v) => setSpaceType(v as 'collaboration' | 'announcements')}
+                  className="grid grid-cols-2 gap-3"
+                >
+                  <div 
+                    className={cn(
+                      "flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors",
+                      spaceType === 'collaboration' 
+                        ? 'border-primary bg-primary/5' 
+                        : 'border-border hover:bg-muted/50'
+                    )}
+                    onClick={() => setSpaceType('collaboration')}
+                  >
+                    <RadioGroupItem value="collaboration" id="settings-collaboration" />
+                    <MessageSquare className={cn("h-4 w-4", spaceType === 'collaboration' ? 'text-primary' : 'text-muted-foreground')} />
+                    <div className="flex-1 min-w-0">
+                      <Label htmlFor="settings-collaboration" className="font-medium cursor-pointer text-sm">
+                        Collaboration
+                      </Label>
+                      <p className="text-xs text-muted-foreground truncate">Everyone can post</p>
+                    </div>
+                  </div>
+                  
+                  <div 
+                    className={cn(
+                      "flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors",
+                      spaceType === 'announcements' 
+                        ? 'border-primary bg-primary/5' 
+                        : 'border-border hover:bg-muted/50'
+                    )}
+                    onClick={() => setSpaceType('announcements')}
+                  >
+                    <RadioGroupItem value="announcements" id="settings-announcements" />
+                    <Megaphone className={cn("h-4 w-4", spaceType === 'announcements' ? 'text-primary' : 'text-muted-foreground')} />
+                    <div className="flex-1 min-w-0">
+                      <Label htmlFor="settings-announcements" className="font-medium cursor-pointer text-sm">
+                        Announcement
+                      </Label>
+                      <p className="text-xs text-muted-foreground truncate">Only admins can post</p>
+                    </div>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {/* Access Settings */}
+              <AccessScopeSelector
+                value={accessScope}
+                onChange={setAccessScope}
+                selectedOfficeIds={selectedOfficeIds}
+                onOfficeIdsChange={setSelectedOfficeIds}
+                selectedDepartmentIds={selectedDepartmentIds}
+                onDepartmentIdsChange={setSelectedDepartmentIds}
+                selectedProjectIds={selectedProjectIds}
+                onProjectIdsChange={setSelectedProjectIds}
+                officesEnabled={officesEnabled}
+                onOfficesEnabledChange={setOfficesEnabled}
+                departmentsEnabled={departmentsEnabled}
+                onDepartmentsEnabledChange={setDepartmentsEnabled}
+                projectsEnabled={projectsEnabled}
+                onProjectsEnabledChange={setProjectsEnabled}
+                selectedMemberIds={selectedMemberIds}
+                onMemberIdsChange={setSelectedMemberIds}
+                currentEmployeeId={currentEmployee?.id}
+                inviteAdditionalMembers={inviteAdditionalMembers}
+                onInviteAdditionalMembersChange={setInviteAdditionalMembers}
+              />
+
+              {/* Info about access changes */}
+              {space && (
+                <Alert className="bg-muted/50 border-border">
+                  <Info className="h-4 w-4" />
+                  <AlertDescription className="text-sm">
+                    Changing access settings will update membership based on the new criteria. Members added manually will not be removed.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Danger zone */}
+              <div className="pt-4 border-t space-y-4">
+                <h4 className="text-sm font-medium text-destructive">Danger zone</h4>
+                
+                <div className="flex flex-wrap gap-3">
+                  {/* Archive button */}
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" className="gap-2">
+                        <Archive className="h-4 w-4" />
+                        Archive space
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Archive this space?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Archiving "{space?.name}" will hide it from the sidebar and make it read-only.
+                          All messages will be preserved and the space can be restored later.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleArchive}>
+                          {archiveSpace.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                          Archive
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+
+                  {/* Delete button */}
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" className="gap-2">
+                        <Trash2 className="h-4 w-4" />
+                        Delete space
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete this space?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will permanently delete "{space?.name}" and all messages in it.
+                          This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleDelete}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          {deleteSpace.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               </div>
             </div>
-          </div>
+          </ScrollArea>
 
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-4 border-t">
@@ -483,8 +546,8 @@ const SpaceSettingsDialog = ({
         onOpenChange={setShowSyncPreview}
         membersToAdd={syncPreview.membersToAdd}
         membersToRemove={syncPreview.membersToRemove}
-        onConfirm={handleExecuteSync}
         isPending={isSyncing}
+        onConfirm={handleExecuteSync}
       />
     </>
   );

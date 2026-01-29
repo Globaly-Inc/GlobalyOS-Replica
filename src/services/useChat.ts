@@ -1352,6 +1352,11 @@ export const useUpdateSpace = () => {
       spaceType,
       iconUrl,
       autoSyncMembers,
+      accessScope,
+      officeIds,
+      departmentIds,
+      projectIds,
+      memberIds,
       oldName,
       oldIconUrl,
     }: {
@@ -1361,6 +1366,11 @@ export const useUpdateSpace = () => {
       spaceType?: 'collaboration' | 'announcements';
       iconUrl?: string | null;
       autoSyncMembers?: boolean;
+      accessScope?: 'company' | 'custom' | 'members';
+      officeIds?: string[];
+      departmentIds?: string[];
+      projectIds?: string[];
+      memberIds?: string[];
       oldName?: string;
       oldIconUrl?: string | null;
     }) => {
@@ -1375,6 +1385,14 @@ export const useUpdateSpace = () => {
       if (spaceType !== undefined) updateData.space_type = spaceType;
       if (iconUrl !== undefined) updateData.icon_url = iconUrl;
       if (autoSyncMembers !== undefined) updateData.auto_sync_members = autoSyncMembers;
+      
+      // Handle access scope changes
+      if (accessScope !== undefined) {
+        updateData.access_scope = accessScope;
+        updateData.access_type = accessScope === 'company' ? 'public' : 'private';
+        // Auto-sync is enabled for company and custom scopes
+        updateData.auto_sync_members = accessScope !== 'members';
+      }
 
       const { error } = await supabase
         .from('chat_spaces')
@@ -1382,6 +1400,57 @@ export const useUpdateSpace = () => {
         .eq('id', spaceId);
 
       if (error) throw error;
+
+      // Handle access scope association changes
+      if (accessScope !== undefined) {
+        // Clear existing associations
+        await supabase.from('chat_space_offices').delete().eq('space_id', spaceId);
+        await supabase.from('chat_space_departments').delete().eq('space_id', spaceId);
+        await supabase.from('chat_space_projects').delete().eq('space_id', spaceId);
+        
+        // Add new associations based on scope
+        if (accessScope === 'custom') {
+          if (officeIds?.length) {
+            await supabase.from('chat_space_offices').insert(
+              officeIds.map(id => ({ space_id: spaceId, office_id: id, organization_id: currentOrg.id }))
+            );
+          }
+          if (departmentIds?.length) {
+            await supabase.from('chat_space_departments').insert(
+              departmentIds.map(id => ({ space_id: spaceId, department_id: id, organization_id: currentOrg.id }))
+            );
+          }
+          if (projectIds?.length) {
+            await supabase.from('chat_space_projects').insert(
+              projectIds.map(id => ({ space_id: spaceId, project_id: id, organization_id: currentOrg.id }))
+            );
+          }
+        }
+
+        // Handle member additions for manual member scope or additional invites
+        if (memberIds?.length) {
+          // Get existing member IDs to avoid duplicates
+          const { data: existingMembers } = await supabase
+            .from('chat_space_members')
+            .select('employee_id')
+            .eq('space_id', spaceId);
+          
+          const existingMemberIds = new Set((existingMembers || []).map(m => m.employee_id));
+          const newMemberIds = memberIds.filter(id => !existingMemberIds.has(id));
+          
+          if (newMemberIds.length > 0) {
+            await supabase.from('chat_space_members').insert(
+              newMemberIds.map(empId => ({
+                space_id: spaceId,
+                employee_id: empId,
+                organization_id: currentOrg.id,
+                role: 'member',
+                source: 'manual'
+              }))
+            );
+          }
+        }
+      }
 
       const actorName = currentEmployee.profiles?.full_name || 'Someone';
 
@@ -1427,6 +1496,7 @@ export const useUpdateSpace = () => {
       queryClient.invalidateQueries({ queryKey: ['chat-spaces'] });
       queryClient.invalidateQueries({ queryKey: ['chat-space'] });
       queryClient.invalidateQueries({ queryKey: ['chat-messages'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-space-members'] });
     },
   });
 };
