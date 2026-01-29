@@ -339,63 +339,63 @@ const TeamMemberProfile = () => {
   };
   const loadPositionHistory = async () => {
     if (!id) return;
-    const {
-      data
-    } = await supabase.from("position_history").select(`
-        id,
-        position,
-        department,
-        salary,
-        manager_id,
-        effective_date,
-        end_date,
-        change_type,
-        notes,
-        employment_type,
-        is_current,
-        manager:employees!position_history_manager_id_fkey(
-          profiles!inner(full_name)
-        )
-      `).eq("employee_id", id).order("effective_date", {
-      ascending: false
+    
+    // Use secure RPC that enforces field-level access control for salary
+    const { data, error } = await supabase.rpc('get_position_history_for_viewer', {
+      target_employee_id: id
     });
-    if (data) setPositionHistory(data);
+    
+    if (error) {
+      console.error('Error loading position history:', error);
+      return;
+    }
+    
+    if (data) {
+      // Map RPC response to expected format
+      const mappedData = data.map((ph: any) => ({
+        id: ph.ph_id,
+        position: ph.ph_position,
+        department: ph.ph_department,
+        salary: ph.ph_salary, // Will be NULL if viewer lacks permission
+        manager_id: ph.ph_manager_id,
+        effective_date: ph.ph_effective_date,
+        end_date: ph.ph_end_date,
+        change_type: ph.ph_change_type,
+        notes: ph.ph_notes,
+        employment_type: ph.ph_employment_type,
+        is_current: ph.ph_is_current,
+        manager: ph.ph_manager_name ? {
+          profiles: { full_name: ph.ph_manager_name }
+        } : null
+      }));
+      setPositionHistory(mappedData);
+    }
   };
   const loadEmployee = async () => {
-    const {
-      data
-    } = await supabase.from("employees").select(`
-        id,
-        user_id,
-        status,
-        position,
-        department,
-        salary,
-        join_date,
-        date_of_birth,
-        phone,
-        superpowers,
-        manager_id,
-        office_id,
-        organization_id,
-        personal_email,
-        street,
-        city,
-        state,
-        postcode,
-        country,
-        id_number,
-        tax_number,
-        remuneration,
-        remuneration_currency,
-        employment_type,
-        emergency_contact_name,
-        emergency_contact_phone,
-        emergency_contact_relationship,
-        bank_details,
-        position_effective_date,
-        gender,
-        last_working_day,
+    if (!id) {
+      setLoading(false);
+      return;
+    }
+    
+    // Use secure RPC that enforces field-level access control
+    // The RPC returns NULL for sensitive fields if the viewer lacks permission
+    const { data: rpcData, error: rpcError } = await supabase
+      .rpc('get_employee_for_viewer', { target_employee_id: id });
+      
+    if (rpcError || !rpcData?.[0]) {
+      console.error('Error loading employee:', rpcError);
+      setLoading(false);
+      return;
+    }
+    
+    // Cast to any to handle fields that may not be in auto-generated types yet
+    const emp = rpcData[0] as any;
+    
+    // Fetch related data (profile, office, manager) separately
+    // These queries only fetch non-sensitive fields
+    const { data: relatedData } = await supabase
+      .from('employees')
+      .select(`
         profiles!inner(
           full_name,
           email,
@@ -406,39 +406,84 @@ const TeamMemberProfile = () => {
           city,
           country
         )
-      `).eq("id", id).single();
-    if (data) {
-      setEmployee(data);
-      // Load manager if exists
-      if (data.manager_id) {
-        const {
-          data: managerData
-        } = await supabase.from("employees").select(`
-            id,
-            position,
-            profiles!inner(full_name, avatar_url)
-          `).eq("id", data.manager_id).single();
-        if (managerData) {
-          setManager(managerData);
-        } else {
-          setManager(null);
-        }
-      } else {
-        setManager(null);
-      }
-      // Load office employee count
-      if (data.office_id) {
-        const {
-          count
-        } = await supabase.from("employees").select("id", {
-          count: "exact",
-          head: true
-        }).eq("office_id", data.office_id).eq("status", "active");
-        setOfficeEmployeeCount(count || 0);
-      } else {
-        setOfficeEmployeeCount(0);
-      }
+      `)
+      .eq('id', id)
+      .single();
+    
+    // Map RPC response - sensitive fields will be NULL if unauthorized
+    const employeeData = {
+      id: emp.emp_id,
+      user_id: emp.emp_user_id,
+      organization_id: emp.emp_organization_id,
+      position: emp.emp_position,
+      department: emp.emp_department,
+      status: emp.emp_status,
+      join_date: emp.emp_join_date,
+      date_of_birth: emp.emp_date_of_birth,
+      superpowers: emp.emp_superpowers,
+      manager_id: emp.emp_manager_id,
+      office_id: emp.emp_office_id,
+      employment_type: emp.emp_employment_type,
+      position_effective_date: emp.emp_position_effective_date,
+      gender: emp.emp_gender,
+      last_working_day: emp.emp_last_working_day,
+      // Personal contact - RPC returns NULL if viewer lacks permission
+      phone: emp.emp_phone,
+      personal_email: emp.emp_personal_email,
+      // Address fields - RPC returns NULL if viewer lacks permission
+      street: emp.emp_street,
+      city: emp.emp_city,
+      state: emp.emp_state,
+      postcode: emp.emp_postcode,
+      country: emp.emp_country,
+      // Sensitive financial fields - RPC returns NULL if viewer lacks permission
+      salary: emp.emp_salary,
+      id_number: emp.emp_id_number,
+      tax_number: emp.emp_tax_number,
+      remuneration: emp.emp_remuneration,
+      remuneration_currency: emp.emp_remuneration_currency,
+      bank_details: emp.emp_bank_details,
+      // Emergency contact - RPC returns NULL if viewer lacks permission
+      emergency_contact_name: emp.emp_emergency_contact_name,
+      emergency_contact_phone: emp.emp_emergency_contact_phone,
+      emergency_contact_relationship: emp.emp_emergency_contact_relationship,
+      // Related data from second query
+      profiles: relatedData?.profiles,
+      offices: relatedData?.offices,
+    };
+    
+    setEmployee(employeeData);
+    
+    // Load manager if exists
+    if (emp.emp_manager_id) {
+      const { data: managerData } = await supabase
+        .from("employees")
+        .select(`
+          id,
+          position,
+          profiles!inner(full_name, avatar_url)
+        `)
+        .eq("id", emp.emp_manager_id)
+        .single();
+        
+      setManager(managerData || null);
+    } else {
+      setManager(null);
     }
+    
+    // Load office employee count
+    if (emp.emp_office_id) {
+      const { count } = await supabase
+        .from("employees")
+        .select("id", { count: "exact", head: true })
+        .eq("office_id", emp.emp_office_id)
+        .eq("status", "active");
+        
+      setOfficeEmployeeCount(count || 0);
+    } else {
+      setOfficeEmployeeCount(0);
+    }
+    
     setLoading(false);
   };
   const loadDirectReports = async () => {
