@@ -319,34 +319,34 @@ const Home = () => {
     const today = new Date();
     const nextDays = 30;
 
-    const { data: employees } = await supabase.from("employees").select(`
-        id,
-        date_of_birth,
-        join_date,
-        profiles!inner(
-          full_name,
-          avatar_url
-        )
-      `).eq("organization_id", currentOrg.id).eq("status", "active");
-    if (!employees) return;
+    // SECURITY: Use secure RPC that only returns month/day for birthdays (not full DOB)
+    // This prevents age/exact birth date exposure via API responses
+    const { data: employees, error } = await supabase
+      .rpc('get_birthday_calendar_data', { org_id: currentOrg.id });
+    
+    if (error || !employees) {
+      console.error('Error loading birthday calendar data:', error);
+      return;
+    }
 
     const birthdays: UpcomingEvent[] = [];
     const anniversaries: UpcomingEvent[] = [];
 
     employees.forEach((emp: any) => {
-      if (emp.date_of_birth) {
-        const dob = parseISO(emp.date_of_birth);
-        const thisYearBirthday = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
+      // Parse birthday from MM-DD format (secure - no year exposed)
+      if (emp.birthday_month_day) {
+        const [month, day] = emp.birthday_month_day.split('-').map(Number);
+        const thisYearBirthday = new Date(today.getFullYear(), month - 1, day);
         if (thisYearBirthday < today && !isSameDay(thisYearBirthday, today)) {
           thisYearBirthday.setFullYear(today.getFullYear() + 1);
         }
         const daysUntil = Math.ceil((thisYearBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
         if (daysUntil >= 0 && daysUntil <= nextDays) {
           birthdays.push({
-            id: emp.id,
+            id: emp.employee_id,
             date: thisYearBirthday,
             daysUntil,
-            profiles: emp.profiles
+            profiles: { full_name: emp.full_name, avatar_url: emp.avatar_url }
           });
         }
       }
@@ -363,11 +363,11 @@ const Home = () => {
           const upcomingYears = thisYearAnniversary.getFullYear() - joinDate.getFullYear();
           if (daysUntil >= 0 && daysUntil <= nextDays) {
             anniversaries.push({
-              id: emp.id,
+              id: emp.employee_id,
               date: thisYearAnniversary,
               daysUntil,
               yearsCount: upcomingYears,
-              profiles: emp.profiles
+              profiles: { full_name: emp.full_name, avatar_url: emp.avatar_url }
             });
           }
         }
