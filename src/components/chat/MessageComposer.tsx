@@ -192,6 +192,24 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
     };
   }, [conversationId, spaceId, clearTypingStatus]);
 
+  // Auto-resize textarea based on content (up to 7 lines)
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    
+    // Reset height to auto to get accurate scrollHeight
+    textarea.style.height = 'auto';
+    
+    // Calculate max height for 7 lines
+    const lineHeight = isMobile ? 28 : 24;
+    const maxLines = 7;
+    const maxHeight = lineHeight * maxLines;
+    
+    // Set height to min of scrollHeight and maxHeight
+    const newHeight = Math.min(textarea.scrollHeight, maxHeight);
+    textarea.style.height = `${newHeight}px`;
+  }, [message, isMobile]);
+
   // Handle @ mention detection
   const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -613,10 +631,10 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
               onChange={handleMessageChange}
               onKeyDown={handleKeyDown}
               className={cn(
-                "border-0 resize-none focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none",
+                "border-0 resize-none focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none overflow-y-auto",
                 isMobile 
-                  ? "min-h-[48px] max-h-[120px] text-base py-3 px-4" 
-                  : "min-h-[44px] max-h-[160px] text-sm"
+                  ? "min-h-[48px] text-base py-3 px-4" 
+                  : "min-h-[44px] text-sm"
               )}
               rows={1}
             />
