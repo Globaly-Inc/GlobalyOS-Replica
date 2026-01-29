@@ -1,13 +1,14 @@
 
-# Wiki Templates Management System - Audit Report & Improvement Plan
+# Wiki Templates Management System - Comprehensive Audit & Improvement Plan
 
-## Summary of Audit
+## Audit Summary
 
-I conducted a thorough review of the recently implemented Wiki Templates Management System covering:
+I conducted a thorough review of the Wiki Templates Management System implementation covering:
 - Database schema and RLS policies
 - Super Admin UI components (TemplateWikiTab, WikiTemplateEditor, AIWikiTemplateTools)
-- Edge functions for AI generation (generate-wiki-policy-templates, generate-wiki-sops, bulk-generate-wiki-content)
-- Integration with the organization Wiki module (WikiTemplatesDialog)
+- Edge functions for AI generation
+- Organization Wiki integration (WikiTemplatesDialog, useWikiTemplates hook)
+- Main Wiki page and page creation flow
 
 ---
 
@@ -17,141 +18,232 @@ I conducted a thorough review of the recently implemented Wiki Templates Managem
 
 | Issue | Impact | Component |
 |-------|--------|-----------|
-| **Edge functions missing from config.toml** | AI generation won't work - functions not deployed | `supabase/config.toml` |
-| **WikiTemplatesDialog not integrated with database** | Organizations can't see Super Admin templates - still using hardcoded templates | `WikiTemplatesDialog.tsx` |
-| **Missing useWikiTemplates hook** | No frontend hook to fetch templates for organizations | Not created |
+| **WikiTemplatesDialog not integrated into Wiki UI** | Templates feature is completely unused - dialog exists but is never imported or rendered | `Wiki.tsx`, `WikiFolderView.tsx` |
+| **Field name mismatch in useWikiTemplates** | Organization filtering broken - hook looks for `business_category` but organizations use `industry` field | `src/hooks/useWikiTemplates.ts` |
+| **No template selection during page creation** | Users can only create blank pages - no way to use templates | `Wiki.tsx` page creation flow |
 
 ### Medium Priority Issues
 
 | Issue | Impact | Component |
 |-------|--------|-----------|
-| **Super Admin RLS policy uses WITH CHECK without USING** | Super Admins can't view inactive templates they created | RLS policies |
-| **No content preview in editor** | Hard to see how HTML content will render | `WikiTemplateEditor.tsx` |
-| **Plain textarea for HTML content** | Poor editing experience for rich content | `WikiTemplateEditor.tsx` |
-| **No duplicate template check** | AI can generate duplicate policies | Edge functions |
-| **Missing loading states** | No skeleton loading for template list | `TemplateWikiTab.tsx` |
+| **HTML content stored unsanitized** | Potential XSS risk when rendering template content with `dangerouslySetInnerHTML` | `WikiTemplatesDialog.tsx` preview |
+| **No template content validation** | AI-generated content may contain markdown or malformed HTML | Edge functions |
+| **No pagination in template list** | Performance issue if template count grows large | `TemplateWikiTab.tsx` |
+| **Missing keyboard navigation** | Accessibility issue in template selection dialog | `WikiTemplatesDialog.tsx` |
 
 ### Low Priority / UX Improvements
 
 | Issue | Impact | Component |
 |-------|--------|-----------|
-| No search functionality in template list | Hard to find specific templates | `TemplateWikiTab.tsx` |
-| No bulk actions (activate/deactivate) | Manual work for multiple templates | `TemplateWikiTab.tsx` |
-| No template preview for organizations | Users can't preview before using | `WikiTemplatesDialog.tsx` |
-| No template usage analytics | Can't track popular templates | Not implemented |
+| No bulk activate/deactivate in Super Admin | Manual work for multiple templates | `TemplateWikiTab.tsx` |
+| No template usage analytics | Can't track which templates are popular | Not implemented |
+| No template versioning | Can't track changes to templates | Not implemented |
+| Built-in templates not displayed when DB is empty in categories | Only shows in "All" tab | `WikiTemplatesDialog.tsx` filtering |
 
 ---
 
 ## Implementation Plan
 
-### Phase 1: Critical Fixes (Must Do)
+### Phase 1: Critical Integration Fixes
 
-**1. Add edge functions to config.toml**
+**1. Fix organization field name mismatch**
 
-```toml
-[functions.generate-wiki-policy-templates]
-verify_jwt = false
+The `useWikiTemplates` hook incorrectly references `business_category` but organizations use `industry`:
 
-[functions.generate-wiki-sops]
-verify_jwt = false
+```text
+File: src/hooks/useWikiTemplates.ts
 
-[functions.bulk-generate-wiki-content]
-verify_jwt = false
+Changes:
+- Line 18-21: Update Organization interface to use `industry` instead of `business_category`
+- Line 115: Change queryKey to use `org?.industry`  
+- Line 138-139: Change `orgBusinessCategory` to `orgIndustry` using `org?.industry`
+- Lines 148-149, 160, 177, 183: Update all references to use correct field name
 ```
 
-**2. Create useWikiTemplates hook for organizations**
+**2. Integrate WikiTemplatesDialog into page creation flow**
 
-New file: `src/hooks/useWikiTemplates.ts`
-- Fetch active templates from `template_wiki_documents`
-- Filter by organization's business category and country
-- Merge with local built-in templates (as fallback)
-- Cache with React Query
+Currently, clicking "New Page" creates a blank page directly. We need to show the template dialog first:
 
-**3. Update WikiTemplatesDialog to use database templates**
+```text
+File: src/pages/Wiki.tsx
 
-Changes to `src/components/wiki/WikiTemplatesDialog.tsx`:
-- Import and use the new `useWikiTemplates` hook
-- Display database templates organized by category
-- Keep hardcoded templates as fallback if no database templates
-- Add category tabs/filters for better organization
-- Show template description and tags
-
-### Phase 2: RLS & Security Fixes
-
-**4. Fix Super Admin SELECT policy**
-
-The current policy only allows selecting active templates. Super Admins need to see all templates including inactive ones:
-
-```sql
-CREATE POLICY "Super admins can view all wiki templates" 
-ON public.template_wiki_documents 
-FOR SELECT 
-USING (public.is_super_admin() OR is_active = true);
+Changes:
+- Import WikiTemplatesDialog component
+- Add state for template dialog: `templateDialogOpen`
+- Modify `onStartCreating("page")` to open template dialog instead of creating directly
+- Add handler for template selection that creates page with template content
 ```
 
-### Phase 3: UX Improvements
+```text
+File: src/components/wiki/WikiFolderView.tsx
 
-**5. Improve WikiTemplateEditor**
+Changes:
+- Import WikiTemplatesDialog component
+- Add template dialog state and props
+- Modify "New Page" button to trigger template dialog
+- Pass selected template content to page creation
+```
 
-- Add content preview toggle (side-by-side view)
-- Consider using existing WikiRichEditor for content editing
-- Add validation feedback
+**3. Create page with template content**
 
-**6. Add duplicate detection to AI generation**
+Update the page creation flow to accept initial content:
 
-Before inserting, check if a template with the same name/type already exists:
-- Skip if exists and show in results as "Already exists"
-- Or ask user whether to overwrite
+```text
+File: src/pages/Wiki.tsx
 
-**7. Add search and bulk actions to TemplateWikiTab**
-
-- Search input that filters templates by name, category, tags
-- Bulk select with checkbox column
-- Bulk actions: Activate/Deactivate selected
+Changes to createPageMutation:
+- Accept optional `content` parameter
+- Pass content to RPC or use update after creation
+```
 
 ---
 
-## Files to Modify/Create
+### Phase 2: Security & Validation Fixes
 
-| File | Action | Changes |
-|------|--------|---------|
-| `supabase/config.toml` | Modify | Add 3 edge function configs |
-| `src/hooks/useWikiTemplates.ts` | Create | Hook to fetch templates for orgs |
-| `src/components/wiki/WikiTemplatesDialog.tsx` | Modify | Use database templates |
-| Database migration | Create | Fix Super Admin SELECT policy |
-| `supabase/functions/generate-wiki-policy-templates/index.ts` | Modify | Add duplicate check |
-| `supabase/functions/generate-wiki-sops/index.ts` | Modify | Add duplicate check |
-| `src/components/super-admin/templates/WikiTemplateEditor.tsx` | Modify | Add preview toggle |
-| `src/components/super-admin/templates/TemplateWikiTab.tsx` | Modify | Add search |
+**4. Sanitize HTML content before rendering**
+
+Use DOMPurify (already installed) to sanitize template content:
+
+```text
+File: src/components/wiki/WikiTemplatesDialog.tsx
+
+Changes:
+- Import DOMPurify
+- Sanitize content before using in dangerouslySetInnerHTML
+- Add sanitization in preview section
+```
+
+**5. Add HTML validation to AI generation**
+
+Edge functions should clean up AI-generated content:
+
+```text
+Files:
+- supabase/functions/generate-wiki-policy-templates/index.ts
+- supabase/functions/generate-wiki-sops/index.ts
+- supabase/functions/bulk-generate-wiki-content/index.ts
+
+Changes:
+- Strip any markdown code fences from AI response
+- Validate HTML structure before saving
+```
+
+---
+
+### Phase 3: UX Enhancements
+
+**6. Add bulk actions to Super Admin**
+
+```text
+File: src/components/super-admin/templates/TemplateWikiTab.tsx
+
+Changes:
+- Add checkbox column for row selection
+- Add bulk action dropdown (Activate/Deactivate selected)
+- Add bulk delete with confirmation
+```
+
+**7. Fix built-in templates display in category tabs**
+
+When database is empty, built-in templates should show in their respective category tabs:
+
+```text
+File: src/hooks/useWikiTemplates.ts
+
+Changes:
+- Include all built-in templates in results, not just blank
+- Merge database templates with built-in templates properly
+```
+
+**8. Add keyboard navigation to template dialog**
+
+```text
+File: src/components/wiki/WikiTemplatesDialog.tsx
+
+Changes:
+- Add arrow key navigation between templates
+- Add Enter to select current template
+- Add Escape to close dialog
+```
+
+---
+
+## Files to Modify
+
+| File | Action | Priority | Changes |
+|------|--------|----------|---------|
+| `src/hooks/useWikiTemplates.ts` | Modify | Critical | Fix `industry` vs `business_category` field name |
+| `src/pages/Wiki.tsx` | Modify | Critical | Import & render WikiTemplatesDialog, modify page creation |
+| `src/components/wiki/WikiFolderView.tsx` | Modify | Critical | Add template dialog integration |
+| `src/components/wiki/WikiTemplatesDialog.tsx` | Modify | Medium | Add DOMPurify sanitization, keyboard nav |
+| Edge functions (3 files) | Modify | Medium | Add HTML validation/cleanup |
+| `src/components/super-admin/templates/TemplateWikiTab.tsx` | Modify | Low | Add bulk actions |
 
 ---
 
 ## Priority Order
 
-1. **config.toml fixes** - Without this, AI generation is broken
-2. **useWikiTemplates hook** - Core functionality for org integration
-3. **WikiTemplatesDialog update** - Makes templates available to users
-4. **RLS policy fix** - Super Admin experience
-5. **Duplicate detection** - Prevents data issues
-6. **UX improvements** - Quality of life
+1. **Field name fix** - Templates won't filter correctly without this
+2. **WikiTemplatesDialog integration** - Core feature is unusable without this
+3. **Page creation with content** - Enables template content to be used
+4. **HTML sanitization** - Security fix
+5. **UX improvements** - Quality of life enhancements
 
 ---
 
 ## Technical Notes
 
-### CORS Headers
-The edge functions use standard CORS headers which should work. Consider adding the extended headers:
-```typescript
-"Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version"
+### Template Selection Flow
+
+```text
+User clicks "New Page"
+        |
+        v
+WikiTemplatesDialog opens
+        |
+        v
+User selects template
+        |
+        v
+Page created with template title + content
+        |
+        v
+Navigate to WikiEditPage for editing
 ```
 
-### Template Filtering Logic for Organizations
-Templates should be filtered for organizations using this priority:
-1. Exact match: business_category AND country_code match org settings
-2. Industry match: business_category matches, country_code is null (global)
-3. Country match: business_category is null (universal), country_code matches
-4. Universal: both null (applies to all)
+### Organization Field Mapping
 
-### Performance Considerations
-- Add index on `(business_category, country_code, is_active)` for efficient filtering
-- Consider pagination if template count grows large
+The organizations table uses:
+- `industry` - maps to template `business_category`
+- `country` - maps to template `country_code`
+
+### RLS Policies Status
+
+Current RLS policies are correctly configured:
+- Super Admins can view/manage all templates
+- All authenticated users can view active templates
+- No issues found with current policies
+
+### Edge Functions Status
+
+All three edge functions are deployed and configured in `config.toml`:
+- `generate-wiki-policy-templates` - Working
+- `generate-wiki-sops` - Working  
+- `bulk-generate-wiki-content` - Working
+
+All include proper:
+- Super Admin verification
+- Duplicate detection (returns 409 if exists)
+- Extended CORS headers
+- Lovable AI integration
+
+---
+
+## Expected Outcome
+
+After implementing these fixes:
+1. Organizations can browse and use Super Admin templates when creating wiki pages
+2. Templates are correctly filtered by organization's industry and country
+3. Template content is securely rendered without XSS risk
+4. Super Admins have better bulk management tools
+5. The feature works end-to-end as designed
