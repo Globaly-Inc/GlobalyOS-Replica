@@ -1,168 +1,192 @@
 
-# Add AI Suggest & AI Improve to Message Composer
+# Drag and Drop Favorites Reordering
 
 ## Overview
 
-Add two AI-powered features to the right side of the message composer toolbar:
-1. **AI Suggest** - Generate a context-aware message suggestion (when text is empty or minimal)
-2. **AI Improve** - Polish and enhance existing text (when text has content)
-
-Both features will use the **last 20 messages** and **current space/group context** to provide relevant, contextual suggestions.
+Enable users to drag and drop their favorite chats to reorder them smoothly. The order will persist in the database so it remains consistent across sessions.
 
 ## Technical Approach
 
-### 1. Create New Edge Function: `ai-chat-assist`
+### 1. Database Schema Update
 
-**File: `supabase/functions/ai-chat-assist/index.ts`**
+Add a `sort_order` column to the `chat_favorites` table to persist the position of each favorite.
 
-This function will handle both "suggest" and "improve" modes with full context awareness:
+```sql
+ALTER TABLE chat_favorites 
+ADD COLUMN sort_order integer DEFAULT 0;
+```
 
-| Input Parameter | Type | Description |
-|----------------|------|-------------|
-| `mode` | `"suggest" \| "improve"` | Operation type |
-| `currentText` | `string` | Current message draft |
-| `recentMessages` | `array` | Last 20 messages with sender names |
-| `contextInfo` | `object` | Space/group name, description, type |
-| `organizationId` | `string` | For tenant isolation |
+Update existing favorites to have sequential sort orders based on their creation date:
 
-**AI Prompt Strategy:**
-- **Suggest mode**: "Based on the conversation context, suggest an appropriate response that continues the discussion naturally."
-- **Improve mode**: "Polish this message while preserving the original intent. Make it clearer, more professional, and appropriate for the conversation context."
+```sql
+WITH ordered AS (
+  SELECT id, ROW_NUMBER() OVER (
+    PARTITION BY employee_id, organization_id 
+    ORDER BY created_at ASC
+  ) - 1 as new_order
+  FROM chat_favorites
+)
+UPDATE chat_favorites 
+SET sort_order = ordered.new_order
+FROM ordered 
+WHERE chat_favorites.id = ordered.id;
+```
 
-The system prompt will include:
-- Recent conversation history (last 20 messages)
-- Space/group purpose and description
-- Whether it's a group, DM, or space
-- Member context (team/project context)
+### 2. Install `@dnd-kit/sortable` Package
 
-### 2. Create Client-Side Component: `ChatAIAssist`
+The project already has `@dnd-kit/core` and `@dnd-kit/utilities`. For vertical list reordering, we need to add `@dnd-kit/sortable` which provides:
+- `SortableContext` - Container for sortable items
+- `useSortable` - Hook combining draggable + droppable
+- `arrayMove` - Utility to reorder arrays
+- `verticalListSortingStrategy` - Optimized for vertical lists
 
-**File: `src/components/chat/ChatAIAssist.tsx`**
+### 3. Create Sortable Favorite Item Component
 
-A compact button component that:
-- Shows "AI Suggest" (sparkle icon) when text is empty/minimal
-- Shows "AI Improve" (wand icon) when text has content (>10 chars)
-- Displays loading spinner during generation
-- Calls the edge function with full context
+**New File: `src/components/chat/SortableFavoriteItem.tsx`**
+
+A wrapper component that makes each favorite item sortable:
 
 ```text
 Props:
-├── currentText: string
-├── onTextGenerated: (text: string) => void
-├── conversationId: string | null
-├── spaceId: string | null
-├── messages: ChatMessage[]  // From useMessages hook
-├── spaceName?: string
-├── spaceDescription?: string | null
-├── conversationName?: string | null
-├── isGroup?: boolean
+├── id: string (unique sortable ID)
+├── children: ReactNode (the favorite button content)
 └── disabled?: boolean
 ```
 
-### 3. Update MessageComposer
+Uses `useSortable` hook from dnd-kit which provides:
+- `attributes` - Accessibility attributes
+- `listeners` - Drag event listeners  
+- `setNodeRef` - Ref for the DOM element
+- `transform` - CSS transform during drag
+- `transition` - CSS transition for smooth animations
+- `isDragging` - Boolean for styling active item
 
-**File: `src/components/chat/MessageComposer.tsx`**
+### 4. Update FavoritesSection Component
 
-Changes required:
-1. Import `ChatAIAssist` component
-2. Add `Wand2` icon from lucide-react
-3. Pass messages to composer (new prop: `messages: ChatMessage[]`)
-4. Pass space/conversation context (new props: `spaceName`, `spaceDescription`, `conversationName`, `isGroup`)
-5. Place AI button on the **right side** of the bottom action bar, before the Send button
+**File: `src/components/chat/FavoritesSection.tsx`**
 
-**UI Layout (Desktop):**
-```text
-┌─────────────────────────────────────────────────────────────┐
-│ [B] [I] [S] │ [•] [1.] │ [Link] [Code]                      │  ← Formatting toolbar
-├─────────────────────────────────────────────────────────────┤
-│ Type a message... Use @ to mention someone                  │  ← Textarea
-├─────────────────────────────────────────────────────────────┤
-│ [+] [😊] [@]                     [✨ AI Suggest] [Send →]  │  ← Action bar
-└─────────────────────────────────────────────────────────────┘
-```
+Key changes:
+1. Import DnD components from `@dnd-kit/core` and `@dnd-kit/sortable`
+2. Wrap the favorites list in `DndContext` and `SortableContext`
+3. Replace static buttons with `SortableFavoriteItem` wrappers
+4. Add `handleDragEnd` to compute new order and persist
+5. Use optimistic UI update for smooth experience
+6. Add visual drag handle or cursor indicator
 
-**UI Layout (Mobile):**
+**Visual Layout:**
+
 ```text
 ┌─────────────────────────────────────────┐
-│ Message...                              │
+│ ▸ ★ FAVORITES                           │
 ├─────────────────────────────────────────┤
-│ [+] [😊] [@]       [✨] [Send →]       │
+│ ⋮⋮ [Avatar] Laxmi Bhatta          ★    │  ← Draggable
+│ ⋮⋮ [Avatar] Kavita M Bond         ★    │  ← Draggable  
+│ ⋮⋮ [Avatar] Sarah Smith           ★    │  ← Being dragged
+│ ⋮⋮ [Icon] GlobalyOS Chat Test     ★    │  ← Drop zone indicator
 └─────────────────────────────────────────┘
 ```
 
-### 4. Update ConversationView to Pass Context
+### 5. Add Reorder Mutation Hook
 
-**File: `src/components/chat/ConversationView.tsx`**
+**File: `src/hooks/useChatFavorites.ts`**
 
-Pass additional context to MessageComposer:
-- `messages` from `useMessages` hook
-- Space/conversation metadata
+Add a new mutation `useReorderFavorites` that:
+1. Accepts an array of favorite IDs in the new order
+2. Updates each favorite's `sort_order` in the database
+3. Uses optimistic updates for instant visual feedback
+4. Invalidates cache on success
+
+```typescript
+export const useReorderFavorites = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      // Update each favorite with its new sort_order
+      const updates = orderedIds.map((id, index) => 
+        supabase
+          .from('chat_favorites')
+          .update({ sort_order: index })
+          .eq('id', id)
+      );
+      await Promise.all(updates);
+    },
+    onMutate: async (orderedIds) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['chat-favorites'] });
+      
+      // Optimistically update the cache order
+      const previous = queryClient.getQueryData(['chat-favorites']);
+      queryClient.setQueryData(['chat-favorites'], (old) => {
+        // Reorder based on orderedIds
+      });
+      return { previous };
+    },
+    onError: (err, vars, context) => {
+      // Rollback on error
+      queryClient.setQueryData(['chat-favorites'], context?.previous);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-favorites'] });
+    },
+  });
+};
+```
+
+### 6. Update Query to Order by sort_order
+
+**File: `src/hooks/useChatFavorites.ts`**
+
+Change the query to order by `sort_order` instead of `created_at`:
+
+```typescript
+.order('sort_order', { ascending: true })
+```
 
 ## Implementation Details
 
-### Edge Function Logic
+### Drag-and-Drop Configuration
 
-```typescript
-// Pseudocode for ai-chat-assist
-const systemPrompt = `You are a helpful AI assistant for workplace team chat.
-Your task is to ${mode === 'suggest' ? 'suggest an appropriate message' : 'improve the given message'}.
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| Activation constraint | `distance: 5` | Prevent accidental drags on click |
+| Sorting strategy | `verticalListSortingStrategy` | Optimized animations for vertical lists |
+| Collision detection | `closestCenter` | Best for single-column lists |
 
-CONTEXT:
-- Chat type: ${contextInfo.type} (${contextInfo.name})
-- Description: ${contextInfo.description || 'General chat'}
+### Visual Feedback During Drag
 
-RECENT CONVERSATION (last 20 messages):
-${recentMessages.map(m => `${m.senderName}: ${m.content}`).join('\n')}
+- **Dragging item**: Slightly elevated with shadow, reduced opacity on original position
+- **Drop indicator**: Subtle line or gap where item will be placed
+- **Smooth animations**: CSS transitions for position changes (200ms ease)
+- **Cursor**: `grab` on hover, `grabbing` while dragging
 
-RULES:
-- Keep messages concise (2-4 sentences max)
-- Match the conversation's tone and style
-- Be professional but friendly
-- Do not use emojis
-- Do not include greetings like "Hi" unless contextually appropriate
-`;
+### Accessibility
 
-const userPrompt = mode === 'suggest'
-  ? `Based on this conversation, suggest an appropriate response.`
-  : `Improve this message while keeping its intent:\n\n"${currentText}"`;
-```
-
-### Component Behavior
-
-| State | Button Label | Icon | Action |
-|-------|-------------|------|--------|
-| Empty/minimal text | "AI Suggest" | Sparkles | Generate contextual suggestion |
-| Has text (>10 chars) | "AI Improve" | Wand2 | Polish existing text |
-| Generating | "Generating..." | Loader2 (spinning) | Disabled |
-
-### Security Considerations
-
-- Tenant isolation: `organizationId` validated on backend
-- Rate limiting: 429 and 402 error handling
-- Message content is sent to AI gateway (LOVABLE_API_KEY)
-- Only messages the user can already see are sent as context
+- Keyboard support via dnd-kit's built-in accessibility features
+- Screen reader announcements for drag start/end
+- Focus management after reorder
 
 ## Files to Create/Modify
 
 | File | Change |
 |------|--------|
-| `supabase/functions/ai-chat-assist/index.ts` | **New** - Edge function for AI assistance |
-| `src/components/chat/ChatAIAssist.tsx` | **New** - AI assist button component |
-| `src/components/chat/MessageComposer.tsx` | Add ChatAIAssist to action bar, accept new props |
-| `src/components/chat/ConversationView.tsx` | Pass messages and context to MessageComposer |
-| `supabase/config.toml` | Add ai-chat-assist function config |
+| `package.json` | Add `@dnd-kit/sortable` dependency |
+| Database migration | Add `sort_order` column to `chat_favorites` |
+| `src/hooks/useChatFavorites.ts` | Add `useReorderFavorites` mutation, update query order |
+| `src/components/chat/SortableFavoriteItem.tsx` | **New** - Sortable wrapper component |
+| `src/components/chat/FavoritesSection.tsx` | Add DnD context and reorder logic |
 
-## Performance Optimizations
+## Performance Considerations
 
-1. **Limit context**: Only last 20 messages (not entire history)
-2. **Debounce**: Prevent rapid clicks during generation
-3. **Cache messages**: Messages already cached by `useMessages` hook
-4. **max_tokens**: Limit response to 300 tokens for concise output
+1. **Optimistic updates**: Immediate visual feedback without waiting for database
+2. **Batch updates**: Single request to update all positions (or individual updates in parallel)
+3. **Debounce**: Optional debounce for rapid reordering to reduce API calls
+4. **CSS transforms**: Hardware-accelerated animations via transform instead of top/left
 
 ## User Experience
 
-1. **Instant feedback**: Loading spinner shows immediately
-2. **Non-destructive**: Generated text replaces draft, user can undo (Ctrl+Z)
-3. **Contextual labels**: Button label changes based on current text
-4. **Tooltip hints**: Explain what AI will do on hover
-5. **Toast notifications**: Success/error feedback
+1. Hover on a favorite shows a subtle drag handle or changes cursor to `grab`
+2. Dragging lifts the item with a shadow effect
+3. Other items smoothly shift to make room
+4. Dropping places the item in the new position instantly
+5. Order persists across page refreshes and sessions
