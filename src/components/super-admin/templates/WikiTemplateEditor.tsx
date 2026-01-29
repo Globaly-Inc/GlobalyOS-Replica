@@ -21,7 +21,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Globe, Loader2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Globe, Loader2, Eye, Code } from "lucide-react";
 import { toast } from "sonner";
 import { COUNTRIES } from "@/lib/countries";
 import { BUSINESS_CATEGORIES } from "@/constants/businessCategories";
@@ -55,6 +57,7 @@ export const WikiTemplateEditor = ({
   });
 
   const [tagsInput, setTagsInput] = useState("");
+  const [contentView, setContentView] = useState<"edit" | "preview">("edit");
 
   // Reset form when template changes
   useEffect(() => {
@@ -89,6 +92,7 @@ export const WikiTemplateEditor = ({
       });
       setTagsInput("");
     }
+    setContentView("edit");
   }, [template, open]);
 
   const saveMutation = useMutation({
@@ -123,7 +127,7 @@ export const WikiTemplateEditor = ({
       toast.success(template ? "Template updated" : "Template created");
       onSuccess();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error("Error saving template: " + error.message);
     },
   });
@@ -138,7 +142,7 @@ export const WikiTemplateEditor = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {template ? "Edit Wiki Template" : "Add Wiki Template"}
@@ -266,17 +270,45 @@ export const WikiTemplateEditor = ({
             />
           </div>
 
-          {/* Content */}
+          {/* Content with Preview Toggle */}
           <div className="space-y-2">
-            <Label htmlFor="content">Content (HTML)</Label>
-            <Textarea
-              id="content"
-              value={formData.content}
-              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-              placeholder="Template content in HTML format..."
-              rows={10}
-              className="font-mono text-sm"
-            />
+            <div className="flex items-center justify-between">
+              <Label>Content (HTML)</Label>
+              <Tabs value={contentView} onValueChange={(v) => setContentView(v as "edit" | "preview")}>
+                <TabsList className="h-8">
+                  <TabsTrigger value="edit" className="text-xs gap-1 px-2 h-6">
+                    <Code className="h-3 w-3" />
+                    Edit
+                  </TabsTrigger>
+                  <TabsTrigger value="preview" className="text-xs gap-1 px-2 h-6">
+                    <Eye className="h-3 w-3" />
+                    Preview
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+            
+            {contentView === "edit" ? (
+              <Textarea
+                id="content"
+                value={formData.content}
+                onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                placeholder="Template content in HTML format..."
+                rows={12}
+                className="font-mono text-sm"
+              />
+            ) : (
+              <ScrollArea className="h-[300px] border rounded-md p-4 bg-background">
+                {formData.content ? (
+                  <div 
+                    className="prose prose-sm max-w-none dark:prose-invert"
+                    dangerouslySetInnerHTML={{ __html: formData.content }}
+                  />
+                ) : (
+                  <p className="text-muted-foreground text-sm italic">No content to preview</p>
+                )}
+              </ScrollArea>
+            )}
             <p className="text-xs text-muted-foreground">
               Use HTML formatting. This content will be used when users create a wiki page from this template.
             </p>

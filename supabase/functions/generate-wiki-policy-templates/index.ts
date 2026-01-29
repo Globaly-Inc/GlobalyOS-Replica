@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const POLICY_PROMPTS: Record<string, { name: string; description: string; prompt: string }> = {
@@ -116,6 +116,26 @@ serve(async (req) => {
     if (!policy_type || !POLICY_PROMPTS[policy_type]) {
       return new Response(JSON.stringify({ error: "Invalid policy type" }), { 
         status: 400, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      });
+    }
+
+    // Check for duplicate template
+    const existingName = POLICY_PROMPTS[policy_type].name + (country_code ? ` (${country_code})` : "");
+    const { data: existing } = await adminClient
+      .from("template_wiki_documents")
+      .select("id")
+      .eq("name", existingName)
+      .eq("category", "policies")
+      .maybeSingle();
+
+    if (existing) {
+      return new Response(JSON.stringify({ 
+        error: "Template already exists", 
+        duplicate: true,
+        template_id: existing.id 
+      }), { 
+        status: 409, 
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
       });
     }

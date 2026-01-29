@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const SOP_PROMPTS: Record<string, { name: string; description: string; prompt: string }> = {
@@ -106,6 +106,26 @@ serve(async (req) => {
     if (!sop_type || !SOP_PROMPTS[sop_type]) {
       return new Response(JSON.stringify({ error: "Invalid SOP type" }), { 
         status: 400, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      });
+    }
+
+    // Check for duplicate template
+    const existingName = SOP_PROMPTS[sop_type].name + (business_category ? ` (${business_category})` : "");
+    const { data: existing } = await adminClient
+      .from("template_wiki_documents")
+      .select("id")
+      .eq("name", existingName)
+      .eq("category", "sops")
+      .maybeSingle();
+
+    if (existing) {
+      return new Response(JSON.stringify({ 
+        error: "Template already exists", 
+        duplicate: true,
+        template_id: existing.id 
+      }), { 
+        status: 409, 
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
       });
     }
