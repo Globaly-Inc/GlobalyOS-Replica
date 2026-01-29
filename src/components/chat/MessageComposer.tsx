@@ -35,6 +35,7 @@ import UploadProgress, { UploadingFile } from "./UploadProgress";
 import MentionAutocomplete from "./MentionAutocomplete";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import ChatAIAssist from "./ChatAIAssist";
 
 import EmojiPicker from "@/components/ui/EmojiPicker";
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
@@ -60,6 +61,11 @@ const ALLOWED_FILE_TYPES = [
 interface MessageComposerProps {
   conversationId: string | null;
   spaceId: string | null;
+  messages?: import("@/types/chat").ChatMessage[];
+  spaceName?: string;
+  spaceDescription?: string | null;
+  conversationName?: string | null;
+  isGroup?: boolean;
 }
 
 export interface MessageComposerHandle {
@@ -77,7 +83,7 @@ interface MentionedMember {
 }
 
 const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
-  ({ conversationId, spaceId }, ref) => {
+  ({ conversationId, spaceId, messages = [], spaceName, spaceDescription, conversationName, isGroup }, ref) => {
   const [message, setMessage] = useState("");
   const [uploadType, setUploadType] = useState<"file" | "image" | "video">("file");
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
@@ -707,22 +713,39 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
               )}
             </div>
 
-            {/* Send button */}
-            <Button 
-              size={isMobile ? "icon" : "sm"}
-              className={cn(
-                "transition-all",
-                isMobile 
-                  ? "h-10 w-10 rounded-full" 
-                  : "h-8 px-3 gap-1.5",
-                !canSend && "opacity-50"
-              )}
-              onClick={handleSend}
-              disabled={!canSend || sendMessage.isPending || isUploading}
-            >
-              <Send className={isMobile ? "h-5 w-5" : "h-3.5 w-3.5"} />
-              {!isMobile && <span>Send</span>}
-            </Button>
+            {/* Right side actions - AI Assist and Send */}
+            <div className="flex items-center gap-1">
+              {/* AI Assist */}
+              <ChatAIAssist
+                currentText={message}
+                onTextGenerated={(text) => setMessage(text)}
+                conversationId={conversationId}
+                spaceId={spaceId}
+                messages={messages}
+                spaceName={spaceName}
+                spaceDescription={spaceDescription}
+                conversationName={conversationName}
+                isGroup={isGroup}
+                disabled={sendMessage.isPending || isUploading}
+              />
+
+              {/* Send button */}
+              <Button 
+                size={isMobile ? "icon" : "sm"}
+                className={cn(
+                  "transition-all",
+                  isMobile 
+                    ? "h-10 w-10 rounded-full" 
+                    : "h-8 px-3 gap-1.5",
+                  !canSend && "opacity-50"
+                )}
+                onClick={handleSend}
+                disabled={!canSend || sendMessage.isPending || isUploading}
+              >
+                <Send className={isMobile ? "h-5 w-5" : "h-3.5 w-3.5"} />
+                {!isMobile && <span>Send</span>}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
