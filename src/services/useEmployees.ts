@@ -80,13 +80,12 @@ export const useEmployeeProfile = (employeeId: string | undefined) => {
       if (!employeeId) return null;
 
       // Use the secure RPC function that enforces field-level access control
-      // Cast to any to handle fields that may not be in auto-generated types yet
       const { data: employeeData, error: rpcError } = await supabase
         .rpc('get_employee_for_viewer', { target_employee_id: employeeId });
 
       if (rpcError) throw rpcError;
       
-      const employee = employeeData?.[0] as any;
+      const employee = employeeData?.[0];
       if (!employee) return null;
 
       // Fetch related data (profile, office, manager) separately
@@ -140,11 +139,7 @@ export const useEmployeeProfile = (employeeId: string | undefined) => {
         emergency_contact_name: employee.emp_emergency_contact_name,
         emergency_contact_phone: employee.emp_emergency_contact_phone,
         emergency_contact_relationship: employee.emp_emergency_contact_relationship,
-        // Additional fields from updated RPC
-        employment_type: employee.emp_employment_type,
-        gender: employee.emp_gender,
-        last_working_day: employee.emp_last_working_day,
-        position_effective_date: employee.emp_position_effective_date,
+        position_effective_date: null,
         // Related data from second query
         profiles: relatedData?.profiles,
         office: relatedData?.office,
