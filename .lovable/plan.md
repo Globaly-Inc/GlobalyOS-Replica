@@ -1,103 +1,112 @@
 
 
-# Push Notification Banner Not Appearing - Root Cause & Fix
+# UI Cleanup: Streamlined Push Notification Card
 
-## Problem Identified
+## Requested Changes
 
-Based on your screenshots, I can confirm:
-- The push notification IS being received by the Service Worker (logs show `[SW Push] Payload received`)
-- The notification IS being created successfully (logs show `[SW Push] Notification shown successfully`)
-- The notification DOES appear in macOS Notification Center (your screenshot shows it in the list)
-
-**BUT** - No pop-up banner appears on screen.
+1. **Put the card header (icon, title, description) in the same row as the controls**
+2. **Move "Send Test Notification" button before the toggle switch** (both on the right side)
+3. **Remove all content below the toggle row** (local test button, helper text, troubleshooting tips)
 
 ---
 
-## Root Cause: Static Notification Tags
+## Visual Implementation
 
-The issue is that we're using a **static tag** (`test-notification`) combined with `renotify: true`. On macOS + Chrome:
+```text
++-------------------------------------------------------------------------------------------+
+| [Bell Icon]  Push Notifications                    [Send Test Notification]  [Toggle ON] |
+|              Receive real-time notifications...                                           |
++-------------------------------------------------------------------------------------------+
+```
 
-1. When a notification with the same `tag` already exists in Notification Center
-2. And a new notification arrives with the same `tag`
-3. macOS **silently replaces** the existing notification instead of showing a new banner
-
-This is why:
-- First-ever notification might show a banner
-- Subsequent notifications (same tag) silently update in Notification Center
-- No new banner appears
+**Single row layout:**
+- **Left:** Icon + Title + Description (stacked)
+- **Right:** Test button + Toggle switch (inline, with gap)
 
 ---
 
-## Solution
+## Technical Changes
 
-### Change 1: Use Unique Tags for Test Notifications
+**File:** `src/pages/Notifications.tsx` (lines 370-456)
 
-**File: `src/pages/Notifications.tsx`**
+### What Changes:
 
-Update `sendTestNotification` to use a unique timestamp-based tag:
+1. **Restructure the card to one row** - Header and controls all in same flex container
+2. **Add test button before the toggle** - Visible only when `isSubscribed`
+3. **Remove the entire `{isSubscribed && (...)}` block** (lines 410-454):
+   - Local test button
+   - "Push Test: Via server..." text
+   - Troubleshooting tips box
+4. **Keep permission prompts** - Browser blocked/enable messages stay
 
-```typescript
-// Current (line 57):
-tag: "test-notification",
+### Resulting JSX Structure:
 
-// Change to:
-tag: `test-${Date.now()}`,
+```jsx
+<Card className="mb-4 sm:mb-6 border-primary/10">
+  <CardContent className="p-4 sm:p-5">
+    {/* Single row: Header left, Controls right */}
+    <div className="flex items-center justify-between gap-3">
+      {/* Left: Icon + Text */}
+      <div className="flex items-center gap-3 min-w-0">
+        <div className={`p-2 rounded-lg ${isSubscribed ? 'bg-primary/10' : 'bg-muted'}`}>
+          {isSubscribed ? (
+            <BellRing className="h-5 w-5 text-primary" />
+          ) : (
+            <BellOff className="h-5 w-5 text-muted-foreground" />
+          )}
+        </div>
+        <div className="min-w-0">
+          <p className="font-medium text-sm sm:text-base">Push Notifications</p>
+          <p className="text-xs text-muted-foreground">
+            {isSubscribed 
+              ? "Receive real-time notifications even when the app is closed" 
+              : "Get notified instantly, even when you're not using the app"}
+          </p>
+        </div>
+      </div>
+      
+      {/* Right: Test button (when subscribed) + Toggle */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {isSubscribed && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={sendTestNotification}
+            disabled={testingSend}
+          >
+            {testingSend ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Bell className="h-4 w-4 mr-2" />
+            )}
+            {testingSend ? "Sending..." : "Send Test"}
+          </Button>
+        )}
+        <Switch
+          checked={isSubscribed}
+          onCheckedChange={handlePushToggle}
+          disabled={pushLoading}
+        />
+      </div>
+    </div>
+    
+    {/* Permission prompts (kept, shown below) */}
+    {!isSubscribed && permission !== 'denied' && (...)}
+    {permission === 'denied' && (...)}
+  </CardContent>
+</Card>
 ```
 
-### Change 2: Add Diagnostic Logging After showNotification
+---
 
-**File: `src/sw.ts`**
+## Summary of Deletions
 
-After `showNotification` succeeds, query the active notifications to confirm creation:
-
-```typescript
-// After line 133, add:
-.then(async () => {
-  console.log('[SW Push] Notification shown successfully');
-  // Diagnostic: count active notifications
-  const activeNotifications = await self.registration.getNotifications();
-  console.log(`[SW Push] Active notifications: ${activeNotifications.length}`, 
-    activeNotifications.map(n => ({ tag: n.tag, title: n.title })));
-})
-```
-
-### Change 3: Add Local Test Button (Bypasses Push Pipeline)
-
-**File: `src/pages/Notifications.tsx`**
-
-Add a "Show Local Test" button that calls `showNotification` directly without going through the push pipeline. This isolates whether the issue is push delivery vs. OS display:
-
-```typescript
-const showLocalTestNotification = async () => {
-  try {
-    const registration = await navigator.serviceWorker.ready;
-    await registration.showNotification('Local Test', {
-      body: 'This notification bypasses the push pipeline',
-      icon: '/favicon.png',
-      tag: `local-${Date.now()}`,
-      requireInteraction: true,
-    });
-    toast.success("Local notification shown!");
-  } catch (error) {
-    console.error("Local notification error:", error);
-    toast.error("Failed to show local notification");
-  }
-};
-```
-
-### Change 4: Remove Aggressive `renotify` for Non-Call Notifications
-
-**File: `src/sw.ts`**
-
-Only use `renotify: true` for calls (which need persistent alerting):
-
-```typescript
-// Current (line 109):
-renotify: true,
-
-// Change to:
-renotify: isIncomingCall, // Only renotify for calls
-```
+| Element | Status |
+|---------|--------|
+| Local test button | **Remove** |
+| "Push Test: Via server..." text | **Remove** |
+| Troubleshooting tips box | **Remove** |
+| Permission prompts | **Keep** |
 
 ---
 
@@ -105,37 +114,5 @@ renotify: isIncomingCall, // Only renotify for calls
 
 | File | Change |
 |------|--------|
-| `src/pages/Notifications.tsx` | Unique tags + local test button |
-| `src/sw.ts` | Diagnostic logging + fix renotify logic |
-
----
-
-## Why This Will Work
-
-1. **Unique tags** ensure each notification is treated as NEW by the OS
-2. **`renotify: false`** prevents silent replacement behavior
-3. **Diagnostic logging** will confirm how many notifications exist after creation
-4. **Local test button** isolates push delivery from display issues
-
----
-
-## Expected Results After Fix
-
-1. Click "Send Test Notification" → Banner appears on screen
-2. Console shows: `[SW Push] Active notifications: 1, [{tag: "test-1738...", title: "Test Notification"}]`
-3. Click again → Another banner appears (different tag)
-4. Notification Center shows multiple entries (not just one replaced one)
-
----
-
-## If Banners Still Don't Appear After Fix
-
-If the `getNotifications()` diagnostic confirms notifications are being created but banners never appear:
-
-1. Check **macOS System Settings → Notifications → Chrome** 
-2. Ensure alert style is set to **"Banners"** or **"Alerts"** (not "None")
-3. Ensure "Allow notifications" is ON
-4. Ensure "Show previews" is set to "Always" or "When Unlocked"
-
-The diagnostic logging will give us definitive proof of what's happening.
+| `src/pages/Notifications.tsx` | Restructure push card to single-row layout, remove helper content |
 
