@@ -1,82 +1,101 @@
 
-# Enable Add Member Feature for Spaces with Auto-Sync
+
+# Add Edit Icon on Hover After Auto Sync Tag
 
 ## Overview
 
-Fix the "Add Member" button to be always enabled for space admins, regardless of whether auto-sync is active. This aligns with the source-based membership control system where manually added members coexist with auto-synced members.
+Add an edit (pencil) icon that appears on hover next to the "Auto Sync" tag in the chat header. When clicked by a space admin, it opens the Space Settings Dialog allowing them to edit access settings.
 
-## Current Problem
+## Current State
 
-The "+" button to add members is currently **disabled** when a space has `auto_sync_members = true`. This prevents admins from inviting individual team members who don't match the auto-sync criteria (e.g., inviting someone from a different department to a department-synced space).
-
+The "Auto Sync" tag is displayed as a badge at lines 762-767 in `ChatHeader.tsx`:
 ```tsx
-// Current (line 748) - WRONG:
-disabled={spaceId ? autoSyncEnabled : false}
-```
-
-## Expected Behavior
-
-Per the established system design:
-- Auto-sync manages members automatically based on profile criteria (office, department, project)
-- Admins can **always** manually invite additional members (tagged with `source = 'manual'`)
-- Only manually invited members can be removed by admins
-- Auto-synced members cannot be removed manually (they leave when their profile no longer matches)
-
-## Changes
-
-### File: `src/components/chat/ChatRightPanelEnhanced.tsx`
-
-| Line | Change | Description |
-|------|--------|-------------|
-| 748 | Remove `disabled` prop | Button always enabled for admins |
-| 762-765 | Remove tooltip condition | No longer needed since button is always enabled |
-
-**Before:**
-```tsx
-<Button
-  variant="ghost"
-  size="icon"
-  className="h-6 w-6"
-  disabled={spaceId ? autoSyncEnabled : false}
-  onClick={...}
->
-```
-
-**After:**
-```tsx
-<Button
-  variant="ghost"
-  size="icon"
-  className="h-6 w-6"
-  onClick={...}
->
-```
-
-**Before (Tooltip):**
-```tsx
-{spaceId && autoSyncEnabled && (
-  <TooltipContent>
-    <p>Disable auto-sync in settings to add members</p>
-  </TooltipContent>
+{space?.auto_sync_members && (
+  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[10px] font-medium">
+    <RefreshCw className="h-2.5 w-2.5" />
+    Auto Sync
+  </span>
 )}
 ```
 
-**After:** Remove this entire conditional block.
+## Implementation
 
-## What Already Works
+### File: `src/components/chat/ChatHeader.tsx`
 
-The existing `AddSpaceMembersDialog` component:
-- Shows all active employees not already in the space
-- Allows multi-select with search
-- Adds members with `source = 'manual'` (via `useAddSpaceMembers` hook)
-- Posts system messages to the space
+| Change | Location | Description |
+|--------|----------|-------------|
+| Import SpaceSettingsDialog | Line ~37 | Add import statement |
+| Add state variable | Line ~89 | `showSettingsDialog` state |
+| Wrap badge in hover group | Lines 762-767 | Add hover interaction |
+| Add edit icon | Inside badge | Pencil icon with opacity transition |
+| Add SpaceSettingsDialog | End of return | Render the dialog |
 
-No changes needed to the dialog itself.
+### Detailed Changes
+
+**1. Add import (after line 37):**
+```tsx
+import SpaceSettingsDialog from "./SpaceSettingsDialog";
+```
+
+**2. Add state (after line 89):**
+```tsx
+const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+```
+
+**3. Replace Auto Sync badge (lines 762-767):**
+
+Before:
+```tsx
+{space?.auto_sync_members && (
+  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[10px] font-medium">
+    <RefreshCw className="h-2.5 w-2.5" />
+    Auto Sync
+  </span>
+)}
+```
+
+After:
+```tsx
+{space?.auto_sync_members && (
+  <span 
+    className={cn(
+      "inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[10px] font-medium group/sync",
+      isSpaceAdmin && "cursor-pointer hover:bg-muted/80 transition-colors"
+    )}
+    onClick={isSpaceAdmin ? () => setShowSettingsDialog(true) : undefined}
+  >
+    <RefreshCw className="h-2.5 w-2.5" />
+    Auto Sync
+    {isSpaceAdmin && (
+      <Pencil className="h-2.5 w-2.5 opacity-0 group-hover/sync:opacity-100 transition-opacity" />
+    )}
+  </span>
+)}
+```
+
+**4. Add SpaceSettingsDialog at end of component (before closing fragment):**
+```tsx
+{spaceId && (
+  <SpaceSettingsDialog
+    open={showSettingsDialog}
+    onOpenChange={setShowSettingsDialog}
+    spaceId={spaceId}
+  />
+)}
+```
+
+## UX Details
+
+- **Hover effect**: The pencil icon fades in when hovering over the Auto Sync tag
+- **Admin only**: Non-admins see the tag without the edit icon and without hover effects
+- **Click action**: Opens the full Space Settings Dialog where admins can modify access scope, auto-sync settings, and other space configuration
+- **Visual consistency**: Uses the same `Pencil` icon and opacity transition pattern already used for the space name edit feature
 
 ## Result
 
-After this change:
-- Space admins can always click "+" to add members
-- New members are tagged as `source = 'manual'`
-- These members appear with an "Invited" badge in the member list
-- They can be removed by admins (unlike auto-synced members)
+| User Type | Behavior |
+|-----------|----------|
+| Space Admin | Sees pencil icon on hover, can click to edit settings |
+| Member | Sees tag without edit capability |
+| Non-member | Does not see the space |
+
