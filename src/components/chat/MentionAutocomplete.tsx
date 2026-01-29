@@ -231,9 +231,15 @@ const MentionAutocomplete = ({
               onClick={() => onSelect(member)}
               onMouseEnter={() => setSelectedIndex(index)}
             >
-              {member.isAllMention ? (
-                <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Users className="h-4 w-4 text-primary" />
+            {member.isAllMention ? (
+                <div className={cn(
+                  "h-7 w-7 rounded-full flex items-center justify-center",
+                  index === selectedIndex ? "bg-primary-foreground/20" : "bg-primary/10"
+                )}>
+                  <Users className={cn(
+                    "h-4 w-4",
+                    index === selectedIndex ? "text-accent-foreground" : "text-primary"
+                  )} />
                 </div>
               ) : (
                 <Avatar className="h-7 w-7">
@@ -246,12 +252,15 @@ const MentionAutocomplete = ({
               <div className="flex-1 min-w-0">
                 <p className={cn(
                   "text-sm font-medium truncate",
-                  member.isAllMention && "text-primary"
+                  member.isAllMention && index !== selectedIndex && "text-primary"
                 )}>
                   @{member.name}
                 </p>
                 {member.position && (
-                  <p className="text-xs text-muted-foreground truncate">
+                  <p className={cn(
+                    "text-xs truncate",
+                    index === selectedIndex ? "text-accent-foreground/80" : "text-muted-foreground"
+                  )}>
                     {member.position}
                   </p>
                 )}
