@@ -10,6 +10,7 @@ import { WikiImportDialog } from "@/components/wiki/WikiImportDialog";
 import { WikiUploadDialog } from "@/components/wiki/WikiUploadDialog";
 import { WikiFilePreview } from "@/components/wiki/WikiFilePreview";
 import { WikiShareDialog } from "@/components/wiki/WikiShareDialog";
+import { WikiTemplatesDialog } from "@/components/wiki/WikiTemplatesDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -97,6 +98,8 @@ const Wiki = () => {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [pendingTemplateFolder, setPendingTemplateFolder] = useState<string | null>(null);
   const [shareItemType, setShareItemType] = useState<'folder' | 'page'>('page');
   const [shareItemId, setShareItemId] = useState<string | null>(null);
   
@@ -351,7 +354,7 @@ const Wiki = () => {
 
   // Create page mutation - uses server-side RPC function
   const createPageMutation = useMutation({
-    mutationFn: async ({ title, folderId }: { title: string; folderId: string | null }) => {
+    mutationFn: async ({ title, folderId, content }: { title: string; folderId: string | null; content?: string }) => {
       if (!currentOrg?.id) {
         throw new Error("Organization not loaded. Please refresh the page.");
       }
@@ -363,6 +366,19 @@ const Wiki = () => {
           _title: title || 'Untitled',
         });
       if (error) throw error;
+      
+      // If content was provided (from template), update the page with content
+      if (content && data) {
+        const { error: updateError } = await supabase
+          .from('wiki_pages')
+          .update({ content })
+          .eq('id', data);
+        if (updateError) {
+          console.error("Failed to apply template content:", updateError);
+          // Don't throw - page was created successfully, just content wasn't applied
+        }
+      }
+      
       return { id: data as string };
     },
     onSuccess: (data) => {
@@ -612,6 +628,22 @@ const Wiki = () => {
     return null;
   }, [viewMode, selectedFolderId, selectedPageId, pagesList]);
 
+  // Handle template selection
+  const handleTemplateSelect = useCallback((title: string, content: string) => {
+    createPageMutation.mutate({ 
+      title, 
+      folderId: pendingTemplateFolder,
+      content 
+    });
+    setPendingTemplateFolder(null);
+  }, [createPageMutation, pendingTemplateFolder]);
+
+  // Open template dialog for page creation
+  const handleOpenTemplateDialog = useCallback((folderId: string | null = null) => {
+    setPendingTemplateFolder(folderId);
+    setTemplateDialogOpen(true);
+  }, []);
+
   // Mobile view rendering
   if (isMobile) {
     return (
@@ -642,7 +674,7 @@ const Wiki = () => {
               currentEmployeeId={currentEmployeeId}
               organizationId={currentOrg?.id}
               onCreateFolder={(name, parentId) => createFolderMutation.mutate({ name, parentId })}
-              onCreatePage={(title, folderId) => createPageMutation.mutate({ title, folderId })}
+              onCreatePage={(title, folderId) => handleOpenTemplateDialog(folderId)}
               onRenameFolder={(folderId, name) => renameFolderMutation.mutate({ folderId, name })}
               onRenamePage={(pageId, title) => renamePageMutation.mutate({ pageId, title })}
               onDeleteFolder={(folderId) => deleteFolderMutation.mutate(folderId)}
@@ -708,11 +740,16 @@ const Wiki = () => {
               onSelectFolder={handleSelectFolder}
               onSelectHome={handleSelectHome}
               onStartCreating={(type) => {
-                if (viewMode === "page") {
-                  setSelectedPageId(null);
-                  setViewMode(selectedFolderId ? "folder" : "home");
+                if (type === "page") {
+                  // Open template dialog instead of creating blank page
+                  handleOpenTemplateDialog(selectedFolderId);
+                } else {
+                  if (viewMode === "page") {
+                    setSelectedPageId(null);
+                    setViewMode(selectedFolderId ? "folder" : "home");
+                  }
+                  setCreatingItem({ type });
                 }
-                setCreatingItem({ type });
               }}
               canEdit={canEditCurrentFolder || hasGlobalEditAccess}
               isCreatingDisabled={isLoadingEmployee || !currentEmployee?.id}
@@ -764,7 +801,7 @@ const Wiki = () => {
                 organizationId={currentOrg?.id}
                 isCreatingDisabled={isLoadingEmployee || !currentEmployee?.id}
                 onCreateFolder={(name, parentId) => createFolderMutation.mutate({ name, parentId })}
-                onCreatePage={(title, folderId) => createPageMutation.mutate({ title, folderId })}
+                onCreatePage={(title, folderId) => handleOpenTemplateDialog(folderId)}
                 onRenameFolder={(folderId, name) => renameFolderMutation.mutate({ folderId, name })}
                 onRenamePage={(pageId, title) => renamePageMutation.mutate({ pageId, title })}
                 onDeleteFolder={(folderId) => deleteFolderMutation.mutate(folderId)}
@@ -851,6 +888,13 @@ const Wiki = () => {
           organizationId={currentOrg?.id || ''}
         />
       )}
+      
+      {/* Template Selection Dialog */}
+      <WikiTemplatesDialog
+        open={templateDialogOpen}
+        onOpenChange={setTemplateDialogOpen}
+        onSelectTemplate={handleTemplateSelect}
+      />
     </>
   );
 };

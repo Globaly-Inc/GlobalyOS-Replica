@@ -190,7 +190,10 @@ Do not include any markdown formatting - only use HTML tags.`
     }
 
     const aiData = await aiResponse.json();
-    const content = aiData.choices?.[0]?.message?.content || "";
+    let content = aiData.choices?.[0]?.message?.content || "";
+    
+    // Clean up AI-generated content - strip markdown code fences if present
+    content = content.replace(/^```html?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
 
     // Insert the template
     const { data: insertedTemplate, error: insertError } = await adminClient

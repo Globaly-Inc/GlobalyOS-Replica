@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { FileText, Loader2, Sparkles } from "lucide-react";
+import DOMPurify from "dompurify";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +47,7 @@ export const WikiTemplatesDialog = ({
 }: WikiTemplatesDialogProps) => {
   const [selectedTemplate, setSelectedTemplate] = useState<WikiTemplate | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>("all");
+  const [focusedIndex, setFocusedIndex] = useState<number>(0);
   const { grouped, templates, isLoading, isError } = useWikiTemplatesGrouped();
 
   // Get unique categories from templates
@@ -72,6 +74,7 @@ export const WikiTemplatesDialog = ({
     onOpenChange(false);
     setSelectedTemplate(null);
     setActiveCategory("all");
+    setFocusedIndex(0);
   };
 
   // Filter templates by category
@@ -79,9 +82,81 @@ export const WikiTemplatesDialog = ({
     ? templates 
     : (grouped[activeCategory] || []);
 
+  // Reset focus when category changes
+  useEffect(() => {
+    setFocusedIndex(0);
+    if (displayedTemplates.length > 0) {
+      setSelectedTemplate(displayedTemplates[0]);
+    }
+  }, [activeCategory, displayedTemplates.length]);
+
+  // Keyboard navigation
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (!displayedTemplates.length) return;
+
+    const cols = 3; // Grid has 3 columns on md+
+    const total = displayedTemplates.length;
+
+    switch (e.key) {
+      case "ArrowRight":
+        e.preventDefault();
+        setFocusedIndex(prev => {
+          const next = (prev + 1) % total;
+          setSelectedTemplate(displayedTemplates[next]);
+          return next;
+        });
+        break;
+      case "ArrowLeft":
+        e.preventDefault();
+        setFocusedIndex(prev => {
+          const next = (prev - 1 + total) % total;
+          setSelectedTemplate(displayedTemplates[next]);
+          return next;
+        });
+        break;
+      case "ArrowDown":
+        e.preventDefault();
+        setFocusedIndex(prev => {
+          const next = Math.min(prev + cols, total - 1);
+          setSelectedTemplate(displayedTemplates[next]);
+          return next;
+        });
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setFocusedIndex(prev => {
+          const next = Math.max(prev - cols, 0);
+          setSelectedTemplate(displayedTemplates[next]);
+          return next;
+        });
+        break;
+      case "Enter":
+        e.preventDefault();
+        if (selectedTemplate) {
+          handleSelect();
+        }
+        break;
+      case "Escape":
+        e.preventDefault();
+        handleClose();
+        break;
+    }
+  }, [displayedTemplates, selectedTemplate]);
+
+  // Sanitize HTML content for preview
+  const sanitizeContent = (content: string) => {
+    return DOMPurify.sanitize(content, {
+      ALLOWED_TAGS: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'ul', 'ol', 'li', 'strong', 'em', 'a', 'br', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'blockquote', 'pre', 'code'],
+      ALLOWED_ATTR: ['href', 'target', 'rel', 'class'],
+    });
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+      <DialogContent 
+        className="max-w-3xl max-h-[85vh] flex flex-col"
+        onKeyDown={handleKeyDown}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
@@ -144,22 +219,30 @@ export const WikiTemplatesDialog = ({
                     <p>No templates in this category</p>
                   </div>
                 ) : (
-                  displayedTemplates.map((template) => {
+                  displayedTemplates.map((template, index) => {
                     const isBlank = template.id.startsWith("builtin-blank");
                     const iconName = template.icon_name || "FileText";
                     const isSelected = selectedTemplate?.id === template.id;
+                    const isFocused = focusedIndex === index;
                     
                     return (
                       <button
                         key={template.id}
-                        onClick={() => setSelectedTemplate(template)}
+                        onClick={() => {
+                          setSelectedTemplate(template);
+                          setFocusedIndex(index);
+                        }}
                         className={cn(
                           "flex flex-col items-center p-4 rounded-lg border-2 transition-all text-left",
                           "hover:border-primary/50 hover:bg-muted/50",
+                          "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
                           isSelected
                             ? "border-primary bg-primary/5"
+                            : isFocused
+                            ? "border-primary/30 bg-muted/30"
                             : "border-border"
                         )}
+                        tabIndex={isFocused ? 0 : -1}
                       >
                         <div
                           className={cn(
@@ -203,7 +286,7 @@ export const WikiTemplatesDialog = ({
               <div 
                 className="text-sm prose prose-sm max-w-none"
                 dangerouslySetInnerHTML={{ 
-                  __html: selectedTemplate.content.slice(0, 500) + (selectedTemplate.content.length > 500 ? '...' : '') 
+                  __html: sanitizeContent(selectedTemplate.content.slice(0, 500) + (selectedTemplate.content.length > 500 ? '...' : ''))
                 }}
               />
             </ScrollArea>
