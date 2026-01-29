@@ -16,7 +16,7 @@ export interface WikiTemplate {
 }
 
 interface Organization {
-  business_category?: string | null;
+  industry?: string | null;
   country?: string | null;
 }
 
@@ -112,7 +112,7 @@ export function useWikiTemplates() {
   const org = currentOrg as Organization | null;
 
   return useQuery({
-    queryKey: ["wiki-templates", org?.business_category, org?.country],
+    queryKey: ["wiki-templates", org?.industry, org?.country],
     queryFn: async () => {
       // Fetch active templates from database
       const { data, error } = await supabase
@@ -134,8 +134,9 @@ export function useWikiTemplates() {
         return BUILTIN_TEMPLATES;
       }
 
-      // Filter templates based on organization's business category and country
-      const orgBusinessCategory = org?.business_category;
+      // Filter templates based on organization's industry and country
+      // Note: org uses 'industry' field which maps to template's 'business_category'
+      const orgIndustry = org?.industry;
       const orgCountry = org?.country;
 
       const filteredTemplates = dbTemplates.filter((template) => {
@@ -144,9 +145,9 @@ export function useWikiTemplates() {
           return true;
         }
 
-        // Check business category match
+        // Check business category match (template.business_category matches org.industry)
         const businessMatch = !template.business_category || 
-          template.business_category === orgBusinessCategory;
+          template.business_category === orgIndustry;
 
         // Check country match
         const countryMatch = !template.country_code || 
@@ -157,8 +158,8 @@ export function useWikiTemplates() {
 
       // Sort templates by relevance (exact matches first)
       const sortedTemplates = filteredTemplates.sort((a, b) => {
-        const aScore = getRelevanceScore(a, orgBusinessCategory, orgCountry);
-        const bScore = getRelevanceScore(b, orgBusinessCategory, orgCountry);
+        const aScore = getRelevanceScore(a, orgIndustry, orgCountry);
+        const bScore = getRelevanceScore(b, orgIndustry, orgCountry);
         return bScore - aScore;
       });
 
@@ -174,13 +175,13 @@ export function useWikiTemplates() {
 // Helper to score template relevance
 function getRelevanceScore(
   template: WikiTemplate, 
-  orgBusinessCategory?: string | null, 
+  orgIndustry?: string | null, 
   orgCountry?: string | null
 ): number {
   let score = 0;
   
-  // Exact business category match
-  if (template.business_category && template.business_category === orgBusinessCategory) {
+  // Exact business category match (template.business_category matches org.industry)
+  if (template.business_category && template.business_category === orgIndustry) {
     score += 2;
   }
   
