@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from "react";
+import { useState, useRef, useCallback, useEffect, forwardRef, useImperativeHandle, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
@@ -96,17 +96,44 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
   const isMobile = useIsMobile();
   const { data: currentEmployee } = useCurrentEmployee();
   
-  // Fetch members for @all mention
+  // Fetch members for mentions - space members or conversation participants only
   const { data: spaceMembers = [] } = useSpaceMembers(spaceId);
   const { data: conversationParticipants = [] } = useConversationParticipants(conversationId);
   
-  // Get all member IDs (excluding current user) for @all mention
-  const allMemberIds = spaceId 
-    ? spaceMembers.filter(m => m.employee_id !== currentEmployee?.id).map(m => m.employee_id)
-    : conversationParticipants.filter(p => p.employee_id !== currentEmployee?.id).map(p => p.employee_id);
-  
-  // Hide @all for DMs (1-on-1 conversations with only 2 participants)
+  // Determine if this is a DM (1-on-1 conversation)
   const isDM = !spaceId && conversationParticipants.length <= 2;
+  
+  // Build member list for mentions (excluding current user)
+  const mentionableMembers = useMemo(() => {
+    if (isDM) return []; // No mentions in DMs
+    
+    if (spaceId && spaceMembers.length > 0) {
+      return spaceMembers
+        .filter(m => m.employee_id !== currentEmployee?.id && m.employee)
+        .map(m => ({
+          id: m.employee_id,
+          name: m.employee?.profiles?.full_name || 'Unknown',
+          position: m.employee?.position || null,
+          avatar_url: m.employee?.profiles?.avatar_url || null,
+        }));
+    }
+    
+    if (conversationId && conversationParticipants.length > 0) {
+      return conversationParticipants
+        .filter(p => p.employee_id !== currentEmployee?.id && p.employee)
+        .map(p => ({
+          id: p.employee_id,
+          name: p.employee?.profiles?.full_name || 'Unknown',
+          position: p.employee?.position || null,
+          avatar_url: p.employee?.profiles?.avatar_url || null,
+        }));
+    }
+    
+    return [];
+  }, [spaceId, spaceMembers, conversationId, conversationParticipants, currentEmployee?.id, isDM]);
+  
+  // Get all member IDs for @all mention
+  const allMemberIds = mentionableMembers.map(m => m.id);
 
   // Expose addFiles method to parent component
   useImperativeHandle(ref, () => ({
@@ -164,6 +191,13 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
     
     if (value.trim()) {
       handleTyping();
+    }
+
+    // Skip mention detection for DMs
+    if (isDM) {
+      setShowMentions(false);
+      setMentionSearch("");
+      return;
     }
 
     const cursorPosition = e.target.selectionStart;
@@ -509,20 +543,23 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
 
           {/* Message input area */}
           <div ref={composerContainerRef} className="relative">
-            <MentionAutocomplete
-              isOpen={showMentions}
-              searchText={mentionSearch}
-              onSelect={handleMentionSelect}
-              onClose={() => setShowMentions(false)}
-              anchorRef={composerContainerRef}
-              allMemberIds={allMemberIds}
-              memberCount={allMemberIds.length}
-              hideAllOption={isDM}
-            />
+            {!isDM && (
+              <MentionAutocomplete
+                isOpen={showMentions}
+                searchText={mentionSearch}
+                onSelect={handleMentionSelect}
+                onClose={() => setShowMentions(false)}
+                anchorRef={composerContainerRef}
+                members={mentionableMembers}
+                allMemberIds={allMemberIds}
+                memberCount={allMemberIds.length}
+                hideAllOption={isDM || allMemberIds.length <= 1}
+              />
+            )}
             
             <Textarea
               ref={textareaRef}
-              placeholder={isMobile ? "Message..." : "Type a message... Use @ to mention someone"}
+              placeholder={isMobile ? "Message..." : isDM ? "Type a message..." : "Type a message... Use @ to mention someone"}
               value={message}
               onChange={handleMessageChange}
               onKeyDown={handleKeyDown}
@@ -606,23 +643,25 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
                 }
               />
 
-              {/* Mention */}
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className={cn(
-                  "text-muted-foreground hover:text-foreground",
-                  isMobile ? "h-10 w-10" : "h-8 w-8"
-                )}
-                onClick={() => {
-                  const cursorPosition = textareaRef.current?.selectionStart || message.length;
-                  setMessage(prev => prev.slice(0, cursorPosition) + '@' + prev.slice(cursorPosition));
-                  setShowMentions(true);
-                  textareaRef.current?.focus();
-                }}
-              >
-                <AtSign className={isMobile ? "h-5 w-5" : "h-4 w-4"} />
-              </Button>
+              {/* Mention - hide in DMs */}
+              {!isDM && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className={cn(
+                    "text-muted-foreground hover:text-foreground",
+                    isMobile ? "h-10 w-10" : "h-8 w-8"
+                  )}
+                  onClick={() => {
+                    const cursorPosition = textareaRef.current?.selectionStart || message.length;
+                    setMessage(prev => prev.slice(0, cursorPosition) + '@' + prev.slice(cursorPosition));
+                    setShowMentions(true);
+                    textareaRef.current?.focus();
+                  }}
+                >
+                  <AtSign className={isMobile ? "h-5 w-5" : "h-4 w-4"} />
+                </Button>
+              )}
             </div>
 
             {/* Send button */}
