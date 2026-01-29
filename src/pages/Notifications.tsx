@@ -54,7 +54,8 @@ const Notifications = () => {
           title: "Test Notification 🔔",
           body: "This is how push notifications look in your browser. You're all set!",
           url: "/notifications",
-          tag: "test-notification",
+          tag: `test-${Date.now()}`,
+          requireInteraction: true,
         },
       });
       
@@ -65,6 +66,22 @@ const Notifications = () => {
       toast.error("Failed to send test notification");
     } finally {
       setTestingSend(false);
+    }
+  };
+
+  const showLocalTestNotification = async () => {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      await registration.showNotification('Local Test 🔔', {
+        body: 'This notification bypasses the push pipeline - if you see this, notifications work!',
+        icon: '/favicon.png',
+        tag: `local-${Date.now()}`,
+        requireInteraction: true,
+      });
+      toast.success("Local notification shown!");
+    } catch (error) {
+      console.error("Local notification error:", error);
+      toast.error("Failed to show local notification");
     }
   };
 
@@ -392,7 +409,7 @@ const Notifications = () => {
               
               {isSubscribed && (
                 <div className="space-y-3">
-                  <div className="pt-2 border-t border-border/50">
+                  <div className="pt-2 border-t border-border/50 flex flex-col sm:flex-row gap-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -408,14 +425,23 @@ const Notifications = () => {
                       ) : (
                         <>
                           <Bell className="h-4 w-4 mr-2" />
-                          Send Test Notification
+                          Send Push Test
                         </>
                       )}
                     </Button>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      See how notifications appear in your browser
-                    </p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={showLocalTestNotification}
+                      className="w-full sm:w-auto"
+                    >
+                      <BellRing className="h-4 w-4 mr-2" />
+                      Show Local Test
+                    </Button>
                   </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    <strong>Push Test:</strong> Via server → <strong>Local Test:</strong> Direct browser call (bypasses push pipeline)
+                  </p>
                   <p className="text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
                     💡 <strong>Not seeing notifications?</strong> Check that:
                     <ul className="list-disc ml-4 mt-1 space-y-0.5">
