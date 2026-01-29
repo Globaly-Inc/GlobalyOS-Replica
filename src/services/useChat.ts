@@ -2405,6 +2405,7 @@ export const usePublicSpaces = () => {
 };
 
 // Hook to fetch all unread messages across conversations and spaces
+// Optimized: Single RPC call instead of N+1 sequential queries
 export const useUnreadMessages = () => {
   const { currentOrg } = useOrganization();
   const { data: currentEmployee } = useCurrentEmployee();
@@ -2414,84 +2415,42 @@ export const useUnreadMessages = () => {
     queryFn: async () => {
       if (!currentOrg?.id || !currentEmployee?.id) return [];
 
-      // Step 1: Get all conversation participations with last_read_at
-      const { data: participations } = await supabase
-        .from('chat_participants')
-        .select('conversation_id, last_read_at')
-        .eq('employee_id', currentEmployee.id)
-        .eq('organization_id', currentOrg.id);
+      const { data, error } = await supabase.rpc('get_unread_messages', {
+        p_employee_id: currentEmployee.id,
+        p_organization_id: currentOrg.id,
+        p_limit: 50
+      });
 
-      // Step 2: Get all space memberships with last_read_at  
-      const { data: memberships } = await supabase
-        .from('chat_space_members')
-        .select('space_id, last_read_at')
-        .eq('employee_id', currentEmployee.id)
-        .eq('organization_id', currentOrg.id);
+      if (error) throw error;
 
-      const unreadMessages: any[] = [];
-
-      // Step 3: Fetch unread messages from conversations
-      for (const p of participations || []) {
-        let query = supabase
-          .from('chat_messages')
-          .select(`
-            *,
-            employees:sender_id (id, user_id, position, profiles:user_id (full_name, avatar_url)),
-            chat_conversations:conversation_id (id, name, is_group)
-          `)
-          .eq('conversation_id', p.conversation_id)
-          .neq('sender_id', currentEmployee.id)
-          .order('created_at', { ascending: false })
-          .limit(10);
-
-        if (p.last_read_at) {
-          query = query.gt('created_at', p.last_read_at);
-        }
-
-        const { data } = await query;
-        if (data) {
-          unreadMessages.push(...data.map(msg => ({
-            ...msg,
-            sender: msg.employees,
-            conversation: msg.chat_conversations,
-          })));
-        }
-      }
-
-      // Step 4: Fetch unread messages from spaces
-      for (const m of memberships || []) {
-        let query = supabase
-          .from('chat_messages')
-          .select(`
-            *,
-            employees:sender_id (id, user_id, position, profiles:user_id (full_name, avatar_url)),
-            chat_spaces:space_id (id, name, icon_url)
-          `)
-          .eq('space_id', m.space_id)
-          .neq('sender_id', currentEmployee.id)
-          .order('created_at', { ascending: false })
-          .limit(10);
-
-        if (m.last_read_at) {
-          query = query.gt('created_at', m.last_read_at);
-        }
-
-        const { data } = await query;
-        if (data) {
-          unreadMessages.push(...data.map(msg => ({
-            ...msg,
-            sender: msg.employees,
-            space: msg.chat_spaces,
-          })));
-        }
-      }
-
-      // Sort by created_at descending (newest first)
-      return unreadMessages.sort((a, b) => 
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
+      // Transform RPC result to expected format
+      return (data || []).map((msg: any) => ({
+        id: msg.id,
+        content: msg.content,
+        content_type: msg.content_type,
+        created_at: msg.created_at,
+        conversation_id: msg.conversation_id,
+        space_id: msg.space_id,
+        sender: {
+          profiles: {
+            full_name: msg.sender_full_name,
+            avatar_url: msg.sender_avatar_url
+          }
+        },
+        conversation: msg.conversation_id ? {
+          id: msg.conversation_id,
+          name: msg.conversation_name,
+          is_group: msg.conversation_is_group
+        } : null,
+        space: msg.space_id ? {
+          id: msg.space_id,
+          name: msg.space_name,
+          icon_url: msg.space_icon_url
+        } : null
+      }));
     },
     enabled: !!currentOrg?.id && !!currentEmployee?.id,
+    staleTime: 30 * 1000, // 30 seconds - prevent unnecessary refetches
     refetchInterval: 30000,
   });
 };

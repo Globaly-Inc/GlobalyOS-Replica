@@ -12869,6 +12869,28 @@ export type Database = {
           unread_count: number
         }[]
       }
+      get_unread_messages: {
+        Args: {
+          p_employee_id: string
+          p_limit?: number
+          p_organization_id: string
+        }
+        Returns: {
+          content: string
+          content_type: string
+          conversation_id: string
+          conversation_is_group: boolean
+          conversation_name: string
+          created_at: string
+          id: string
+          sender_avatar_url: string
+          sender_employee_id: string
+          sender_full_name: string
+          space_icon_url: string
+          space_id: string
+          space_name: string
+        }[]
+      }
       get_user_organizations: { Args: { _user_id: string }; Returns: string[] }
       get_user_space_ids: {
         Args: { _user_id: string }
