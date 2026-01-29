@@ -62,7 +62,9 @@ export default defineConfig(({ mode }) => ({
       },
       injectRegister: "auto",
       devOptions: {
-        enabled: false,
+        enabled: true,
+        type: 'module',
+        navigateFallback: 'index.html',
       },
     }),
   ].filter(Boolean),
