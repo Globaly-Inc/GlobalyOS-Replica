@@ -830,7 +830,7 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
                                 )}
                                 {spaceId && memberSource === 'manual' && (
                                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-600 shrink-0">
-                                    Invited
+                                    Manual
                                   </span>
                                 )}
                               </div>
