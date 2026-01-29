@@ -167,37 +167,39 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
         <ScrollArea className="flex-1 pr-4 -mr-4">
           <div className="space-y-6 pb-2">
             {/* Space name with image picker */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <SpaceImagePicker value={iconUrl} onChange={setIconUrl} />
+            <div className="flex items-center gap-3">
+              <SpaceImagePicker value={iconUrl} onChange={setIconUrl} />
+              <div className="relative flex-1">
                 <Input
                   placeholder="Space name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="flex-1"
+                  className="pr-14"
                   maxLength={128}
                 />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+                  {name.length}/128
+                </span>
               </div>
-              <p className="text-xs text-muted-foreground text-right">
-                {name.length}/128
-              </p>
             </div>
 
             {/* Description */}
             <div className="space-y-2">
               <Label htmlFor="description">Description (optional)</Label>
-              <Textarea
-                id="description"
-                placeholder="What is this space about?"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="resize-none"
-                rows={3}
-                maxLength={500}
-              />
-              <p className="text-xs text-muted-foreground text-right">
-                {description.length}/500
-              </p>
+              <div className="relative">
+                <Textarea
+                  id="description"
+                  placeholder="What is this space about?"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="resize-none pb-6"
+                  rows={3}
+                  maxLength={500}
+                />
+                <span className="absolute right-3 bottom-2 text-xs text-muted-foreground pointer-events-none">
+                  {description.length}/500
+                </span>
+              </div>
             </div>
 
             {/* Space Type */}
