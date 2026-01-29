@@ -35,6 +35,7 @@ import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { supabase } from "@/integrations/supabase/client";
 import InlineSearchResults from "./InlineSearchResults";
 import EditGroupChatDialog from "./EditGroupChatDialog";
+import SpaceSettingsDialog from "./SpaceSettingsDialog";
 import { ImageCropper } from "@/components/ui/image-cropper";
 import type { ActiveChat } from "@/types/chat";
 
@@ -87,6 +88,9 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
   const [spaceCropperOpen, setSpaceCropperOpen] = useState(false);
   const [spaceTempImageSrc, setSpaceTempImageSrc] = useState<string | null>(null);
   const spaceFileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Space settings dialog state
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
 
   // Focus input when search opens
   useEffect(() => {
@@ -760,9 +764,18 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
                     })()}
                   </span>
                   {space?.auto_sync_members && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[10px] font-medium">
+                    <span 
+                      className={cn(
+                        "inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[10px] font-medium group/sync",
+                        isSpaceAdmin && "cursor-pointer hover:bg-muted/80 transition-colors"
+                      )}
+                      onClick={isSpaceAdmin ? () => setShowSettingsDialog(true) : undefined}
+                    >
                       <RefreshCw className="h-2.5 w-2.5" />
                       Auto Sync
+                      {isSpaceAdmin && (
+                        <Pencil className="h-2.5 w-2.5 opacity-0 group-hover/sync:opacity-100 transition-opacity" />
+                      )}
                     </span>
                   )}
                 </p>
@@ -923,6 +936,15 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
           onCropComplete={handleSpaceCropComplete}
           cropShape="square"
           aspectRatio={1}
+        />
+      )}
+
+      {/* Space Settings Dialog */}
+      {spaceId && (
+        <SpaceSettingsDialog
+          open={showSettingsDialog}
+          onOpenChange={setShowSettingsDialog}
+          spaceId={spaceId}
         />
       )}
     </>
