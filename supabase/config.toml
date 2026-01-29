@@ -278,3 +278,12 @@ verify_jwt = false
 
 [functions.ai-chat-assist]
 verify_jwt = false
+
+[functions.generate-wiki-policy-templates]
+verify_jwt = false
+
+[functions.generate-wiki-sops]
+verify_jwt = false
+
+[functions.bulk-generate-wiki-content]
+verify_jwt = false

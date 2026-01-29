@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -19,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FileText, Plus, Pencil, Trash2, Loader2, Globe } from "lucide-react";
+import { FileText, Plus, Pencil, Trash2, Loader2, Globe, Search } from "lucide-react";
 import { toast } from "sonner";
 import { COUNTRIES, getFlagEmoji } from "@/lib/countries";
 import { BUSINESS_CATEGORIES } from "@/constants/businessCategories";
@@ -71,6 +72,7 @@ export const TemplateWikiTab = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [businessCategoryFilter, setBusinessCategoryFilter] = useState<string>("all");
   const [countryFilter, setCountryFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<TemplateWikiDocument | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -147,6 +149,16 @@ export const TemplateWikiTab = () => {
   const countriesInData = [...new Set(templates.map(t => t.country_code).filter(Boolean))] as string[];
   const businessCategoriesInData = [...new Set(templates.map(t => t.business_category).filter(Boolean))] as string[];
 
+  // Filter templates by search query
+  const filteredTemplates = searchQuery.trim() 
+    ? templates.filter(t => 
+        t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.subcategory?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+      )
+    : templates;
+
   // Calculate stats
   const stats = {
     total: templates.length,
@@ -174,7 +186,18 @@ export const TemplateWikiTab = () => {
               Manage wiki templates available to all organizations
             </CardDescription>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search templates..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-[200px] pl-8"
+              />
+            </div>
+            
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="w-[160px]">
                 <SelectValue placeholder="Category" />
@@ -241,11 +264,13 @@ export const TemplateWikiTab = () => {
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          ) : templates.length === 0 ? (
+          ) : filteredTemplates.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No templates found</p>
-              <p className="text-sm mt-1">Create your first wiki template or use AI to generate templates</p>
+              <p>{searchQuery ? "No templates match your search" : "No templates found"}</p>
+              <p className="text-sm mt-1">
+                {searchQuery ? "Try a different search term" : "Create your first wiki template or use AI to generate templates"}
+              </p>
             </div>
           ) : (
             <Table>
@@ -261,7 +286,7 @@ export const TemplateWikiTab = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {templates.map((template) => {
+                {filteredTemplates.map((template) => {
                   const country = template.country_code
                     ? COUNTRIES.find(c => c.code === template.country_code)?.name || template.country_code
                     : "Global";
