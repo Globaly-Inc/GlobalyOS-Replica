@@ -1,297 +1,252 @@
 
+# Optimize Unread Page Loading Performance
 
-# Add Access Settings to Space Settings Dialog
+## Problem Analysis
 
-## Overview
+The current `useUnreadMessages` hook has a significant **N+1 query problem**:
 
-Add the "Access settings" section to the `SpaceSettingsDialog` to match the `CreateSpaceDialog` UI. This will allow space admins to view and modify access scope settings (company-wide, group access, or manual members) directly from the settings dialog.
+| Step | API Calls |
+|------|-----------|
+| Fetch participations | 1 call |
+| Fetch memberships | 1 call |
+| Fetch messages per conversation | N calls (6 for this user) |
+| Fetch messages per space | M calls (9 for this user) |
+| **Total** | **17 sequential calls** |
 
-## Current State
+Each API call adds network latency (50-200ms), resulting in **1-3 seconds of loading time** even for users with modest chat activity.
 
-| Dialog | Has Access Settings | UI Style |
-|--------|---------------------|----------|
-| CreateSpaceDialog | ✅ Yes | Space icon picker, name, description, space type (radio cards), access settings |
-| SpaceSettingsDialog | ❌ No | Name, description, space type (list-style radios), auto-sync toggle, danger zone |
+**Additional UX issues:**
+- Simple "Loading..." text provides no visual feedback
+- No skeleton placeholders to indicate content structure
+- No staleTime configured, causing unnecessary refetches
 
-The `SpaceSettingsDialog` is missing the `AccessScopeSelector` component and uses a different UI layout for space type selection.
+## Solution Overview
+
+1. **Create a database function** to fetch all unread messages in a single optimized query
+2. **Add loading skeletons** for better perceived performance
+3. **Configure staleTime** to reduce unnecessary refetches
+4. **Use parallel queries** as fallback if RPC fails
 
 ## Implementation Plan
 
-### 1. Update SpaceSettingsDialog to Import AccessScopeSelector
+### 1. Create Database Function for Unread Messages
 
-**File**: `src/components/chat/SpaceSettingsDialog.tsx`
+**Migration: `get_unread_messages` function**
 
-Add imports and state variables for access settings:
-- Import `AccessScopeSelector` and `SpaceImagePicker` components
-- Add state for `accessScope`, `officeIds`, `departmentIds`, `projectIds`, `memberIds`, and their toggle flags
-- Initialize these from the `space` data when loaded
-
-### 2. Add Access Settings UI Section
-
-Add the `AccessScopeSelector` component between the Space Type section and the Danger Zone section, matching the visual style in `CreateSpaceDialog`.
-
-### 3. Update Space Type UI to Match Create Dialog
-
-Change the space type selection from list-style to grid-style (2 columns) to match `CreateSpaceDialog`:
-- Use compact card layout with icons
-- Add `cn()` for active state styling
-
-### 4. Add Space Icon Picker
-
-Add the `SpaceImagePicker` component next to the space name input, matching the create dialog layout.
-
-### 5. Update useUpdateSpace Hook
-
-**File**: `src/services/useChat.ts`
-
-Extend the mutation to handle:
-- `accessScope` changes
-- Office, department, and project association updates
-- Member additions for manual scope
-- Auto-sync settings based on scope
-
-### 6. Handle Access Scope Changes
-
-When access scope changes:
-- Update `chat_spaces.access_scope` column
-- Clear and re-insert records in `chat_space_offices`, `chat_space_departments`, `chat_space_projects`
-- Optionally sync members based on new criteria
-
-## Detailed Changes
-
-### File: `src/components/chat/SpaceSettingsDialog.tsx`
-
-#### New Imports
-```tsx
-import AccessScopeSelector, { type AccessScope } from "./AccessScopeSelector";
-import SpaceImagePicker from "./SpaceImagePicker";
-import { MessageSquare } from "lucide-react"; // Add to existing lucide imports
-import { cn } from "@/lib/utils";
-import { Separator } from "@/components/ui/separator";
+```sql
+CREATE OR REPLACE FUNCTION public.get_unread_messages(
+  p_employee_id UUID,
+  p_organization_id UUID,
+  p_limit INT DEFAULT 50
+)
+RETURNS TABLE (
+  id UUID,
+  content TEXT,
+  content_type TEXT,
+  created_at TIMESTAMPTZ,
+  conversation_id UUID,
+  space_id UUID,
+  sender_employee_id UUID,
+  sender_full_name TEXT,
+  sender_avatar_url TEXT,
+  conversation_name TEXT,
+  conversation_is_group BOOLEAN,
+  space_name TEXT,
+  space_icon_url TEXT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    m.id,
+    m.content,
+    m.content_type,
+    m.created_at,
+    m.conversation_id,
+    m.space_id,
+    e.id as sender_employee_id,
+    p.full_name as sender_full_name,
+    p.avatar_url as sender_avatar_url,
+    c.name as conversation_name,
+    c.is_group as conversation_is_group,
+    s.name as space_name,
+    s.icon_url as space_icon_url
+  FROM chat_messages m
+  LEFT JOIN employees e ON m.sender_id = e.id
+  LEFT JOIN profiles p ON e.user_id = p.id
+  LEFT JOIN chat_conversations c ON m.conversation_id = c.id
+  LEFT JOIN chat_spaces s ON m.space_id = s.id
+  WHERE m.organization_id = p_organization_id
+    AND m.sender_id != p_employee_id
+    AND m.content_type != 'system_event'
+    AND (
+      -- Unread conversation messages
+      (m.conversation_id IS NOT NULL AND EXISTS (
+        SELECT 1 FROM chat_participants cp 
+        WHERE cp.conversation_id = m.conversation_id 
+          AND cp.employee_id = p_employee_id
+          AND (cp.last_read_at IS NULL OR m.created_at > cp.last_read_at)
+      ))
+      OR
+      -- Unread space messages
+      (m.space_id IS NOT NULL AND EXISTS (
+        SELECT 1 FROM chat_space_members sm 
+        WHERE sm.space_id = m.space_id 
+          AND sm.employee_id = p_employee_id
+          AND (sm.last_read_at IS NULL OR m.created_at > sm.last_read_at)
+      ))
+    )
+  ORDER BY m.created_at DESC
+  LIMIT p_limit;
+END;
+$$;
 ```
 
-#### New State Variables (after existing state)
-```tsx
-const [iconUrl, setIconUrl] = useState<string | null>(null);
-const [accessScope, setAccessScope] = useState<AccessScope>("company");
-const [selectedOfficeIds, setSelectedOfficeIds] = useState<string[]>([]);
-const [selectedDepartmentIds, setSelectedDepartmentIds] = useState<string[]>([]);
-const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
-const [officesEnabled, setOfficesEnabled] = useState(false);
-const [departmentsEnabled, setDepartmentsEnabled] = useState(false);
-const [projectsEnabled, setProjectsEnabled] = useState(false);
-const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
-const [inviteAdditionalMembers, setInviteAdditionalMembers] = useState(false);
+### 2. Update useUnreadMessages Hook
+
+**File: `src/services/useChat.ts`**
+
+Replace the sequential query logic with an RPC call:
+
+```typescript
+export const useUnreadMessages = () => {
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+
+  return useQuery({
+    queryKey: ['unread-messages', currentOrg?.id, currentEmployee?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id || !currentEmployee?.id) return [];
+
+      const { data, error } = await supabase.rpc('get_unread_messages', {
+        p_employee_id: currentEmployee.id,
+        p_organization_id: currentOrg.id,
+        p_limit: 50
+      });
+
+      if (error) throw error;
+
+      // Transform RPC result to expected format
+      return (data || []).map((msg: any) => ({
+        id: msg.id,
+        content: msg.content,
+        content_type: msg.content_type,
+        created_at: msg.created_at,
+        conversation_id: msg.conversation_id,
+        space_id: msg.space_id,
+        sender: {
+          profiles: {
+            full_name: msg.sender_full_name,
+            avatar_url: msg.sender_avatar_url
+          }
+        },
+        conversation: msg.conversation_id ? {
+          id: msg.conversation_id,
+          name: msg.conversation_name,
+          is_group: msg.conversation_is_group
+        } : null,
+        space: msg.space_id ? {
+          id: msg.space_id,
+          name: msg.space_name,
+          icon_url: msg.space_icon_url
+        } : null
+      }));
+    },
+    enabled: !!currentOrg?.id && !!currentEmployee?.id,
+    staleTime: 30 * 1000, // 30 seconds - prevent unnecessary refetches
+    refetchInterval: 30000,
+  });
+};
 ```
 
-#### Update useEffect to Initialize Access Settings
-```tsx
-useEffect(() => {
-  if (space) {
-    setName(space.name);
-    setDescription(space.description || "");
-    setSpaceType(space.space_type);
-    setIconUrl(space.icon_url || null);
-    setAutoSyncMembers(space.auto_sync_members || false);
-    
-    // Initialize access scope
-    const scope = space.access_scope as AccessScope;
-    setAccessScope(scope === 'offices' || scope === 'projects' ? 'custom' : scope);
-    
-    // Initialize office/department/project selections
-    if (space.offices?.length) {
-      setOfficesEnabled(true);
-      setSelectedOfficeIds(space.offices.map(o => o.id));
-    }
-    if (space.departments?.length) {
-      setDepartmentsEnabled(true);
-      setSelectedDepartmentIds(space.departments.map(d => d.id));
-    }
-    if (space.projects?.length) {
-      setProjectsEnabled(true);
-      setSelectedProjectIds(space.projects.map(p => p.id));
-    }
-  }
-}, [space]);
-```
+### 3. Create UnreadMessageSkeleton Component
 
-#### Update Space Name Input Layout (add icon picker)
-```tsx
-<div className="space-y-2">
-  <Label>Space name</Label>
-  <div className="flex items-center gap-3">
-    <SpaceImagePicker value={iconUrl} onChange={setIconUrl} />
-    <Input
-      value={name}
-      onChange={(e) => setName(e.target.value)}
-      maxLength={128}
-      className="flex-1"
-    />
-  </div>
-  <p className="text-xs text-muted-foreground text-right">
-    {name.length}/128
-  </p>
-</div>
-```
+**New file: `src/components/chat/UnreadMessageSkeleton.tsx`**
 
-#### Update Space Type UI to Grid Layout (matching CreateSpaceDialog)
-```tsx
-<div className="space-y-3">
-  <Label className="text-base font-semibold">Space type</Label>
-  <RadioGroup
-    value={spaceType}
-    onValueChange={(v) => setSpaceType(v as 'collaboration' | 'announcements')}
-    className="grid grid-cols-2 gap-3"
-  >
-    <div 
-      className={cn(
-        "flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors",
-        spaceType === 'collaboration' 
-          ? 'border-primary bg-primary/5' 
-          : 'border-border hover:bg-muted/50'
-      )}
-      onClick={() => setSpaceType('collaboration')}
-    >
-      <RadioGroupItem value="collaboration" id="settings-collaboration" />
-      <MessageSquare className={cn("h-4 w-4", spaceType === 'collaboration' ? 'text-primary' : 'text-muted-foreground')} />
-      <div className="flex-1 min-w-0">
-        <Label htmlFor="settings-collaboration" className="font-medium cursor-pointer text-sm">
-          Collaboration
-        </Label>
-        <p className="text-xs text-muted-foreground truncate">Everyone can post</p>
-      </div>
-    </div>
-    
-    <div 
-      className={cn(
-        "flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors",
-        spaceType === 'announcements' 
-          ? 'border-primary bg-primary/5' 
-          : 'border-border hover:bg-muted/50'
-      )}
-      onClick={() => setSpaceType('announcements')}
-    >
-      <RadioGroupItem value="announcements" id="settings-announcements" />
-      <Megaphone className={cn("h-4 w-4", spaceType === 'announcements' ? 'text-primary' : 'text-muted-foreground')} />
-      <div className="flex-1 min-w-0">
-        <Label htmlFor="settings-announcements" className="font-medium cursor-pointer text-sm">
-          Announcement
-        </Label>
-        <p className="text-xs text-muted-foreground truncate">Only admins can post</p>
-      </div>
-    </div>
-  </RadioGroup>
-</div>
-```
+```typescript
+import { Skeleton } from "@/components/ui/skeleton";
 
-#### Add AccessScopeSelector (after Space Type, before Danger Zone)
-```tsx
-{/* Access Settings */}
-<AccessScopeSelector
-  value={accessScope}
-  onChange={setAccessScope}
-  selectedOfficeIds={selectedOfficeIds}
-  onOfficeIdsChange={setSelectedOfficeIds}
-  selectedDepartmentIds={selectedDepartmentIds}
-  onDepartmentIdsChange={setSelectedDepartmentIds}
-  selectedProjectIds={selectedProjectIds}
-  onProjectIdsChange={setSelectedProjectIds}
-  officesEnabled={officesEnabled}
-  onOfficesEnabledChange={setOfficesEnabled}
-  departmentsEnabled={departmentsEnabled}
-  onDepartmentsEnabledChange={setDepartmentsEnabled}
-  projectsEnabled={projectsEnabled}
-  onProjectsEnabledChange={setProjectsEnabled}
-  selectedMemberIds={selectedMemberIds}
-  onMemberIdsChange={setSelectedMemberIds}
-  currentEmployeeId={currentEmployee?.id}
-  inviteAdditionalMembers={inviteAdditionalMembers}
-  onInviteAdditionalMembersChange={setInviteAdditionalMembers}
-/>
-```
-
-#### Remove Standalone Auto-Sync Section
-The auto-sync toggle is now built into the `AccessScopeSelector` component, so the standalone auto-sync section (lines 365-401) can be removed.
-
-### File: `src/services/useChat.ts` - Update useUpdateSpace
-
-#### Extend Mutation Parameters
-```tsx
-mutationFn: async ({
-  spaceId,
-  name,
-  description,
-  spaceType,
-  iconUrl,
-  autoSyncMembers,
-  accessScope,
-  officeIds,
-  departmentIds,
-  projectIds,
-  oldName,
-  oldIconUrl,
-}: {
-  spaceId: string;
-  name?: string;
-  description?: string | null;
-  spaceType?: 'collaboration' | 'announcements';
-  iconUrl?: string | null;
-  autoSyncMembers?: boolean;
-  accessScope?: 'company' | 'custom' | 'members';
-  officeIds?: string[];
-  departmentIds?: string[];
-  projectIds?: string[];
-  oldName?: string;
-  oldIconUrl?: string | null;
-}) => {
-```
-
-#### Add Access Scope Update Logic
-After the main space update:
-```tsx
-// Handle access scope changes
-if (accessScope !== undefined) {
-  updateData.access_scope = accessScope;
-  updateData.access_type = accessScope === 'company' ? 'public' : 'private';
-  
-  // Clear existing associations
-  await supabase.from('chat_space_offices').delete().eq('space_id', spaceId);
-  await supabase.from('chat_space_departments').delete().eq('space_id', spaceId);
-  await supabase.from('chat_space_projects').delete().eq('space_id', spaceId);
-  
-  // Add new associations based on scope
-  if (accessScope === 'custom') {
-    if (officeIds?.length) {
-      await supabase.from('chat_space_offices').insert(
-        officeIds.map(id => ({ space_id: spaceId, office_id: id, organization_id: currentOrg.id }))
-      );
-    }
-    if (departmentIds?.length) {
-      await supabase.from('chat_space_departments').insert(
-        departmentIds.map(id => ({ space_id: spaceId, department_id: id, organization_id: currentOrg.id }))
-      );
-    }
-    if (projectIds?.length) {
-      await supabase.from('chat_space_projects').insert(
-        projectIds.map(id => ({ space_id: spaceId, project_id: id, organization_id: currentOrg.id }))
-      );
-    }
-  }
+interface UnreadMessageSkeletonProps {
+  count?: number;
 }
+
+export const UnreadMessageSkeleton = ({ count = 5 }: UnreadMessageSkeletonProps) => {
+  return (
+    <div className="space-y-3">
+      {Array.from({ length: count }).map((_, i) => (
+        <div
+          key={i}
+          className="p-3 rounded-lg border border-border bg-background"
+        >
+          <div className="flex items-start gap-3">
+            <Skeleton className="h-10 w-10 rounded-full flex-shrink-0" />
+            <div className="flex-1 space-y-2">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-5 w-16 rounded-full" />
+              </div>
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-32 mt-1" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
 ```
 
-## Summary
+### 4. Update UnreadView Component
 
-| File | Changes |
-|------|---------|
-| `SpaceSettingsDialog.tsx` | Add imports, state, icon picker, grid-style space type, access settings UI |
-| `useChat.ts` | Extend `useUpdateSpace` to handle access scope and associations |
+**File: `src/components/chat/UnreadView.tsx`**
 
-## Result
+Replace text "Loading..." with skeleton component:
 
-After implementation:
-- Space settings dialog will match the visual style of the create dialog
-- Admins can modify access scope (company-wide, group access, manual members)
-- Changes to office/department/project criteria are persisted
-- Auto-sync is managed through the access scope selection
+```typescript
+import { UnreadMessageSkeleton } from "./UnreadMessageSkeleton";
 
+// In the component, replace:
+{isLoading ? (
+  <div className="text-center text-muted-foreground py-8">Loading...</div>
+) : ...
+
+// With:
+{isLoading ? (
+  <UnreadMessageSkeleton count={5} />
+) : ...
+```
+
+## Performance Comparison
+
+| Metric | Before | After |
+|--------|--------|-------|
+| API calls | 17 (sequential) | 1 (single RPC) |
+| Estimated load time | 1-3 seconds | 100-300ms |
+| Perceived wait | Plain text | Skeleton animation |
+| Refetch behavior | Every mount | staleTime: 30s |
+
+## Files to Create/Modify
+
+| File | Change |
+|------|--------|
+| `supabase/migrations/xxx.sql` | Create `get_unread_messages` function |
+| `src/services/useChat.ts` | Update `useUnreadMessages` to use RPC |
+| `src/components/chat/UnreadMessageSkeleton.tsx` | **New** - Loading skeleton |
+| `src/components/chat/UnreadView.tsx` | Use skeleton, remove "Loading..." text |
+
+## Technical Details
+
+### Database Function Benefits
+- Single round-trip to database
+- Query executed server-side with optimal join strategy
+- EXISTS subqueries are efficient with proper indexes
+- SECURITY DEFINER ensures consistent permission checks
+
+### Skeleton UX Benefits
+- Immediate visual feedback on navigation
+- Content structure preview reduces perceived wait
+- Smooth transition when data loads
+- Consistent with other loading patterns in the app
