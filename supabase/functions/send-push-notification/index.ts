@@ -14,6 +14,7 @@ interface PushPayload {
   url?: string;
   tag?: string;
   data?: Record<string, unknown>;
+  warmup?: boolean;
 }
 
 // Base64URL decode
@@ -42,12 +43,9 @@ async function convertVapidKeysToJwk(publicKeyBase64: string, privateKeyBase64: 
   publicKey: JsonWebKey;
   privateKey: JsonWebKey;
 }> {
-  // Decode keys
   const publicKeyBytes = base64urlDecode(publicKeyBase64);
   const privateKeyBytes = base64urlDecode(privateKeyBase64);
 
-  // For P-256, public key is 65 bytes (0x04 + 32 bytes X + 32 bytes Y)
-  // Private key is 32 bytes (d)
   if (publicKeyBytes.length !== 65) {
     throw new Error(`Invalid public key length: ${publicKeyBytes.length}, expected 65`);
   }
@@ -55,7 +53,6 @@ async function convertVapidKeysToJwk(publicKeyBase64: string, privateKeyBase64: 
     throw new Error(`Invalid private key length: ${privateKeyBytes.length}, expected 32`);
   }
 
-  // Extract X and Y coordinates from public key
   const x = base64urlEncode(publicKeyBytes.slice(1, 33));
   const y = base64urlEncode(publicKeyBytes.slice(33, 65));
   const d = base64urlEncode(privateKeyBytes);
@@ -80,48 +77,63 @@ async function convertVapidKeysToJwk(publicKeyBase64: string, privateKeyBase64: 
   return { publicKey: publicKeyJwk, privateKey: privateKeyJwk };
 }
 
+// Module-level cache for VAPID keys (persists across requests in warm container)
+let cachedAppServer: webpush.ApplicationServer | null = null;
+
+async function getAppServer(): Promise<webpush.ApplicationServer> {
+  if (cachedAppServer) {
+    return cachedAppServer;
+  }
+
+  const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY");
+  const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY");
+
+  if (!vapidPublicKey || !vapidPrivateKey) {
+    throw new Error("VAPID keys not configured");
+  }
+
+  console.log("Initializing VAPID keys (first request or cache miss)...");
+  const jwkKeys = await convertVapidKeysToJwk(vapidPublicKey, vapidPrivateKey);
+  const vapidKeys = await webpush.importVapidKeys(jwkKeys, { extractable: false });
+  
+  cachedAppServer = await webpush.ApplicationServer.new({
+    contactInformation: "mailto:support@globalyhub.com",
+    vapidKeys,
+  });
+  
+  console.log("VAPID keys cached successfully");
+  return cachedAppServer;
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    const payload: PushPayload = await req.json();
+
+    // Handle warmup pings - early return to keep container warm
+    if (payload.warmup) {
+      console.log("Warmup ping received - keeping container warm");
+      return new Response(
+        JSON.stringify({ status: "warm", timestamp: new Date().toISOString() }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { user_id, title, body, url, tag, data } = payload;
+
+    console.log(`Push notification request for user ${user_id}: ${title}`);
+
+    // Get cached app server (VAPID keys only converted once)
+    const appServer = await getAppServer();
+
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
-
-    const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY");
-    const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY");
-
-    if (!vapidPublicKey || !vapidPrivateKey) {
-      console.error("VAPID keys not configured");
-      return new Response(
-        JSON.stringify({ error: "VAPID keys not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Convert raw base64url VAPID keys to JWK format
-    console.log("Converting VAPID keys to JWK format...");
-    const jwkKeys = await convertVapidKeysToJwk(vapidPublicKey, vapidPrivateKey);
-    console.log("JWK keys created successfully");
-
-    // Import VAPID keys using the library
-    const vapidKeys = await webpush.importVapidKeys(jwkKeys, { extractable: false });
-    console.log("VAPID keys imported successfully");
-
-    // Create an application server object
-    const appServer = await webpush.ApplicationServer.new({
-      contactInformation: "mailto:support@globalyhub.com",
-      vapidKeys,
-    });
-    console.log("ApplicationServer created successfully");
-
-    const { user_id, title, body, url, tag, data }: PushPayload = await req.json();
-
-    console.log(`Push notification request for user ${user_id}: ${title}`);
 
     // Get all push subscriptions for this user
     const { data: subscriptions, error: subError } = await supabaseClient
@@ -147,7 +159,7 @@ serve(async (req: Request) => {
 
     console.log(`Found ${subscriptions.length} subscriptions for user ${user_id}`);
 
-    const payload = JSON.stringify({
+    const notificationPayload = JSON.stringify({
       title,
       body: body,
       icon: "/favicon.png",
@@ -157,43 +169,47 @@ serve(async (req: Request) => {
       data,
     });
 
-    console.log("Payload to send:", payload);
-
     let sentCount = 0;
     const failedEndpoints: string[] = [];
 
-    for (const sub of subscriptions) {
-      try {
-        console.log(`Sending push to subscription ${sub.id}...`);
-        console.log(`  Endpoint: ${sub.endpoint.substring(0, 60)}...`);
+    // Send to all subscriptions in parallel
+    const results = await Promise.allSettled(
+      subscriptions.map(async (sub) => {
+        try {
+          const subscriber = appServer.subscribe({
+            endpoint: sub.endpoint,
+            keys: {
+              p256dh: sub.p256dh,
+              auth: sub.auth,
+            },
+          });
 
-        // Create a subscriber from the subscription data
-        const subscriber = appServer.subscribe({
-          endpoint: sub.endpoint,
-          keys: {
-            p256dh: sub.p256dh,
-            auth: sub.auth,
-          },
-        });
+          await subscriber.pushTextMessage(notificationPayload, {});
+          return { success: true, id: sub.id };
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          console.error(`Exception sending to subscription ${sub.id}:`, errorMessage);
 
-        // Send the push message using the library
-        await subscriber.pushTextMessage(payload, {});
+          // Check if subscription expired
+          if (errorMessage.includes("410") || errorMessage.includes("404") || errorMessage.includes("Gone")) {
+            console.log(`Removing expired subscription ${sub.id}`);
+            await supabaseClient
+              .from("push_subscriptions")
+              .delete()
+              .eq("id", sub.id);
+          }
 
-        sentCount++;
-        console.log(`Successfully sent push to subscription ${sub.id}`);
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        console.error(`Exception sending to subscription ${sub.id}:`, errorMessage);
-        failedEndpoints.push(sub.id);
-
-        // Check if it's a 410 Gone or 404 Not Found error (subscription expired)
-        if (errorMessage.includes("410") || errorMessage.includes("404") || errorMessage.includes("Gone")) {
-          console.log(`Removing expired subscription ${sub.id}`);
-          await supabaseClient
-            .from("push_subscriptions")
-            .delete()
-            .eq("id", sub.id);
+          throw err;
         }
+      })
+    );
+
+    // Count results
+    for (const result of results) {
+      if (result.status === "fulfilled") {
+        sentCount++;
+      } else {
+        failedEndpoints.push("unknown");
       }
     }
 
