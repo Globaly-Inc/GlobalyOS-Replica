@@ -1,140 +1,170 @@
 
 
-# Push Notification Settings on Notifications Page
+# Critical Security Fix: Employee Sensitive Data Exposure
 
-## Overview
+## Summary
 
-Enhance the existing Push Notification section on the Notifications page with a dedicated settings card that provides better visibility, user guidance, and a test notification feature after enabling push notifications.
+A major security vulnerability allows logged-in users to view sensitive personal information (salary, tax numbers, bank details, emergency contacts, ID numbers) of any team member in their organization, regardless of their role or relationship to that employee.
 
-## Current State
+## Root Cause Analysis
 
-The Notifications page already has a basic Push Notification toggle card (lines 326-352) that:
-- Shows when push notifications are supported
-- Allows enabling/disabling push notifications via a Switch
-- Displays status (enabled/disabled)
-
-However, it lacks:
-- Visual distinction as a settings section
-- "Send Test Notification" functionality
-- Better explanation of what happens when enabled
-
-## Solution
-
-Enhance the existing Push Notification card to:
-1. Add a "Send Test Notification" button that appears after push is enabled
-2. Include clearer messaging about browser permission prompts
-3. Send a sample push notification so users can see how it looks
-
-## Technical Approach
-
-### 1. Add Test Notification Function
-
-**File: `src/pages/Notifications.tsx`**
-
-Add a function to send a test push notification via the existing edge function:
+### 1. Direct Table Query Bypasses Security Function
+The `TeamMemberProfile.tsx` page (line 364-442) directly queries the `employees` table:
 
 ```typescript
-const sendTestNotification = async () => {
-  if (!user) return;
+// VULNERABLE CODE
+const { data } = await supabase.from("employees").select(`
+    id, user_id, status, position, department,
+    salary,                    // SENSITIVE
+    id_number,                 // SENSITIVE  
+    tax_number,                // SENSITIVE
+    remuneration,              // SENSITIVE
+    bank_details,              // SENSITIVE
+    emergency_contact_name,    // SENSITIVE
+    emergency_contact_phone,   // SENSITIVE
+    ...
+`).eq("id", id).single();
+```
+
+### 2. Overly Permissive RLS Policy
+The employees table has this policy:
+
+| Policy Name | Check |
+|-------------|-------|
+| "Org members can view basic employee info" | `is_employee_in_same_org(organization_id)` |
+
+This allows ANY org member to read ALL columns from the employees table, including sensitive financial and personal data.
+
+### 3. Security Function Exists But Not Used
+The `get_employee_for_viewer` RPC function implements proper field-level security:
+- Financial data (salary, tax, bank, ID number) = only self, HR, admin
+- Personal data (phone, address, emergency contacts) = self, HR, admin, manager
+- Basic info = all org members
+
+But `TeamMemberProfile.tsx` doesn't use it!
+
+## Security Impact
+
+| Data Type | Who Can Currently See | Who SHOULD See |
+|-----------|----------------------|----------------|
+| Salary, Remuneration | Everyone in org | Self, HR, Admin only |
+| Tax Number, ID Number | Everyone in org | Self, HR, Admin only |
+| Bank Details | Everyone in org | Self, HR, Admin only |
+| Emergency Contacts | Everyone in org | Self, HR, Admin, Manager |
+| Personal Email, Address | Everyone in org | Self, HR, Admin, Manager |
+
+## Solution Architecture
+
+### Phase 1: Fix TeamMemberProfile.tsx (Frontend)
+Replace the direct table query with the secure RPC function:
+
+```typescript
+// SECURE CODE
+const loadEmployee = async () => {
+  // Use the secure RPC function that enforces field-level access
+  const { data: employeeData } = await supabase
+    .rpc('get_employee_for_viewer', { target_employee_id: id });
   
-  try {
-    setTestingSend(true);
-    const { error } = await supabase.functions.invoke("send-push-notification", {
-      body: {
-        user_id: user.id,
-        title: "Test Notification",
-        body: "This is how push notifications look in your browser. You're all set!",
-        url: "/notifications",
-        tag: "test-notification",
-      },
-    });
+  if (!employeeData?.[0]) return;
+  const emp = employeeData[0];
+  
+  // Fetch related data separately (profile, office, manager)
+  const { data: relatedData } = await supabase
+    .from('employees')
+    .select(`
+      profiles!inner(full_name, email, avatar_url),
+      offices(name, city, country),
+      manager:employees!employees_manager_id_fkey(
+        id, profiles!inner(full_name, avatar_url)
+      )
+    `)
+    .eq('id', id)
+    .single();
     
-    if (error) throw error;
-    toast.success("Test notification sent! Check your browser.");
-  } catch (error) {
-    console.error("Error sending test notification:", error);
-    toast.error("Failed to send test notification");
-  } finally {
-    setTestingSend(false);
-  }
+  // Map RPC response to component state
+  setEmployee({
+    id: emp.emp_id,
+    user_id: emp.emp_user_id,
+    // ... map all fields from RPC response
+    // Sensitive fields will be NULL if viewer lacks permission
+    salary: emp.emp_salary,
+    tax_number: emp.emp_tax_number,
+    // ...
+    profiles: relatedData?.profiles,
+    offices: relatedData?.offices,
+    manager: relatedData?.manager,
+  });
 };
 ```
 
-### 2. Update Push Notification Card UI
+### Phase 2: Tighten RLS Policy (Database)
+Drop the overly permissive policy and replace with column-restricted access:
 
-Transform the existing card to be more informative with a "Send Test" button:
+```sql
+-- Drop the permissive policy
+DROP POLICY IF EXISTS "Org members can view basic employee info" ON employees;
 
-```text
-+----------------------------------------------------------+
-|  [BellRing]  Push Notifications                          |
-|                                                          |
-|  Receive real-time notifications even when the app is   |
-|  closed. You'll be prompted to allow notifications.      |
-|                                                          |
-|  [=====ON=====]                                          |
-|                                                          |
-|  [Send Test Notification]                                |
-|  See how notifications appear in your browser            |
-+----------------------------------------------------------+
+-- Create a restricted policy for basic directory lookups
+-- Only allows SELECT on specific non-sensitive columns
+CREATE POLICY "Org members can view employee directory fields"
+ON employees FOR SELECT
+USING (
+  is_employee_in_same_org(organization_id)
+)
+WITH CHECK (false);  -- No writes
 ```
 
-### 3. Enhanced States
+**Note**: Since Postgres RLS cannot restrict columns, we ensure:
+1. All frontend code uses `get_employee_for_viewer` RPC for profile views
+2. Directory listings use the `employee_directory` view
+3. Direct table queries only request non-sensitive columns
 
-| State | Display |
-|-------|---------|
-| Not Supported | Show message: "Push notifications not supported in this browser" |
-| Not Subscribed | Show toggle OFF with hint about browser prompt |
-| Subscribed | Show toggle ON + "Send Test Notification" button |
-| Loading | Show loading spinner on toggle/button |
-| Sending Test | Show loading on test button |
+### Phase 3: Audit All Direct Queries
+Review and fix all places querying the employees table directly:
 
-## Implementation Details
+| File | Current Query | Fix |
+|------|--------------|-----|
+| `TeamMemberProfile.tsx` | Direct with all fields | Use RPC function |
+| `Team.tsx` | Uses `employee_directory` view | Already secure |
+| `OrgChart.tsx` | Basic fields only | Already secure |
+| Helper queries (manager, direct reports) | Basic fields only | Already secure |
 
-### State Additions
-
-```typescript
-const [testingSend, setTestingSend] = useState(false);
-```
-
-### Updated Card Structure
-
-1. **Header**: Icon + Title ("Push Notifications")
-2. **Description**: Explain what happens when enabled
-3. **Toggle**: Enable/disable with loading state
-4. **Test Button**: Only visible when subscribed, sends sample notification
-5. **Status Badge**: Shows current permission status
-
-### Browser Prompt Handling
-
-When user clicks to enable:
-1. `usePushNotifications.subscribe()` is called
-2. Browser shows native permission prompt
-3. If granted: subscription saved, toggle shows ON, test button appears
-4. If denied: show error toast, toggle stays OFF
+### Phase 4: System-Wide Audit
+Check for similar patterns in other tables with sensitive data:
+- `position_history` (contains salary history)
+- `payroll_*` tables (financial data)
+- `performance_reviews` (sensitive feedback)
+- `leave_requests` (could reveal personal medical info)
 
 ## Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/pages/Notifications.tsx` | Enhance Push Notification card with test functionality |
+| `src/pages/TeamMemberProfile.tsx` | Replace `loadEmployee()` to use `get_employee_for_viewer` RPC |
+| Database migration | Drop "Org members can view basic employee info" policy |
+| Database migration | Create restricted replacement policy |
 
-## User Experience Flow
+## Implementation Order
 
-1. User visits Notifications page
-2. Sees "Push Notifications" settings card at the top
-3. Toggle is OFF - user clicks to enable
-4. Browser shows permission prompt: "Allow notifications from GlobalyOS?"
-5. User clicks "Allow"
-6. Toggle shows ON, "Send Test Notification" button appears
-7. User clicks "Send Test Notification"
-8. A push notification appears in their browser:
-   - Title: "Test Notification"
-   - Body: "This is how push notifications look in your browser. You're all set!"
-9. User now knows push is working correctly
+1. **First**: Fix `TeamMemberProfile.tsx` to use the RPC function
+2. **Second**: Test that profile viewing still works for all roles
+3. **Third**: Verify sensitive data is properly hidden from unauthorized users
+4. **Fourth**: Update RLS policy to be more restrictive
+5. **Fifth**: Audit and fix any other direct queries
+
+## Validation Steps
+
+After implementation:
+1. Login as a regular member (not HR/Admin)
+2. Navigate to another team member's profile
+3. Open browser DevTools → Network tab
+4. Verify API response does NOT contain: salary, tax_number, id_number, remuneration, bank_details
+5. Verify UI shows "—" or hidden sections for sensitive data
 
 ## Security Considerations
 
-- Test notification only sends to the current authenticated user
-- Uses existing `send-push-notification` edge function
-- No sensitive data in test notification content
+- This is a **data breach** scenario - sensitive PII is currently exposed
+- The fix should be deployed as soon as possible
+- Consider notifying affected users if required by privacy regulations
+- All changes maintain backward compatibility with existing UI
 
