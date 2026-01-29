@@ -52,6 +52,23 @@ serve(async (req: Request) => {
   const logoUrl = GLOBALYOS_LOGO_URL;
 
   try {
+    // Clone the request to read body twice if needed
+    const clonedReq = req.clone();
+    
+    // Check for warmup ping first
+    try {
+      const body = await clonedReq.json();
+      if (body.warmup) {
+        console.log("Warmup ping received - keeping container warm");
+        return new Response(JSON.stringify({ status: "warm" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+    } catch {
+      // Not a warmup request, continue normally
+    }
+
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",

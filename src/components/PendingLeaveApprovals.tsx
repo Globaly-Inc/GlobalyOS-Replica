@@ -423,8 +423,16 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
   const handleApproval = async (requestId: string, approved: boolean, newLeaveType?: string) => {
     setProcessing(requestId);
     
+    // Optimistic UI update - remove from list immediately
+    const previousRequests = [...pendingRequests];
+    setPendingRequests(prev => prev.filter(r => r.id !== requestId));
+    
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      setPendingRequests(previousRequests); // Rollback
+      setProcessing(null);
+      return;
+    }
 
     // Get the leave request details first
     const { data: leaveRequest } = await supabase
@@ -478,6 +486,7 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
         updateData.office_leave_type_id = newLeaveTypeData.id;
       } else {
         toast.error(`Could not find leave type: ${newLeaveType}`);
+        setPendingRequests(previousRequests); // Rollback
         setProcessing(null);
         return;
       }
@@ -491,6 +500,7 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
     if (error) {
       toast.error(getErrorMessage(error, "Failed to update leave request"));
       console.error("Update leave status error:", error);
+      setPendingRequests(previousRequests); // Rollback on error
     } else {
       const action = approved 
         ? (newLeaveType && newLeaveType !== leaveRequest?.leave_type 
@@ -499,22 +509,17 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
         : "rejected";
       toast.success(`Leave request ${action}`);
       
-      // Send notification email to employee
-      try {
-        const reviewerName = (currentEmployee as any)?.profiles?.full_name || "Manager";
-        await supabase.functions.invoke("notify-leave-decision", {
-          body: {
-            request_id: requestId,
-            decision: approved ? "approved" : "rejected",
-            reviewer_name: reviewerName,
-          },
-        });
-      } catch (notifyError) {
-        console.error("Failed to send notification:", notifyError);
-        // Don't show error to user - notification is not critical
-      }
+      // Fire-and-forget notification - don't await, let it run in background
+      const reviewerName = (currentEmployee as any)?.profiles?.full_name || "Manager";
+      supabase.functions.invoke("notify-leave-decision", {
+        body: {
+          request_id: requestId,
+          decision: approved ? "approved" : "rejected",
+          reviewer_name: reviewerName,
+        },
+      }).catch(err => console.error("Failed to send notification:", err));
       
-      loadPendingRequests();
+      // No need to reload - optimistic update already done, realtime will sync if needed
       onApprovalChange?.();
     }
 
