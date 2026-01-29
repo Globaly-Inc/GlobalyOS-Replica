@@ -34,7 +34,13 @@ registerRoute(
 
 // Push notification handlers
 self.addEventListener('push', (event) => {
-  console.log('Push notification received:', event);
+  console.log('[SW Push] Event received');
+
+  // Verify notification permission first
+  if (Notification.permission !== 'granted') {
+    console.warn('[SW Push] Notification permission not granted:', Notification.permission);
+    return;
+  }
 
   let data: {
     title: string;
@@ -64,12 +70,25 @@ self.addEventListener('push', (event) => {
     tag: 'default',
   };
 
+  // Parse push data with enhanced logging
   if (event.data) {
     try {
-      data = { ...data, ...event.data.json() };
+      const payload = event.data.json();
+      console.log('[SW Push] Payload received:', JSON.stringify(payload));
+      data = { ...data, ...payload };
     } catch (e) {
-      console.error('Error parsing push data:', e);
+      console.error('[SW Push] Error parsing push data:', e);
+      // Try text fallback
+      try {
+        const text = event.data.text();
+        console.log('[SW Push] Raw text:', text);
+        data.body = text;
+      } catch (textError) {
+        console.error('[SW Push] Error getting text:', textError);
+      }
     }
+  } else {
+    console.warn('[SW Push] No data in push event');
   }
 
   // Check notification types
@@ -105,8 +124,17 @@ self.addEventListener('push', (event) => {
     ];
   }
 
+  console.log('[SW Push] Showing notification:', data.title, JSON.stringify(options));
+
+  // Show notification with error handling
   event.waitUntil(
     self.registration.showNotification(data.title, options)
+      .then(() => {
+        console.log('[SW Push] Notification shown successfully');
+      })
+      .catch((error) => {
+        console.error('[SW Push] Failed to show notification:', error);
+      })
   );
 });
 
