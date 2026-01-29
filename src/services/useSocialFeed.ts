@@ -166,13 +166,21 @@ export const usePosts = (filter?: PostType | 'all') => {
         const allRecipientIds = kudosPosts.flatMap(p => p.kudos_recipient_ids);
         const uniqueIds = [...new Set(allRecipientIds)];
         
+        // Use employee_directory view instead of direct employees table query
+        // This ensures we get the data even with restrictive RLS and avoids exposing sensitive fields
         const { data: recipients } = await supabase
-          .from('employees')
-          .select('id, profiles!inner(full_name, avatar_url)')
+          .from('employee_directory')
+          .select('id, full_name, avatar_url')
           .in('id', uniqueIds);
         
         if (recipients) {
-          const recipientMap = new Map(recipients.map(r => [r.id, r]));
+          const recipientMap = new Map(recipients.map(r => [r.id, {
+            id: r.id,
+            profiles: {
+              full_name: r.full_name,
+              avatar_url: r.avatar_url
+            }
+          }]));
           posts.forEach(post => {
             if (post.post_type === 'kudos' && post.kudos_recipient_ids?.length > 0) {
               post.kudos_recipients = post.kudos_recipient_ids

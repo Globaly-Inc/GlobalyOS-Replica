@@ -12809,15 +12809,19 @@ export type Database = {
               emp_emergency_contact_name: string
               emp_emergency_contact_phone: string
               emp_emergency_contact_relationship: string
+              emp_employment_type: string
+              emp_gender: string
               emp_id: string
               emp_id_number: string
               emp_join_date: string
+              emp_last_working_day: string
               emp_manager_id: string
               emp_office_id: string
               emp_organization_id: string
               emp_personal_email: string
               emp_phone: string
               emp_position: string
+              emp_position_effective_date: string
               emp_postcode: string
               emp_remuneration: number
               emp_remuneration_currency: string
@@ -12864,6 +12868,23 @@ export type Database = {
               quantity: number
             }[]
           }
+      get_position_history_for_viewer: {
+        Args: { target_employee_id: string }
+        Returns: {
+          ph_change_type: string
+          ph_department: string
+          ph_effective_date: string
+          ph_employment_type: string
+          ph_end_date: string
+          ph_id: string
+          ph_is_current: boolean
+          ph_manager_id: string
+          ph_manager_name: string
+          ph_notes: string
+          ph_position: string
+          ph_salary: number
+        }[]
+      }
       get_unread_counts_batch: {
         Args: { _employee_id: string; _organization_id: string }
         Returns: {

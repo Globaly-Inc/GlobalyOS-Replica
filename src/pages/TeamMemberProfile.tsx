@@ -362,83 +362,125 @@ const TeamMemberProfile = () => {
     if (data) setPositionHistory(data);
   };
   const loadEmployee = async () => {
-    const {
-      data
-    } = await supabase.from("employees").select(`
-        id,
-        user_id,
-        status,
-        position,
-        department,
-        salary,
-        join_date,
-        date_of_birth,
-        phone,
-        superpowers,
-        manager_id,
-        office_id,
-        organization_id,
-        personal_email,
-        street,
-        city,
-        state,
-        postcode,
-        country,
-        id_number,
-        tax_number,
-        remuneration,
-        remuneration_currency,
-        employment_type,
-        emergency_contact_name,
-        emergency_contact_phone,
-        emergency_contact_relationship,
-        bank_details,
-        position_effective_date,
-        gender,
-        last_working_day,
-        profiles!inner(
-          full_name,
-          email,
-          avatar_url
-        ),
-        offices(
-          name,
-          city,
-          country
-        )
-      `).eq("id", id).single();
-    if (data) {
-      setEmployee(data);
-      // Load manager if exists
-      if (data.manager_id) {
-        const {
-          data: managerData
-        } = await supabase.from("employees").select(`
-            id,
-            position,
-            profiles!inner(full_name, avatar_url)
-          `).eq("id", data.manager_id).single();
-        if (managerData) {
-          setManager(managerData);
-        } else {
-          setManager(null);
-        }
+    if (!id) {
+      setLoading(false);
+      return;
+    }
+
+    // Use secure RPC function that enforces field-level access control
+    // Sensitive fields (salary, tax, bank, etc.) will be NULL for unauthorized viewers
+    const { data: rpcData, error: rpcError } = await supabase
+      .rpc('get_employee_for_viewer', { target_employee_id: id });
+
+    if (rpcError || !rpcData?.[0]) {
+      console.error('Error loading employee:', rpcError);
+      setLoading(false);
+      return;
+    }
+
+    const emp = rpcData[0];
+
+    // Fetch related data (profile, office, manager) from employee_directory view
+    const { data: relatedData } = await supabase
+      .from('employee_directory')
+      .select('full_name, email, avatar_url, office_name')
+      .eq('id', id)
+      .maybeSingle();
+
+    // Fetch office details if office_id exists
+    let officeData = null;
+    if (emp.emp_office_id) {
+      const { data: office } = await supabase
+        .from('offices')
+        .select('name, city, country')
+        .eq('id', emp.emp_office_id)
+        .maybeSingle();
+      officeData = office;
+    }
+
+    // Map RPC response fields to the component's expected state structure
+    // Sensitive fields are automatically NULL for unauthorized viewers
+    const employeeData = {
+      id: emp.emp_id,
+      user_id: emp.emp_user_id,
+      status: emp.emp_status,
+      position: emp.emp_position,
+      department: emp.emp_department,
+      join_date: emp.emp_join_date,
+      date_of_birth: emp.emp_date_of_birth,
+      phone: emp.emp_phone,
+      superpowers: emp.emp_superpowers,
+      manager_id: emp.emp_manager_id,
+      office_id: emp.emp_office_id,
+      organization_id: emp.emp_organization_id,
+      personal_email: emp.emp_personal_email,
+      street: emp.emp_street,
+      city: emp.emp_city,
+      state: emp.emp_state,
+      postcode: emp.emp_postcode,
+      country: emp.emp_country,
+      employment_type: emp.emp_employment_type,
+      gender: emp.emp_gender,
+      position_effective_date: null,
+      // Financial/sensitive fields - will be NULL unless viewer is self/HR/admin
+      salary: emp.emp_salary,
+      remuneration: emp.emp_remuneration,
+      remuneration_currency: emp.emp_remuneration_currency,
+      id_number: emp.emp_id_number,
+      tax_number: emp.emp_tax_number,
+      bank_details: emp.emp_bank_details,
+      emergency_contact_name: emp.emp_emergency_contact_name,
+      emergency_contact_phone: emp.emp_emergency_contact_phone,
+      emergency_contact_relationship: emp.emp_emergency_contact_relationship,
+      // Offboarding fields - visible to Owner/Admin/HR only
+      last_working_day: emp.emp_last_working_day,
+      // Related data
+      profiles: {
+        full_name: relatedData?.full_name || '',
+        email: relatedData?.email || '',
+        avatar_url: relatedData?.avatar_url
+      },
+      offices: officeData
+    };
+
+    setEmployee(employeeData);
+
+    // Load manager if exists
+    if (emp.emp_manager_id) {
+      const { data: managerData } = await supabase
+        .from('employee_directory')
+        .select('id, position, full_name, avatar_url')
+        .eq('id', emp.emp_manager_id)
+        .maybeSingle();
+      
+      if (managerData) {
+        setManager({
+          id: managerData.id,
+          position: managerData.position,
+          profiles: {
+            full_name: managerData.full_name,
+            avatar_url: managerData.avatar_url
+          }
+        });
       } else {
         setManager(null);
       }
-      // Load office employee count
-      if (data.office_id) {
-        const {
-          count
-        } = await supabase.from("employees").select("id", {
-          count: "exact",
-          head: true
-        }).eq("office_id", data.office_id).eq("status", "active");
-        setOfficeEmployeeCount(count || 0);
-      } else {
-        setOfficeEmployeeCount(0);
-      }
+    } else {
+      setManager(null);
     }
+
+    // Load office employee count
+    if (emp.emp_office_id) {
+      const { count } = await supabase
+        .from('employees')
+        .select('id', { count: 'exact', head: true })
+        .eq('office_id', emp.emp_office_id)
+        .eq('status', 'active');
+      setOfficeEmployeeCount(count || 0);
+    } else {
+      setOfficeEmployeeCount(0);
+    }
+
     setLoading(false);
   };
   const loadDirectReports = async () => {
