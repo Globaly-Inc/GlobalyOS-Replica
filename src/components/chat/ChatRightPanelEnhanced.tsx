@@ -738,33 +738,21 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
               </h4>
               <div className="flex items-center gap-1">
                 {canManageMembers && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          disabled={spaceId ? autoSyncEnabled : false}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (spaceId) {
-                              setShowAddMembersDialog(true);
-                            } else if (conversationId && activeChat.isGroup) {
-                              setShowAddGroupMembersDialog(true);
-                            }
-                          }}
-                        >
-                          <Plus className="h-3.5 w-3.5 text-muted-foreground" />
-                        </Button>
-                      </span>
-                    </TooltipTrigger>
-                    {spaceId && autoSyncEnabled && (
-                      <TooltipContent>
-                        <p>Disable auto-sync in settings to add members</p>
-                      </TooltipContent>
-                    )}
-                  </Tooltip>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (spaceId) {
+                        setShowAddMembersDialog(true);
+                      } else if (conversationId && activeChat.isGroup) {
+                        setShowAddGroupMembersDialog(true);
+                      }
+                    }}
+                  >
+                    <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
                 )}
                 {membersOpen ? (
                   <ChevronUp className="h-4 w-4 text-muted-foreground" />
