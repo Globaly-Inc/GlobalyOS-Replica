@@ -7,14 +7,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock Supabase client
 const mockSupabase = {
-  from: vi.fn(() => mockSupabase),
-  select: vi.fn(() => mockSupabase),
-  insert: vi.fn(() => mockSupabase),
-  update: vi.fn(() => mockSupabase),
+  from: vi.fn((_table: string) => mockSupabase),
+  select: vi.fn((_columns?: string) => mockSupabase),
+  insert: vi.fn((_data: any) => mockSupabase),
+  update: vi.fn((_data: any) => mockSupabase),
   delete: vi.fn(() => mockSupabase),
-  eq: vi.fn(() => mockSupabase),
+  eq: vi.fn((_column: string, _value: any) => mockSupabase),
   single: vi.fn(),
-  rpc: vi.fn(),
+  rpc: vi.fn((_fn: string, _params?: any) => Promise.resolve({ data: null, error: null })),
 };
 
 vi.mock('@/integrations/supabase/client', () => ({

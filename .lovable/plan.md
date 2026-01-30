@@ -14,10 +14,12 @@ This plan addresses all issues identified in the platform audit across 10 priori
 | VirtualizedMessageList | ✅ Already integrated (verified in ConversationView.tsx L814) |
 | EditorToolbar | ✅ DONE - Integrated into WikiRichEditor, ~300 lines reduced |
 | SANITIZE_CONFIG | ✅ DONE - Moved to module scope |
-| Chat Hook Modularization | ❌ 21 files still import from `@/services/useChat` instead of `@/services/chat` |
-| Oversized Files | ⚠️ Home.tsx (1,118 lines), Layout.tsx (744 lines), WikiRichEditor.tsx (~2,300 lines after refactor) |
-| Request Tracing | ❌ No X-Request-ID header correlation |
-| Test Coverage | ⚠️ Security tests exist, but critical path tests missing (OTP verify, leave request, attendance) |
+| Chat Hook Modularization | ✅ DONE - 18 files migrated to @/services/chat |
+| Home.tsx Split | ✅ DONE - Reduced from 1,118 to ~100 lines (HomeHeroSection, HomeSidebar, HomeMainContent, useHomeData) |
+| Layout.tsx Split | ✅ DONE - Reduced from 744 to ~190 lines (useLayoutState, DesktopQuickActions, MobileHeaderActions, LayoutDialogs) |
+| WikiRichEditor.tsx | ✅ DONE - ~2,300 lines after EditorToolbar integration |
+| Request Tracing | ✅ DONE - createTracedFetch with X-Request-ID headers |
+| Test Coverage | ✅ DONE - Created auth-otp, leave-request, attendance, chat-message tests |
 
 ---
 
@@ -305,19 +307,19 @@ Week 1 (TIER 1 - Critical): ✅ COMPLETE
 ├── Day 2: Task 1.2 - Move sanitizeConfig ✅
 └── Day 2: Task 1.3 - Update plan.md ✅
 
-Week 2 (TIER 2 - High):
-├── Day 1-2: Task 2.1 - Migrate useChat imports
-├── Day 3-4: Task 2.2 - Split Home.tsx
-└── Day 5: Task 2.3 - Add request tracing
+Week 2 (TIER 2 - High): ✅ COMPLETE
+├── Day 1-2: Task 2.1 - Migrate useChat imports ✅
+├── Day 3-4: Task 2.2 - Split Home.tsx ✅
+└── Day 5: Task 2.3 - Add request tracing ✅
 
-Week 3 (TIER 2 continued):
-└── Task 2.4 - Add integration tests (spread across week)
+Week 3 (TIER 2 continued): ✅ COMPLETE
+└── Task 2.4 - Add integration tests ✅
 
-Week 4+ (TIER 3 - Backlog):
-├── Task 3.1 - Split Layout.tsx
-├── Task 3.2 - Bundle analysis
-├── Task 3.3 - Edge function logging
-└── Task 3.4 - Image lazy loading
+Week 4+ (TIER 3 - Backlog): ✅ PARTIAL COMPLETE
+├── Task 3.1 - Split Layout.tsx ✅
+├── Task 3.2 - Bundle analysis (pending)
+├── Task 3.3 - Edge function logging ✅ (logger created)
+└── Task 3.4 - Image lazy loading (pending)
 ```
 
 ---
