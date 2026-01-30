@@ -2,39 +2,7 @@ import { useMemo, useEffect, useRef } from "react";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
 import { cn } from "@/lib/utils";
-import Prism from "prismjs";
-
-// Import Prism languages - order matters for dependencies
-import "prismjs/components/prism-markup";
-import "prismjs/components/prism-css";
-import "prismjs/components/prism-javascript";
-import "prismjs/components/prism-typescript";
-import "prismjs/components/prism-python";
-import "prismjs/components/prism-java";
-import "prismjs/components/prism-c";
-import "prismjs/components/prism-cpp";
-import "prismjs/components/prism-csharp";
-import "prismjs/components/prism-go";
-import "prismjs/components/prism-rust";
-import "prismjs/components/prism-ruby";
-import "prismjs/components/prism-markup-templating";
-import "prismjs/components/prism-php";
-import "prismjs/components/prism-swift";
-import "prismjs/components/prism-kotlin";
-import "prismjs/components/prism-sql";
-import "prismjs/components/prism-bash";
-import "prismjs/components/prism-json";
-import "prismjs/components/prism-yaml";
-import "prismjs/components/prism-markdown";
-import "prismjs/components/prism-graphql";
-import "prismjs/components/prism-dart";
-import "prismjs/components/prism-scala";
-import "prismjs/components/prism-r";
-import "prismjs/components/prism-lua";
-import "prismjs/components/prism-perl";
-import "prismjs/components/prism-objectivec";
-import "prismjs/components/prism-elixir";
-import "prismjs/components/prism-haskell";
+import { Prism, LANGUAGE_MAP } from "@/lib/prismConfig";
 
 interface WikiMarkdownRendererProps {
   content: string;
@@ -68,45 +36,6 @@ const sanitizeConfig = {
     "data-language", "data-raw-code", "style"
   ],
   ALLOW_DATA_ATTR: true,
-};
-
-const LANGUAGE_MAP: Record<string, string> = {
-  javascript: "javascript",
-  typescript: "typescript",
-  python: "python",
-  java: "java",
-  c: "c",
-  "c++": "cpp",
-  cpp: "cpp",
-  "c#": "csharp",
-  csharp: "csharp",
-  go: "go",
-  rust: "rust",
-  ruby: "ruby",
-  php: "php",
-  swift: "swift",
-  kotlin: "kotlin",
-  html: "markup",
-  css: "css",
-  sql: "sql",
-  bash: "bash",
-  shell: "bash",
-  json: "json",
-  yaml: "yaml",
-  xml: "markup",
-  markdown: "markdown",
-  graphql: "graphql",
-  dart: "dart",
-  scala: "scala",
-  r: "r",
-  lua: "lua",
-  perl: "perl",
-  "objective-c": "objectivec",
-  objectivec: "objectivec",
-  elixir: "elixir",
-  haskell: "haskell",
-  "plain text": "plaintext",
-  plaintext: "plaintext",
 };
 
 export const WikiMarkdownRenderer = ({ content, className }: WikiMarkdownRendererProps) => {
