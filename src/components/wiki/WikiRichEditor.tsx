@@ -27,6 +27,7 @@ import {
 import DOMPurify from "dompurify";
 import { Prism, LANGUAGE_MAP } from "@/lib/prismConfig";
 import { WikiAIWritingAssist } from "./WikiAIWritingAssist";
+import { debounce } from "@/lib/debounce";
 
 // Default text size in px
 const DEFAULT_TEXT_SIZE = 14;
@@ -168,6 +169,19 @@ export const WikiRichEditor = ({
     }
   }, [value, isFocused]);
 
+  // Debounced content update - reduces re-renders during typing
+  // 150ms delay batches rapid keystrokes while staying responsive
+  const debouncedTriggerUpdate = useMemo(
+    () => debounce(() => {
+      if (editorRef.current) {
+        const html = DOMPurify.sanitize(editorRef.current.innerHTML, sanitizeConfig);
+        onChange(html);
+      }
+    }, 150),
+    [onChange]
+  );
+
+  // Immediate update for operations that need instant feedback (paste, drop, etc.)
   const triggerUpdate = useCallback(() => {
     if (editorRef.current) {
       const html = DOMPurify.sanitize(editorRef.current.innerHTML, sanitizeConfig);
@@ -175,6 +189,12 @@ export const WikiRichEditor = ({
     }
   }, [onChange]);
 
+  // Cleanup debounced function on unmount
+  useEffect(() => {
+    return () => {
+      debouncedTriggerUpdate.cancel();
+    };
+  }, [debouncedTriggerUpdate]);
   // Get font size from an element (checks inline style first, then computed style)
   const getFontSizeFromElement = useCallback((element: HTMLElement | null): number => {
     if (!element || element === editorRef.current) return DEFAULT_TEXT_SIZE;
@@ -234,7 +254,7 @@ export const WikiRichEditor = ({
   }, []);
 
   // Check current formatting state - Google Docs style
-  const updateActiveFormatting = useCallback(() => {
+  const updateActiveFormattingCore = useCallback(() => {
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) {
       setActiveHeading(null);
@@ -302,6 +322,24 @@ export const WikiRichEditor = ({
       setTextSizeInput(String(DEFAULT_TEXT_SIZE));
     }
   }, [getFontSizeFromElement, getTextNodesInRange]);
+
+  // Debounced formatting state update - 50ms delay for smooth toolbar updates
+  const debouncedUpdateActiveFormatting = useMemo(
+    () => debounce(() => {
+      updateActiveFormattingCore();
+    }, 50),
+    [updateActiveFormattingCore]
+  );
+
+  // Immediate update for click/explicit formatting changes
+  const updateActiveFormatting = updateActiveFormattingCore;
+
+  // Cleanup debounced formatting update on unmount
+  useEffect(() => {
+    return () => {
+      debouncedUpdateActiveFormatting.cancel();
+    };
+  }, [debouncedUpdateActiveFormatting]);
 
   // Handle mouse move over table to show row/column controls
   const handleEditorMouseMove = useCallback((e: React.MouseEvent) => {
@@ -676,10 +714,11 @@ export const WikiRichEditor = ({
     }
   }, [triggerUpdate]);
 
+  // Handle input uses debounced updates to prevent excessive re-renders during typing
   const handleInput = useCallback(() => {
-    triggerUpdate();
-    updateActiveFormatting();
-  }, [triggerUpdate, updateActiveFormatting]);
+    debouncedTriggerUpdate();
+    debouncedUpdateActiveFormatting();
+  }, [debouncedTriggerUpdate, debouncedUpdateActiveFormatting]);
 
   const execCommand = useCallback((command: string, value?: string) => {
     restoreSelection();

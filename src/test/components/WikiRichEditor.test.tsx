@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import DOMPurify from 'dompurify';
+import { debounce, throttle } from '@/lib/debounce';
 
 // Test sanitization config matching WikiRichEditor
 const sanitizeConfig = {
@@ -301,5 +302,188 @@ describe('LANGUAGE_MAP', () => {
   it('should handle plaintext', () => {
     expect(LANGUAGE_MAP['plain text']).toBe('plaintext');
     expect(LANGUAGE_MAP['plaintext']).toBe('plaintext');
+  });
+});
+
+describe('Debounce Utility', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  it('should delay function execution', () => {
+    const fn = vi.fn();
+    const debouncedFn = debounce(fn, 100);
+
+    debouncedFn();
+    expect(fn).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(100);
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('should only execute the last call when called multiple times', () => {
+    const fn = vi.fn();
+    const debouncedFn = debounce(fn, 100);
+
+    debouncedFn();
+    debouncedFn();
+    debouncedFn();
+
+    vi.advanceTimersByTime(100);
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('should reset timer on subsequent calls', () => {
+    const fn = vi.fn();
+    const debouncedFn = debounce(fn, 100);
+
+    debouncedFn();
+    vi.advanceTimersByTime(50);
+    debouncedFn();
+    vi.advanceTimersByTime(50);
+
+    expect(fn).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(50);
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('should support cancel method', () => {
+    const fn = vi.fn();
+    const debouncedFn = debounce(fn, 100);
+
+    debouncedFn();
+    debouncedFn.cancel();
+
+    vi.advanceTimersByTime(100);
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('should support flush method', () => {
+    const fn = vi.fn();
+    const debouncedFn = debounce(fn, 100);
+
+    debouncedFn();
+    debouncedFn.flush();
+
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('should support pending method', () => {
+    const fn = vi.fn();
+    const debouncedFn = debounce(fn, 100);
+
+    expect(debouncedFn.pending()).toBe(false);
+
+    debouncedFn();
+    expect(debouncedFn.pending()).toBe(true);
+
+    vi.advanceTimersByTime(100);
+    expect(debouncedFn.pending()).toBe(false);
+  });
+
+  it('should pass arguments to debounced function', () => {
+    const fn = vi.fn();
+    const debouncedFn = debounce(fn, 100);
+
+    debouncedFn('arg1', 'arg2');
+    vi.advanceTimersByTime(100);
+
+    expect(fn).toHaveBeenCalledWith('arg1', 'arg2');
+  });
+});
+
+describe('Throttle Utility', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  it('should execute immediately on first call', () => {
+    const fn = vi.fn();
+    const throttledFn = throttle(fn, 100);
+
+    throttledFn();
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('should throttle subsequent calls', () => {
+    const fn = vi.fn();
+    const throttledFn = throttle(fn, 100);
+
+    throttledFn();
+    throttledFn();
+    throttledFn();
+
+    expect(fn).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(100);
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
+
+  it('should allow call after throttle period', () => {
+    const fn = vi.fn();
+    const throttledFn = throttle(fn, 100);
+
+    throttledFn();
+    expect(fn).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(100);
+    throttledFn();
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('Performance - Sanitization Benchmark', () => {
+  it('should sanitize small content quickly', () => {
+    const smallContent = '<p>Hello <strong>World</strong></p>';
+    const startTime = performance.now();
+    
+    for (let i = 0; i < 100; i++) {
+      DOMPurify.sanitize(smallContent, sanitizeConfig);
+    }
+    
+    const endTime = performance.now();
+    const avgTime = (endTime - startTime) / 100;
+    
+    // Should complete 100 sanitizations in reasonable time
+    expect(avgTime).toBeLessThan(5); // Less than 5ms per sanitization
+  });
+
+  it('should sanitize large content within acceptable time', () => {
+    // Simulate large wiki page (~10KB of HTML)
+    const paragraphs = Array(50).fill('<p>This is a paragraph with <strong>bold</strong> and <em>italic</em> text.</p>').join('');
+    const largeContent = `<div>${paragraphs}</div>`;
+    
+    const startTime = performance.now();
+    
+    for (let i = 0; i < 10; i++) {
+      DOMPurify.sanitize(largeContent, sanitizeConfig);
+    }
+    
+    const endTime = performance.now();
+    const avgTime = (endTime - startTime) / 10;
+    
+    // Should handle large content reasonably
+    expect(avgTime).toBeLessThan(50); // Less than 50ms per large sanitization
+  });
+});
+
+describe('Performance - Content Stats Calculation', () => {
+  it('should calculate stats for large content efficiently', () => {
+    // Simulate large wiki page (~1000 words)
+    const words = Array(1000).fill('word').join(' ');
+    const largeContent = `<div><p>${words}</p></div>`;
+    
+    const startTime = performance.now();
+    
+    for (let i = 0; i < 100; i++) {
+      calculateContentStats(largeContent);
+    }
+    
+    const endTime = performance.now();
+    const avgTime = (endTime - startTime) / 100;
+    
+    // Should be very fast
+    expect(avgTime).toBeLessThan(2); // Less than 2ms per calculation
   });
 });
