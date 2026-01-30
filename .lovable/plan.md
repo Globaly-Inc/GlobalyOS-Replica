@@ -1,21 +1,23 @@
 
-# Wiki Rich Text Editor - Implementation Complete
 
-**Status:** ✅ Complete
+# WikiRichTextEditor Performance Audit & Improvement Plan
+
+## Audit Summary
+
+I conducted a comprehensive review of the WikiRichTextEditor component and its ecosystem:
 
 ### Components & Files Reviewed
 
 | Component | Lines | Purpose |
 |-----------|-------|---------|
-| `WikiRichEditor.tsx` | 2,540 | WYSIWYG editor with toolbar, tables, code blocks, embeds |
+| `WikiRichEditor.tsx` | 2,585 | WYSIWYG editor with toolbar, tables, code blocks, embeds |
 | `WikiEditPage.tsx` | 441 | Full-screen edit mode with draft autosave |
-| `WikiShareDialog.tsx` | 1,133 | Sharing with offices, departments, projects, members |
+| `WikiAIWritingAssist.tsx` | 121 | AI writing assistance integration |
 | `WikiContent.tsx` | 312 | Page viewer with version history, export |
-| `WikiMembersWithAccess.tsx` | 461 | Member permission management |
-| `useWikiPermissions.tsx` | 227 | Fine-grained permission checks |
 | `useWiki.ts` | 637 | Domain service hooks for CRUD |
+| `useWikiPermissions.tsx` | 227 | Fine-grained permission checks |
 | `WikiRichEditor.test.tsx` | 305 | Unit tests for sanitization, URL linking |
-| `wiki-ask-ai/index.ts` | 204 | AI Q&A edge function |
+| Edge Functions | 2 files | `wiki-ask-ai`, `ai-writing-assist` |
 
 ---
 
@@ -23,108 +25,133 @@
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| HTML Sanitization | Working | DOMPurify with comprehensive ALLOWED_TAGS config |
-| XSS Prevention | Working | Script tags, onclick handlers, javascript: URLs all stripped |
-| Draft Autosave | Working | 2-second debounce to localStorage with recovery prompt |
+| HTML Sanitization | Excellent | DOMPurify with comprehensive allowlist - XSS prevention solid |
+| Draft Autosave | Working | 2-second debounce to localStorage in WikiEditPage |
 | Version History | Working | Saves version on each edit with restore capability |
 | Permission System | Working | `can_edit_wiki_item` RPC with role-based + member-based access |
 | Multi-tenant Isolation | Working | All queries scoped by organization_id |
-| Table Manipulation | Working | Add/delete rows/columns with visual controls |
-| Code Blocks | Working | Syntax highlighting with Prism.js, 24+ languages |
-| Image/File Upload | Working | Storage bucket integration with progress |
-| Embed Support | Working | YouTube, Vimeo, Loom with responsive iframes |
-| URL Auto-linking | Working | Converts typed URLs to clickable links |
+| AI Token Tracking | Excellent | Both edge functions log detailed usage to `ai_usage_logs` |
+| Content Metrics | Working | Word count, character count, reading time via `useMemo` |
 | Keyboard Shortcuts | Working | Ctrl+B, Ctrl+I, Ctrl+U, Ctrl+K, Ctrl+Z/Y |
-| Content Metrics | Working | Word count, character count, reading time |
-| Sharing | Working | Offices, departments, projects, individual members |
-| AI Ask Question | Working | Gemini-powered Q&A with org wiki context |
+| Accessibility | Good | All toolbar buttons have `aria-label` attributes |
+| Code Syntax Highlighting | Working | Prism.js with 24+ languages |
+| Feature Flag Protection | Working | AI features gated by `ask-ai` feature flag |
 
 ---
 
 ## Issues Found
 
-### Critical Issues
+### Critical Performance Issues
 
 | Issue | Impact | Component | Severity |
 |-------|--------|-----------|----------|
-| **WikiRichEditor is 2,540 lines** | Maintainability nightmare - very hard to extend, debug, or test | `WikiRichEditor.tsx` | High |
-| **`ai-writing-assist` lacks token tracking** | No billing-grade visibility for AI usage | Edge function | High |
-| **`wiki-ask-ai` records quantity but not tokens** | Missing prompt_tokens, completion_tokens | Edge function | High |
+| **No debouncing on `triggerUpdate`** | Every keystroke triggers DOMPurify sanitization + parent re-render | `WikiRichEditor.tsx` | HIGH |
+| **Content sanitization on every input** | Expensive DOMPurify.sanitize runs on each character typed | `WikiRichEditor.tsx:171-175` | HIGH |
+| **WikiRichEditor is 2,585 lines** | Maintainability and bundle size concern | `WikiRichEditor.tsx` | MEDIUM |
 
 ### Medium Priority Issues
 
 | Issue | Impact | Component |
 |-------|--------|-----------|
-| No AI writing assist in Wiki editor | Missing standard productivity feature | WikiRichEditor.tsx |
-| Missing accessibility labels on toolbar buttons | Screen reader users can't identify buttons | WikiRichEditor.tsx |
-| Toolbar not keyboard-navigable | Power users can't tab through toolbar | WikiRichEditor.tsx |
-| Console warning: Badge component ref issue | React warning in PendingLeaveApprovals | badge.tsx |
+| Many `useCallback` functions without proper memoization | Recreated on every render despite useCallback | WikiRichEditor.tsx |
+| No virtualization for large content | Performance degrades with long documents | WikiRichEditor.tsx |
+| `updateActiveFormatting` runs on every selection change | DOM traversal on every cursor move | WikiRichEditor.tsx |
 | 5 RLS policies flagged as "Always True" | Security linter warnings | Database |
-| 5 functions missing search_path | Security linter warnings | Database functions |
+| 5 functions missing `search_path` | Security linter warnings | Database functions |
 
 ### Low Priority / UX Improvements
 
 | Issue | Impact | Component |
 |-------|--------|-----------|
-| No confirmation when deleting images/embeds | Accidental deletion possible | WikiRichEditor.tsx |
-| Missing AI writing suggestion in Wiki | Could help with page drafting | WikiRichEditor.tsx |
-| No autosave status in WikiRichEditor (only in WikiEditPage) | Unclear if content is safe | WikiRichEditor.tsx |
+| No loading indicator during file uploads on mobile | UX gap on slower connections | WikiRichEditor.tsx |
+| Table controls may overlap content on narrow screens | Minor mobile UX issue | WikiRichEditor.tsx |
+| Missing confirmation for bulk image deletions | Accidental deletion possible | WikiRichEditor.tsx |
+
+---
+
+## Root Cause Analysis: Performance
+
+The main performance bottleneck is in the `handleInput` callback chain:
+
+```text
+User types character
+       │
+       ▼
+handleInput() called on every keystroke
+       │
+       ▼
+triggerUpdate() - NO DEBOUNCE
+       │
+       ▼
+DOMPurify.sanitize() - EXPENSIVE (regex + DOM parsing)
+       │
+       ▼
+onChange(html) - Re-renders parent component
+       │
+       ▼
+useMemo(contentStats) - Re-calculates word count
+```
+
+This means every keystroke:
+1. Runs DOMPurify sanitization (CPU intensive)
+2. Triggers React state update in parent
+3. Recalculates word/character counts
 
 ---
 
 ## Implementation Plan
 
-### Phase 1: Add Token Tracking to Wiki AI Functions (MANDATORY)
+### Phase 1: Add Debouncing to triggerUpdate (HIGH PRIORITY)
 
-**1A. Update `wiki-ask-ai` Edge Function**
+**File:** `src/components/wiki/WikiRichEditor.tsx`
 
-Update the edge function to track tokens properly:
-- Extract `usage` object from AI response (prompt_tokens, completion_tokens)
-- Log to `ai_usage_logs` table with:
-  - `organization_id`, `user_id`, `employee_id`
-  - `feature_name: 'wiki_ask_ai'`, `action_name: 'ask_question'`
-  - `model_name: 'google/gemini-2.5-flash'`
-  - `prompt_tokens`, `completion_tokens`, `total_tokens`
-  - `estimated_cost` (calculated from model pricing)
-  - `latency_ms`, `success: true/false`
+Changes:
+- Import `useMemo` for stable debounce function
+- Create debounced version of `triggerUpdate` with 100-150ms delay
+- Keep immediate sanitization for copy-paste safety but debounce the `onChange` call
+- This single change will dramatically reduce re-renders
 
-**1B. Update `ai-writing-assist` Edge Function**
+Implementation approach:
+```typescript
+// Create debounced trigger update
+const debouncedTriggerUpdate = useMemo(
+  () => debounce(() => {
+    if (editorRef.current) {
+      const html = DOMPurify.sanitize(editorRef.current.innerHTML, sanitizeConfig);
+      onChange(html);
+    }
+  }, 150),
+  [onChange]
+);
+```
 
-Same token tracking pattern:
-- Add Supabase client for logging
-- Verify user authentication
-- Track tokens per type (win, announcement, kudos, social)
-- Log to `ai_usage_logs` table
+### Phase 2: Optimize updateActiveFormatting (MEDIUM PRIORITY)
 
-### Phase 2: Add AI Writing Assist to Wiki Editor
+**File:** `src/components/wiki/WikiRichEditor.tsx`
 
-Create a new component `WikiAIWritingAssist.tsx` that:
-- Provides "Write with AI" and "Improve with AI" buttons
-- Uses Gemini to generate/improve wiki content
-- Respects admin AI feature toggles
-- Logs usage with full token tracking
+Changes:
+- Add debouncing to `updateActiveFormatting` (50ms)
+- Only run formatting checks when selection actually changes
+- Use `requestAnimationFrame` to batch DOM reads
 
-Integrate into WikiRichEditor toolbar as an optional feature.
+### Phase 3: Add Performance Unit Tests (MEDIUM PRIORITY)
 
-### Phase 3: Improve Accessibility
+**File:** `src/test/components/WikiRichEditor.test.tsx`
 
-**3A. Add aria-labels to toolbar buttons**
-All toolbar buttons should have proper `aria-label` attributes matching their `title` attributes.
+New tests to add:
+- Test that debouncing prevents excessive re-renders
+- Benchmark sanitization timing for large content
+- Test contentStats calculation efficiency
+- Test that keyboard shortcuts don't cause lag
 
-**3B. Add keyboard navigation**
-Toolbar should be navigable with Tab/Shift+Tab, with visual focus indicators.
+### Phase 4: Create Debounce Utility (SUPPORTING)
 
-### Phase 4: Refactor WikiRichEditor (Future)
+**File:** `src/lib/debounce.ts`
 
-The 2,540-line file should eventually be split into:
-- `WikiEditorToolbar.tsx` - Toolbar buttons and formatting
-- `WikiEditorContent.tsx` - Editable content area
-- `WikiTableControls.tsx` - Table manipulation UI
-- `WikiCodeBlock.tsx` - Code block with syntax highlighting (already exists)
-- `WikiImagePopover.tsx` - Image alignment and resize
-- `WikiLinkPopover.tsx` - Link edit/remove
-
-This is lower priority as it requires careful refactoring to maintain behavior.
+Create a reusable debounce utility:
+- Type-safe debounce function
+- Supports cancel and flush methods
+- Consistent with project patterns
 
 ---
 
@@ -132,103 +159,114 @@ This is lower priority as it requires careful refactoring to maintain behavior.
 
 | File | Action | Priority | Changes |
 |------|--------|----------|---------|
-| `supabase/functions/wiki-ask-ai/index.ts` | Modify | High | Add token tracking to ai_usage_logs |
-| `supabase/functions/ai-writing-assist/index.ts` | Modify | High | Add token tracking, auth verification |
-| `src/components/wiki/WikiAIWritingAssist.tsx` | Create | Medium | AI writing assist component for Wiki |
-| `src/components/wiki/WikiRichEditor.tsx` | Modify | Medium | Add AI assist button to toolbar, aria-labels |
-| `src/test/components/WikiRichEditor.test.tsx` | Modify | Low | Add tests for new functionality |
+| `src/lib/debounce.ts` | Create | High | Reusable debounce utility function |
+| `src/components/wiki/WikiRichEditor.tsx` | Modify | High | Add debouncing to triggerUpdate and updateActiveFormatting |
+| `src/test/components/WikiRichEditor.test.tsx` | Modify | Medium | Add performance-related tests |
 
 ---
 
-## AI Opportunity Analysis
+## Technical Implementation Details
 
-### Already Implemented (Working)
-- **Wiki Ask AI**: Q&A powered by Gemini, searches wiki content for answers
+### Debounce Strategy
 
-### Recommended Additions
+For the editor, we need two different debounce strategies:
 
-| Feature | Value | Implementation |
-|---------|-------|----------------|
-| **AI Writing Assist in Wiki** | High - helps users draft pages faster | Add button to toolbar, call ai-writing-assist |
-| **AI Summarize Page** | Medium - quick overview of long pages | New action in WikiContent |
-| **AI Translate Page** | Low - useful for multi-language orgs | Future consideration |
+1. **Content sync (triggerUpdate)**: 150ms debounce
+   - Batches rapid keystrokes
+   - Still responsive for paste operations
+   - Prevents excessive sanitization
 
-### AI Safeguards Already in Place
-- Feature limits checked via `check_feature_limit` RPC
-- Usage recorded via `record_usage` RPC
-- Rate limiting (429 responses) handled
-- Credit exhaustion (402 responses) handled
-- Authentication required for all AI endpoints
+2. **Formatting state (updateActiveFormatting)**: 50ms debounce
+   - Quick feedback for toolbar state
+   - Prevents jank during rapid selection changes
 
----
+### Code Pattern
 
-## Token Tracking Implementation Details
-
-### Current State
-- `wiki-ask-ai`: Records `ai_queries` quantity but NOT token-level details
-- `ai-writing-assist`: No tracking at all
-
-### Required Schema (Already Exists)
-```sql
--- ai_usage_logs table columns:
-- organization_id, user_id, employee_id
-- feature_name, action_name, model_name
-- prompt_tokens, completion_tokens, total_tokens
-- estimated_cost, latency_ms, success
-- created_at
-```
-
-### Token Tracking Code Pattern
 ```typescript
-const startTime = Date.now();
-const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {...});
-const data = await response.json();
-const latencyMs = Date.now() - startTime;
+// src/lib/debounce.ts
+export function debounce<T extends (...args: unknown[]) => void>(
+  fn: T,
+  delay: number
+): T & { cancel: () => void; flush: () => void } {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  let lastArgs: Parameters<T> | null = null;
 
-// Extract usage from Lovable AI response
-const usage = data.usage || {};
-const promptTokens = usage.prompt_tokens || 0;
-const completionTokens = usage.completion_tokens || 0;
+  const debounced = function (this: unknown, ...args: Parameters<T>) {
+    lastArgs = args;
+    if (timeoutId) clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+      if (lastArgs) fn.apply(this, lastArgs);
+      timeoutId = null;
+      lastArgs = null;
+    }, delay);
+  } as T & { cancel: () => void; flush: () => void };
 
-// Log to ai_usage_logs
-await supabase.from("ai_usage_logs").insert({
-  organization_id: organizationId,
-  user_id: user.id,
-  employee_id: employee.id,
-  feature_name: 'wiki_ask_ai',
-  action_name: 'ask_question',
-  model_name: 'google/gemini-2.5-flash',
-  prompt_tokens: promptTokens,
-  completion_tokens: completionTokens,
-  total_tokens: promptTokens + completionTokens,
-  estimated_cost: calculateCost(promptTokens, completionTokens),
-  latency_ms: latencyMs,
-  success: true,
-});
+  debounced.cancel = () => {
+    if (timeoutId) clearTimeout(timeoutId);
+    timeoutId = null;
+    lastArgs = null;
+  };
+
+  debounced.flush = () => {
+    if (timeoutId && lastArgs) {
+      clearTimeout(timeoutId);
+      fn(...lastArgs);
+      timeoutId = null;
+      lastArgs = null;
+    }
+  };
+
+  return debounced;
+}
 ```
 
 ---
 
 ## Security Observations
 
-### Properly Implemented
-- HTML sanitization via DOMPurify with allowlist
-- XSS prevention (script tags, onclick, javascript: URLs blocked)
-- Multi-tenant isolation via organization_id scoping
-- Authentication verified in edge functions
-- RLS policies use security definer functions
+### Token Tracking - Excellent
 
-### Linter Warnings (Review Needed)
-- 5 "RLS Policy Always True" warnings - likely on non-wiki tables
-- 5 "Function Search Path Mutable" warnings - functions missing `SET search_path = public`
+Both AI edge functions implement proper billing-grade tracking:
+- `wiki-ask-ai`: Tracks prompt_tokens, completion_tokens, estimated_cost, latency_ms
+- `ai-writing-assist`: Same comprehensive tracking with error logging
+
+### XSS Prevention - Excellent
+
+DOMPurify configuration is comprehensive:
+- Explicit allowlist of safe tags
+- Script tags stripped
+- onclick handlers removed
+- javascript: URLs blocked
+
+### RLS - Working
+
+Wiki tables use proper organization isolation via RPC functions like `can_edit_wiki_item`.
+
+### Linter Warnings (Non-Critical)
+
+- 5 "Function Search Path Mutable" warnings - should be addressed separately
+- 5 "RLS Policy Always True" warnings - need review but appear to be on non-wiki tables
 
 ---
 
 ## Expected Outcome
 
 After implementing these improvements:
-1. **Full token tracking** for all Wiki AI operations with billing-grade visibility
-2. **AI Writing Assist** available in Wiki editor for productivity boost
-3. **Better accessibility** with proper aria-labels and keyboard navigation
-4. **No new regressions** - existing behavior preserved
-5. **Admin controls** respected for AI features
+
+1. **60-80% reduction in re-renders** during typing due to debouncing
+2. **Smoother typing experience** especially on longer documents
+3. **Better mobile performance** with reduced CPU usage
+4. **No regression in functionality** - all features preserved
+5. **Improved test coverage** for performance-critical paths
+
+---
+
+## Risk Assessment
+
+| Change | Risk Level | Mitigation |
+|--------|------------|------------|
+| Debounce triggerUpdate | Low | Use 150ms delay - still feels instant |
+| Debounce updateActiveFormatting | Very Low | 50ms is imperceptible |
+| Add debounce utility | None | New file, no existing code affected |
+| Add tests | None | Additive only |
+
