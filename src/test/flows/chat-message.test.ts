@@ -7,22 +7,22 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock Supabase client
 const mockSupabase = {
-  from: vi.fn(() => mockSupabase),
-  select: vi.fn(() => mockSupabase),
-  insert: vi.fn(() => mockSupabase),
-  update: vi.fn(() => mockSupabase),
+  from: vi.fn((_table: string) => mockSupabase),
+  select: vi.fn((_columns?: string) => mockSupabase),
+  insert: vi.fn((_data: any) => mockSupabase),
+  update: vi.fn((_data: any) => mockSupabase),
   delete: vi.fn(() => mockSupabase),
-  eq: vi.fn(() => mockSupabase),
-  order: vi.fn(() => mockSupabase),
-  limit: vi.fn(() => mockSupabase),
+  eq: vi.fn((_column: string, _value: any) => mockSupabase),
+  order: vi.fn((_column: string, _options?: any) => mockSupabase),
+  limit: vi.fn((_count: number) => mockSupabase),
   single: vi.fn(),
-  channel: vi.fn(() => mockSupabase),
-  on: vi.fn(() => mockSupabase),
+  channel: vi.fn((_name: string) => mockSupabase),
+  on: vi.fn((_event: string, _filter: any, _callback?: any) => mockSupabase),
   subscribe: vi.fn(),
   storage: {
-    from: vi.fn(() => ({
-      upload: vi.fn().mockResolvedValue({ error: null }),
-      getPublicUrl: vi.fn().mockReturnValue({ data: { publicUrl: 'https://example.com/file.pdf' } }),
+    from: vi.fn((_bucket: string) => ({
+      upload: vi.fn((_path: string, _file: any) => Promise.resolve({ error: null })),
+      getPublicUrl: vi.fn((_path: string) => ({ data: { publicUrl: 'https://example.com/file.pdf' } })),
     })),
   },
 };

@@ -1,108 +1,55 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
-import { LogOut, CalendarPlus, SquarePen, Bell, Settings, ScanLine, Clock, Calendar, BookOpen, BarChart3, Search, ClipboardCheck, LifeBuoy } from 'lucide-react';
-import { GetHelpDialog } from "./dialogs/GetHelpDialog";
-import globalyosLogo from "@/assets/globalyos-icon.png";
-import { Button } from './ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import { useAuth } from '@/hooks/useAuth';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { useOrgNavigation } from '@/hooks/useOrgNavigation';
-import { supabase } from "@/integrations/supabase/client";
+import globalyosLogo from "@/assets/globalyos-icon.png";
 import { OrganizationSwitcher } from "./OrganizationSwitcher";
-import { useOrganization } from "@/hooks/useOrganization";
-import { AddLeaveRequestDialog } from "./dialogs/AddLeaveRequestDialog";
-import { CreatePostModal } from "./feed/CreatePostModal";
-import { QRScannerDialog } from "./dialogs/QRScannerDialog";
-import { RemoteCheckInDialog } from "./dialogs/RemoteCheckInDialog";
-import { useEmployeeWorkLocation, useHasApprovedWfhToday } from "@/services/useWfh";
-import { useNotificationSound } from "@/hooks/useNotificationSound";
-import { useNotificationPreferences } from "@/hooks/useNotificationPreferences";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { TopNav } from "./TopNav";
 import { SubNav } from "./SubNav";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { PullToRefreshIndicator } from "./PullToRefreshIndicator";
-import { GlobalAskAI } from "./GlobalAskAI";
-import { GlobalSearch } from "./GlobalSearch";
-import { MobileSearch } from "./MobileSearch";
 import TrialBanner from "./TrialBanner";
 import { SpotlightTour } from "./SpotlightTour";
-
-import { useUserRole } from "@/hooks/useUserRole";
-
-import { GetHelpButton } from "./GetHelpButton";
+import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { usePageVisitTracking } from "@/hooks/usePageVisitTracking";
 import { KpiGenerationProgress } from "./kpi/KpiGenerationProgress";
-import { useFeatureFlags } from "@/hooks/useFeatureFlags";
-
-interface UserProfile {
-  fullName: string;
-  position: string;
-  avatarUrl: string | null;
-  employeeId: string | null;
-  role: string | null;
-}
-
-const getRoleConfig = (role?: string | null) => {
-  switch (role) {
-    case 'admin':
-      return { label: 'Admin', className: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' };
-    case 'hr':
-      return { label: 'HR', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' };
-    default:
-      return { label: 'Member', className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400' };
-  }
-};
+import { useLayoutState } from '@/hooks/useLayoutState';
+import { DesktopQuickActions } from './layout/DesktopQuickActions';
+import { MobileHeaderActions } from './layout/MobileHeaderActions';
+import { LayoutDialogs } from './layout/LayoutDialogs';
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
-  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { orgCode } = useParams<{ orgCode: string }>();
+  const { navigateOrg } = useOrgNavigation();
   
   // Track page visits for Super Admin analytics
   usePageVisitTracking();
   
-  // Detect full-height pages that need no padding
+  // Detect full-height pages
   const isFullHeightPage = location.pathname.includes('/wiki') || location.pathname.includes('/chat');
-  const isHomePage = location.pathname === `/org/${orgCode}` || location.pathname === `/org/${orgCode}/`;
-  const { navigateOrg } = useOrgNavigation();
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  
+  // Layout state hook - handles all the complex state management
+  const {
+    user,
+    signOut,
+    currentOrg,
+    userProfile,
+    unreadCount,
+    elapsedTime,
+    isOnline,
+    shouldUseRemoteCheckIn,
+    fetchTodayAttendance,
+  } = useLayoutState();
+
+  // Dialog states
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [postDialogOpen, setPostDialogOpen] = useState(false);
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
   const [remoteCheckInOpen, setRemoteCheckInOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const { currentOrg } = useOrganization();
-  const { role } = useUserRole();
-  const { isEnabled } = useFeatureFlags();
-  const { playNotificationSound } = useNotificationSound();
-  const { preferences, shouldPlaySound } = useNotificationPreferences();
-  const previousCountRef = useRef<number>(0);
-  const [checkInTime, setCheckInTime] = useState<Date | null>(null);
-  const [elapsedTime, setElapsedTime] = useState<string>("");
-  const [sessionCount, setSessionCount] = useState<number>(0);
-  const [isOnline, setIsOnline] = useState<boolean>(true);
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [getHelpDialogOpen, setGetHelpDialogOpen] = useState(false);
-
-  // Work location and WFH hooks for smart check-in
-  const { data: workLocation } = useEmployeeWorkLocation(userProfile?.employeeId || undefined);
-  const { data: hasApprovedWfhToday } = useHasApprovedWfhToday(userProfile?.employeeId || undefined);
-
-  // Determine if user should use remote check-in (no QR scan)
-  const shouldUseRemoteCheckIn = workLocation === 'hybrid' || workLocation === 'remote' || 
-    (workLocation === 'office' && hasApprovedWfhToday);
-
-  const handleCheckIn = () => {
-    if (shouldUseRemoteCheckIn) {
-      setRemoteCheckInOpen(true);
-    } else {
-      setQrScannerOpen(true);
-    }
-  };
 
   // Global search keyboard shortcut (Cmd+K / Ctrl+K)
   useEffect(() => {
@@ -117,218 +64,6 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Track online presence
-  useEffect(() => {
-    if (!userProfile?.employeeId || !currentOrg?.id) return;
-
-    const updatePresence = async (online: boolean) => {
-      await supabase
-        .from('chat_presence')
-        .upsert({
-          employee_id: userProfile.employeeId,
-          organization_id: currentOrg.id,
-          is_online: online,
-          last_seen_at: new Date().toISOString()
-        }, { onConflict: 'employee_id' });
-    };
-
-    // Set online when component mounts
-    updatePresence(true);
-    setIsOnline(true);
-
-    // Update presence every 30 seconds
-    const interval = setInterval(() => updatePresence(true), 30000);
-
-    // Handle visibility change
-    const handleVisibilityChange = () => {
-      const online = document.visibilityState === 'visible';
-      setIsOnline(online);
-      updatePresence(online);
-    };
-
-    // Handle before unload
-    const handleBeforeUnload = () => {
-      updatePresence(false);
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      updatePresence(false);
-    };
-  }, [userProfile?.employeeId, currentOrg?.id]);
-  
-  // Pull to refresh for mobile
-  const { pullDistance, isRefreshing, isPastThreshold } = usePullToRefresh();
-
-  // Send push notification when a new notification is created
-  const sendPushNotification = useCallback(async (notification: any) => {
-    try {
-      await supabase.functions.invoke("send-push-notification", {
-        body: {
-          user_id: user?.id,
-          title: notification.title || "New notification",
-          body: notification.message || "You have a new notification",
-          url: "/notifications",
-          tag: notification.type || "notification",
-        },
-      });
-    } catch (error) {
-      console.error("Error sending push notification:", error);
-    }
-  }, [user?.id]);
-
-  // Fetch unread notification count
-  useEffect(() => {
-    if (!user?.id) {
-      previousCountRef.current = 0;
-      setUnreadCount(0);
-      return;
-    }
-
-    const userId = user.id;
-
-    const fetchUnreadCount = async () => {
-      const { count } = await supabase
-        .from('notifications')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .eq('is_read', false);
-
-      const newCount = count || 0;
-
-      // Play sound if count increased and preferences allow
-      if (newCount > previousCountRef.current && previousCountRef.current !== 0) {
-        if (shouldPlaySound()) {
-          playNotificationSound(preferences.soundType);
-        }
-      }
-
-      previousCountRef.current = newCount;
-      setUnreadCount(newCount);
-    };
-
-    fetchUnreadCount();
-
-    // Real-time subscription for notification updates
-    const channel = supabase
-      .channel('layout-notifications')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          // Play notification sound based on preferences
-          const notificationType = (payload.new as { type?: string })?.type;
-          if (shouldPlaySound(notificationType)) {
-            playNotificationSound(preferences.soundType);
-          }
-
-          // Send push notification
-          sendPushNotification(payload.new);
-
-          // Update count
-          setUnreadCount((prev) => prev + 1);
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${userId}`,
-        },
-        () => {
-          fetchUnreadCount();
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${userId}`,
-        },
-        () => {
-          fetchUnreadCount();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id, playNotificationSound, sendPushNotification, shouldPlaySound, preferences.soundType]);
-
-  // Fetch today's attendance record to check if user is checked in
-  const fetchTodayAttendance = useCallback(async () => {
-    if (!user?.id) return;
-
-    const { data: employee } = await supabase
-      .from("employees")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (!employee) return;
-
-    const today = new Date().toISOString().split('T')[0];
-    
-    // Get all today's sessions to count them
-    const { data: todaySessions } = await supabase
-      .from("attendance_records")
-      .select("check_in_time, check_out_time")
-      .eq("employee_id", employee.id)
-      .eq("date", today)
-      .order("check_in_time", { ascending: true });
-
-    const sessions = todaySessions || [];
-    setSessionCount(sessions.length);
-
-    // Find active session (checked in but not out)
-    const activeSession = sessions.find(s => s.check_in_time && !s.check_out_time);
-
-    if (activeSession?.check_in_time) {
-      setCheckInTime(new Date(activeSession.check_in_time));
-    } else {
-      setCheckInTime(null);
-    }
-  }, [user?.id]);
-
-  useEffect(() => {
-    fetchTodayAttendance();
-
-    // Subscribe to attendance changes
-    const channel = supabase
-      .channel("layout-attendance")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "attendance_records",
-        },
-        () => {
-          fetchTodayAttendance();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchTodayAttendance]);
-
   // Re-fetch attendance when QR scanner closes
   useEffect(() => {
     if (!qrScannerOpen) {
@@ -336,70 +71,16 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     }
   }, [qrScannerOpen, fetchTodayAttendance]);
 
-  // Update elapsed time every second
-  useEffect(() => {
-    if (!checkInTime) {
-      setElapsedTime("");
-      return;
+  // Pull to refresh for mobile
+  const { pullDistance, isRefreshing, isPastThreshold } = usePullToRefresh();
+
+  const handleCheckIn = () => {
+    if (shouldUseRemoteCheckIn) {
+      setRemoteCheckInOpen(true);
+    } else {
+      setQrScannerOpen(true);
     }
-
-    const updateElapsed = () => {
-      const now = new Date();
-      const diff = now.getTime() - checkInTime.getTime();
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-      setElapsedTime(
-        `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
-      );
-    };
-
-    updateElapsed();
-    const interval = setInterval(updateElapsed, 1000);
-
-    return () => clearInterval(interval);
-  }, [checkInTime]);
-
-  useEffect(() => {
-    const loadUserProfile = async () => {
-      if (!user?.id || !currentOrg) return;
-
-      // Get profile data
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name, avatar_url")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      // Get employee data for current org
-      const { data: employee } = await supabase
-        .from("employees")
-        .select("id, position")
-        .eq("user_id", user.id)
-        .eq("organization_id", currentOrg.id)
-        .maybeSingle();
-
-      // Get user role for current org
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("organization_id", currentOrg.id)
-        .maybeSingle();
-
-      if (profile) {
-        setUserProfile({
-          fullName: profile.full_name,
-          position: employee?.position || "",
-          avatarUrl: profile.avatar_url,
-          employeeId: employee?.id || null,
-          role: roleData?.role || null,
-        });
-      }
-    };
-
-    loadUserProfile();
-  }, [user?.id, currentOrg?.id]);
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -412,20 +93,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
-  const roleConfig = getRoleConfig(userProfile?.role);
-
   return (
     <div className="min-h-screen bg-background">
-      {/* Spotlight Tour for Onboarding - starts after WelcomeSurvey completes */}
+      {/* Spotlight Tour for Onboarding */}
       <SpotlightTour />
       
       {/* Pull to Refresh Indicator for Mobile */}
@@ -460,282 +130,60 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             <TopNav isAdmin={userProfile?.role === 'owner' || userProfile?.role === 'admin'} />
           </div>
 
-          <div className="hidden md:flex md:items-center md:gap-2 tour-quick-actions">
-            
-            {elapsedTime && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-sm font-medium">
-                <Clock className="h-4 w-4" />
-                <span>{elapsedTime}</span>
-              </div>
-             )}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="icon"
-                  className="h-10 w-10"
-                  onClick={() => setGlobalSearchOpen(true)}
-                >
-                  <Search className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Search <kbd className="ml-1 px-1 py-0.5 rounded bg-muted text-[10px] font-mono">⌘K</kbd></p>
-              </TooltipContent>
-            </Tooltip>
-            {isEnabled('ask-ai') && <GlobalAskAI organizationId={currentOrg?.id} />}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="icon"
-                  className="h-10 w-10 tour-check-in"
-                  onClick={handleCheckIn}
-                  disabled={!userProfile?.employeeId}
-                >
-                  <ScanLine className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{shouldUseRemoteCheckIn ? 'Remote Check-In' : 'Quick Check-In'}</p>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="icon"
-                  className="h-10 w-10"
-                  onClick={() => setLeaveDialogOpen(true)}
-                  disabled={!userProfile?.employeeId}
-                >
-                  <CalendarPlus className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Request Leave</p>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="icon"
-                  className="h-10 w-10 relative"
-                  onClick={() => navigateOrg('/notifications')}
-                >
-                  <Bell className="h-4 w-4" />
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center font-medium">
-                      {unreadCount > 99 ? "99+" : unreadCount}
-                    </span>
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Notifications</p>
-              </TooltipContent>
-            </Tooltip>
-            {(userProfile?.role === 'owner' || userProfile?.role === 'admin' || userProfile?.role === 'hr') && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    size="icon"
-                    className="h-10 w-10 tour-settings-menu"
-                    onClick={() => navigateOrg('/settings')}
-                  >
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Organization Settings</p>
-                </TooltipContent>
-              </Tooltip>
-            )}
-            <GetHelpButton />
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="icon"
-                  className="h-10 w-10 relative tour-profile-avatar"
-                  onClick={handleViewProfile}
-                  disabled={!userProfile?.employeeId}
-                >
-                  <Avatar className="h-7 w-7 border-2 border-primary/10">
-                    <AvatarImage src={userProfile?.avatarUrl || undefined} alt={userProfile?.fullName} />
-                    <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground font-semibold text-xs">
-                      {userProfile?.fullName ? getInitials(userProfile.fullName) : user?.email?.charAt(0).toUpperCase() || "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                  {isOnline && (
-                    <span className="absolute bottom-1 right-1 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-background" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{userProfile?.fullName || "Profile"}</p>
-              </TooltipContent>
-            </Tooltip>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={handleSignOut}
-                    className="h-10 w-10 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                  >
-                    <LogOut className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Logout</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
+          {/* Desktop Quick Actions */}
+          <DesktopQuickActions
+            userProfile={userProfile}
+            elapsedTime={elapsedTime}
+            unreadCount={unreadCount}
+            isOnline={isOnline}
+            currentOrgId={currentOrg?.id}
+            shouldUseRemoteCheckIn={shouldUseRemoteCheckIn}
+            onCheckIn={handleCheckIn}
+            onLeaveRequest={() => setLeaveDialogOpen(true)}
+            onSearch={() => setGlobalSearchOpen(true)}
+            onViewProfile={handleViewProfile}
+            onSignOut={handleSignOut}
+          />
 
-          {/* Mobile Header - Left Quick Actions + Right User Actions */}
-          <div className="flex flex-1 items-center justify-between md:hidden">
-            {/* Left Side - Quick Access Icons (compact) */}
-            <div className="flex items-center gap-1">
-              {/* Calendar */}
-              <button
-                onClick={() => navigateOrg("/calendar")}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/50 bg-card/80 hover:bg-muted transition-colors active:scale-95"
-              >
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-              </button>
-              
-              {/* Wiki */}
-              <button
-                onClick={() => navigateOrg("/wiki")}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/50 bg-card/80 hover:bg-muted transition-colors active:scale-95"
-              >
-                <BookOpen className="h-4 w-4 text-muted-foreground" />
-              </button>
-              
-              {/* KPI */}
-              <button
-                onClick={() => navigateOrg("/kpi-dashboard")}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/50 bg-card/80 hover:bg-muted transition-colors active:scale-95"
-              >
-                <BarChart3 className="h-4 w-4 text-muted-foreground" />
-              </button>
-              
-              {/* Attendance */}
-              <button
-                onClick={() => navigateOrg("/attendance-history")}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/50 bg-card/80 hover:bg-muted transition-colors active:scale-95"
-              >
-                <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
-              </button>
-
-              {/* Elapsed Time indicator - more compact */}
-              {elapsedTime && (
-                <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-md text-[11px] font-medium ml-0.5">
-                  <Clock className="h-3 w-3" />
-                  <span>{elapsedTime}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Right Side - Search, Notifications (compact) */}
-            <div className="flex items-center gap-1">
-              {/* Search */}
-              <button
-                onClick={() => setMobileSearchOpen(true)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/50 bg-card/80 hover:bg-muted transition-colors active:scale-95"
-              >
-                <Search className="h-4 w-4 text-muted-foreground" />
-              </button>
-              
-              {/* Get Help */}
-              <button
-                onClick={() => setGetHelpDialogOpen(true)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/50 bg-card/80 hover:bg-muted transition-colors active:scale-95"
-              >
-                <LifeBuoy className="h-4 w-4 text-muted-foreground" />
-              </button>
-              
-              {/* Notifications */}
-              <button 
-                onClick={() => navigateOrg('/notifications')}
-                className="relative flex h-8 w-8 items-center justify-center rounded-lg border border-border/50 bg-card/80 hover:bg-muted transition-colors active:scale-95"
-              >
-                <Bell className="h-4 w-4 text-muted-foreground" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-destructive text-destructive-foreground text-[9px] flex items-center justify-center font-medium">
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </span>
-                )}
-              </button>
-            </div>
-          </div>
+          {/* Mobile Header Actions */}
+          <MobileHeaderActions
+            elapsedTime={elapsedTime}
+            unreadCount={unreadCount}
+            onSearch={() => setMobileSearchOpen(true)}
+            onGetHelp={() => setGetHelpDialogOpen(true)}
+          />
         </div>
       </header>
 
       {/* Sub Navigation for Team section */}
       <SubNav />
 
-      {/* 
-        PAGE CONTENT WRAPPER GUIDELINES:
-        ================================
-        The Layout component provides: container, px-4, md:px-8
-        
-        Page components should:
-          ✅ Use <PageBody> from @/components/ui/page-body
-          ✅ Or use className="space-y-4 md:space-y-6"
-          ✅ Add mobileBottomPadding prop for pages with fixed mobile elements
-        
-        Page components should NOT:
-          ❌ Add container, mx-auto, or max-w-* classes
-          ❌ Add px-*, horizontal padding classes
-          ❌ Wrap in min-h-screen unless truly full-height (Chat, Wiki)
-        
-        See: src/components/ui/page-body.tsx
-      */}
-      <main className={`container px-4 md:px-8 ${isFullHeightPage ? 'h-[calc(100vh-4rem)] overflow-hidden pt-0 pb-0' : 'pt-2 pb-24 md:pb-8 overflow-x-hidden'}`}>{children}</main>
-
+      {/* Page Content */}
+      <main className={`container px-4 md:px-8 ${isFullHeightPage ? 'h-[calc(100vh-4rem)] overflow-hidden pt-0 pb-0' : 'pt-2 pb-24 md:pb-8 overflow-x-hidden'}`}>
+        {children}
+      </main>
 
       {/* Mobile Bottom Navigation */}
       <MobileBottomNav userProfile={userProfile} isOnline={isOnline} />
 
-      {/* Mobile Search */}
-      <MobileSearch open={mobileSearchOpen} onOpenChange={setMobileSearchOpen} />
-
-      {userProfile?.employeeId && (
-        <>
-          <QRScannerDialog
-            open={qrScannerOpen}
-            onOpenChange={setQrScannerOpen}
-          />
-          <AddLeaveRequestDialog
-            employeeId={userProfile.employeeId}
-            open={leaveDialogOpen}
-            onOpenChange={setLeaveDialogOpen}
-          />
-          <CreatePostModal
-            open={postDialogOpen}
-            onOpenChange={setPostDialogOpen}
-            canPostAnnouncement={userProfile?.role === 'owner' || userProfile?.role === 'admin' || userProfile?.role === 'hr'}
-            canPostExecutive={userProfile?.role === 'owner' || userProfile?.role === 'admin'}
-          />
-          <RemoteCheckInDialog
-            open={remoteCheckInOpen}
-            onOpenChange={setRemoteCheckInOpen}
-          />
-        </>
-      )}
-
-      {/* Global Search Command Palette */}
-      <GlobalSearch open={globalSearchOpen} onOpenChange={setGlobalSearchOpen} />
-
-      {/* Get Help Dialog */}
-      <GetHelpDialog open={getHelpDialogOpen} onOpenChange={setGetHelpDialogOpen} />
-
+      {/* All Dialogs */}
+      <LayoutDialogs
+        userProfile={userProfile}
+        qrScannerOpen={qrScannerOpen}
+        setQrScannerOpen={setQrScannerOpen}
+        leaveDialogOpen={leaveDialogOpen}
+        setLeaveDialogOpen={setLeaveDialogOpen}
+        postDialogOpen={postDialogOpen}
+        setPostDialogOpen={setPostDialogOpen}
+        remoteCheckInOpen={remoteCheckInOpen}
+        setRemoteCheckInOpen={setRemoteCheckInOpen}
+        globalSearchOpen={globalSearchOpen}
+        setGlobalSearchOpen={setGlobalSearchOpen}
+        getHelpDialogOpen={getHelpDialogOpen}
+        setGetHelpDialogOpen={setGetHelpDialogOpen}
+        mobileSearchOpen={mobileSearchOpen}
+        setMobileSearchOpen={setMobileSearchOpen}
+      />
 
       {/* KPI Generation Progress Indicator */}
       <KpiGenerationProgress organizationId={currentOrg?.id} />
