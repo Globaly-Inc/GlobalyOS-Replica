@@ -9,6 +9,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Model pricing per 1K tokens (aligned with other AI functions)
+const MODEL_RATES: Record<string, { input: number; output: number }> = {
+  "google/gemini-2.5-flash": { input: 0.000001, output: 0.000002 },
+  "google/gemini-2.5-pro": { input: 0.00001, output: 0.00002 },
+  "google/gemini-3-flash-preview": { input: 0.000002, output: 0.000004 },
+};
+
+function estimateCost(model: string, promptTokens: number, completionTokens: number): number {
+  const rates = MODEL_RATES[model] || { input: 0.000001, output: 0.000002 };
+  return (promptTokens / 1000) * rates.input + (completionTokens / 1000) * rates.output;
+}
+
 // Get client IP from request headers
 function getClientIP(req: Request): string {
   return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
@@ -23,6 +35,10 @@ serve(async (req) => {
   }
 
   const clientIP = getClientIP(req);
+  const startTime = Date.now();
+  let userId: string | null = null;
+  let organizationId: string | null = null;
+  let targetEmployeeId: string | null = null;
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -51,7 +67,23 @@ serve(async (req) => {
       );
     }
 
+    userId = user.id;
+
     const { employee, employeeId, forceRegenerate } = await req.json();
+    targetEmployeeId = employeeId;
+    organizationId = employee?.organizationId || null;
+
+    // Get requesting user's employee ID for logging
+    let requestingEmployeeId: string | null = null;
+    if (organizationId) {
+      const { data: empData } = await supabase
+        .from("employees")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("organization_id", organizationId)
+        .maybeSingle();
+      requestingEmployeeId = empData?.id || null;
+    }
 
     // Check for cached summary if not forcing regeneration
     if (!forceRegenerate && employeeId) {
@@ -102,7 +134,9 @@ serve(async (req) => {
 
     console.log("Generating new AI summary for employee:", employeeId);
 
-    const prompt = `Generate a brief, professional 50-word summary about this team member based on their profile information. Focus on their role, department, skills/superpowers, tenure, and any notable achievements or kudos received. Do NOT mention any salary or compensation information. Keep it positive and professional.
+    const systemPrompt = "You are a helpful HR assistant that writes concise, professional team member summaries. Keep summaries exactly around 50 words, positive and engaging.";
+    
+    const userPrompt = `Generate a brief, professional 50-word summary about this team member based on their profile information. Focus on their role, department, skills/superpowers, tenure, and any notable achievements or kudos received. Do NOT mention any salary or compensation information. Keep it positive and professional.
 
 Team Member Profile:
 - Name: ${employee.name}
@@ -119,6 +153,9 @@ Team Member Profile:
 
 Write a friendly, engaging summary in about 50 words.`;
 
+    const model = "google/gemini-2.5-flash";
+    const promptLength = systemPrompt.length + userPrompt.length;
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -126,15 +163,40 @@ Write a friendly, engaging summary in about 50 words.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model,
         messages: [
-          { role: "system", content: "You are a helpful HR assistant that writes concise, professional team member summaries. Keep summaries exactly around 50 words, positive and engaging." },
-          { role: "user", content: prompt },
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
         ],
       }),
     });
 
+    const latencyMs = Date.now() - startTime;
+
     if (!response.ok) {
+      // Log failed attempt
+      if (organizationId) {
+        await supabase.from("ai_usage_logs").insert({
+          organization_id: organizationId,
+          user_id: userId,
+          employee_id: requestingEmployeeId,
+          model,
+          query_type: "profile_summary",
+          prompt_tokens: 0,
+          completion_tokens: 0,
+          total_tokens: 0,
+          estimated_cost: 0,
+          latency_ms: latencyMs,
+          prompt_length: promptLength,
+          response_length: 0,
+          metadata: { 
+            success: false, 
+            error: `HTTP ${response.status}`,
+            target_employee_id: targetEmployeeId
+          }
+        });
+      }
+
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
           status: 429,
@@ -155,13 +217,55 @@ Write a friendly, engaging summary in about 50 words.`;
     const data = await response.json();
     const summary = data.choices?.[0]?.message?.content || "Unable to generate summary.";
 
+    // Extract token usage from response
+    const usage = data.usage || {};
+    const promptTokens = usage.prompt_tokens || Math.ceil(promptLength / 4);
+    const completionTokens = usage.completion_tokens || Math.ceil(summary.length / 4);
+    const totalTokens = promptTokens + completionTokens;
+    const estimatedCost = estimateCost(model, promptTokens, completionTokens);
+
+    // Log successful AI usage
+    if (organizationId) {
+      await supabase.from("ai_usage_logs").insert({
+        organization_id: organizationId,
+        user_id: userId,
+        employee_id: requestingEmployeeId,
+        model,
+        query_type: "profile_summary",
+        prompt_tokens: promptTokens,
+        completion_tokens: completionTokens,
+        total_tokens: totalTokens,
+        estimated_cost: estimatedCost,
+        latency_ms: latencyMs,
+        prompt_length: promptLength,
+        response_length: summary.length,
+        metadata: { 
+          success: true,
+          target_employee_id: targetEmployeeId,
+          cached: false
+        }
+      });
+
+      // Record usage for billing limits
+      try {
+        await supabase.rpc('record_usage', {
+          _organization_id: organizationId,
+          _feature: 'ai_queries',
+          _quantity: 1
+        });
+      } catch (usageError) {
+        console.error("Failed to record usage:", usageError);
+        // Non-blocking - continue with response
+      }
+    }
+
     // Cache the summary
     if (employeeId) {
       const { error: upsertError } = await supabase
         .from("profile_summaries")
         .upsert({
           employee_id: employeeId,
-          organization_id: employee.organizationId || null,
+          organization_id: organizationId || null,
           summary: summary,
         }, {
           onConflict: "employee_id"
