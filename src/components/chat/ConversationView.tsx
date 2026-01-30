@@ -586,15 +586,36 @@ const ConversationView = ({
       .slice(0, 2);
   };
 
-  // Group messages by date
-  const groupedMessages = messages.reduce((groups, message) => {
-    const date = format(new Date(message.created_at), "yyyy-MM-dd");
-    if (!groups[date]) {
-      groups[date] = [];
-    }
-    groups[date].push(message);
-    return groups;
-  }, {} as Record<string, ChatMessage[]>);
+  // Group messages by date - memoized to prevent O(n) computation on every render
+  const groupedMessages = useMemo(() => {
+    if (!messages.length) return {};
+    
+    return messages.reduce((groups, message) => {
+      const date = format(new Date(message.created_at), "yyyy-MM-dd");
+      if (!groups[date]) {
+        groups[date] = [];
+      }
+      groups[date].push(message);
+      return groups;
+    }, {} as Record<string, ChatMessage[]>);
+  }, [messages]);
+  
+  // Stable callback functions to prevent breaking React.memo on MessageBubble
+  const messageCallbacks = useMemo(() => ({
+    onEdit: (messageId: string) => setEditingMessageId(messageId),
+    onCancelEdit: () => setEditingMessageId(null),
+    onSaveEdit: (messageId: string, content: string) => {
+      editMessage.mutate({ messageId, content });
+      setEditingMessageId(null);
+    },
+    onDelete: (messageId: string) => deleteMessage.mutate(messageId),
+    onStar: (messageId: string) => toggleStar.mutate(messageId),
+    onPin: (messageId: string, isPinned: boolean) => 
+      togglePin.mutate({ messageId, isPinned }),
+    onReact: (messageId: string, emoji: string) => 
+      toggleReaction.mutate({ messageId, emoji }),
+    onReply: (message: ChatMessage) => setActiveThreadMessage(message),
+  }), [editMessage, deleteMessage, toggleStar, togglePin, toggleReaction, setActiveThreadMessage]);
 
   return (
     <ChatDropZone onFilesDropped={handleFilesDropped}>
@@ -843,21 +864,15 @@ const ConversationView = ({
                             reactions={messageReactions}
                             isEditing={editingMessageId === message.id}
                             currentEmployeeId={currentEmployee?.id}
-                            onEdit={() => setEditingMessageId(message.id)}
-                            onCancelEdit={() => setEditingMessageId(null)}
-                            onSaveEdit={(content) => {
-                              editMessage.mutate({ messageId: message.id, content });
-                              setEditingMessageId(null);
-                            }}
-                            onDelete={() => deleteMessage.mutate(message.id)}
-                            onStar={() => toggleStar.mutate(message.id)}
-                            onPin={() => togglePin.mutate({ messageId: message.id, isPinned: message.is_pinned })}
+                            onEdit={() => messageCallbacks.onEdit(message.id)}
+                            onCancelEdit={messageCallbacks.onCancelEdit}
+                            onSaveEdit={(content) => messageCallbacks.onSaveEdit(message.id, content)}
+                            onDelete={() => messageCallbacks.onDelete(message.id)}
+                            onStar={() => messageCallbacks.onStar(message.id)}
+                            onPin={() => messageCallbacks.onPin(message.id, message.is_pinned)}
                             isStarred={isStarred}
-                            onReact={(emoji) => toggleReaction.mutate({ 
-                              messageId: message.id, 
-                              emoji 
-                            })}
-                            onReply={() => setActiveThreadMessage(message)}
+                            onReact={(emoji) => messageCallbacks.onReact(message.id, emoji)}
+                            onReply={() => messageCallbacks.onReply(message)}
                             replyCount={replyCounts[message.id]}
                             isEditPending={editMessage.isPending}
                             isOnline={message.sender_id ? onlineStatuses[message.sender_id] : false}

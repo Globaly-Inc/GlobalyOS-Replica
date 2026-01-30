@@ -1,3 +1,4 @@
+import React, { memo } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { Bookmark, Pin } from "lucide-react";
@@ -45,7 +46,53 @@ interface MessageBubbleProps {
   isOnline?: boolean;
 }
 
-const MessageBubble = ({
+// Custom equality check for performance - only re-render when these specific props change
+const arePropsEqual = (prev: MessageBubbleProps, next: MessageBubbleProps): boolean => {
+  // Fast path: check primitive props first
+  if (
+    prev.message.id !== next.message.id ||
+    prev.message.content !== next.message.content ||
+    prev.message.updated_at !== next.message.updated_at ||
+    prev.message.is_pinned !== next.message.is_pinned ||
+    prev.isEditing !== next.isEditing ||
+    prev.isStarred !== next.isStarred ||
+    prev.isGrouped !== next.isGrouped ||
+    prev.isLastInGroup !== next.isLastInGroup ||
+    prev.replyCount !== next.replyCount ||
+    prev.isOnline !== next.isOnline ||
+    prev.isOwn !== next.isOwn ||
+    prev.isEditPending !== next.isEditPending ||
+    prev.currentEmployeeId !== next.currentEmployeeId
+  ) {
+    return false;
+  }
+
+  // Shallow compare reactions - check count and user counts per emoji
+  const prevReactionKeys = Object.keys(prev.reactions);
+  const nextReactionKeys = Object.keys(next.reactions);
+  
+  if (prevReactionKeys.length !== nextReactionKeys.length) {
+    return false;
+  }
+  
+  for (const key of prevReactionKeys) {
+    if (!next.reactions[key]) return false;
+    if (prev.reactions[key]?.users.length !== next.reactions[key]?.users.length) {
+      return false;
+    }
+  }
+
+  // Check attachments count
+  const prevAttachments = prev.message.attachments?.length || 0;
+  const nextAttachments = next.message.attachments?.length || 0;
+  if (prevAttachments !== nextAttachments) {
+    return false;
+  }
+
+  return true;
+};
+
+const MessageBubbleComponent = ({
   message,
   isOwn,
   isGrouped,
@@ -226,5 +273,8 @@ const MessageBubble = ({
     </div>
   );
 };
+
+// Wrap with React.memo using custom comparator for performance
+const MessageBubble = memo(MessageBubbleComponent, arePropsEqual);
 
 export default MessageBubble;

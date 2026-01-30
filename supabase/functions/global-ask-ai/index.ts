@@ -282,15 +282,26 @@ serve(async (req) => {
       });
     }
 
-    // Get current employee - separate queries to avoid inner join failures
-    const { data: employeeData, error: empError } = await supabase
-      .from("employees")
-      .select("id, position, department, manager_id, office_id, status, user_id")
-      .eq("user_id", user.id)
-      .eq("organization_id", organizationId)
-      .maybeSingle();
+    // Get current employee data and user role in parallel
+    const [employeeResult, roleResult] = await Promise.all([
+      supabase
+        .from("employees")
+        .select("id, position, department, manager_id, office_id, status, user_id")
+        .eq("user_id", user.id)
+        .eq("organization_id", organizationId)
+        .maybeSingle(),
+      supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("organization_id", organizationId)
+        .maybeSingle()
+    ]);
 
-    // Get profile separately if employee exists
+    const { data: employeeData, error: empError } = employeeResult;
+    const { data: userRole } = roleResult;
+
+    // Get profile separately if employee exists (small query, fast)
     let profileData = null;
     if (employeeData) {
       const { data: profile } = await supabase
@@ -310,14 +321,6 @@ serve(async (req) => {
     if (empError) {
       console.error("Employee lookup error:", empError.message);
     }
-
-    // Get user's role in the organization
-    const { data: userRole } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("organization_id", organizationId)
-      .maybeSingle();
 
     const role = userRole?.role || "member";
     const currentYear = new Date().getFullYear();
@@ -834,34 +837,36 @@ serve(async (req) => {
     }
 
     // ========================================
-    // ORGANIZATION BUSINESS CONTEXT
+    // ORGANIZATION BUSINESS CONTEXT - Parallel queries for performance
     // ========================================
-    const { data: organization } = await supabase
-      .from("organizations")
-      .select(`
-        name,
-        legal_business_name,
-        industry,
-        company_size,
-        country,
-        timezone
-      `)
-      .eq("id", organizationId)
-      .single();
+    const [orgResult, deptResult, posResult] = await Promise.all([
+      supabase
+        .from("organizations")
+        .select(`
+          name,
+          legal_business_name,
+          industry,
+          company_size,
+          country,
+          timezone
+        `)
+        .eq("id", organizationId)
+        .single(),
+      supabase
+        .from("departments")
+        .select("id, name, description")
+        .eq("organization_id", organizationId)
+        .limit(50),
+      supabase
+        .from("positions")
+        .select("id, name, department, description")
+        .eq("organization_id", organizationId)
+        .limit(100)
+    ]);
 
-    // Fetch departments from the departments table
-    const { data: departmentsFromTable } = await supabase
-      .from("departments")
-      .select("id, name, description")
-      .eq("organization_id", organizationId)
-      .limit(50);
-
-    // Fetch positions from the positions table
-    const { data: positionsFromTable } = await supabase
-      .from("positions")
-      .select("id, name, department, description")
-      .eq("organization_id", organizationId)
-      .limit(100);
+    const { data: organization } = orgResult;
+    const { data: departmentsFromTable } = deptResult;
+    const { data: positionsFromTable } = posResult;
 
     // Build department names from the proper table
     const uniqueDepartments = departmentsFromTable?.map(d => d.name).filter(Boolean) || [];
@@ -881,42 +886,78 @@ serve(async (req) => {
     const companyCountry = organization?.country || "Not specified";
 
     // ========================================
-    // PERSONAL DATA CONTEXT (Always available to self)
+    // PERSONAL DATA CONTEXT - Parallel queries for performance
     // ========================================
     let userPersonalContext = "";
 
     if (currentEmployee) {
-      // User's leave balances - using office_leave_types only
-      if (settings.leave_enabled) {
-        let leaveBalances: Array<{ name: string; balance: number; category: string }> = [];
-        let balanceYear = currentYear;
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        // Get balances from office_leave_types
-        if (currentEmployee.office_id) {
-          const { data: officeBalances } = await supabase
+      // Run all personal context queries in parallel using Promise.all with direct awaits
+      // Build query promises conditionally
+      const leaveBalancePromise = (settings.leave_enabled && currentEmployee.office_id)
+        ? supabase
             .from("leave_type_balances")
             .select(`balance, year, office_leave_types!inner(name, category)`)
             .eq("employee_id", currentEmployee.id)
             .eq("year", currentYear)
-            .not("office_leave_type_id", "is", null);
-          
-          if (officeBalances && officeBalances.length > 0) {
-            leaveBalances = officeBalances.map((b: any) => ({
-              name: b.office_leave_types?.name || "Unknown",
-              balance: b.balance,
-              category: b.office_leave_types?.category || "N/A"
-            }));
-          }
+            .not("office_leave_type_id", "is", null)
+        : null;
+
+      const pendingLeavesPromise = settings.leave_enabled
+        ? supabase
+            .from("leave_requests")
+            .select("leave_type, start_date, end_date, status, reason, days_count")
+            .eq("employee_id", currentEmployee.id)
+            .in("status", ["pending", "approved"])
+            .gte("end_date", new Date().toISOString().split("T")[0])
+            .order("start_date", { ascending: true })
+            .limit(10)
+        : null;
+
+      const attendancePromise = settings.attendance_enabled
+        ? supabase
+            .from("attendance_records")
+            .select("date, check_in_time, check_out_time, work_hours, status")
+            .eq("employee_id", currentEmployee.id)
+            .gte("date", thirtyDaysAgo.toISOString().split("T")[0])
+            .order("date", { ascending: false })
+            .limit(30)
+        : null;
+
+      const kpisPromise = settings.kpis_enabled
+        ? supabase
+            .from("kpis")
+            .select("title, target_value, current_value, unit, status, period, due_date, description")
+            .eq("employee_id", currentEmployee.id)
+            .order("created_at", { ascending: false })
+            .limit(10)
+        : null;
+
+      // Execute all queries in parallel
+      const [leaveBalanceResult, pendingLeavesResult, attendanceResult, kpisResult] = await Promise.all([
+        leaveBalancePromise,
+        pendingLeavesPromise,
+        attendancePromise,
+        kpisPromise
+      ]);
+
+      // Process leave balances
+      if (settings.leave_enabled) {
+        let leaveBalances: Array<{ name: string; balance: number; category: string }> = [];
+        const balanceYear = currentYear;
+
+        const officeBalances = leaveBalanceResult?.data;
+        if (officeBalances && officeBalances.length > 0) {
+          leaveBalances = officeBalances.map((b: any) => ({
+            name: b.office_leave_types?.name || "Unknown",
+            balance: b.balance,
+            category: b.office_leave_types?.category || "N/A"
+          }));
         }
-        
-        const { data: pendingLeaves } = await supabase
-          .from("leave_requests")
-          .select("leave_type, start_date, end_date, status, reason, days_count")
-          .eq("employee_id", currentEmployee.id)
-          .in("status", ["pending", "approved"])
-          .gte("end_date", new Date().toISOString().split("T")[0])
-          .order("start_date", { ascending: true })
-          .limit(10);
+
+        const pendingLeaves = pendingLeavesResult?.data;
 
         userPersonalContext += `
 YOUR LEAVE BALANCES (${balanceYear}):
@@ -928,26 +969,17 @@ ${leaveBalances.length > 0
 
 YOUR PENDING/UPCOMING LEAVES:
 ${pendingLeaves?.length 
-  ? pendingLeaves.map(l => `- ${l.leave_type}: ${l.start_date} to ${l.end_date} (${l.days_count} days, ${l.status})`).join("\n") 
+  ? pendingLeaves.map((l: any) => `- ${l.leave_type}: ${l.start_date} to ${l.end_date} (${l.days_count} days, ${l.status})`).join("\n") 
   : "No upcoming leaves"}
 `;
       }
 
-      // User's attendance data
+      // Process attendance data
       if (settings.attendance_enabled) {
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-        const { data: attendanceRecords } = await supabase
-          .from("attendance_records")
-          .select("date, check_in_time, check_out_time, work_hours, status")
-          .eq("employee_id", currentEmployee.id)
-          .gte("date", thirtyDaysAgo.toISOString().split("T")[0])
-          .order("date", { ascending: false })
-          .limit(30);
-
+        const attendanceRecords = attendanceResult?.data;
+        
         const avgHours = attendanceRecords?.length 
-          ? (attendanceRecords.reduce((sum, r) => sum + (r.work_hours || 0), 0) / attendanceRecords.length).toFixed(1)
+          ? (attendanceRecords.reduce((sum: number, r: any) => sum + (r.work_hours || 0), 0) / attendanceRecords.length).toFixed(1)
           : "N/A";
 
         const recentRecord = attendanceRecords?.[0];
@@ -959,16 +991,11 @@ YOUR ATTENDANCE (Last 30 Days):
 `;
       }
 
-      // User's KPIs
+      // Process KPIs
       if (settings.kpis_enabled) {
-        const { data: userKpis } = await supabase
-          .from("kpis")
-          .select("title, target_value, current_value, unit, status, period, due_date, description")
-          .eq("employee_id", currentEmployee.id)
-          .order("created_at", { ascending: false })
-          .limit(10);
+        const userKpis = kpisResult?.data;
 
-        const kpiStatusSummary = userKpis?.reduce((acc: Record<string, number>, k) => {
+        const kpiStatusSummary = userKpis?.reduce((acc: Record<string, number>, k: any) => {
           const status = k.status || "unknown";
           acc[status] = (acc[status] || 0) + 1;
           return acc;
@@ -976,7 +1003,7 @@ YOUR ATTENDANCE (Last 30 Days):
 
         userPersonalContext += `
 YOUR KPIs/PERFORMANCE METRICS (${userKpis?.length || 0} total):
-${userKpis?.length ? userKpis.map(k => {
+${userKpis?.length ? userKpis.map((k: any) => {
   const progress = k.target_value ? ((k.current_value || 0) / k.target_value * 100).toFixed(0) : 0;
   return `- ${k.title}
     Progress: ${k.current_value ?? 0}/${k.target_value ?? 0} ${k.unit || ""} (${progress}%)
