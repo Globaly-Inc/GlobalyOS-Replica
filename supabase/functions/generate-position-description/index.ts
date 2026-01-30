@@ -6,10 +6,27 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Model pricing per 1K tokens (aligned with other AI functions)
+const MODEL_RATES: Record<string, { input: number; output: number }> = {
+  "google/gemini-2.5-flash": { input: 0.000001, output: 0.000002 },
+  "google/gemini-2.5-pro": { input: 0.00001, output: 0.00002 },
+  "google/gemini-3-flash-preview": { input: 0.000002, output: 0.000004 },
+};
+
+function estimateCost(model: string, promptTokens: number, completionTokens: number): number {
+  const rates = MODEL_RATES[model] || { input: 0.000001, output: 0.000002 };
+  return (promptTokens / 1000) * rates.input + (completionTokens / 1000) * rates.output;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const startTime = Date.now();
+  let userId: string | null = null;
+  let organizationId: string | null = null;
+  let employeeId: string | null = null;
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -38,17 +55,21 @@ serve(async (req) => {
       );
     }
 
+    userId = user.id;
+
     const { 
       positionId, 
       positionName, 
       department, 
       keywords, 
-      organizationId, 
+      organizationId: orgId, 
       forceRegenerate,
       existingDescription,
       existingResponsibilities,
       mode = "generate" // "generate" | "improve"
     } = await req.json();
+
+    organizationId = orgId;
 
     if (!positionName || !organizationId) {
       return new Response(
@@ -56,6 +77,16 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Get employee ID for the current user in this org
+    const { data: empData } = await supabase
+      .from("employees")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+    
+    employeeId = empData?.id || null;
 
     // Check for cached description if not forcing regeneration and not in improve mode
     if (!forceRegenerate && mode !== "improve" && positionId) {
@@ -130,6 +161,11 @@ Provide a JSON response with:
 Respond ONLY with valid JSON, no markdown formatting.`;
     }
 
+    const systemPrompt = `You are an expert HR professional writing job descriptions. Create clear, professional, and industry-standard content. Focus on the core purpose of the role and key value it brings. Do not include salary information or specific company names. Use active voice and professional language.`;
+
+    const model = "google/gemini-2.5-flash";
+    const promptLength = systemPrompt.length + userPrompt.length;
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -137,16 +173,10 @@ Respond ONLY with valid JSON, no markdown formatting.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model,
         messages: [
-          { 
-            role: "system", 
-            content: `You are an expert HR professional writing job descriptions. Create clear, professional, and industry-standard content. Focus on the core purpose of the role and key value it brings. Do not include salary information or specific company names. Use active voice and professional language.` 
-          },
-          { 
-            role: "user", 
-            content: userPrompt 
-          },
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
         ],
         tools: [
           {
@@ -177,7 +207,31 @@ Respond ONLY with valid JSON, no markdown formatting.`;
       }),
     });
 
+    const latencyMs = Date.now() - startTime;
+
     if (!response.ok) {
+      // Log failed attempt
+      await supabase.from("ai_usage_logs").insert({
+        organization_id: organizationId,
+        user_id: userId,
+        employee_id: employeeId,
+        model,
+        query_type: `position_description_${mode}`,
+        prompt_tokens: 0,
+        completion_tokens: 0,
+        total_tokens: 0,
+        estimated_cost: 0,
+        latency_ms: latencyMs,
+        prompt_length: promptLength,
+        response_length: 0,
+        metadata: { 
+          success: false, 
+          error: `HTTP ${response.status}`,
+          position_name: positionName,
+          department
+        }
+      });
+
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
           status: 429,
@@ -197,6 +251,13 @@ Respond ONLY with valid JSON, no markdown formatting.`;
 
     const data = await response.json();
     
+    // Extract token usage from response
+    const usage = data.usage || {};
+    const promptTokens = usage.prompt_tokens || Math.ceil(promptLength / 4);
+    const completionTokens = usage.completion_tokens || 0;
+    const totalTokens = promptTokens + completionTokens;
+    const estimatedCost = estimateCost(model, promptTokens, completionTokens);
+    
     // Extract from tool call response
     let description = "";
     let responsibilities: string[] = [];
@@ -215,6 +276,43 @@ Respond ONLY with valid JSON, no markdown formatting.`;
 
     if (!description || responsibilities.length === 0) {
       throw new Error("AI did not return valid content");
+    }
+
+    const responseLength = description.length + responsibilities.join(' ').length;
+
+    // Log successful AI usage
+    await supabase.from("ai_usage_logs").insert({
+      organization_id: organizationId,
+      user_id: userId,
+      employee_id: employeeId,
+      model,
+      query_type: `position_description_${mode}`,
+      prompt_tokens: promptTokens,
+      completion_tokens: completionTokens,
+      total_tokens: totalTokens,
+      estimated_cost: estimatedCost,
+      latency_ms: latencyMs,
+      prompt_length: promptLength,
+      response_length: responseLength,
+      metadata: { 
+        success: true,
+        position_name: positionName,
+        department,
+        mode,
+        cached: false
+      }
+    });
+
+    // Record usage for billing limits
+    try {
+      await supabase.rpc('record_usage', {
+        _organization_id: organizationId,
+        _feature: 'ai_queries',
+        _quantity: 1
+      });
+    } catch (usageError) {
+      console.error("Failed to record usage:", usageError);
+      // Non-blocking - continue with response
     }
 
     // Cache the description in positions table
