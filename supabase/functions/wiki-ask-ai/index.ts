@@ -6,13 +6,29 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Cost per 1M tokens (approximate for Gemini 2.5 Flash)
+const COST_PER_1M_INPUT_TOKENS = 0.075;
+const COST_PER_1M_OUTPUT_TOKENS = 0.30;
+
+function calculateCost(promptTokens: number, completionTokens: number): number {
+  return (promptTokens / 1_000_000) * COST_PER_1M_INPUT_TOKENS +
+         (completionTokens / 1_000_000) * COST_PER_1M_OUTPUT_TOKENS;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const startTime = Date.now();
+  let organizationId: string | null = null;
+  let userId: string | null = null;
+  let employeeId: string | null = null;
+  let success = false;
+
   try {
-    const { question, organizationId, conversationHistory = [] } = await req.json();
+    const { question, organizationId: orgId, conversationHistory = [] } = await req.json();
+    organizationId = orgId;
 
     if (!question || !organizationId) {
       return new Response(JSON.stringify({ error: "Missing question or organizationId" }), {
@@ -56,6 +72,8 @@ serve(async (req) => {
       });
     }
 
+    userId = user.id;
+
     // SECURITY: Verify user is a member of the organization
     const { data: employee, error: membershipError } = await supabase
       .from("employees")
@@ -79,6 +97,8 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    employeeId = employee.id;
 
     // Check feature limit before processing
     const { data: limitCheck, error: limitError } = await supabase
@@ -157,6 +177,8 @@ ${wikiContext || "No wiki content available yet."}
       }),
     });
 
+    const latencyMs = Date.now() - startTime;
+
     if (!response.ok) {
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
@@ -178,7 +200,44 @@ ${wikiContext || "No wiki content available yet."}
     const data = await response.json();
     const answer = data.choices?.[0]?.message?.content || "I couldn't generate a response. Please try again.";
 
-    // Record usage after successful response
+    // Extract token usage from response
+    const usage = data.usage || {};
+    const promptTokens = usage.prompt_tokens || 0;
+    const completionTokens = usage.completion_tokens || 0;
+    const totalTokens = promptTokens + completionTokens;
+    const estimatedCost = calculateCost(promptTokens, completionTokens);
+
+    success = true;
+
+    // Log detailed AI usage to ai_usage_logs
+    const { error: usageLogError } = await supabase
+      .from("ai_usage_logs")
+      .insert({
+        organization_id: organizationId,
+        user_id: userId,
+        employee_id: employeeId,
+        query_type: "wiki_ask_ai",
+        model: "google/gemini-2.5-flash",
+        prompt_tokens: promptTokens,
+        completion_tokens: completionTokens,
+        total_tokens: totalTokens,
+        estimated_cost: estimatedCost,
+        latency_ms: latencyMs,
+        prompt_length: question.length,
+        response_length: answer.length,
+        metadata: {
+          feature_name: "wiki_ask_ai",
+          action_name: "ask_question",
+          conversation_length: conversationHistory.length,
+          wiki_pages_count: pages.length,
+        },
+      });
+
+    if (usageLogError) {
+      console.error("Error logging AI usage:", usageLogError);
+    }
+
+    // Record usage for billing (quantity-based)
     const { error: usageError } = await supabase
       .rpc('record_usage', {
         _organization_id: organizationId,
@@ -190,12 +249,55 @@ ${wikiContext || "No wiki content available yet."}
       console.error("Error recording usage:", usageError);
     }
 
-    return new Response(JSON.stringify({ answer }), {
+    console.log(`Wiki Ask AI - Tokens: ${totalTokens} (prompt: ${promptTokens}, completion: ${completionTokens}), Cost: $${estimatedCost.toFixed(6)}, Latency: ${latencyMs}ms`);
+
+    return new Response(JSON.stringify({ 
+      answer,
+      usage: {
+        prompt_tokens: promptTokens,
+        completion_tokens: completionTokens,
+        total_tokens: totalTokens,
+        estimated_cost: estimatedCost,
+      }
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: unknown) {
     console.error("Error in wiki-ask-ai:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
+    
+    // Log failed request if we have org context
+    if (organizationId && userId) {
+      try {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
+        
+        await supabase.from("ai_usage_logs").insert({
+          organization_id: organizationId,
+          user_id: userId,
+          employee_id: employeeId,
+          query_type: "wiki_ask_ai",
+          model: "google/gemini-2.5-flash",
+          prompt_tokens: 0,
+          completion_tokens: 0,
+          total_tokens: 0,
+          estimated_cost: 0,
+          latency_ms: Date.now() - startTime,
+          metadata: {
+            feature_name: "wiki_ask_ai",
+            action_name: "ask_question",
+            error: message,
+            success: false,
+          },
+        });
+      } catch (logError) {
+        console.error("Failed to log error:", logError);
+      }
+    }
+    
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
