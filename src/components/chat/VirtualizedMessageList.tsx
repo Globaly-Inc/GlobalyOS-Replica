@@ -5,8 +5,7 @@
  */
 
 import React, { useRef, useCallback, useEffect, useMemo } from 'react';
-import { List, useDynamicRowHeight, type ListImperativeAPI } from 'react-window';
-import { AutoSizer } from 'react-virtualized-auto-sizer';
+import { List, useDynamicRowHeight, useListRef, type ListImperativeAPI } from 'react-window';
 import MessageBubble from './MessageBubble';
 import DateSeparator from './DateSeparator';
 import SystemEventMessage from './SystemEventMessage';
@@ -129,6 +128,8 @@ function MessageRow({
 } & RowProps): React.ReactElement | null {
   const item = flatItems[index];
   
+  if (!item) return null;
+  
   if (item.type === 'loading') {
     return (
       <div style={style} className="flex justify-center py-4">
@@ -241,39 +242,6 @@ const estimateRowHeight = (index: number, rowProps: RowProps): number => {
   return Math.min(baseHeight, 500);
 };
 
-// Inner list component to work with AutoSizer
-const InnerList = React.memo(({ 
-  height, 
-  width,
-  flatItems,
-  rowProps,
-  listRef,
-  dynamicRowHeight,
-}: { 
-  height: number | undefined; 
-  width: number | undefined;
-  flatItems: FlatItem[];
-  rowProps: RowProps;
-  listRef: React.RefObject<ListImperativeAPI | null>;
-  dynamicRowHeight: ReturnType<typeof useDynamicRowHeight>;
-}) => {
-  if (!height || !width) return null;
-  
-  return (
-    <List
-      listRef={listRef}
-      style={{ height, width }}
-      rowCount={flatItems.length}
-      rowHeight={dynamicRowHeight}
-      rowComponent={MessageRow}
-      rowProps={rowProps}
-      overscanCount={5}
-    />
-  );
-});
-
-InnerList.displayName = 'InnerList';
-
 export const VirtualizedMessageList = React.memo(({
   groupedMessages,
   reactions,
@@ -288,7 +256,7 @@ export const VirtualizedMessageList = React.memo(({
   isLoadingMore,
   hasMoreMessages,
 }: VirtualizedMessageListProps) => {
-  const listRef = useRef<ListImperativeAPI | null>(null);
+  const listRef = useListRef();
   
   const flatItems = useMemo(() => 
     flattenMessages(groupedMessages, isLoadingMore, hasMoreMessages), 
@@ -339,11 +307,13 @@ export const VirtualizedMessageList = React.memo(({
   }, [highlightMessageId, flatItems]);
   
   // Scroll to bottom when new messages arrive
+  const prevLengthRef = useRef(flatItems.length);
   useEffect(() => {
-    if (flatItems.length > 0 && listRef.current) {
-      // Scroll to the last item
+    // Only scroll when messages are added (not on initial load or removal)
+    if (flatItems.length > prevLengthRef.current && listRef.current) {
       listRef.current.scrollToRow({ index: flatItems.length - 1, align: 'end' });
     }
+    prevLengthRef.current = flatItems.length;
   }, [flatItems.length]);
   
   if (Object.keys(groupedMessages).length === 0) {
@@ -351,17 +321,15 @@ export const VirtualizedMessageList = React.memo(({
   }
   
   return (
-    <AutoSizer
-      ChildComponent={({ height, width }) => (
-        <InnerList
-          height={height}
-          width={width}
-          flatItems={flatItems}
-          rowProps={rowProps}
-          listRef={listRef}
-          dynamicRowHeight={dynamicRowHeight}
-        />
-      )}
+    <List
+      listRef={listRef}
+      style={{ height: '100%', width: '100%' }}
+      rowCount={flatItems.length}
+      rowHeight={dynamicRowHeight}
+      rowComponent={MessageRow}
+      rowProps={rowProps}
+      overscanCount={5}
+      className="px-1 md:px-4"
     />
   );
 });

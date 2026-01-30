@@ -74,6 +74,7 @@ import { useChatNotificationPreferences } from "@/hooks/useChatNotificationPrefe
 import { useNotificationSound } from "@/hooks/useNotificationSound";
 import MessageComposer from "./MessageComposer";
 import MessageBubble from "./MessageBubble";
+import { VirtualizedMessageList } from "./VirtualizedMessageList";
 import DateSeparator from "./DateSeparator";
 import ScrollToBottom from "./ScrollToBottom";
 import ThreadView from "./ThreadView";
@@ -810,79 +811,20 @@ const ConversationView = ({
                 </div>
               </div>
             ) : (
-              <div className="space-y-1">
-                {/* Loading older messages indicator */}
-                {loadOlderMessages.isPending && (
-                  <div className="flex justify-center py-4">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <div className="h-4 w-4 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
-                      Loading older messages...
-                    </div>
-                  </div>
-                )}
-                {!hasMoreMessages && messages.length > 0 && (
-                  <div className="flex justify-center py-4">
-                    <span className="text-xs text-muted-foreground">Beginning of conversation</span>
-                  </div>
-                )}
-                {Object.entries(groupedMessages).map(([date, dateMessages]) => (
-                  <div key={date}>
-                    <DateSeparator date={dateMessages[0].created_at} />
-
-                    <div className="space-y-1">
-                      {dateMessages.map((message, index) => {
-                        // Handle system event messages differently
-                        if (message.content_type === 'system_event' && message.system_event_data) {
-                          return (
-                            <SystemEventMessage
-                              key={message.id}
-                              eventData={message.system_event_data}
-                              timestamp={message.created_at}
-                            />
-                          );
-                        }
-                        
-                        const isOwn = message.sender_id === currentEmployee?.id;
-                        const prevMessage = index > 0 ? dateMessages[index - 1] : null;
-                        const nextMessage = index < dateMessages.length - 1 ? dateMessages[index + 1] : null;
-                        
-                        const isGrouped = shouldGroupMessages(message, prevMessage);
-                        const isLastInGroup = !nextMessage || !shouldGroupMessages(nextMessage, message);
-                        
-                        const messageReactions = reactions[message.id] || {};
-
-                        // Check if this message is starred by current user
-                        const isStarred = messageStars.some(s => s.message_id === message.id);
-
-                        return (
-                          <MessageBubble
-                            key={message.id}
-                            message={message}
-                            isOwn={isOwn}
-                            isGrouped={isGrouped}
-                            isLastInGroup={isLastInGroup}
-                            reactions={messageReactions}
-                            isEditing={editingMessageId === message.id}
-                            currentEmployeeId={currentEmployee?.id}
-                            onEdit={() => messageCallbacks.onEdit(message.id)}
-                            onCancelEdit={messageCallbacks.onCancelEdit}
-                            onSaveEdit={(content) => messageCallbacks.onSaveEdit(message.id, content)}
-                            onDelete={() => messageCallbacks.onDelete(message.id)}
-                            onStar={() => messageCallbacks.onStar(message.id)}
-                            onPin={() => messageCallbacks.onPin(message.id, message.is_pinned)}
-                            isStarred={isStarred}
-                            onReact={(emoji) => messageCallbacks.onReact(message.id, emoji)}
-                            onReply={() => messageCallbacks.onReply(message)}
-                            replyCount={replyCounts[message.id]}
-                            isEditPending={editMessage.isPending}
-                            isOnline={message.sender_id ? onlineStatuses[message.sender_id] : false}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <VirtualizedMessageList
+                groupedMessages={groupedMessages}
+                reactions={reactions}
+                messageStars={messageStars}
+                currentEmployeeId={currentEmployee?.id}
+                onlineStatuses={onlineStatuses}
+                replyCounts={replyCounts}
+                editingMessageId={editingMessageId}
+                highlightMessageId={highlightMessageId}
+                callbacks={messageCallbacks}
+                isEditPending={editMessage.isPending}
+                isLoadingMore={loadOlderMessages.isPending}
+                hasMoreMessages={hasMoreMessages}
+              />
             )}
           </div>
 
