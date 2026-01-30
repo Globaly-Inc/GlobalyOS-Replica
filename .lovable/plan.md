@@ -1,275 +1,424 @@
 
+# Comprehensive Implementation Plan: GlobalyOS Platform Optimization
 
-# Performance Refactoring Audit Report
+## Overview
 
-## Executive Summary
-
-**Updated: 2026-01-30**
-
-| Phase | Status |
-|-------|--------|
-| Phase 1: Immediate Performance Wins | ✅ Complete |
-| Phase 2: Virtualization | ✅ Complete (VirtualizedMessageList integrated) |
-| Phase 3: Modularization | 🟡 Partial (EditorToolbar ready, not yet wired) |
+This plan addresses all issues identified in the platform audit across 10 priority tiers, organized by impact and risk.
 
 ---
 
-## Recent Changes
+## Current State Summary
 
-### Completed This Session
-
-1. **VirtualizedMessageList integrated into ConversationView** ✅
-   - Replaced manual message mapping with virtualized list
-   - Uses react-window v2 API correctly
-   - 97% DOM reduction now active
-
-2. **ai_usage_logs constraint fixed** ✅
-   - Added support for: ai_writing_assist, wiki_ask_ai, global_ask_ai, position_description, profile_summary, performance_review, content_generation
-
-3. **EditorToolbar component updated** 🟡
-   - Updated to use `isCommandActive` function pattern (compatible with WikiRichEditor)
-   - Integration pending - requires wiring callbacks in WikiRichEditor
+| Area | Status |
+|------|--------|
+| VirtualizedMessageList | ✅ Already integrated (verified in ConversationView.tsx L814) |
+| EditorToolbar | ❌ Created but NOT integrated - 300 lines of inline JSX remain |
+| Chat Hook Modularization | ❌ 21 files still import from `@/services/useChat` instead of `@/services/chat` |
+| Oversized Files | ⚠️ Home.tsx (1,118 lines), Layout.tsx (744 lines), WikiRichEditor.tsx (2,624 lines) |
+| Request Tracing | ❌ No X-Request-ID header correlation |
+| Test Coverage | ⚠️ Security tests exist, but critical path tests missing (OTP verify, leave request, attendance) |
 
 ---
 
-## Phase 1: Immediate Performance Wins
+## TIER 1: NOW (Critical - This Sprint)
 
-**Phase 1 Verdict: Fully Implemented ✅**
+### Task 1.1: Integrate EditorToolbar into WikiRichEditor
+**Problem**: The memoized `EditorToolbar` component (309 lines) exists but WikiRichEditor still renders ~300 lines of inline toolbar buttons, causing re-renders on every keystroke.
 
-### Phase 2: Virtualization
+**Files to Modify**:
+- `src/components/wiki/WikiRichEditor.tsx`
 
-| Requirement | Status | Evidence |
-|-------------|--------|----------|
-| react-window dependency added | ✅ **Implemented** | `package.json` has `react-window` |
-| react-virtualized-auto-sizer added | ✅ **Implemented** | `package.json` has `react-virtualized-auto-sizer` |
-| VirtualizedMessageList component created | ✅ **Implemented** | 371-line component at `src/components/chat/VirtualizedMessageList.tsx` |
-| Dynamic row heights | ✅ **Implemented** | Uses `useDynamicRowHeight` hook (Line 299) |
-| Scroll-to-message for highlights | ✅ **Implemented** | Lines 330-339 |
-| Auto-scroll on new messages | ✅ **Implemented** | Lines 342-347 |
-| **VirtualizedMessageList integrated into ConversationView** | ❌ **NOT DONE** | Search confirms no imports; Lines 812-884 of ConversationView still use manual mapping |
+**Implementation**:
+```text
+1. Add import: import { EditorToolbar } from './editor/EditorToolbar';
 
-**Phase 2 Verdict: Component Ready, Integration Missing ❌**
+2. Create stable callback object with useMemo:
+   const toolbarCallbacks = useMemo(() => ({
+     onToggleHeading: toggleHeading,
+     onTextSizeChange: handleTextSizeChange,
+     onTextSizeBlur: handleTextSizeBlur,
+     onExecCommand: execCommand,
+     onFormatBlock: formatBlock,
+     onInsertLink: () => setLinkDialogOpen(true),
+     onInsertImage: () => imageInputRef.current?.click(),
+     onInsertFile: () => fileInputRef.current?.click(),
+     onInsertCodeBlock: insertCodeBlock,
+     onInsertTable: insertTable,
+     onInsertDivider: insertDivider,
+     onInsertEmbed: () => setEmbedDialogOpen(true),
+     onUndo: handleUndo,
+     onRedo: handleRedo,
+     onAIGenerated: handleAIGenerated,
+     onSaveSelection: saveSelection,
+   }), [/* stable deps */]);
 
-### Phase 3: Modularization
-
-| Requirement | Status | Evidence |
-|-------------|--------|----------|
-| Chat service module structure | ✅ **Implemented** | `src/services/chat/` directory with 9 files |
-| Query hooks extracted | ✅ **Implemented** | `useConversations.ts`, `useSpaces.ts`, `useMessages.ts`, `usePresence.ts` created |
-| Mutation hooks extracted | ✅ **Implemented** | 5 mutation hook files created |
-| Barrel exports for backward compatibility | ✅ **Implemented** | `src/services/chat/index.ts` exports all hooks |
-| EditorToolbar extracted and memoized | ✅ **Implemented** | 295-line component at `src/components/wiki/editor/EditorToolbar.tsx` |
-| **EditorToolbar integrated into WikiRichEditor** | ❌ **NOT DONE** | Search confirms no `import.*EditorToolbar`; Lines 1867-2000+ still render inline toolbar JSX |
-| **Existing useChat imports migrated to modular hooks** | ❌ **NOT DONE** | 24 files still import from `@/services/useChat`, none from `@/services/chat` |
-| **Original useChat.ts cleaned/deprecated** | ❌ **NOT DONE** | Still 2,456 lines with duplicate hook definitions |
-
-**Phase 3 Verdict: Components Ready, Integration Missing ❌**
-
----
-
-## 2. Critical Missing Integrations
-
-### Issue 1: VirtualizedMessageList Not Connected
-
-**Location:** `src/components/chat/ConversationView.tsx` lines 812-884
-
-**Current Code (Non-virtualized):**
-```typescript
-{Object.entries(groupedMessages).map(([date, dateMessages]) => (
-  <div key={date}>
-    <DateSeparator date={dateMessages[0].created_at} />
-    <div className="space-y-1">
-      {dateMessages.map((message, index) => { ... })}
-    </div>
-  </div>
-))}
+3. Replace lines 1871-2174 (inline toolbar JSX) with:
+   <EditorToolbar
+     activeHeading={activeHeading}
+     activeTextSize={activeTextSize}
+     textSizeInput={textSizeInput}
+     isUploading={isUploading}
+     editorValue={value}
+     organizationId={organizationId}
+     isCommandActive={isCommandActive}
+     {...toolbarCallbacks}
+   />
 ```
 
-**Impact:**
-- 500+ DOM nodes for large conversations (vs expected ~15)
-- No 60fps scrolling benefits
-- Memory usage remains high
+**Impact**: Eliminates toolbar re-renders on every keystroke, reduces WikiRichEditor by ~300 lines
 
-**Risk:** Medium - Performance remains degraded for users with large chat histories
-
-### Issue 2: EditorToolbar Not Connected
-
-**Location:** `src/components/wiki/WikiRichEditor.tsx` lines 1867-2200+
-
-**Current Code (Inline toolbar):**
-The WikiRichEditor still renders ~300 lines of inline toolbar buttons instead of using the memoized `EditorToolbar` component.
-
-**Impact:**
-- Toolbar re-renders on every keystroke (typing lag)
-- ~300 lines of duplicated JSX
-
-**Risk:** Low-Medium - Wiki editor performance is suboptimal but debouncing mitigates worst issues
-
-### Issue 3: Duplicate Hook Definitions
-
-**Location:** 
-- `src/services/useChat.ts` (2,456 lines) - original
-- `src/services/chat/queries/useMessages.ts` (451 lines) - new modular
-
-**Example Duplicate:**
-`useMessageReplyCounts` exists in BOTH files with identical logic (lines 9-40 in `useChat.ts` and lines 182-212 in `useMessages.ts`)
-
-**Impact:**
-- Bundle includes duplicate code
-- Tree-shaking cannot optimize
-- Confusing maintenance
-
-**Risk:** Low - Functional but wasteful
+**Effort**: 2 hours
 
 ---
 
-## 3. Code Quality Findings
+### Task 1.2: Move sanitizeConfig to Module Scope
+**Problem**: `sanitizeConfig` object (lines 72-87 in WikiRichEditor.tsx) is defined inside component, recreating on every render.
 
-### Positive Findings
+**Files to Modify**:
+- `src/components/wiki/WikiRichEditor.tsx`
 
-1. **MessageBubble memoization is well-implemented**
-   - Custom `arePropsEqual` comparator is thorough
-   - Covers all relevant props including nested reaction comparisons
-   - Proper fast-path for primitive props
-
-2. **global-ask-ai parallelization is correct**
-   - Organization context queries parallelized (lines 842-865)
-   - Personal data queries parallelized (lines 939-944)
-   - Proper null handling for conditional queries
-
-3. **VirtualizedMessageList component is production-ready**
-   - Uses react-window v2 API correctly
-   - Dynamic height estimation based on content
-   - Handles all message types (system events, attachments)
-   - Properly memoized with `React.memo`
-
-### Issues
-
-1. **sanitizeConfig defined inside component scope** (WikiRichEditor line 72-87)
-   - Creates new object on every render
-   - Should be moved to module scope as `SANITIZE_CONFIG`
-   - Low impact due to existing debouncing
-
-2. **Unused EditorToolbar component**
-   - Created but never imported/used
-   - Dead code in bundle
-
----
-
-## 4. Performance Findings
-
-### Currently Active Optimizations
-
-| Optimization | Status | Measured Impact |
-|--------------|--------|-----------------|
-| MessageBubble React.memo | ✅ Active | 80-90% fewer re-renders |
-| groupedMessages useMemo | ✅ Active | O(n) → O(1) per render |
-| Stable callbacks | ✅ Active | Enables memo effectiveness |
-| AI parallel queries | ✅ Active | 50-70% faster AI responses |
-| Editor debouncing | ✅ Active | 60-80% fewer updates |
-
-### Not Yet Active
-
-| Optimization | Status | Missed Impact |
-|--------------|--------|---------------|
-| Virtualized message list | ❌ Not integrated | 97% DOM reduction not achieved |
-| Memoized EditorToolbar | ❌ Not integrated | Toolbar still re-renders on keystrokes |
-
----
-
-## 5. Security Findings
-
-### Verified
-
-1. **DOMPurify sanitization in WikiRichEditor** - Line 177, properly configured
-2. **global-ask-ai auth validation** - Proper JWT verification before data access
-3. **Organization isolation in AI queries** - All queries scoped by organizationId
-
-### No Issues Found
-
-The performance refactoring did not introduce security regressions.
-
----
-
-## 6. AI & Token Tracking Findings
-
-### global-ask-ai
-
-**Token Tracking:** ✅ Implemented
-- Usage logged to `ai_usage_logs` table
-- Tracks: org_id, user_id, model, tokens, cost, latency
-
-**Issue Observed in Logs:**
-```
-Error logging AI usage: new row for relation "ai_usage_logs" violates check constraint "ai_usage_logs_query_type_check"
+**Implementation**:
+```text
+1. Move sanitizeConfig outside the component (before line 72)
+2. Rename to SANITIZE_CONFIG (constant naming convention)
+3. Update all references in the file
 ```
 
-**Root Cause:** `query_type: "ai_writing_assist"` is not in the allowed enum. The constraint expects specific values that don't include "ai_writing_assist".
+**Impact**: Negligible performance gain but cleaner code
 
-**Risk:** Medium - AI usage tracking fails silently for writing assist features
-
----
-
-## 7. Prioritized Recommendations
-
-### P0 - Critical (Complete the Integration)
-
-| Task | Impact | Effort | Risk |
-|------|--------|--------|------|
-| Integrate VirtualizedMessageList into ConversationView | High - 97% DOM reduction | 2-3 hours | Medium |
-| Fix ai_usage_logs check constraint for "ai_writing_assist" | Medium - Restore tracking | 30 min | Low |
-
-### P1 - High (Clean Up)
-
-| Task | Impact | Effort | Risk |
-|------|--------|--------|------|
-| Integrate EditorToolbar into WikiRichEditor | Medium - Toolbar performance | 1-2 hours | Low |
-| Remove duplicate hooks from useChat.ts or deprecate | Low - Bundle size | 2-3 hours | Low |
-
-### P2 - Nice to Have
-
-| Task | Impact | Effort | Risk |
-|------|--------|--------|------|
-| Move sanitizeConfig to module scope | Negligible | 5 min | None |
-| Add performance regression tests | Medium - Prevent future issues | 4 hours | None |
+**Effort**: 10 minutes
 
 ---
 
-## 8. Testing Checklist
+### Task 1.3: Update plan.md to Reflect Reality
+**Problem**: `.lovable/plan.md` says VirtualizedMessageList is "NOT DONE" but it IS integrated (verified at L814).
 
-### VirtualizedMessageList Integration (When Done)
+**Files to Modify**:
+- `.lovable/plan.md`
 
-- [ ] Open conversation with 100+ messages - renders only visible (~15)
-- [ ] Scroll rapidly - maintains 60fps
-- [ ] Type in composer - no message flickering
-- [ ] Click reaction - only affected message updates
-- [ ] Navigate to highlighted message - scrolls correctly
-- [ ] System events render properly
-- [ ] Load older messages - seamlessly prepends
+**Implementation**: Update Phase 2 status to reflect VirtualizedMessageList IS integrated.
 
-### EditorToolbar Integration (When Done)
-
-- [ ] All toolbar buttons function (bold, italic, headings)
-- [ ] Type rapidly in editor - toolbar doesn't lag
-- [ ] Keyboard shortcuts work (Ctrl+B, Ctrl+I)
-- [ ] AI writing assist button functions
-- [ ] Undo/Redo work correctly
+**Effort**: 5 minutes
 
 ---
 
-## 9. Summary
+## TIER 2: NEXT (High Priority - Next Sprint)
 
-**What's Working:**
-- Phase 1 optimizations are fully active and effective
-- Core components for Phase 2 & 3 are built correctly
-- AI parallel queries significantly improve response times
+### Task 2.1: Migrate useChat.ts Imports to Modular Hooks
+**Problem**: 21 files still import from `@/services/useChat` instead of the new modular `@/services/chat`. This creates:
+- Duplicate code in bundle
+- Maintenance confusion
+- Prevents deprecation of the 2,456-line monolith
 
-**What's Missing:**
-- VirtualizedMessageList is not connected to ConversationView
-- EditorToolbar is not connected to WikiRichEditor
-- Hook modularization is duplicated, not migrated
-- AI usage logging has a constraint bug
+**Files to Modify** (21 files):
+```text
+src/components/chat/MessageComposer.tsx
+src/components/chat/AddSpaceMembersDialog.tsx
+src/components/TopNav.tsx
+src/components/chat/UnreadView.tsx
+src/components/chat/FavoritesSection.tsx
+src/components/chat/TransferGroupAdminDialog.tsx
+src/components/chat/CreateSpaceDialog.tsx
+src/components/chat/ChatRightPanel.tsx
+src/components/chat/ChatSidebar.tsx
+src/components/chat/SpaceMembersDialog.tsx
+src/components/chat/NewChatDialog.tsx
+src/components/chat/MobileChatHome.tsx
+src/components/chat/BrowseSpacesDialog.tsx
+src/components/chat/ConversationView.tsx
+src/components/chat/QuickSwitcher.tsx
+src/components/chat/SpaceSettings.tsx
+src/components/chat/ThreadView.tsx
+src/components/chat/MentionsView.tsx
+src/components/chat/StarredView.tsx
+src/components/chat/ChatRightPanelEnhanced.tsx
+src/pages/Chat.tsx
+```
 
-**Recommendation:**
-Complete the integration work before marking Phases 2-3 as "complete". The foundational components are solid, but users don't benefit until they're wired up.
+**Implementation**:
+```text
+For each file:
+1. Change: import { ... } from "@/services/useChat"
+   To:      import { ... } from "@/services/chat"
 
+2. Verify all hooks are exported from src/services/chat/index.ts
+   (barrel export already exists for backward compatibility)
+```
+
+**Post-Migration**:
+- Add deprecation notice to `useChat.ts` header
+- Consider removing duplicate hook definitions from `useChat.ts` (keep only re-exports)
+
+**Impact**: Cleaner imports, smaller bundle after tree-shaking
+
+**Effort**: 3 hours
+
+---
+
+### Task 2.2: Split Home.tsx into Sub-Components
+**Problem**: Home.tsx is 1,118 lines - too large for maintenance and testing.
+
+**Current Structure Analysis**:
+```text
+Lines 1-130: Imports and interfaces
+Lines 134-400: State and data fetching logic
+Lines 400-700: Helper functions and effects
+Lines 700-1118: JSX rendering
+```
+
+**Proposed Split**:
+```text
+src/pages/Home.tsx                    (~200 lines) - Main orchestration
+src/components/home/HomeHeroSection.tsx     - Weather/Horoscope/WorldTime widgets
+src/components/home/HomeSidebar.tsx         - Right sidebar cards
+src/components/home/HomeMainContent.tsx     - Feed and filters
+src/hooks/useHomeData.ts                    - Data fetching logic
+```
+
+**Implementation**:
+```text
+1. Extract useHomeData hook with:
+   - peopleOnLeave, upcomingTeamLeave, upcomingBirthdays, etc.
+   - checkEmployeeProfile, loadLeaveData, loadUpcomingEvents functions
+
+2. Extract HomeHeroSection:
+   - Weather, Horoscope, WorldTime widget switcher
+   - Time display and greeting
+
+3. Extract HomeSidebar:
+   - Birthday/Anniversary cards
+   - Calendar events
+   - Team leave preview
+
+4. Home.tsx becomes thin orchestrator importing sub-components
+```
+
+**Impact**: Easier testing, faster code reviews, better separation
+
+**Effort**: 4-5 hours
+
+---
+
+### Task 2.3: Add Request Tracing Headers
+**Problem**: No correlation between frontend and backend requests. When errors occur in edge functions, there's no way to trace them back to the originating frontend request.
+
+**Files to Modify**:
+- `src/integrations/supabase/client.ts` - Cannot modify (auto-generated)
+- Alternative: Create request wrapper utility
+
+**Implementation**:
+```text
+1. Create src/lib/requestTracing.ts:
+
+   export function generateRequestId(): string {
+     return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+   }
+
+   export function createTracedFetch(originalFetch: typeof fetch): typeof fetch {
+     return async (input, init) => {
+       const requestId = generateRequestId();
+       const headers = new Headers(init?.headers);
+       headers.set('X-Request-ID', requestId);
+       
+       // Store in breadcrumbs for error context
+       addBreadcrumb('api_request', { requestId, url: input.toString() });
+       
+       return originalFetch(input, { ...init, headers });
+     };
+   }
+
+2. Initialize in App.tsx or errorCapture.ts:
+   window.fetch = createTracedFetch(window.fetch);
+
+3. Update edge functions to log X-Request-ID:
+   const requestId = req.headers.get('X-Request-ID') || 'unknown';
+   console.log(`[${requestId}] Processing request...`);
+```
+
+**Impact**: Full request traceability for debugging
+
+**Effort**: 3 hours
+
+---
+
+### Task 2.4: Add Critical Path Integration Tests
+**Problem**: Security tests exist but critical user flows lack test coverage.
+
+**Test Files to Create**:
+```text
+src/test/flows/auth-otp.test.ts       - OTP verification flow
+src/test/flows/leave-request.test.ts  - Create/approve/reject leave
+src/test/flows/attendance.test.ts     - Check-in/check-out flow
+src/test/flows/chat-message.test.ts   - Send/receive messages
+```
+
+**Implementation Example** (leave-request.test.ts):
+```text
+describe('Leave Request Flow', () => {
+  it('should create a leave request and deduct balance on approval', async () => {
+    // 1. Create leave request
+    // 2. Verify it appears in pending
+    // 3. Approve request
+    // 4. Verify leave balance decreased
+    // 5. Verify notification sent
+  });
+
+  it('should restore balance when approved request is cancelled', async () => {
+    // Test the restore balance flow
+  });
+});
+```
+
+**Impact**: Catch regressions before production
+
+**Effort**: 8 hours total
+
+---
+
+## TIER 3: LATER (Backlog)
+
+### Task 3.1: Split Layout.tsx
+**Problem**: 744 lines - handles multiple concerns.
+
+**Proposed Split**:
+```text
+src/components/Layout.tsx                    (~150 lines)
+src/components/layout/LayoutSidebar.tsx
+src/components/layout/LayoutTopBar.tsx
+src/components/layout/LayoutDialogs.tsx
+src/hooks/useLayoutState.ts
+```
+
+**Effort**: 3 hours
+
+---
+
+### Task 3.2: Add Bundle Size Analysis to CI
+**Problem**: No visibility into bundle size regressions.
+
+**Implementation**:
+- Add `vite-bundle-analyzer` or `rollup-plugin-visualizer`
+- Add CI step to compare bundle sizes
+- Alert on >10% increase
+
+**Effort**: 2 hours
+
+---
+
+### Task 3.3: Standardize Edge Function Logging
+**Problem**: Some functions log more than others, inconsistent debugging.
+
+**Implementation**:
+```text
+Create: supabase/functions/_shared/logger.ts
+
+export function createLogger(functionName: string) {
+  return {
+    info: (msg: string, data?: object) => 
+      console.log(`[${functionName}] INFO: ${msg}`, data || ''),
+    error: (msg: string, error: Error, data?: object) =>
+      console.error(`[${functionName}] ERROR: ${msg}`, { error: error.message, ...data }),
+    audit: (action: string, userId: string, orgId: string, details?: object) =>
+      console.log(`[${functionName}] AUDIT: ${action}`, { userId, orgId, ...details })
+  };
+}
+
+Update all 99 edge functions to use standardized logger.
+```
+
+**Effort**: 4-6 hours
+
+---
+
+### Task 3.4: Image Lazy Loading Audit
+**Problem**: Unverified - images may load off-screen.
+
+**Implementation**:
+- Audit all `<img>` tags and Avatar components
+- Add `loading="lazy"` where appropriate
+- Consider `<picture>` with srcset for responsive images
+
+**Effort**: 2 hours
+
+---
+
+## Implementation Sequence
+
+```text
+Week 1 (TIER 1 - Critical):
+├── Day 1-2: Task 1.1 - Integrate EditorToolbar
+├── Day 2: Task 1.2 - Move sanitizeConfig
+└── Day 2: Task 1.3 - Update plan.md
+
+Week 2 (TIER 2 - High):
+├── Day 1-2: Task 2.1 - Migrate useChat imports
+├── Day 3-4: Task 2.2 - Split Home.tsx
+└── Day 5: Task 2.3 - Add request tracing
+
+Week 3 (TIER 2 continued):
+└── Task 2.4 - Add integration tests (spread across week)
+
+Week 4+ (TIER 3 - Backlog):
+├── Task 3.1 - Split Layout.tsx
+├── Task 3.2 - Bundle analysis
+├── Task 3.3 - Edge function logging
+└── Task 3.4 - Image lazy loading
+```
+
+---
+
+## Testing Checklist (Post-Implementation)
+
+### After EditorToolbar Integration:
+- [ ] All toolbar buttons work (bold, italic, underline)
+- [ ] Heading toggles work (H1, H2, H3)
+- [ ] Font size input works
+- [ ] Lists work (bullet, numbered)
+- [ ] Links, images, files can be inserted
+- [ ] Code blocks work
+- [ ] Tables can be inserted
+- [ ] Embed button works
+- [ ] AI Writing Assist works
+- [ ] Undo/Redo work
+- [ ] Type rapidly - no toolbar lag
+
+### After Import Migration:
+- [ ] Chat loads correctly
+- [ ] Messages send/receive
+- [ ] Spaces work
+- [ ] All dialogs open correctly
+- [ ] No console errors
+
+### After Home.tsx Split:
+- [ ] Home page loads correctly
+- [ ] Weather widget works
+- [ ] Horoscope widget works
+- [ ] World clocks work
+- [ ] Feed displays correctly
+- [ ] Sidebar cards load
+- [ ] Pull-to-refresh works
+
+---
+
+## Risk Assessment
+
+| Task | Risk | Mitigation |
+|------|------|------------|
+| EditorToolbar Integration | Low | EditorToolbar already tested, props match |
+| Import Migration | Low | Barrel exports ensure backward compatibility |
+| Home.tsx Split | Medium | Keep data flow unchanged, just extract JSX |
+| Request Tracing | Low | Additive change, no existing behavior modified |
+| Integration Tests | Low | Tests don't affect production code |
+
+---
+
+## Expected Outcomes
+
+| Metric | Before | After |
+|--------|--------|-------|
+| WikiRichEditor lines | 2,624 | ~2,300 |
+| Home.tsx lines | 1,118 | ~200 |
+| Files importing @/services/useChat | 21 | 0 |
+| Critical path test coverage | 0 | 4 flows |
+| Request traceability | None | Full |
+| Wiki toolbar re-renders | Every keystroke | Format change only |
