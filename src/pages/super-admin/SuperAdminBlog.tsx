@@ -186,7 +186,7 @@ export default function SuperAdminBlog() {
                     <Card key={post.id} className="p-4 hover:shadow-md transition-shadow">
                       <div className="flex items-center gap-4">
                         {post.cover_image_url ? (
-                          <img src={post.cover_image_url} alt="" className="w-20 h-20 rounded-lg object-cover flex-shrink-0" />
+                          <img src={post.cover_image_url} alt="" className="w-20 h-20 rounded-lg object-cover flex-shrink-0" loading="lazy" />
                         ) : (
                           <div className="w-20 h-20 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center flex-shrink-0">
                             <span className="text-2xl font-bold text-primary/50">{post.title.charAt(0)}</span>

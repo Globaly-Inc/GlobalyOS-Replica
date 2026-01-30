@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
-
+import { visualizer } from "rollup-plugin-visualizer";
 // Generate build version timestamp
 const now = new Date();
 const buildVersion = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}.${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
@@ -66,6 +66,13 @@ export default defineConfig(({ mode }) => ({
         type: 'module',
         navigateFallback: 'index.html',
       },
+    }),
+    mode === 'production' && visualizer({
+      filename: 'dist/stats.html',
+      open: false,
+      gzipSize: true,
+      brotliSize: true,
+      template: 'treemap',
     }),
   ].filter(Boolean),
   resolve: {

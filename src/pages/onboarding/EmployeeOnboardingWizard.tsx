@@ -480,7 +480,7 @@ export default function EmployeeOnboardingWizard() {
           {/* Left side: Org branding */}
           <div className="flex items-center gap-3">
             {currentOrg?.logo_url ? (
-              <img src={currentOrg.logo_url} alt={currentOrg.name} className="h-8 w-8 rounded-lg object-cover" />
+              <img src={currentOrg.logo_url} alt={currentOrg.name} className="h-8 w-8 rounded-lg object-cover" loading="lazy" />
             ) : (
               <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
                 <span className="text-primary font-bold text-sm">{currentOrg?.name?.charAt(0) || 'G'}</span>

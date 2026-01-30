@@ -150,7 +150,7 @@ export const AskAIEmptyState = ({
       <div className="relative mb-6">
         <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-ai/20 via-primary/10 to-ai/5 flex items-center justify-center shadow-lg">
           {currentOrg?.logo_url ? (
-            <img src={currentOrg.logo_url} alt={currentOrg.name} className="w-12 h-12 rounded-lg object-contain" />
+            <img src={currentOrg.logo_url} alt={currentOrg.name} className="w-12 h-12 rounded-lg object-contain" loading="lazy" />
           ) : (
             <Building2 className="w-10 h-10 text-ai" />
           )}
