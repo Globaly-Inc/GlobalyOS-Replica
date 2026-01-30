@@ -22,7 +22,7 @@ export interface NetworkRequest {
 
 export interface Breadcrumb {
   timestamp: number;
-  type: 'click' | 'navigation' | 'input' | 'api_error' | 'error';
+  type: 'click' | 'navigation' | 'input' | 'api_request' | 'api_error' | 'error';
   message?: string;
   path?: string;
   target?: string;

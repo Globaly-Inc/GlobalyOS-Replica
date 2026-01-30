@@ -64,7 +64,7 @@ import {
   useLeaveConversation,
   useLeaveSpace,
   useUpdateSpaceNotification,
-} from "@/services/useChat";
+} from "@/services/chat";
 import { useMessageStars, useToggleMessageStar } from "@/hooks/useMessageStars";
 import { useChatInfiniteScroll } from "@/hooks/useChatInfiniteScroll";
 import { useTeamPresence } from "@/services/useTeamData";

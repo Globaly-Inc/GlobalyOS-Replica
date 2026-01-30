@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { format, isToday, isYesterday } from "date-fns";
 import type { ActiveChat, ChatConversation, ChatSpace } from "@/types/chat";
-import { useConversations, useSpaces, useOnlinePresence, useTotalUnreadCount } from "@/services/useChat";
+import { useConversations, useSpaces, useOnlinePresence, useTotalUnreadCount } from "@/services/chat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import {
   DropdownMenu,

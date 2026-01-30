@@ -18,7 +18,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { format } from "date-fns";
-import { usePinnedMessages, useSpace } from "@/services/useChat";
+import { usePinnedMessages, useSpace } from "@/services/chat";
 import { useSpaceMembersRealtime } from "@/services/useSpaceMembersRealtime";
 import { useSpaceMemberLogs } from "@/services/useSpaceMemberLogs";
 import { useRelativeTime } from "@/hooks/useRelativeTime";

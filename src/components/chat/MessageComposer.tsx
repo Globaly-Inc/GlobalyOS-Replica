@@ -25,7 +25,7 @@ import {
   List,
   ListOrdered,
 } from "lucide-react";
-import { useSendMessage, useTypingIndicator, useSaveMentions, useSpaceMembers, useConversationParticipants } from "@/services/useChat";
+import { useSendMessage, useTypingIndicator, useSaveMentions, useSpaceMembers, useConversationParticipants } from "@/services/chat";
 import { useOrganization } from "@/hooks/useOrganization";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";

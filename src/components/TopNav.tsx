@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { useLocation, useParams } from 'react-router-dom';
 import { useFeatureFlags, FeatureName } from '@/hooks/useFeatureFlags';
 import { useUserRole } from '@/hooks/useUserRole';
-import { useTotalUnreadCount } from '@/services/useChat';
+import { useTotalUnreadCount } from '@/services/chat';
 import { Badge } from '@/components/ui/badge';
 
 interface TopNavProps {

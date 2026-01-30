@@ -2,7 +2,7 @@ import { Star, ChevronRight, GripVertical } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useChatFavorites, useToggleFavorite, useReorderFavorites } from "@/hooks/useChatFavorites";
-import { useConversations, useSpaces } from "@/services/useChat";
+import { useConversations, useSpaces } from "@/services/chat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import type { ActiveChat, ChatConversation, ChatSpace } from "@/types/chat";
 import { useState, useMemo } from "react";
