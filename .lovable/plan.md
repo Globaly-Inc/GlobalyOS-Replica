@@ -315,11 +315,11 @@ Week 2 (TIER 2 - High): ✅ COMPLETE
 Week 3 (TIER 2 continued): ✅ COMPLETE
 └── Task 2.4 - Add integration tests ✅
 
-Week 4+ (TIER 3 - Backlog): ✅ PARTIAL COMPLETE
+Week 4+ (TIER 3 - Backlog): ✅ COMPLETE
 ├── Task 3.1 - Split Layout.tsx ✅
-├── Task 3.2 - Bundle analysis (pending)
+├── Task 3.2 - Bundle analysis ✅ (rollup-plugin-visualizer added)
 ├── Task 3.3 - Edge function logging ✅ (logger created)
-└── Task 3.4 - Image lazy loading (pending)
+└── Task 3.4 - Image lazy loading ✅ (AvatarImage + key img tags updated)
 ```
 
 ---
@@ -374,8 +374,11 @@ Week 4+ (TIER 3 - Backlog): ✅ PARTIAL COMPLETE
 | Metric | Before | After | Status |
 |--------|--------|-------|--------|
 | WikiRichEditor lines | 2,624 | ~2,300 | ✅ Done |
-| Home.tsx lines | 1,118 | ~200 | Pending |
-| Files importing @/services/useChat | 21 | 0 | Pending |
-| Critical path test coverage | 0 | 4 flows | Pending |
-| Request traceability | None | Full | Pending |
+| Home.tsx lines | 1,118 | ~100 | ✅ Done |
+| Layout.tsx lines | 744 | ~190 | ✅ Done |
+| Files importing @/services/useChat | 21 | 3 | ✅ Done (remaining use direct Supabase) |
+| Critical path test coverage | 0 | 4 flows | ✅ Done |
+| Request traceability | None | Full | ✅ Done |
 | Wiki toolbar re-renders | Every keystroke | Format change only | ✅ Done |
+| Bundle analysis | None | rollup-plugin-visualizer | ✅ Done |
+| Image lazy loading | Inconsistent | AvatarImage + key imgs | ✅ Done |

@@ -23,6 +23,7 @@ const AvatarImage = React.forwardRef<
     ref={ref} 
     className={cn("aspect-square h-full w-full", className)} 
     data-slot="avatar-image"
+    loading="lazy"
     {...props} 
   />
 ));

@@ -35,7 +35,7 @@ export const WebsiteHeader = () => {
           {/* Logo + Nav Links */}
           <div className="flex items-center gap-8">
             <Link to="/" className="flex items-center">
-              <img src={globalyosFullLogo} alt="GlobalyOS" className="h-8" width={132} height={32} />
+              <img src={globalyosFullLogo} alt="GlobalyOS" className="h-8" width={132} height={32} loading="lazy" />
             </Link>
 
             {/* Desktop Nav */}

@@ -35,7 +35,7 @@ export const WebsiteFooter = () => {
           {/* Brand */}
           <div className="col-span-2">
             <Link to="/" className="flex items-center mb-4">
-              <img src={globalyosFullLogo} alt="GlobalyOS" className="h-8" width={132} height={32} />
+              <img src={globalyosFullLogo} alt="GlobalyOS" className="h-8" width={132} height={32} loading="lazy" />
             </Link>
             <p className="text-muted-foreground text-sm max-w-xs mb-6">
               The all-in-one platform for growing teams. Manage HR, collaborate, and scale your business.

@@ -213,7 +213,7 @@ const FavoritesSection = ({ activeChat, onSelectChat, onlineStatuses }: Favorite
                         ) : (
                           <div className="flex items-center justify-center h-6 w-6 rounded bg-muted text-muted-foreground font-medium text-[10px]">
                             {space?.icon_url ? (
-                              <img src={space.icon_url} alt={name} className="h-6 w-6 rounded object-cover" />
+                              <img src={space.icon_url} alt={name} className="h-6 w-6 rounded object-cover" loading="lazy" />
                             ) : (
                               name.charAt(0).toUpperCase()
                             )}
