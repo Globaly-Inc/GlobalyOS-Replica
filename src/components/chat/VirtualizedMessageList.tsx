@@ -1,12 +1,12 @@
 /**
  * VirtualizedMessageList - Performance-optimized message rendering
  * Only renders visible messages (~15 nodes) instead of entire history (500+)
- * Uses react-window for virtualization with dynamic row heights
+ * Uses react-window v2 for virtualization with dynamic row heights
  */
 
 import React, { useRef, useCallback, useEffect, useMemo } from 'react';
-import { VariableSizeList as List } from 'react-window';
-import AutoSizer from 'react-virtualized-auto-sizer';
+import { List, useDynamicRowHeight, type ListImperativeAPI } from 'react-window';
+import { AutoSizer } from 'react-virtualized-auto-sizer';
 import MessageBubble from './MessageBubble';
 import DateSeparator from './DateSeparator';
 import SystemEventMessage from './SystemEventMessage';
@@ -90,8 +90,128 @@ const flattenMessages = (
   return items;
 };
 
+// Row props type for react-window v2
+interface RowProps {
+  flatItems: FlatItem[];
+  reactions: VirtualizedMessageListProps['reactions'];
+  messageStars: VirtualizedMessageListProps['messageStars'];
+  currentEmployeeId: string | undefined;
+  onlineStatuses: Record<string, boolean>;
+  replyCounts: Record<string, number>;
+  editingMessageId: string | null;
+  highlightMessageId?: string;
+  callbacks: MessageCallbacks;
+  isEditPending: boolean;
+}
+
+// Row component for react-window v2
+function MessageRow({ 
+  index, 
+  style,
+  flatItems,
+  reactions,
+  messageStars,
+  currentEmployeeId,
+  onlineStatuses,
+  replyCounts,
+  editingMessageId,
+  highlightMessageId,
+  callbacks,
+  isEditPending,
+}: { 
+  index: number; 
+  style: React.CSSProperties;
+  ariaAttributes: {
+    "aria-posinset": number;
+    "aria-setsize": number;
+    role: "listitem";
+  };
+} & RowProps): React.ReactElement | null {
+  const item = flatItems[index];
+  
+  if (item.type === 'loading') {
+    return (
+      <div style={style} className="flex justify-center py-4">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="h-4 w-4 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+          Loading older messages...
+        </div>
+      </div>
+    );
+  }
+  
+  if (item.type === 'beginning') {
+    return (
+      <div style={style} className="flex justify-center py-4">
+        <span className="text-xs text-muted-foreground">Beginning of conversation</span>
+      </div>
+    );
+  }
+  
+  if (item.type === 'separator') {
+    return (
+      <div style={style}>
+        <DateSeparator date={item.date!} />
+      </div>
+    );
+  }
+  
+  const message = item.message!;
+  
+  // Handle system event messages
+  if (message.content_type === 'system_event' && message.system_event_data) {
+    return (
+      <div style={style}>
+        <SystemEventMessage 
+          eventData={message.system_event_data} 
+          timestamp={message.created_at} 
+        />
+      </div>
+    );
+  }
+  
+  const isOwn = message.sender_id === currentEmployeeId;
+  const isGrouped = shouldGroupMessages(message, item.prevMessage || null);
+  const isLastInGroup = !item.nextMessage || !shouldGroupMessages(item.nextMessage, message);
+  const messageReactions = reactions[message.id] || {};
+  const isStarred = messageStars.some(s => s.message_id === message.id);
+  
+  return (
+    <div 
+      style={style} 
+      id={`message-${message.id}`}
+      className={highlightMessageId === message.id ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}
+    >
+      <MessageBubble
+        message={message}
+        isOwn={isOwn}
+        isGrouped={isGrouped}
+        isLastInGroup={isLastInGroup}
+        reactions={messageReactions}
+        isEditing={editingMessageId === message.id}
+        currentEmployeeId={currentEmployeeId}
+        onEdit={() => callbacks.onEdit(message.id)}
+        onCancelEdit={callbacks.onCancelEdit}
+        onSaveEdit={(content) => callbacks.onSaveEdit(message.id, content)}
+        onDelete={() => callbacks.onDelete(message.id)}
+        onStar={() => callbacks.onStar(message.id)}
+        onPin={() => callbacks.onPin(message.id, message.is_pinned)}
+        onReact={(emoji) => callbacks.onReact(message.id, emoji)}
+        onReply={() => callbacks.onReply(message)}
+        replyCount={replyCounts[message.id]}
+        isEditPending={isEditPending}
+        isStarred={isStarred}
+        isOnline={message.sender_id ? onlineStatuses[message.sender_id] : false}
+      />
+    </div>
+  );
+}
+
 // Estimate height based on message content
-const estimateRowHeight = (item: FlatItem): number => {
+const estimateRowHeight = (index: number, rowProps: RowProps): number => {
+  const item = rowProps.flatItems[index];
+  if (!item) return 60;
+  
   if (item.type === 'separator') return 40;
   if (item.type === 'loading') return 48;
   if (item.type === 'beginning') return 32;
@@ -121,6 +241,39 @@ const estimateRowHeight = (item: FlatItem): number => {
   return Math.min(baseHeight, 500);
 };
 
+// Inner list component to work with AutoSizer
+const InnerList = React.memo(({ 
+  height, 
+  width,
+  flatItems,
+  rowProps,
+  listRef,
+  dynamicRowHeight,
+}: { 
+  height: number | undefined; 
+  width: number | undefined;
+  flatItems: FlatItem[];
+  rowProps: RowProps;
+  listRef: React.RefObject<ListImperativeAPI | null>;
+  dynamicRowHeight: ReturnType<typeof useDynamicRowHeight>;
+}) => {
+  if (!height || !width) return null;
+  
+  return (
+    <List
+      listRef={listRef}
+      style={{ height, width }}
+      rowCount={flatItems.length}
+      rowHeight={dynamicRowHeight}
+      rowComponent={MessageRow}
+      rowProps={rowProps}
+      overscanCount={5}
+    />
+  );
+});
+
+InnerList.displayName = 'InnerList';
+
 export const VirtualizedMessageList = React.memo(({
   groupedMessages,
   reactions,
@@ -135,30 +288,43 @@ export const VirtualizedMessageList = React.memo(({
   isLoadingMore,
   hasMoreMessages,
 }: VirtualizedMessageListProps) => {
-  const listRef = useRef<List>(null);
-  const rowHeights = useRef<Record<number, number>>({});
-  const outerRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<ListImperativeAPI | null>(null);
   
   const flatItems = useMemo(() => 
     flattenMessages(groupedMessages, isLoadingMore, hasMoreMessages), 
     [groupedMessages, isLoadingMore, hasMoreMessages]
   );
   
-  // Get row height - use measured height if available, otherwise estimate
-  const getRowHeight = useCallback((index: number) => {
-    if (rowHeights.current[index]) {
-      return rowHeights.current[index];
-    }
-    return estimateRowHeight(flatItems[index]);
-  }, [flatItems]);
+  // Use dynamic row heights from react-window v2
+  const dynamicRowHeight = useDynamicRowHeight({
+    defaultRowHeight: 60,
+    key: flatItems.length, // Reset when items change
+  });
   
-  // Set measured row height
-  const setRowHeight = useCallback((index: number, height: number) => {
-    if (rowHeights.current[index] !== height && height > 0) {
-      rowHeights.current[index] = height;
-      listRef.current?.resetAfterIndex(index, false);
-    }
-  }, []);
+  // Row props passed to each row component
+  const rowProps: RowProps = useMemo(() => ({
+    flatItems,
+    reactions,
+    messageStars,
+    currentEmployeeId,
+    onlineStatuses,
+    replyCounts,
+    editingMessageId,
+    highlightMessageId,
+    callbacks,
+    isEditPending,
+  }), [
+    flatItems, 
+    reactions, 
+    messageStars, 
+    currentEmployeeId, 
+    onlineStatuses, 
+    replyCounts, 
+    editingMessageId, 
+    highlightMessageId, 
+    callbacks, 
+    isEditPending
+  ]);
   
   // Scroll to highlighted message
   useEffect(() => {
@@ -167,7 +333,7 @@ export const VirtualizedMessageList = React.memo(({
         item => item.type === 'message' && item.message?.id === highlightMessageId
       );
       if (index !== -1) {
-        listRef.current.scrollToItem(index, 'center');
+        listRef.current.scrollToRow({ index, align: 'center' });
       }
     }
   }, [highlightMessageId, flatItems]);
@@ -175,132 +341,28 @@ export const VirtualizedMessageList = React.memo(({
   // Scroll to bottom when new messages arrive
   useEffect(() => {
     if (flatItems.length > 0 && listRef.current) {
-      // Only auto-scroll if we're near the bottom
-      const list = listRef.current;
-      const container = outerRef.current;
-      if (container) {
-        const { scrollHeight, scrollTop, clientHeight } = container;
-        const isNearBottom = scrollHeight - scrollTop - clientHeight < 200;
-        if (isNearBottom) {
-          list.scrollToItem(flatItems.length - 1, 'end');
-        }
-      }
+      // Scroll to the last item
+      listRef.current.scrollToRow({ index: flatItems.length - 1, align: 'end' });
     }
   }, [flatItems.length]);
-  
-  const Row = useCallback(({ index, style }: { index: number; style: React.CSSProperties }) => {
-    const item = flatItems[index];
-    
-    if (item.type === 'loading') {
-      return (
-        <div style={style} className="flex justify-center py-4">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <div className="h-4 w-4 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
-            Loading older messages...
-          </div>
-        </div>
-      );
-    }
-    
-    if (item.type === 'beginning') {
-      return (
-        <div style={style} className="flex justify-center py-4">
-          <span className="text-xs text-muted-foreground">Beginning of conversation</span>
-        </div>
-      );
-    }
-    
-    if (item.type === 'separator') {
-      return (
-        <div style={style}>
-          <DateSeparator date={item.date!} />
-        </div>
-      );
-    }
-    
-    const message = item.message!;
-    
-    // Handle system event messages
-    if (message.content_type === 'system_event' && message.system_event_data) {
-      return (
-        <div style={style}>
-          <SystemEventMessage 
-            eventData={message.system_event_data} 
-            timestamp={message.created_at} 
-          />
-        </div>
-      );
-    }
-    
-    const isOwn = message.sender_id === currentEmployeeId;
-    const isGrouped = shouldGroupMessages(message, item.prevMessage || null);
-    const isLastInGroup = !item.nextMessage || !shouldGroupMessages(item.nextMessage, message);
-    const messageReactions = reactions[message.id] || {};
-    const isStarred = messageStars.some(s => s.message_id === message.id);
-    
-    return (
-      <div 
-        style={style} 
-        id={`message-${message.id}`}
-        className={highlightMessageId === message.id ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}
-      >
-        <MessageBubble
-          message={message}
-          isOwn={isOwn}
-          isGrouped={isGrouped}
-          isLastInGroup={isLastInGroup}
-          reactions={messageReactions}
-          isEditing={editingMessageId === message.id}
-          currentEmployeeId={currentEmployeeId}
-          onEdit={() => callbacks.onEdit(message.id)}
-          onCancelEdit={callbacks.onCancelEdit}
-          onSaveEdit={(content) => callbacks.onSaveEdit(message.id, content)}
-          onDelete={() => callbacks.onDelete(message.id)}
-          onStar={() => callbacks.onStar(message.id)}
-          onPin={() => callbacks.onPin(message.id, message.is_pinned)}
-          onReact={(emoji) => callbacks.onReact(message.id, emoji)}
-          onReply={() => callbacks.onReply(message)}
-          replyCount={replyCounts[message.id]}
-          isEditPending={isEditPending}
-          isStarred={isStarred}
-          isOnline={message.sender_id ? onlineStatuses[message.sender_id] : false}
-        />
-      </div>
-    );
-  }, [
-    flatItems, 
-    currentEmployeeId, 
-    reactions, 
-    messageStars, 
-    editingMessageId, 
-    callbacks, 
-    replyCounts, 
-    isEditPending, 
-    onlineStatuses,
-    highlightMessageId
-  ]);
   
   if (Object.keys(groupedMessages).length === 0) {
     return null;
   }
   
   return (
-    <AutoSizer>
-      {({ height, width }) => (
-        <List
-          ref={listRef}
-          outerRef={outerRef}
+    <AutoSizer
+      ChildComponent={({ height, width }) => (
+        <InnerList
           height={height}
           width={width}
-          itemCount={flatItems.length}
-          itemSize={getRowHeight}
-          overscanCount={5}
-          initialScrollOffset={0}
-        >
-          {Row}
-        </List>
+          flatItems={flatItems}
+          rowProps={rowProps}
+          listRef={listRef}
+          dynamicRowHeight={dynamicRowHeight}
+        />
       )}
-    </AutoSizer>
+    />
   );
 });
 
