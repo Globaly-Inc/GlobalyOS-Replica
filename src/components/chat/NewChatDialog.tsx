@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Search, Loader2, Camera, X } from "lucide-react";
 import { useEmployees } from "@/services/useEmployees";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
-import { useCreateConversation, useConversations } from "@/services/useChat";
+import { useCreateConversation, useConversations } from "@/services/chat";
 import { useOrganization } from "@/hooks/useOrganization";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";

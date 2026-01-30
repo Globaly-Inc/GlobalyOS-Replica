@@ -41,7 +41,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useConversations, useSpaces, useUnreadCounts, useCreateConversation, useArchiveSpace, useDeleteSpace, useLeaveSpace, useTotalUnreadCount } from "@/services/useChat";
+import { useConversations, useSpaces, useUnreadCounts, useCreateConversation, useArchiveSpace, useDeleteSpace, useLeaveSpace, useTotalUnreadCount } from "@/services/chat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";

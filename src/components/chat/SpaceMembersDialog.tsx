@@ -23,7 +23,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Search, MoreVertical, Shield, UserMinus, Crown, Loader2, RefreshCw, UserPlus } from "lucide-react";
-import { useSpaceMembers, useUpdateSpaceMemberRole, useRemoveSpaceMember } from "@/services/useChat";
+import { useSpaceMembers, useUpdateSpaceMemberRole, useRemoveSpaceMember } from "@/services/chat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { toast } from "sonner";
 import { showErrorToast } from "@/lib/errorUtils";

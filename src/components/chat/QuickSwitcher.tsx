@@ -6,7 +6,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Search, MessageSquare, Hash, User, Clock } from "lucide-react";
-import { useConversations, useSpaces } from "@/services/useChat";
+import { useConversations, useSpaces } from "@/services/chat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { useTeamPresence } from "@/services/useTeamData";
 import { cn } from "@/lib/utils";

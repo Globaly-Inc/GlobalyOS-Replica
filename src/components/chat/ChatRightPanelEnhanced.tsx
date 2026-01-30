@@ -83,7 +83,7 @@ import {
   useUpdateGroupMemberRole,
   useRemoveGroupMember,
   useSpace,
-} from "@/services/useChat";
+} from "@/services/chat";
 import { useSpaceMembersRealtime } from "@/services/useSpaceMembersRealtime";
 
 import { useTeamPresence } from "@/services/useTeamData";

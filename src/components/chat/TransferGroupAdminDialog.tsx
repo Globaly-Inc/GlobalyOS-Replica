@@ -21,7 +21,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, Crown, LogOut, AlertTriangle, UserSearch, MapPin } from "lucide-react";
-import { useLeaveConversation } from "@/services/useChat";
+import { useLeaveConversation } from "@/services/chat";
 import { showErrorToast } from "@/lib/errorUtils";
 import { toast } from "@/hooks/use-toast";
 import type { ChatParticipant } from "@/types/chat";

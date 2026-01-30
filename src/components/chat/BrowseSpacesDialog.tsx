@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Search, Hash, Users, Lock, Globe } from "lucide-react";
-import { usePublicSpaces, useJoinSpace } from "@/services/useChat";
+import { usePublicSpaces, useJoinSpace } from "@/services/chat";
 import { toast } from "sonner";
 import { showErrorToast } from "@/lib/errorUtils";
 import type { ActiveChat, ChatSpace } from "@/types/chat";

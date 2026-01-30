@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, MessageSquare, Megaphone } from "lucide-react";
-import { useCreateSpace } from "@/services/useChat";
+import { useCreateSpace } from "@/services/chat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { showErrorToast } from "@/lib/errorUtils";
 import { toast } from "sonner";
