@@ -1,60 +1,129 @@
-# Wiki Page, Rich Text Editor & Sharing - Implementation Complete
 
-## Summary of Changes
+# Leave Management & Attendance System - Audit Report & Improvement Plan
 
-### ✅ Phase 1: Unit Tests for WikiRichEditor (COMPLETED)
+## Audit Summary
 
-Created `src/test/components/WikiRichEditor.test.tsx` with 32 tests covering:
-- **HTML Sanitization** (10 tests): Verifies DOMPurify config allows safe tags/attributes and strips XSS vectors
-- **URL Auto-linking** (5 tests): Tests URL and email regex patterns
-- **Content Metrics** (7 tests): Tests word count, character count, reading time calculations
-- **htmlToText Helper** (5 tests): Tests HTML-to-text conversion
-- **LANGUAGE_MAP** (5 tests): Tests Prism language mapping
+I conducted a thorough review of the Leave Management and Attendance system covering:
+- **Leave.tsx** - Personal leave page with balance display and request submission
+- **OrgLeaveHistory.tsx** (2,220 lines) - Admin/HR leave history with analytics, records, pending tabs
+- **OrgAttendanceHistory.tsx** (2,039 lines) - Admin/HR attendance history with analytics
+- **PendingLeaveApprovals.tsx** (848 lines) - Leave approval workflow with optimistic UI
+- **Edge functions** - notify-leave-request, notify-leave-decision for email notifications
+- **Services** - useLeave.ts, useAttendance.ts, useLeaveRealtime.ts
+- **RLS Policies** - Verified proper tenant isolation and role-based access
 
-### ✅ Phase 2: Extracted Shared Prism Configuration (COMPLETED)
+---
 
-Created `src/lib/prismConfig.ts`:
-- Centralized Prism language imports (30+ languages)
-- Exported `LANGUAGE_MAP` constant
-- Exported `SUPPORTED_LANGUAGES` array for UI dropdowns
-- Added helper functions: `getPrismLanguage()`, `highlightCode()`
-- Updated `WikiRichEditor.tsx` and `WikiMarkdownRenderer.tsx` to import from shared config
-- Reduced code duplication by ~100 lines total
+## What's Working Well
 
-### ✅ Phase 3: WikiShareDialog Accessibility & UX Improvements (COMPLETED)
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Office-centric leave types | Working | Migrated from legacy leave_types to office_leave_types |
+| Leave balance tracking | Working | Real-time updates via useLeaveBalanceRealtime |
+| Leave request workflow | Working | Submit, approve, reject with notifications |
+| Attendance QR check-in | Working | Validates QR code and location |
+| Manager/HR backup approvals | Working | HR can approve when manager is on leave |
+| Multi-tenant isolation | Working | RLS policies use is_own_employee, is_manager_of_employee |
+| Email notifications | Working | Resend integration with rate limiting |
+| Optimistic UI updates | Working | Instant feedback on approval actions |
 
-Updated `src/components/wiki/WikiShareDialog.tsx`:
-- **Loading Skeleton**: Replaced spinner with proper skeleton UI showing search input and member list placeholders
-- **Confirmation Dialogs**: Added AlertDialog for destructive actions:
-  - Removing office access
-  - Removing department access
-  - Removing project access
-  - Clearing company-wide access
-- Each confirmation shows context-specific message explaining impact
+---
 
-## Files Modified/Created
+## Issues Found
 
-| File | Action | Changes |
-|------|--------|---------|
-| `src/test/components/WikiRichEditor.test.tsx` | Created | 32 unit tests for editor utilities |
-| `src/lib/prismConfig.ts` | Created | Shared Prism.js configuration |
-| `src/components/wiki/WikiRichEditor.tsx` | Modified | Import from prismConfig.ts (-54 lines) |
-| `src/components/wiki/WikiMarkdownRenderer.tsx` | Modified | Import from prismConfig.ts (-72 lines) |
-| `src/components/wiki/WikiShareDialog.tsx` | Modified | Added skeleton, confirmation dialogs |
+### Critical Issues
 
-## Test Results
+| Issue | Impact | Component |
+|-------|--------|-----------|
+| **No unit tests for leave services** | No test coverage for useLeave.ts mutations | Missing test file |
+| **RLS policies flagged as "Always True"** | 5 policies use overly permissive expressions | Database security linter |
 
-All 32 tests pass:
-- WikiRichEditor Utilities > HTML Sanitization (10 tests)
-- WikiRichEditor Utilities > URL Auto-linking (5 tests)
-- WikiRichEditor Utilities > Content Metrics Calculation (7 tests)
-- WikiRichEditor Utilities > htmlToText Helper (5 tests)
-- LANGUAGE_MAP (5 tests)
+### Medium Priority Issues
 
-## Benefits
+| Issue | Impact | Component |
+|-------|--------|-----------|
+| **Large file sizes** | OrgLeaveHistory (2,220 lines), OrgAttendanceHistory (2,039 lines) hard to maintain | Multiple files |
+| **No loading skeleton in Leave page** | Only shows spinner, no content placeholders | Leave.tsx |
+| **Missing confirmation for bulk leave delete** | Users may accidentally delete multiple records | OrgLeaveHistory.tsx |
+| **No offline support for leave requests** | Leave requests fail silently if offline | AddLeaveRequestDialog.tsx |
 
-1. **Better Code Coverage**: Critical editor functions now have unit tests
-2. **Reduced Duplication**: Prism config is centralized and reusable
-3. **Improved UX**: Loading states and confirmation dialogs prevent accidental actions
-4. **Easier Maintenance**: Smaller, focused files are easier to extend
+### Low Priority / UX Improvements
 
+| Issue | Impact | Component |
+|-------|--------|-----------|
+| No empty state animation for pending approvals | Less engaging UX | PendingLeaveApprovals.tsx |
+| Missing keyboard shortcuts for approval actions | Slower workflow for power users | PendingLeaveApprovals.tsx |
+| Half-day leave UI could be clearer | Users may not understand first/second half | AddLeaveRequestDialog.tsx |
+
+---
+
+## Implementation Plan
+
+### Phase 1: Add Unit Tests for Leave Services
+
+Create test file: `src/test/services/useLeave.test.ts`
+
+Tests to cover:
+- useOfficeLeaveTypesQuery fetches correct office leave types
+- useLeaveBalances returns properly mapped balance data
+- useCreateLeaveRequest validates min_days_advance
+- useUpdateLeaveStatus updates status and invalidates queries
+- useCancelLeaveRequest restores balance for approved requests
+
+### Phase 2: Improve Loading States
+
+In `src/pages/Leave.tsx`:
+- Replace spinner with skeleton UI showing balance cards and request list placeholders
+- Add proper empty state with illustration when no balances exist
+- Add subtle animation when balance updates in real-time
+
+### Phase 3: Add Keyboard Shortcuts for Approvals
+
+In `src/components/PendingLeaveApprovals.tsx`:
+- Add keyboard navigation (arrow keys to move between requests)
+- Add A key for approve, R key for reject when focused
+- Add visual indicator for keyboard focus
+
+### Phase 4: Extract Shared Components
+
+For maintainability, extract from large files:
+- `LeaveAnalyticsFilters.tsx` - Date range, employee, type filters
+- `AttendanceRecordRow.tsx` - Individual attendance record display
+- `LeaveStatsCards.tsx` - Statistics summary cards
+
+---
+
+## Files to Modify/Create
+
+| File | Action | Priority | Changes |
+|------|--------|----------|---------|
+| `src/test/services/useLeave.test.ts` | Create | High | Add unit tests for leave mutations |
+| `src/pages/Leave.tsx` | Modify | Medium | Add skeleton loading states |
+| `src/components/PendingLeaveApprovals.tsx` | Modify | Low | Add keyboard shortcuts |
+| `src/components/leave/LeaveStatsCards.tsx` | Create | Low | Extract from OrgLeaveHistory |
+
+---
+
+## Security Observations
+
+The database linter flagged 5 RLS policies as "Always True" but these appear to be on non-leave/attendance tables. The leave and attendance RLS policies correctly use:
+- `is_own_employee(employee_id)` for user access
+- `is_manager_of_employee(employee_id)` for manager access  
+- Role checks via `user_roles` table for HR/Admin access
+
+The current implementation properly:
+1. Scopes all queries by organization_id
+2. Uses SECURITY DEFINER functions to prevent recursive RLS issues
+3. Validates user authentication in edge functions
+4. Implements rate limiting for notification endpoints
+
+---
+
+## Expected Outcome
+
+After implementing these improvements:
+1. Leave service hooks have comprehensive unit test coverage
+2. Better UX with skeleton loading states during data fetching
+3. Power users can approve/reject leave faster with keyboard shortcuts
+4. Codebase is more maintainable with extracted shared components
+5. Consistent patterns across Leave and Attendance modules
