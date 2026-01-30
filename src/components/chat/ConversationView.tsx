@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -77,7 +77,7 @@ import MessageBubble from "./MessageBubble";
 import { VirtualizedMessageList } from "./VirtualizedMessageList";
 import DateSeparator from "./DateSeparator";
 import ScrollToBottom from "./ScrollToBottom";
-import ThreadView from "./ThreadView";
+const ThreadView = lazy(() => import("./ThreadView"));
 import MessageSearch from "./MessageSearch";
 import ChatDropZone from "./ChatDropZone";
 import SpaceMembersDialog from "./SpaceMembersDialog";
@@ -929,12 +929,14 @@ const ConversationView = ({
         <Sheet open={!!activeThreadMessage && isMobile} onOpenChange={(open) => !open && setActiveThreadMessage(null)}>
           <SheetContent side="right" className="w-full sm:max-w-full p-0 border-0">
             {activeThreadMessage && (
-              <ThreadView
-                parentMessage={activeThreadMessage}
-                conversationId={conversationId}
-                spaceId={spaceId}
-                onClose={() => setActiveThreadMessage(null)}
-              />
+              <Suspense fallback={<div className="h-full bg-muted/30 animate-pulse" />}>
+                <ThreadView
+                  parentMessage={activeThreadMessage}
+                  conversationId={conversationId}
+                  spaceId={spaceId}
+                  onClose={() => setActiveThreadMessage(null)}
+                />
+              </Suspense>
             )}
           </SheetContent>
         </Sheet>
