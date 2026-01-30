@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -13,6 +13,17 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { 
   Building2, 
   Users, 
@@ -102,6 +113,14 @@ export const WikiShareDialog = ({
   const [publicLinkEnabled, setPublicLinkEnabled] = useState(false);
   const [publicLinkId, setPublicLinkId] = useState<string | null>(null);
   const [isTogglingPublicLink, setIsTogglingPublicLink] = useState(false);
+
+  // Confirmation dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    action: () => Promise<void>;
+  }>({ open: false, title: '', description: '', action: async () => {} });
 
   // Owner state
   const [owner, setOwner] = useState<OwnerInfo | null>(null);
@@ -748,45 +767,75 @@ export const WikiShareDialog = ({
   };
 
   const handleRemoveOffice = async (officeId: string) => {
-    const updatedOffices = selectedOffices.filter(id => id !== officeId);
-    await applyGroupAccess({
-      scope: updatedOffices.length > 0 ? 'offices' : 'members',
-      permission: permissionLevel,
-      officeIds: updatedOffices,
-      departments: selectedDepartments,
-      projectIds: selectedProjects,
+    const officeName = offices.find(o => o.id === officeId)?.name || 'this office';
+    setConfirmDialog({
+      open: true,
+      title: 'Remove office access?',
+      description: `Are you sure you want to remove access for "${officeName}"? Members of this office will lose access unless they have individual access.`,
+      action: async () => {
+        const updatedOffices = selectedOffices.filter(id => id !== officeId);
+        await applyGroupAccess({
+          scope: updatedOffices.length > 0 ? 'offices' : 'members',
+          permission: permissionLevel,
+          officeIds: updatedOffices,
+          departments: selectedDepartments,
+          projectIds: selectedProjects,
+        });
+      },
     });
   };
 
   const handleRemoveDepartment = async (department: string) => {
-    const updatedDepts = selectedDepartments.filter(d => d !== department);
-    await applyGroupAccess({
-      scope: updatedDepts.length > 0 ? 'departments' : 'members',
-      permission: permissionLevel,
-      officeIds: selectedOffices,
-      departments: updatedDepts,
-      projectIds: selectedProjects,
+    setConfirmDialog({
+      open: true,
+      title: 'Remove department access?',
+      description: `Are you sure you want to remove access for "${department}"? Members of this department will lose access unless they have individual access.`,
+      action: async () => {
+        const updatedDepts = selectedDepartments.filter(d => d !== department);
+        await applyGroupAccess({
+          scope: updatedDepts.length > 0 ? 'departments' : 'members',
+          permission: permissionLevel,
+          officeIds: selectedOffices,
+          departments: updatedDepts,
+          projectIds: selectedProjects,
+        });
+      },
     });
   };
 
   const handleRemoveProject = async (projectId: string) => {
-    const updatedProjects = selectedProjects.filter(id => id !== projectId);
-    await applyGroupAccess({
-      scope: updatedProjects.length > 0 ? 'projects' : 'members',
-      permission: permissionLevel,
-      officeIds: selectedOffices,
-      departments: selectedDepartments,
-      projectIds: updatedProjects,
+    const projectName = projects.find(p => p.id === projectId)?.name || 'this project';
+    setConfirmDialog({
+      open: true,
+      title: 'Remove project access?',
+      description: `Are you sure you want to remove access for "${projectName}"? Project members will lose access unless they have individual access.`,
+      action: async () => {
+        const updatedProjects = selectedProjects.filter(id => id !== projectId);
+        await applyGroupAccess({
+          scope: updatedProjects.length > 0 ? 'projects' : 'members',
+          permission: permissionLevel,
+          officeIds: selectedOffices,
+          departments: selectedDepartments,
+          projectIds: updatedProjects,
+        });
+      },
     });
   };
 
   const handleClearCompanyAccess = async () => {
-    await applyGroupAccess({
-      scope: 'members',
-      permission: permissionLevel,
-      officeIds: [],
-      departments: [],
-      projectIds: [],
+    setConfirmDialog({
+      open: true,
+      title: 'Remove company-wide access?',
+      description: `Are you sure you want to remove company-wide access? All members will lose access unless they have been added individually.`,
+      action: async () => {
+        await applyGroupAccess({
+          scope: 'members',
+          permission: permissionLevel,
+          officeIds: [],
+          departments: [],
+          projectIds: [],
+        });
+      },
     });
   };
 
@@ -963,8 +1012,28 @@ export const WikiShareDialog = ({
         </SheetHeader>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="p-6 space-y-6">
+            {/* Loading skeleton for search input */}
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+            {/* Loading skeleton for members list */}
+            <div className="space-y-3">
+              <Skeleton className="h-4 w-32" />
+              <div className="space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center gap-3 p-2">
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                    <div className="flex-1 space-y-1">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                    <Skeleton className="h-6 w-16" />
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         ) : (
           <ScrollArea className="flex-1 overflow-hidden">
@@ -1035,6 +1104,29 @@ export const WikiShareDialog = ({
           }}
           isTransferring={transferOwnershipMutation.isPending}
         />
+
+        {/* Confirmation Dialog for Destructive Actions */}
+        <AlertDialog open={confirmDialog.open} onOpenChange={(open) => setConfirmDialog(prev => ({ ...prev, open }))}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{confirmDialog.title}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {confirmDialog.description}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={async () => {
+                  await confirmDialog.action();
+                  setConfirmDialog(prev => ({ ...prev, open: false }));
+                }}
+              >
+                Remove Access
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </SheetContent>
     </Sheet>
   );
