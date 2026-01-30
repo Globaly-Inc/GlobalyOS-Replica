@@ -80,7 +80,7 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
   const [processing, setProcessing] = useState<string | null>(null);
   const [isManagerOnLeave, setIsManagerOnLeave] = useState(false);
   const [showAsHR, setShowAsHR] = useState(false);
-  const [focusedIndex, setFocusedIndex] = useState<number>(-1);
+  
   const [approveDialog, setApproveDialog] = useState<{
     open: boolean;
     request: PendingLeaveRequest | null;
@@ -96,52 +96,11 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
   const { currentOrg } = useOrganization();
   const { isHR, isAdmin } = useUserRole();
   const isAdminOrHR = isAdmin || isHR;
-  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+  
 
   // Subscribe to real-time leave updates for immediate refresh
   useLeaveRealtime();
 
-  // Keyboard navigation handler
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    // Only handle when not in a dialog
-    if (approveDialog.open || rejectDialog.open || cancelDialog.open) return;
-    if (pendingRequests.length === 0) return;
-
-    const key = e.key.toLowerCase();
-    
-    // Arrow key navigation
-    if (key === 'arrowdown' || key === 'j') {
-      e.preventDefault();
-      setFocusedIndex(prev => Math.min(prev + 1, pendingRequests.length - 1));
-    } else if (key === 'arrowup' || key === 'k') {
-      e.preventDefault();
-      setFocusedIndex(prev => Math.max(prev - 1, 0));
-    } else if ((key === 'a' || key === 'enter') && focusedIndex >= 0 && focusedIndex < pendingRequests.length) {
-      // Approve with 'A' or Enter
-      e.preventDefault();
-      openApproveDialog(pendingRequests[focusedIndex]);
-    } else if (key === 'r' && focusedIndex >= 0 && focusedIndex < pendingRequests.length) {
-      // Reject with 'R'
-      e.preventDefault();
-      openRejectDialog(pendingRequests[focusedIndex]);
-    } else if (key === 'escape') {
-      // Clear focus with Escape
-      setFocusedIndex(-1);
-    }
-  }, [pendingRequests, focusedIndex, approveDialog.open, rejectDialog.open, cancelDialog.open]);
-
-  // Register keyboard listener
-  useEffect(() => {
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
-
-  // Focus the card when focusedIndex changes
-  useEffect(() => {
-    if (focusedIndex >= 0 && cardRefs.current[focusedIndex]) {
-      cardRefs.current[focusedIndex]?.focus();
-    }
-  }, [focusedIndex]);
 
   useEffect(() => {
     if (currentOrg) {
@@ -682,21 +641,15 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
             </div>
           ))}
 
-          {/* Pending Requests for Approval (Manager/HR) */}
-          {pendingRequests.map((request, index) => {
+          {pendingRequests.map((request) => {
             const insufficientBalance = hasInsufficientBalance(request);
-            const isFocused = focusedIndex === index;
             
             return (
               <div
                 key={request.id}
-                ref={(el) => { cardRefs.current[index] = el; }}
-                tabIndex={0}
-                onFocus={() => setFocusedIndex(index)}
                 className={cn(
-                  "rounded-lg bg-background p-4 shadow-sm border transition-all outline-none",
-                  insufficientBalance && "border-amber-300 bg-amber-50/30",
-                  isFocused && "ring-2 ring-primary ring-offset-2"
+                  "rounded-lg bg-background p-4 shadow-sm border transition-all",
+                  insufficientBalance && "border-amber-300 bg-amber-50/30"
                 )}
               >
                 <div className="flex items-start gap-3">

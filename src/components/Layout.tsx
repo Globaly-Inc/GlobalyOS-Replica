@@ -51,18 +51,6 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [getHelpDialogOpen, setGetHelpDialogOpen] = useState(false);
 
-  // Global search keyboard shortcut (Cmd+K / Ctrl+K)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        setGlobalSearchOpen(true);
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   // Re-fetch attendance when QR scanner closes
   useEffect(() => {
