@@ -12,93 +12,48 @@ This plan addresses all issues identified in the platform audit across 10 priori
 | Area | Status |
 |------|--------|
 | VirtualizedMessageList | ✅ Already integrated (verified in ConversationView.tsx L814) |
-| EditorToolbar | ❌ Created but NOT integrated - 300 lines of inline JSX remain |
+| EditorToolbar | ✅ DONE - Integrated into WikiRichEditor, ~300 lines reduced |
+| SANITIZE_CONFIG | ✅ DONE - Moved to module scope |
 | Chat Hook Modularization | ❌ 21 files still import from `@/services/useChat` instead of `@/services/chat` |
-| Oversized Files | ⚠️ Home.tsx (1,118 lines), Layout.tsx (744 lines), WikiRichEditor.tsx (2,624 lines) |
+| Oversized Files | ⚠️ Home.tsx (1,118 lines), Layout.tsx (744 lines), WikiRichEditor.tsx (~2,300 lines after refactor) |
 | Request Tracing | ❌ No X-Request-ID header correlation |
 | Test Coverage | ⚠️ Security tests exist, but critical path tests missing (OTP verify, leave request, attendance) |
 
 ---
 
-## TIER 1: NOW (Critical - This Sprint)
+## TIER 1: NOW (Critical - This Sprint) ✅ COMPLETE
 
-### Task 1.1: Integrate EditorToolbar into WikiRichEditor
+### Task 1.1: Integrate EditorToolbar into WikiRichEditor ✅ DONE
 **Problem**: The memoized `EditorToolbar` component (309 lines) exists but WikiRichEditor still renders ~300 lines of inline toolbar buttons, causing re-renders on every keystroke.
 
-**Files to Modify**:
+**Files Modified**:
 - `src/components/wiki/WikiRichEditor.tsx`
 
-**Implementation**:
-```text
-1. Add import: import { EditorToolbar } from './editor/EditorToolbar';
+**Changes Made**:
+1. Added import for EditorToolbar component
+2. Replaced ~300 lines of inline toolbar JSX with single EditorToolbar component
+3. All callbacks passed as props for proper memoization
 
-2. Create stable callback object with useMemo:
-   const toolbarCallbacks = useMemo(() => ({
-     onToggleHeading: toggleHeading,
-     onTextSizeChange: handleTextSizeChange,
-     onTextSizeBlur: handleTextSizeBlur,
-     onExecCommand: execCommand,
-     onFormatBlock: formatBlock,
-     onInsertLink: () => setLinkDialogOpen(true),
-     onInsertImage: () => imageInputRef.current?.click(),
-     onInsertFile: () => fileInputRef.current?.click(),
-     onInsertCodeBlock: insertCodeBlock,
-     onInsertTable: insertTable,
-     onInsertDivider: insertDivider,
-     onInsertEmbed: () => setEmbedDialogOpen(true),
-     onUndo: handleUndo,
-     onRedo: handleRedo,
-     onAIGenerated: handleAIGenerated,
-     onSaveSelection: saveSelection,
-   }), [/* stable deps */]);
-
-3. Replace lines 1871-2174 (inline toolbar JSX) with:
-   <EditorToolbar
-     activeHeading={activeHeading}
-     activeTextSize={activeTextSize}
-     textSizeInput={textSizeInput}
-     isUploading={isUploading}
-     editorValue={value}
-     organizationId={organizationId}
-     isCommandActive={isCommandActive}
-     {...toolbarCallbacks}
-   />
-```
-
-**Impact**: Eliminates toolbar re-renders on every keystroke, reduces WikiRichEditor by ~300 lines
-
-**Effort**: 2 hours
+**Impact**: Eliminates toolbar re-renders on every keystroke, reduced WikiRichEditor by ~300 lines
 
 ---
 
-### Task 1.2: Move sanitizeConfig to Module Scope
-**Problem**: `sanitizeConfig` object (lines 72-87 in WikiRichEditor.tsx) is defined inside component, recreating on every render.
+### Task 1.2: Move sanitizeConfig to Module Scope ✅ DONE
+**Problem**: `sanitizeConfig` object was defined inside component, recreating on every render.
 
-**Files to Modify**:
+**Files Modified**:
 - `src/components/wiki/WikiRichEditor.tsx`
 
-**Implementation**:
-```text
-1. Move sanitizeConfig outside the component (before line 72)
-2. Rename to SANITIZE_CONFIG (constant naming convention)
-3. Update all references in the file
-```
+**Changes Made**:
+1. Moved sanitizeConfig outside the component (renamed to SANITIZE_CONFIG)
+2. Updated all references in the file
 
-**Impact**: Negligible performance gain but cleaner code
-
-**Effort**: 10 minutes
+**Impact**: Cleaner code, prevents object recreation on render
 
 ---
 
-### Task 1.3: Update plan.md to Reflect Reality
-**Problem**: `.lovable/plan.md` says VirtualizedMessageList is "NOT DONE" but it IS integrated (verified at L814).
-
-**Files to Modify**:
-- `.lovable/plan.md`
-
-**Implementation**: Update Phase 2 status to reflect VirtualizedMessageList IS integrated.
-
-**Effort**: 5 minutes
+### Task 1.3: Update plan.md to Reflect Reality ✅ DONE
+Updated status to reflect VirtualizedMessageList IS integrated and EditorToolbar is now integrated.
 
 ---
 
@@ -345,10 +300,10 @@ Update all 99 edge functions to use standardized logger.
 ## Implementation Sequence
 
 ```text
-Week 1 (TIER 1 - Critical):
-├── Day 1-2: Task 1.1 - Integrate EditorToolbar
-├── Day 2: Task 1.2 - Move sanitizeConfig
-└── Day 2: Task 1.3 - Update plan.md
+Week 1 (TIER 1 - Critical): ✅ COMPLETE
+├── Day 1-2: Task 1.1 - Integrate EditorToolbar ✅
+├── Day 2: Task 1.2 - Move sanitizeConfig ✅
+└── Day 2: Task 1.3 - Update plan.md ✅
 
 Week 2 (TIER 2 - High):
 ├── Day 1-2: Task 2.1 - Migrate useChat imports
@@ -369,7 +324,7 @@ Week 4+ (TIER 3 - Backlog):
 
 ## Testing Checklist (Post-Implementation)
 
-### After EditorToolbar Integration:
+### After EditorToolbar Integration: ✅ COMPLETE - NEEDS VERIFICATION
 - [ ] All toolbar buttons work (bold, italic, underline)
 - [ ] Heading toggles work (H1, H2, H3)
 - [ ] Font size input works
@@ -404,7 +359,7 @@ Week 4+ (TIER 3 - Backlog):
 
 | Task | Risk | Mitigation |
 |------|------|------------|
-| EditorToolbar Integration | Low | EditorToolbar already tested, props match |
+| EditorToolbar Integration | Low | ✅ EditorToolbar already tested, props match |
 | Import Migration | Low | Barrel exports ensure backward compatibility |
 | Home.tsx Split | Medium | Keep data flow unchanged, just extract JSX |
 | Request Tracing | Low | Additive change, no existing behavior modified |
@@ -414,11 +369,11 @@ Week 4+ (TIER 3 - Backlog):
 
 ## Expected Outcomes
 
-| Metric | Before | After |
-|--------|--------|-------|
-| WikiRichEditor lines | 2,624 | ~2,300 |
-| Home.tsx lines | 1,118 | ~200 |
-| Files importing @/services/useChat | 21 | 0 |
-| Critical path test coverage | 0 | 4 flows |
-| Request traceability | None | Full |
-| Wiki toolbar re-renders | Every keystroke | Format change only |
+| Metric | Before | After | Status |
+|--------|--------|-------|--------|
+| WikiRichEditor lines | 2,624 | ~2,300 | ✅ Done |
+| Home.tsx lines | 1,118 | ~200 | Pending |
+| Files importing @/services/useChat | 21 | 0 | Pending |
+| Critical path test coverage | 0 | 4 flows | Pending |
+| Request traceability | None | Full | Pending |
+| Wiki toolbar re-renders | Every keystroke | Format change only | ✅ Done |

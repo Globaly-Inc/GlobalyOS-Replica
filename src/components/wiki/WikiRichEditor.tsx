@@ -27,6 +27,7 @@ import {
 import DOMPurify from "dompurify";
 import { Prism, LANGUAGE_MAP } from "@/lib/prismConfig";
 import { WikiAIWritingAssist } from "./WikiAIWritingAssist";
+import { EditorToolbar } from "./editor/EditorToolbar";
 import { debounce } from "@/lib/debounce";
 
 // Default text size in px
@@ -69,7 +70,8 @@ interface WikiRichEditorProps {
   minHeight?: string;
 }
 
-const sanitizeConfig = {
+// Sanitization config - defined at module scope to prevent recreation on render
+const SANITIZE_CONFIG = {
   ALLOWED_TAGS: [
     'p', 'br', 'b', 'strong', 'i', 'em', 'u', 'ul', 'ol', 'li',
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'code',
@@ -162,7 +164,7 @@ export const WikiRichEditor = ({
   // Initialize content
   useEffect(() => {
     if (editorRef.current && !isFocused) {
-      const sanitized = DOMPurify.sanitize(value, sanitizeConfig);
+      const sanitized = DOMPurify.sanitize(value, SANITIZE_CONFIG) as string;
       if (editorRef.current.innerHTML !== sanitized) {
         editorRef.current.innerHTML = sanitized || '';
       }
@@ -174,7 +176,7 @@ export const WikiRichEditor = ({
   const debouncedTriggerUpdate = useMemo(
     () => debounce(() => {
       if (editorRef.current) {
-        const html = DOMPurify.sanitize(editorRef.current.innerHTML, sanitizeConfig);
+        const html = DOMPurify.sanitize(editorRef.current.innerHTML, SANITIZE_CONFIG) as string;
         onChange(html);
       }
     }, 150),
@@ -184,7 +186,7 @@ export const WikiRichEditor = ({
   // Immediate update for operations that need instant feedback (paste, drop, etc.)
   const triggerUpdate = useCallback(() => {
     if (editorRef.current) {
-      const html = DOMPurify.sanitize(editorRef.current.innerHTML, sanitizeConfig);
+      const html = DOMPurify.sanitize(editorRef.current.innerHTML, SANITIZE_CONFIG) as string;
       onChange(html);
     }
   }, [onChange]);
@@ -1867,311 +1869,67 @@ myFunction();`;
   return (
     <TooltipProvider>
     <div className={cn("border rounded-lg bg-background", className)}>
-      {/* Sticky Toolbar */}
-      <div className="sticky top-0 z-20 flex flex-wrap items-center gap-0.5 p-2 border-b bg-background/95 backdrop-blur-sm shadow-sm rounded-t-lg">
-        {/* Undo/Redo */}
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 w-8 p-0"
-          onClick={handleUndo}
-          title="Undo (Ctrl+Z)"
-          aria-label="Undo"
-        >
-          <Undo2 className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 w-8 p-0"
-          onClick={handleRedo}
-          title="Redo (Ctrl+Y)"
-          aria-label="Redo"
-        >
-          <Redo2 className="h-4 w-4" />
-        </Button>
-        
-        <div className="w-px h-5 bg-border mx-1" />
-        
-        {/* Text formatting */}
-        <Button
-          type="button"
-          variant={isCommandActive('bold') ? 'secondary' : 'ghost'}
-          size="sm"
-          className="h-8 w-8 p-0"
-          onClick={() => execCommand('bold')}
-          title="Bold (Ctrl+B)"
-          aria-label="Bold"
-        >
-          <Bold className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          variant={isCommandActive('italic') ? 'secondary' : 'ghost'}
-          size="sm"
-          className="h-8 w-8 p-0"
-          onClick={() => execCommand('italic')}
-          title="Italic (Ctrl+I)"
-          aria-label="Italic"
-        >
-          <Italic className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          variant={isCommandActive('underline') ? 'secondary' : 'ghost'}
-          size="sm"
-          className="h-8 w-8 p-0"
-          onClick={() => execCommand('underline')}
-          title="Underline (Ctrl+U)"
-          aria-label="Underline"
-        >
-          <Underline className="h-4 w-4" />
-        </Button>
-        
-        <div className="w-px h-5 bg-border mx-1" />
-        
-        {/* Headings */}
-        <Button
-          type="button"
-          variant={activeHeading === 'h1' ? 'secondary' : 'ghost'}
-          size="sm"
-          className="h-8 w-8 p-0"
-          onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
-          onClick={() => toggleHeading('h1')}
-          title="Heading 1"
-          aria-label="Heading 1"
-        >
-          <Heading1 className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          variant={activeHeading === 'h2' ? 'secondary' : 'ghost'}
-          size="sm"
-          className="h-8 w-8 p-0"
-          onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
-          onClick={() => toggleHeading('h2')}
-          title="Heading 2"
-          aria-label="Heading 2"
-        >
-          <Heading2 className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          variant={activeHeading === 'h3' ? 'secondary' : 'ghost'}
-          size="sm"
-          className="h-8 w-8 p-0"
-          onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
-          onClick={() => toggleHeading('h3')}
-          title="Heading 3"
-          aria-label="Heading 3"
-        >
-          <Heading3 className="h-4 w-4" />
-        </Button>
-        
-        {/* Text Size Input with Tooltip */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="flex items-center gap-1">
-              <Type className="h-4 w-4 text-muted-foreground" />
-              <Input
-                type="text"
-                value={textSizeInput}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  // Allow only numbers or empty string while typing
-                  if (val === '' || val === '-' || /^\d+$/.test(val)) {
-                    handleTextSizeChange(val);
-                  }
-                }}
-                onBlur={() => {
-                  // Reset to default if invalid on blur
-                  if (textSizeInput === '' || textSizeInput === '-') {
-                    setTextSizeInput(String(activeTextSize === -1 ? DEFAULT_TEXT_SIZE : activeTextSize));
-                  }
-                }}
-                onMouseDown={(e) => { e.stopPropagation(); saveSelection(); }}
-                className="h-7 w-12 text-xs text-center px-1"
-              />
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Font size (8-72px)</p>
-          </TooltipContent>
-        </Tooltip>
-        
-        <div className="w-px h-5 bg-border mx-1" />
-        
-        {/* Lists */}
-        <Button
-          type="button"
-          variant={isCommandActive('insertUnorderedList') ? 'secondary' : 'ghost'}
-          size="sm"
-          className="h-8 w-8 p-0"
-          onClick={() => execCommand('insertUnorderedList')}
-          title="Bullet List"
-          aria-label="Bullet List"
-        >
-          <List className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          variant={isCommandActive('insertOrderedList') ? 'secondary' : 'ghost'}
-          size="sm"
-          className="h-8 w-8 p-0"
-          onClick={() => execCommand('insertOrderedList')}
-          title="Numbered List"
-          aria-label="Numbered List"
-        >
-          <ListOrdered className="h-4 w-4" />
-        </Button>
-        
-        <div className="w-px h-5 bg-border mx-1" />
-        
-        {/* Block elements */}
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 w-8 p-0"
-          onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
-          onClick={() => formatBlock('blockquote')}
-          title="Quote"
-          aria-label="Quote"
-        >
-          <Quote className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 w-8 p-0"
-          onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
-          onClick={handleInsertCodeBlock}
-          title="Code Block"
-          aria-label="Code Block"
-        >
-          <Code className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 w-8 p-0"
-          onClick={handleInsertHr}
-          title="Horizontal Rule"
-          aria-label="Horizontal Rule"
-        >
-          <Minus className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 w-8 p-0"
-          onClick={handleInsertTable}
-          title="Insert Table"
-          aria-label="Insert Table"
-        >
-          <Table className="h-4 w-4" />
-        </Button>
-        
-        <div className="w-px h-5 bg-border mx-1" />
-        
-        {/* Links and media */}
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 w-8 p-0"
-          onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
-          onClick={() => setLinkDialogOpen(true)}
-          title="Insert Link (Ctrl+K)"
-          aria-label="Insert Link"
-        >
-          <Link className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 w-8 p-0"
-          onClick={() => imageInputRef.current?.click()}
-          disabled={isUploading || !organizationId}
-          title="Upload Image"
-          aria-label="Upload Image"
-        >
-          <Image className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 w-8 p-0"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isUploading || !organizationId}
-          title="Attach File"
-          aria-label="Attach File"
-        >
-          <FileText className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 px-2 text-xs"
-          onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
-          onClick={() => setEmbedDialogOpen(true)}
-          title="Embed Video/Content"
-          aria-label="Embed Video or Content"
-        >
-          <Upload className="h-4 w-4 mr-1" />
-          Embed
-        </Button>
-        
-        <div className="w-px h-5 bg-border mx-1" />
-        
-        {/* AI Writing Assist */}
-        <WikiAIWritingAssist
-          currentText={value}
-          onTextGenerated={(text) => {
-            if (editorRef.current) {
-              // Insert at cursor or replace selection
-              const selection = window.getSelection();
-              if (selection && selection.rangeCount > 0) {
-                editorRef.current.focus();
-                const sanitizedText = DOMPurify.sanitize(`<p>${text.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`, sanitizeConfig);
-                document.execCommand('insertHTML', false, sanitizedText);
-                triggerUpdate();
-              } else {
-                // Append to end
-                const sanitizedText = DOMPurify.sanitize(`<p>${text.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`, sanitizeConfig);
-                editorRef.current.innerHTML += sanitizedText;
-                triggerUpdate();
-              }
+      {/* Memoized Toolbar Component */}
+      <EditorToolbar
+        activeHeading={activeHeading}
+        activeTextSize={activeTextSize}
+        textSizeInput={textSizeInput}
+        isUploading={isUploading}
+        editorValue={value}
+        organizationId={organizationId}
+        isCommandActive={isCommandActive}
+        onToggleHeading={toggleHeading}
+        onTextSizeChange={handleTextSizeChange}
+        onTextSizeBlur={() => {
+          if (textSizeInput === '' || textSizeInput === '-') {
+            setTextSizeInput(String(activeTextSize === -1 ? DEFAULT_TEXT_SIZE : activeTextSize));
+          }
+        }}
+        onExecCommand={execCommand}
+        onFormatBlock={formatBlock}
+        onInsertLink={() => setLinkDialogOpen(true)}
+        onInsertImage={() => imageInputRef.current?.click()}
+        onInsertFile={() => fileInputRef.current?.click()}
+        onInsertCodeBlock={handleInsertCodeBlock}
+        onInsertTable={handleInsertTable}
+        onInsertDivider={handleInsertHr}
+        onInsertEmbed={() => setEmbedDialogOpen(true)}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        onAIGenerated={(text) => {
+          if (editorRef.current) {
+            const selection = window.getSelection();
+            if (selection && selection.rangeCount > 0) {
+              editorRef.current.focus();
+              const sanitizedText = DOMPurify.sanitize(`<p>${text.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`, SANITIZE_CONFIG) as string;
+              document.execCommand('insertHTML', false, sanitizedText);
+              triggerUpdate();
+            } else {
+              const sanitizedText = DOMPurify.sanitize(`<p>${text.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`, SANITIZE_CONFIG) as string;
+              editorRef.current.innerHTML += sanitizedText;
+              triggerUpdate();
             }
-          }}
-          context="Writing wiki documentation for internal knowledge base"
-          disabled={isUploading}
-        />
-        
-        <input
-          ref={imageInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleImageUpload}
-        />
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar"
-          className="hidden"
-          onChange={handleFileUpload}
-        />
-      </div>
+          }
+        }}
+        onSaveSelection={saveSelection}
+      />
+      
+      {/* Hidden file inputs */}
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleImageUpload}
+      />
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar"
+        className="hidden"
+        onChange={handleFileUpload}
+      />
 
       {/* Editor Container with Table Controls */}
       <div 
