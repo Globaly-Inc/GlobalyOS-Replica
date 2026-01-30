@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/popover";
 import DOMPurify from "dompurify";
 import { Prism, LANGUAGE_MAP } from "@/lib/prismConfig";
+import { WikiAIWritingAssist } from "./WikiAIWritingAssist";
 
 // Default text size in px
 const DEFAULT_TEXT_SIZE = 14;
@@ -1837,6 +1838,7 @@ myFunction();`;
           className="h-8 w-8 p-0"
           onClick={handleUndo}
           title="Undo (Ctrl+Z)"
+          aria-label="Undo"
         >
           <Undo2 className="h-4 w-4" />
         </Button>
@@ -1847,6 +1849,7 @@ myFunction();`;
           className="h-8 w-8 p-0"
           onClick={handleRedo}
           title="Redo (Ctrl+Y)"
+          aria-label="Redo"
         >
           <Redo2 className="h-4 w-4" />
         </Button>
@@ -1861,6 +1864,7 @@ myFunction();`;
           className="h-8 w-8 p-0"
           onClick={() => execCommand('bold')}
           title="Bold (Ctrl+B)"
+          aria-label="Bold"
         >
           <Bold className="h-4 w-4" />
         </Button>
@@ -1871,6 +1875,7 @@ myFunction();`;
           className="h-8 w-8 p-0"
           onClick={() => execCommand('italic')}
           title="Italic (Ctrl+I)"
+          aria-label="Italic"
         >
           <Italic className="h-4 w-4" />
         </Button>
@@ -1881,6 +1886,7 @@ myFunction();`;
           className="h-8 w-8 p-0"
           onClick={() => execCommand('underline')}
           title="Underline (Ctrl+U)"
+          aria-label="Underline"
         >
           <Underline className="h-4 w-4" />
         </Button>
@@ -1896,6 +1902,7 @@ myFunction();`;
           onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
           onClick={() => toggleHeading('h1')}
           title="Heading 1"
+          aria-label="Heading 1"
         >
           <Heading1 className="h-4 w-4" />
         </Button>
@@ -1907,6 +1914,7 @@ myFunction();`;
           onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
           onClick={() => toggleHeading('h2')}
           title="Heading 2"
+          aria-label="Heading 2"
         >
           <Heading2 className="h-4 w-4" />
         </Button>
@@ -1918,6 +1926,7 @@ myFunction();`;
           onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
           onClick={() => toggleHeading('h3')}
           title="Heading 3"
+          aria-label="Heading 3"
         >
           <Heading3 className="h-4 w-4" />
         </Button>
@@ -1963,6 +1972,7 @@ myFunction();`;
           className="h-8 w-8 p-0"
           onClick={() => execCommand('insertUnorderedList')}
           title="Bullet List"
+          aria-label="Bullet List"
         >
           <List className="h-4 w-4" />
         </Button>
@@ -1973,6 +1983,7 @@ myFunction();`;
           className="h-8 w-8 p-0"
           onClick={() => execCommand('insertOrderedList')}
           title="Numbered List"
+          aria-label="Numbered List"
         >
           <ListOrdered className="h-4 w-4" />
         </Button>
@@ -1988,6 +1999,7 @@ myFunction();`;
           onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
           onClick={() => formatBlock('blockquote')}
           title="Quote"
+          aria-label="Quote"
         >
           <Quote className="h-4 w-4" />
         </Button>
@@ -1999,6 +2011,7 @@ myFunction();`;
           onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
           onClick={handleInsertCodeBlock}
           title="Code Block"
+          aria-label="Code Block"
         >
           <Code className="h-4 w-4" />
         </Button>
@@ -2009,6 +2022,7 @@ myFunction();`;
           className="h-8 w-8 p-0"
           onClick={handleInsertHr}
           title="Horizontal Rule"
+          aria-label="Horizontal Rule"
         >
           <Minus className="h-4 w-4" />
         </Button>
@@ -2019,6 +2033,7 @@ myFunction();`;
           className="h-8 w-8 p-0"
           onClick={handleInsertTable}
           title="Insert Table"
+          aria-label="Insert Table"
         >
           <Table className="h-4 w-4" />
         </Button>
@@ -2034,6 +2049,7 @@ myFunction();`;
           onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
           onClick={() => setLinkDialogOpen(true)}
           title="Insert Link (Ctrl+K)"
+          aria-label="Insert Link"
         >
           <Link className="h-4 w-4" />
         </Button>
@@ -2045,6 +2061,7 @@ myFunction();`;
           onClick={() => imageInputRef.current?.click()}
           disabled={isUploading || !organizationId}
           title="Upload Image"
+          aria-label="Upload Image"
         >
           <Image className="h-4 w-4" />
         </Button>
@@ -2056,6 +2073,7 @@ myFunction();`;
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading || !organizationId}
           title="Attach File"
+          aria-label="Attach File"
         >
           <FileText className="h-4 w-4" />
         </Button>
@@ -2067,10 +2085,37 @@ myFunction();`;
           onMouseDown={(e) => { e.preventDefault(); saveSelection(); }}
           onClick={() => setEmbedDialogOpen(true)}
           title="Embed Video/Content"
+          aria-label="Embed Video or Content"
         >
           <Upload className="h-4 w-4 mr-1" />
           Embed
         </Button>
+        
+        <div className="w-px h-5 bg-border mx-1" />
+        
+        {/* AI Writing Assist */}
+        <WikiAIWritingAssist
+          currentText={value}
+          onTextGenerated={(text) => {
+            if (editorRef.current) {
+              // Insert at cursor or replace selection
+              const selection = window.getSelection();
+              if (selection && selection.rangeCount > 0) {
+                editorRef.current.focus();
+                const sanitizedText = DOMPurify.sanitize(`<p>${text.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`, sanitizeConfig);
+                document.execCommand('insertHTML', false, sanitizedText);
+                triggerUpdate();
+              } else {
+                // Append to end
+                const sanitizedText = DOMPurify.sanitize(`<p>${text.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`, sanitizeConfig);
+                editorRef.current.innerHTML += sanitizedText;
+                triggerUpdate();
+              }
+            }
+          }}
+          context="Writing wiki documentation for internal knowledge base"
+          disabled={isUploading}
+        />
         
         <input
           ref={imageInputRef}
