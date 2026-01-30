@@ -8,7 +8,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Skeleton } from "@/components/ui/skeleton";
+import { LeaveBalanceSkeleton } from "@/components/leave/LeaveBalanceSkeleton";
+import { LeaveRequestSkeleton } from "@/components/leave/LeaveRequestSkeleton";
 import { AddLeaveRequestDialog } from "@/components/dialogs/AddLeaveRequestDialog";
 import { useInitializeEmployeeBalances } from "@/services/useLeaveBalanceInit";
 import { useLeaveBalanceRealtime } from "@/services/useLeaveRealtime";
@@ -276,11 +277,7 @@ const Leave = () => {
           </div>
           
           {balancesLoading ? (
-            <div className="grid grid-cols-3 gap-3">
-              {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-16 rounded-lg" />
-              ))}
-            </div>
+            <LeaveBalanceSkeleton cardCount={3} />
           ) : balancesWithValue.length > 0 ? (
             <div className="grid grid-cols-3 gap-3">
               {balancesWithValue.map((item) => (
@@ -340,11 +337,7 @@ const Leave = () => {
 
         <TabsContent value="pending" className="space-y-3">
           {requestsLoading ? (
-            <div className="space-y-3">
-              {[1, 2].map((i) => (
-                <Skeleton key={i} className="h-24 rounded-lg" />
-              ))}
-            </div>
+            <LeaveRequestSkeleton count={2} />
           ) : pendingRequests.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-8">
@@ -391,11 +384,7 @@ const Leave = () => {
 
         <TabsContent value="history" className="space-y-3">
           {requestsLoading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-20 rounded-lg" />
-              ))}
-            </div>
+            <LeaveRequestSkeleton count={3} />
           ) : pastRequests.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-8">
