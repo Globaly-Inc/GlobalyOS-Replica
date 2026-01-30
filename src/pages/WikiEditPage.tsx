@@ -10,7 +10,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/hooks/useAuth";
 import { WikiRichEditor } from "@/components/wiki/WikiRichEditor";
-import { useWikiKeyboardShortcuts } from "@/hooks/useWikiKeyboardShortcuts";
+
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -297,13 +297,6 @@ const WikiEditPage = () => {
     setEditContent(value);
   }, []);
 
-  // Keyboard shortcuts
-  useWikiKeyboardShortcuts({
-    onSave: handleSave,
-    onEscape: handleClose,
-    isEditing: true,
-    enabled: !!page && canEdit,
-  });
 
   // Redirect if user can't edit (only after all permission checks have loaded)
   useEffect(() => {

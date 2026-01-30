@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { formatDateTime } from "@/lib/utils";
-import { Bell, Heart, AtSign, Calendar, CheckCheck, Loader2, BellRing, BellOff, Settings2, SmilePlus, Target, Keyboard } from "lucide-react";
+import { Bell, Heart, AtSign, Calendar, CheckCheck, Loader2, BellRing, BellOff, Settings2, SmilePlus, Target } from "lucide-react";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePagination } from "@/hooks/usePagination";
@@ -42,8 +42,6 @@ const Notifications = () => {
   const [activeTab, setActiveTab] = useState("all");
   const [markingAllRead, setMarkingAllRead] = useState(false);
   const [testingSend, setTestingSend] = useState(false);
-  const [focusedIndex, setFocusedIndex] = useState(-1);
-  const notificationRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
 
   const sendTestNotification = async () => {
@@ -279,7 +277,6 @@ const Notifications = () => {
   // Reset to page 1 when tab changes
   useEffect(() => {
     pagination.resetPage();
-    setFocusedIndex(-1);
   }, [activeTab]);
 
   // Paginated notifications - must be declared before keyboard handler
@@ -287,50 +284,6 @@ const Notifications = () => {
     return filteredNotifications.slice(pagination.from, pagination.from + pagination.pageSize);
   }, [filteredNotifications, pagination.from, pagination.pageSize]);
 
-  // Keyboard navigation
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    const key = e.key.toLowerCase();
-    const maxIndex = paginatedNotifications.length - 1;
-
-    // Arrow keys and j/k for navigation
-    if (key === 'arrowdown' || key === 'j') {
-      e.preventDefault();
-      setFocusedIndex(prev => Math.min(prev + 1, maxIndex));
-    } else if (key === 'arrowup' || key === 'k') {
-      e.preventDefault();
-      setFocusedIndex(prev => Math.max(prev - 1, 0));
-    } else if (key === 'enter' && focusedIndex >= 0) {
-      e.preventDefault();
-      const notification = paginatedNotifications[focusedIndex];
-      if (notification) {
-        handleNotificationClick(notification);
-      }
-    } else if (key === 'm' && focusedIndex >= 0) {
-      e.preventDefault();
-      const notification = paginatedNotifications[focusedIndex];
-      if (notification && !notification.is_read) {
-        markAsRead(notification.id);
-      }
-    } else if (key === 'escape') {
-      setFocusedIndex(-1);
-    }
-  }, [focusedIndex, paginatedNotifications]);
-
-  // Add keyboard listener
-  useEffect(() => {
-    if (loading || paginatedNotifications.length === 0) return;
-    
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown, loading, paginatedNotifications.length]);
-
-  // Scroll focused notification into view
-  useEffect(() => {
-    if (focusedIndex >= 0) {
-      const ref = notificationRefs.current.get(focusedIndex);
-      ref?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-  }, [focusedIndex]);
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
   const kudosCount = notifications.filter((n) => n.type === "kudos").length;
@@ -532,49 +485,15 @@ const Notifications = () => {
               </Card>
             ) : (
               <>
-                {/* Keyboard shortcut hint */}
-                <div className="flex items-center justify-end mb-2">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground cursor-help">
-                        <Keyboard className="h-3 w-3" />
-                        <span className="hidden sm:inline">j/k to navigate, Enter to open, m to mark read</span>
-                        <span className="sm:hidden">Keyboard shortcuts</span>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="left">
-                      <div className="text-xs space-y-1">
-                        <div><kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">↓</kbd> / <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">j</kbd> Move down</div>
-                        <div><kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">↑</kbd> / <kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">k</kbd> Move up</div>
-                        <div><kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">Enter</kbd> Open notification</div>
-                        <div><kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">m</kbd> Mark as read</div>
-                        <div><kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">Esc</kbd> Clear focus</div>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-                {paginatedNotifications.map((notification, index) => (
+                {paginatedNotifications.map((notification) => (
                   <Card
                     key={notification.id}
-                    ref={(el) => {
-                      if (el) {
-                        notificationRefs.current.set(index, el);
-                      } else {
-                        notificationRefs.current.delete(index);
-                      }
-                    }}
                     className={`cursor-pointer transition-all hover:shadow-md ${
                       !notification.is_read
                         ? "bg-primary/5 border-primary/20"
                         : ""
-                    } ${
-                      focusedIndex === index
-                        ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
-                        : ""
                     }`}
                     onClick={() => handleNotificationClick(notification)}
-                    tabIndex={0}
-                    onFocus={() => setFocusedIndex(index)}
                   >
                     <CardContent className="flex items-start gap-3 p-3 sm:p-4">
                       {notification.actor ? (

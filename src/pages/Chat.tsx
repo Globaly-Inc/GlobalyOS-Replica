@@ -11,7 +11,7 @@ import MobileChatHome from "@/components/chat/MobileChatHome";
 import QuickSwitcher from "@/components/chat/QuickSwitcher";
 import ChatHeader from "@/components/chat/ChatHeader";
 import SpecialViewHeader from "@/components/chat/SpecialViewHeader";
-import { useChatKeyboardShortcuts } from "@/hooks/useChatKeyboardShortcuts";
+
 import { useChatRealtime } from "@/hooks/useChatRealtime";
 import type { ActiveChat, ChatMessage } from "@/types/chat";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -34,13 +34,6 @@ const Chat = () => {
   // Consolidated realtime subscription for all chat tables
   useChatRealtime();
 
-  // Keyboard shortcuts
-  useChatKeyboardShortcuts({
-    onQuickSwitcher: () => setQuickSwitcherOpen(true),
-    onNewMessage: () => setNewChatOpen(true),
-    onMentions: () => setActiveChat({ type: 'mentions', id: 'mentions', name: 'Mentions' }),
-    enabled: !isMobile,
-  });
 
   // Reset mobile right panel and thread when chat changes
   useEffect(() => {
