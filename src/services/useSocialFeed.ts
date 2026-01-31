@@ -433,7 +433,7 @@ export const useCreatePost = () => {
               type: 'mention',
               title: 'You were mentioned in a post',
               message: `${currentEmployee.profiles?.full_name} mentioned you in a post`,
-              reference_type: 'update',
+              reference_type: 'post',
               reference_id: post.id,
               actor_id: currentEmployee.id,
             }))
@@ -456,7 +456,7 @@ export const useCreatePost = () => {
               type: 'kudos',
               title: 'You received kudos! 🎉',
               message: `${currentEmployee.profiles?.full_name} gave you kudos`,
-              reference_type: 'update',
+              reference_type: 'post',
               reference_id: post.id,
               actor_id: currentEmployee.id,
             }))
@@ -480,7 +480,7 @@ export const useCreatePost = () => {
               type: 'announcement',
               title: 'New post in your office',
               message: `${currentEmployee.profiles?.full_name} posted in your office`,
-              reference_type: 'update',
+              reference_type: 'post',
               reference_id: post.id,
               actor_id: currentEmployee.id,
             }))
@@ -503,7 +503,7 @@ export const useCreatePost = () => {
               type: 'announcement',
               title: 'New post in your department',
               message: `${currentEmployee.profiles?.full_name} posted in your department`,
-              reference_type: 'update',
+              reference_type: 'post',
               reference_id: post.id,
               actor_id: currentEmployee.id,
             }))
@@ -529,7 +529,7 @@ export const useCreatePost = () => {
               type: 'announcement',
               title: 'New post in your project',
               message: `${currentEmployee.profiles?.full_name} posted in your project`,
-              reference_type: 'update',
+              reference_type: 'post',
               reference_id: post.id,
               actor_id: currentEmployee.id,
             }))
@@ -825,7 +825,7 @@ export const useUpdatePost = () => {
               type: 'mention',
               title: 'You were mentioned in a post',
               message: `${currentEmployee.profiles?.full_name} mentioned you in a post`,
-              reference_type: 'update',
+              reference_type: 'post',
               reference_id: input.postId,
               actor_id: currentEmployee.id,
             }))
@@ -859,7 +859,7 @@ export const useUpdatePost = () => {
               type: 'kudos',
               title: 'You received kudos! 🎉',
               message: `${currentEmployee.profiles?.full_name} gave you kudos`,
-              reference_type: 'update',
+              reference_type: 'post',
               reference_id: input.postId,
               actor_id: currentEmployee.id,
             }))
@@ -1091,7 +1091,7 @@ export const useCreateComment = () => {
               type: 'mention',
               title: 'You were mentioned in a comment',
               message: `${currentEmployee.profiles?.full_name || 'Someone'} mentioned you in a comment`,
-              reference_type: 'update',
+              reference_type: 'post',
               reference_id: postId,
               actor_id: currentEmployee.id,
             }))
@@ -1113,7 +1113,7 @@ export const useCreateComment = () => {
           type: 'mention',
           title: 'New comment on your post',
           message: `${currentEmployee.profiles?.full_name || 'Someone'} commented on your post`,
-          reference_type: 'update',
+          reference_type: 'post',
           reference_id: postId,
           actor_id: currentEmployee.id,
         });
@@ -1240,10 +1240,10 @@ export const useTogglePostReaction = () => {
           await supabase.from('notifications').insert({
             user_id: (postData.employee as any).user_id,
             organization_id: currentOrg.id,
-            type: 'mention',
+            type: 'reaction',
             title: `${emoji} reaction on your post`,
             message: `${currentEmployee.profiles?.full_name || 'Someone'} reacted to your post`,
-            reference_type: 'update',
+            reference_type: 'post',
             reference_id: postId,
             actor_id: currentEmployee.id,
           });
@@ -1326,10 +1326,10 @@ export const useToggleCommentReaction = () => {
           await supabase.from('notifications').insert({
             user_id: (commentData.employee as any).user_id,
             organization_id: currentOrg.id,
-            type: 'mention',
+            type: 'reaction',
             title: `${emoji} reaction on your comment`,
             message: `${currentEmployee.profiles?.full_name || 'Someone'} reacted to your comment`,
-            reference_type: 'update',
+            reference_type: 'post',
             reference_id: postId,
             actor_id: currentEmployee.id,
           });

@@ -34,7 +34,8 @@ export type NotificationReferenceType =
   | 'leave_request' 
   | 'employee'
   | 'kpi'
-  | 'post';
+  | 'post'  // New unified post type - preferred over 'kudos' and 'update'
+  | 'comment';
 
 export interface NotificationWithActor extends Notification {
   actor?: {

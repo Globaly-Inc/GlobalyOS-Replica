@@ -148,9 +148,9 @@ const SuperAdminAnalytics = () => {
       };
 
       // Fetch activities for chart (all feature tables)
+      // Note: Using new unified 'posts' table instead of deprecated 'updates' and 'kudos' tables
       const [
-        { data: updatesData },
-        { data: kudosData },
+        { data: postsData },
         { data: attendanceData },
         { data: leaveData },
         { data: wikiPagesData },
@@ -162,12 +162,11 @@ const SuperAdminAnalytics = () => {
         { data: kpisData },
         { data: documentsData },
         { data: notificationsData },
-        { data: reactionsData },
+        { data: postReactionsData },
         { data: positionHistoryData },
         { data: projectsData },
       ] = await Promise.all([
-        buildQuery('updates'),
-        buildQuery('kudos'),
+        buildQuery('posts'),
         buildQuery('attendance_records'),
         buildQuery('leave_requests'),
         buildQuery('wiki_pages'),
@@ -179,14 +178,13 @@ const SuperAdminAnalytics = () => {
         buildQuery('kpis'),
         buildQuery('employee_documents'),
         buildQuery('notifications'),
-        buildQuery('feed_reactions'),
+        buildQuery('post_reactions'),
         buildQuery('position_history'),
         buildQuery('projects'),
       ]);
       
       const allActivities = [
-        ...(updatesData || []),
-        ...(kudosData || []),
+        ...(postsData || []),
         ...(attendanceData || []),
         ...(leaveData || []),
         ...(wikiPagesData || []),
@@ -198,7 +196,7 @@ const SuperAdminAnalytics = () => {
         ...(kpisData || []),
         ...(documentsData || []),
         ...(notificationsData || []),
-        ...(reactionsData || []),
+        ...(postReactionsData || []),
         ...(positionHistoryData || []),
         ...(projectsData || []),
       ];
@@ -229,12 +227,16 @@ const SuperAdminAnalytics = () => {
       };
 
       // Fetch all feature counts in parallel
+      // Note: Using new unified 'posts' table with 'post_type' column instead of deprecated tables
       const [
         wikiPagesCount, wikiPagesLastWeek,
         wikiFoldersCount, wikiFoldersLastWeek,
         winsCount, winsLastWeek,
         announcementsCount, announcementsLastWeek,
         kudosCount, kudosLastWeek,
+        socialPostsCount, socialPostsLastWeek,
+        updatesCount, updatesLastWeek,
+        executiveMessagesCount, executiveMessagesLastWeek,
         leaveCount, leaveLastWeek,
         attendanceCount, attendanceLastWeek,
         learningCount, learningLastWeek,
@@ -251,9 +253,12 @@ const SuperAdminAnalytics = () => {
       ] = await Promise.all([
         getCount('wiki_pages'), getLastWeekCount('wiki_pages'),
         getCount('wiki_folders'), getLastWeekCount('wiki_folders'),
-        getCount('updates', { column: 'type', value: 'win' }), getLastWeekCount('updates', { column: 'type', value: 'win' }),
-        getCount('updates', { column: 'type', value: 'announcement' }), getLastWeekCount('updates', { column: 'type', value: 'announcement' }),
-        getCount('kudos'), getLastWeekCount('kudos'),
+        getCount('posts', { column: 'post_type', value: 'win' }), getLastWeekCount('posts', { column: 'post_type', value: 'win' }),
+        getCount('posts', { column: 'post_type', value: 'announcement' }), getLastWeekCount('posts', { column: 'post_type', value: 'announcement' }),
+        getCount('posts', { column: 'post_type', value: 'kudos' }), getLastWeekCount('posts', { column: 'post_type', value: 'kudos' }),
+        getCount('posts', { column: 'post_type', value: 'social' }), getLastWeekCount('posts', { column: 'post_type', value: 'social' }),
+        getCount('posts', { column: 'post_type', value: 'update' }), getLastWeekCount('posts', { column: 'post_type', value: 'update' }),
+        getCount('posts', { column: 'post_type', value: 'executive_message' }), getLastWeekCount('posts', { column: 'post_type', value: 'executive_message' }),
         getCount('leave_requests'), getLastWeekCount('leave_requests'),
         getCount('attendance_records'), getLastWeekCount('attendance_records'),
         getCount('learning_development'), getLastWeekCount('learning_development'),
@@ -266,7 +271,7 @@ const SuperAdminAnalytics = () => {
         getCount('offices'), getLastWeekCount('offices'),
         getCount('employee_documents'), getLastWeekCount('employee_documents'),
         getCount('notifications'), getLastWeekCount('notifications'),
-        getCount('feed_reactions'), getLastWeekCount('feed_reactions'),
+        getCount('post_reactions'), getLastWeekCount('post_reactions'),
       ]);
 
       const activeOrgs = orgs?.filter(o => o.plan !== 'inactive').length || 0;
@@ -283,6 +288,9 @@ const SuperAdminAnalytics = () => {
           { name: 'Wins', count: winsCount, lastWeekCount: winsLastWeek, icon: Trophy, module: 'team' },
           { name: 'Announcements', count: announcementsCount, lastWeekCount: announcementsLastWeek, icon: Megaphone, module: 'team' },
           { name: 'Kudos', count: kudosCount, lastWeekCount: kudosLastWeek, icon: Heart, module: 'team' },
+          { name: 'Social Posts', count: socialPostsCount, lastWeekCount: socialPostsLastWeek, icon: Activity, module: 'team' },
+          { name: 'Updates', count: updatesCount, lastWeekCount: updatesLastWeek, icon: Bell, module: 'team' },
+          { name: 'Executive Messages', count: executiveMessagesCount, lastWeekCount: executiveMessagesLastWeek, icon: Megaphone, module: 'team' },
           { name: 'Leave Requests', count: leaveCount, lastWeekCount: leaveLastWeek, icon: Clock, module: 'hr' },
           { name: 'Attendance', count: attendanceCount, lastWeekCount: attendanceLastWeek, icon: ClipboardCheck, module: 'hr' },
           { name: 'Learning & Dev', count: learningCount, lastWeekCount: learningLastWeek, icon: GraduationCap, module: 'hr' },
