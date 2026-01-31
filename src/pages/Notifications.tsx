@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { formatDateTime } from "@/lib/utils";
-import { Bell, Heart, AtSign, Calendar, CheckCheck, Loader2, BellRing, BellOff, Settings2, SmilePlus, Target } from "lucide-react";
+import { Bell, Heart, AtSign, Calendar, CheckCheck, Loader2, BellRing, BellOff, Settings2, SmilePlus, Target, Megaphone } from "lucide-react";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePagination } from "@/hooks/usePagination";
@@ -214,7 +214,8 @@ const Notifications = () => {
     }
 
     // Navigate based on reference type
-    if (notification.reference_type === "kudos" || notification.reference_type === "update") {
+    if (notification.reference_type === "kudos" || notification.reference_type === "update" || notification.reference_type === "post") {
+      // All social feed posts navigate to home (unified feed)
       navigateOrg("/");
     } else if (notification.reference_type === "leave_request") {
       navigateOrg("/leave-history");
@@ -224,6 +225,13 @@ const Notifications = () => {
         navigateOrg(`/kpi/${notification.reference_id}`);
       } else {
         navigateOrg("/kpi");
+      }
+    } else if (notification.reference_type === "employee") {
+      // Navigate to team member profile
+      if (notification.reference_id) {
+        navigateOrg(`/team/${notification.reference_id}`);
+      } else {
+        navigateOrg("/team");
       }
     }
   };
@@ -262,6 +270,7 @@ const Notifications = () => {
       if (activeTab === "mentions") return n.type === "mention";
       if (activeTab === "reactions") return n.type === "reaction";
       if (activeTab === "leave") return n.type === "leave_request" || n.type === "leave_decision";
+      if (activeTab === "posts") return n.type === "announcement" || n.reference_type === "post";
       return true;
     });
   }, [notifications, activeTab]);
@@ -290,6 +299,7 @@ const Notifications = () => {
   const mentionsCount = notifications.filter((n) => n.type === "mention").length;
   const reactionsCount = notifications.filter((n) => n.type === "reaction").length;
   const leaveCount = notifications.filter((n) => n.type === "leave_request" || n.type === "leave_decision").length;
+  const postsCount = notifications.filter((n) => n.type === "announcement" || n.reference_type === "post").length;
 
   return (
     <div className="space-y-4 md:space-y-6 pb-24 md:pb-6">
@@ -463,6 +473,15 @@ const Notifications = () => {
                 {leaveCount > 0 && (
                   <Badge variant="secondary" className="text-xs h-5 min-w-5 px-1.5">
                     {leaveCount}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="posts" className="text-xs sm:text-sm px-2.5 sm:px-3 gap-1.5">
+                <Megaphone className="h-4 w-4 sm:hidden" />
+                <span className="hidden sm:inline">Posts</span>
+                {postsCount > 0 && (
+                  <Badge variant="secondary" className="text-xs h-5 min-w-5 px-1.5">
+                    {postsCount}
                   </Badge>
                 )}
               </TabsTrigger>

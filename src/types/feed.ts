@@ -1,7 +1,15 @@
 /**
  * Social feed type definitions (updates, kudos, reactions)
+ * 
+ * @deprecated This file contains legacy type definitions for the old social feed system
+ * (updates and kudos tables). The new unified system uses the 'posts' table.
+ * See src/services/useSocialFeed.ts for the new Post, PostType, and CreatePostInput types.
+ * These types are kept for backwards compatibility with existing notifications and may be removed in future.
  */
 
+/**
+ * @deprecated Use Post from src/services/useSocialFeed.ts instead
+ */
 export interface FeedUpdate {
   id: string;
   employee_id: string;
@@ -13,6 +21,7 @@ export interface FeedUpdate {
   updated_at: string;
 }
 
+/** @deprecated Use PostType from src/services/useSocialFeed.ts instead */
 export type UpdateType = 'win' | 'update' | 'achievement';
 
 // UI maps 'update' to 'announcement' for display
