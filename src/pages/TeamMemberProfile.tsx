@@ -7,8 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-// Note: WinCard, FeedReactions, and Update type were used in the legacy Kudos/Wins section
-// which has been replaced by ProfileActivityFeed using the new unified posts system
+// Legacy components (WinCard, PostViewDialog, KudosViewDialog) removed - now using unified posts system
 import { PositionTimeline } from "@/components/PositionTimeline";
 import { PositionDialog } from "@/components/dialogs/PositionDialog";
 import { LearningDevelopment } from "@/components/LearningDevelopment";
