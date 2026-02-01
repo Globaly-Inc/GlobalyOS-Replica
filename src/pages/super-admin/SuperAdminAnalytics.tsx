@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,66 @@ import ChurnRiskCard from "@/components/super-admin/ChurnRiskCard";
 import { format, subDays, subMonths, startOfDay, endOfDay, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 
+const STORAGE_KEY = 'super_admin_analytics_filters';
+
+interface PersistedState {
+  selectedOrgs: string[];
+  selectedUsers: string[];
+  datePreset: DatePreset;
+  customStartDate: string | null;
+  customEndDate: string | null;
+  orgViewMode: ViewMode;
+  userViewMode: ViewMode;
+  activityViewMode: ViewMode;
+  showOrgCumulative: boolean;
+  showCumulative: boolean;
+  showActivitiesCumulative: boolean;
+  openModules: string[];
+}
+
+const DEFAULT_STATE: PersistedState = {
+  selectedOrgs: [],
+  selectedUsers: [],
+  datePreset: 'last30',
+  customStartDate: null,
+  customEndDate: null,
+  orgViewMode: 'days',
+  userViewMode: 'days',
+  activityViewMode: 'days',
+  showOrgCumulative: false,
+  showCumulative: false,
+  showActivitiesCumulative: false,
+  openModules: ['team', 'hr', 'wiki', 'organization'],
+};
+
+const loadSavedState = (): Partial<PersistedState> | null => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch (e) {
+    console.error('Failed to load analytics state:', e);
+  }
+  return null;
+};
+
+const getInitialState = () => {
+  const saved = loadSavedState();
+  return {
+    selectedOrgs: saved?.selectedOrgs ?? DEFAULT_STATE.selectedOrgs,
+    selectedUsers: saved?.selectedUsers ?? DEFAULT_STATE.selectedUsers,
+    datePreset: saved?.datePreset ?? DEFAULT_STATE.datePreset,
+    customStartDate: saved?.customStartDate ? new Date(saved.customStartDate) : subDays(new Date(), 30),
+    customEndDate: saved?.customEndDate ? new Date(saved.customEndDate) : new Date(),
+    orgViewMode: saved?.orgViewMode ?? DEFAULT_STATE.orgViewMode,
+    userViewMode: saved?.userViewMode ?? DEFAULT_STATE.userViewMode,
+    activityViewMode: saved?.activityViewMode ?? DEFAULT_STATE.activityViewMode,
+    showOrgCumulative: saved?.showOrgCumulative ?? DEFAULT_STATE.showOrgCumulative,
+    showCumulative: saved?.showCumulative ?? DEFAULT_STATE.showCumulative,
+    showActivitiesCumulative: saved?.showActivitiesCumulative ?? DEFAULT_STATE.showActivitiesCumulative,
+    openModules: saved?.openModules ?? DEFAULT_STATE.openModules,
+  };
+};
+
 interface FeatureItem {
   name: string;
   count: number;
@@ -87,21 +147,59 @@ const SuperAdminAnalytics = () => {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   
+  // Load initial state from localStorage
+  const initialState = useRef(getInitialState()).current;
+  
   // Filter states
-  const [selectedOrgs, setSelectedOrgs] = useState<string[]>([]);
-  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
-  const [orgViewMode, setOrgViewMode] = useState<ViewMode>('days');
-  const [userViewMode, setUserViewMode] = useState<ViewMode>('days');
-  const [activityViewMode, setActivityViewMode] = useState<ViewMode>('days');
-  const [datePreset, setDatePreset] = useState<DatePreset>('last30');
-  const [customStartDate, setCustomStartDate] = useState<Date | undefined>(subDays(new Date(), 30));
-  const [customEndDate, setCustomEndDate] = useState<Date | undefined>(new Date());
+  const [selectedOrgs, setSelectedOrgs] = useState<string[]>(initialState.selectedOrgs);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>(initialState.selectedUsers);
+  const [orgViewMode, setOrgViewMode] = useState<ViewMode>(initialState.orgViewMode);
+  const [userViewMode, setUserViewMode] = useState<ViewMode>(initialState.userViewMode);
+  const [activityViewMode, setActivityViewMode] = useState<ViewMode>(initialState.activityViewMode);
+  const [datePreset, setDatePreset] = useState<DatePreset>(initialState.datePreset);
+  const [customStartDate, setCustomStartDate] = useState<Date | undefined>(initialState.customStartDate);
+  const [customEndDate, setCustomEndDate] = useState<Date | undefined>(initialState.customEndDate);
   
   // Section states
-  const [showOrgCumulative, setShowOrgCumulative] = useState(false);
-  const [showCumulative, setShowCumulative] = useState(false);
-  const [showActivitiesCumulative, setShowActivitiesCumulative] = useState(false);
-  const [openModules, setOpenModules] = useState<string[]>(['team', 'hr', 'wiki', 'organization']);
+  const [showOrgCumulative, setShowOrgCumulative] = useState(initialState.showOrgCumulative);
+  const [showCumulative, setShowCumulative] = useState(initialState.showCumulative);
+  const [showActivitiesCumulative, setShowActivitiesCumulative] = useState(initialState.showActivitiesCumulative);
+  const [openModules, setOpenModules] = useState<string[]>(initialState.openModules);
+
+  // Auto-save to localStorage with debounce
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      const stateToSave: PersistedState = {
+        selectedOrgs,
+        selectedUsers,
+        datePreset,
+        customStartDate: customStartDate?.toISOString() || null,
+        customEndDate: customEndDate?.toISOString() || null,
+        orgViewMode,
+        userViewMode,
+        activityViewMode,
+        showOrgCumulative,
+        showCumulative,
+        showActivitiesCumulative,
+        openModules,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+    }, 300);
+    return () => clearTimeout(timeoutId);
+  }, [
+    selectedOrgs,
+    selectedUsers,
+    datePreset,
+    customStartDate,
+    customEndDate,
+    orgViewMode,
+    userViewMode,
+    activityViewMode,
+    showOrgCumulative,
+    showCumulative,
+    showActivitiesCumulative,
+    openModules,
+  ]);
 
   // Stabilize dependencies using primitive values to prevent infinite re-renders
   const selectedOrgsKey = selectedOrgs.join(',');
