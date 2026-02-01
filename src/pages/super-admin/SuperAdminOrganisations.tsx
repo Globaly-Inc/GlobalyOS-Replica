@@ -49,6 +49,8 @@ import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
 import SuperAdminLayout from "@/components/super-admin/SuperAdminLayout";
 import SuperAdminPageHeader from "@/components/super-admin/SuperAdminPageHeader";
+import ChurnRiskBadge from "@/components/super-admin/ChurnRiskBadge";
+import { useChurnRisk, getRiskForOrg, ChurnRiskData } from "@/hooks/useChurnRisk";
 
 interface Organization {
   id: string;
@@ -420,7 +422,7 @@ const SuperAdminOrganisations = () => {
                 </div>
 
                 <TabsContent value="all" className="mt-4">
-                  <OrganizationsTable 
+                  <OrganizationsTableWithRisk 
                     organizations={filterOrganizations(organizations, 'all')}
                     onViewDetails={handleViewDetails}
                     onToggleStatus={toggleOrgStatus}
@@ -439,7 +441,7 @@ const SuperAdminOrganisations = () => {
                   />
                 </TabsContent>
                 <TabsContent value="active" className="mt-4">
-                  <OrganizationsTable 
+                  <OrganizationsTableWithRisk 
                     organizations={filterOrganizations(organizations, 'active')}
                     onViewDetails={handleViewDetails}
                     onToggleStatus={toggleOrgStatus}
@@ -450,7 +452,7 @@ const SuperAdminOrganisations = () => {
                   />
                 </TabsContent>
                 <TabsContent value="inactive" className="mt-4">
-                  <OrganizationsTable 
+                  <OrganizationsTableWithRisk 
                     organizations={filterOrganizations(organizations, 'inactive')}
                     onViewDetails={handleViewDetails}
                     onToggleStatus={toggleOrgStatus}
@@ -604,6 +606,7 @@ interface OrganizationsTableProps {
   onReview: (org: Organization) => void;
   getStatusBadge: (org: Organization) => JSX.Element;
   validPlans: Map<string, string>;
+  riskMap?: Map<string, ChurnRiskData>;
 }
 
 const OrganizationsTable = ({ 
@@ -614,6 +617,7 @@ const OrganizationsTable = ({
   onReview,
   getStatusBadge,
   validPlans,
+  riskMap,
 }: OrganizationsTableProps) => (
   <Table>
     <TableHeader>
@@ -623,6 +627,7 @@ const OrganizationsTable = ({
         <TableHead>Status</TableHead>
         <TableHead>Plan</TableHead>
         <TableHead>Users</TableHead>
+        <TableHead>Risk</TableHead>
         <TableHead>Owner</TableHead>
         <TableHead>Created</TableHead>
         <TableHead className="w-12"></TableHead>
@@ -631,6 +636,7 @@ const OrganizationsTable = ({
     <TableBody>
       {organizations.map((org) => {
         const planInfo = getPlanDisplay(org, validPlans);
+        const riskData = riskMap ? getRiskForOrg(riskMap, org.id) : null;
         return (
           <TableRow 
             key={org.id} 
@@ -666,51 +672,62 @@ const OrganizationsTable = ({
                 {planInfo.isValid && !planInfo.isSynced && <span className="text-xs text-amber-500 ml-1">(out of sync)</span>}
               </span>
             </TableCell>
-          <TableCell>{org.userCount}</TableCell>
-          <TableCell className="max-w-[150px] truncate">{org.primaryAdmin}</TableCell>
-          <TableCell>
-            {format(new Date(org.created_at), "dd MMM yyyy")}
-          </TableCell>
-          <TableCell onClick={(e) => e.stopPropagation()}>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onViewDetails(org)}>
-                  <Eye className="h-4 w-4 mr-2" />
-                  View Details
-                </DropdownMenuItem>
-                {org.approval_status === 'pending' && (
-                  <DropdownMenuItem onClick={() => onReview(org)}>
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Review
+            <TableCell>{org.userCount}</TableCell>
+            <TableCell onClick={(e) => e.stopPropagation()}>
+              {riskData ? (
+                <ChurnRiskBadge 
+                  level={riskData.riskLevel} 
+                  reason={riskData.reason}
+                  size="sm"
+                />
+              ) : (
+                <span className="text-xs text-muted-foreground">—</span>
+              )}
+            </TableCell>
+            <TableCell className="max-w-[150px] truncate">{org.primaryAdmin}</TableCell>
+            <TableCell>
+              {format(new Date(org.created_at), "dd MMM yyyy")}
+            </TableCell>
+            <TableCell onClick={(e) => e.stopPropagation()}>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => onViewDetails(org)}>
+                    <Eye className="h-4 w-4 mr-2" />
+                    View Details
                   </DropdownMenuItem>
-                )}
-                {org.approval_status !== 'pending' && (
-                  <DropdownMenuItem onClick={() => onToggleStatus(org)}>
-                    <Power className="h-4 w-4 mr-2" />
-                    {org.plan === "inactive" ? "Activate" : "Deactivate"}
+                  {org.approval_status === 'pending' && (
+                    <DropdownMenuItem onClick={() => onReview(org)}>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Review
+                    </DropdownMenuItem>
+                  )}
+                  {org.approval_status !== 'pending' && (
+                    <DropdownMenuItem onClick={() => onToggleStatus(org)}>
+                      <Power className="h-4 w-4 mr-2" />
+                      {org.plan === "inactive" ? "Activate" : "Deactivate"}
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => onDelete(org)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
                   </DropdownMenuItem>
-                )}
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={() => onDelete(org)}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </TableCell>
-        </TableRow>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TableCell>
+          </TableRow>
         );
       })}
       {organizations.length === 0 && (
         <TableRow>
-          <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+          <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
             No organisations found
           </TableCell>
         </TableRow>
@@ -718,6 +735,14 @@ const OrganizationsTable = ({
     </TableBody>
   </Table>
 );
+
+// Wrapper component that fetches churn risk data
+const OrganizationsTableWithRisk = (props: Omit<OrganizationsTableProps, 'riskMap'>) => {
+  const orgIds = useMemo(() => props.organizations.map(o => o.id), [props.organizations]);
+  const { data: riskMap } = useChurnRisk(orgIds);
+  
+  return <OrganizationsTable {...props} riskMap={riskMap} />;
+};
 
 // Pending organizations table with different columns
 interface PendingOrganizationsTableProps {
