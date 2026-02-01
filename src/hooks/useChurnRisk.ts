@@ -28,9 +28,14 @@ const calculateRiskLevel = (
   daysSinceActivity: number,
   orgAgeInDays: number
 ): { level: RiskLevel; reason: string } => {
-  // New orgs (less than 7 days old) get a "new" label
-  if (orgAgeInDays < 7) {
+  // Very new orgs (less than 3 days old) get a "new" label
+  if (orgAgeInDays < 3) {
     return { level: 'new', reason: 'New organisation' };
+  }
+
+  // New org (3-7 days old) with no activity at all
+  if (orgAgeInDays >= 3 && orgAgeInDays < 7 && recentCount === 0) {
+    return { level: 'high', reason: 'No activity since signup' };
   }
 
   // Inactive new org (7-14 days old with no activity)
@@ -62,6 +67,11 @@ const calculateRiskLevel = (
   }
   if (dropPercent >= 30 && previousCount >= 10) {
     return { level: 'medium', reason: `${dropPercent}% drop in activity` };
+  }
+
+  // New org (3-14 days) with activity but showing signs of slowing
+  if (orgAgeInDays >= 3 && orgAgeInDays < 14 && daysSinceActivity >= 3) {
+    return { level: 'low', reason: `Slowing activity (${daysSinceActivity} days since last visit)` };
   }
 
   // Low risk conditions

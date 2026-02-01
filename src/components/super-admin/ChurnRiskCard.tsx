@@ -58,9 +58,9 @@ const ChurnRiskCard = () => {
       const atRisk: ChurnRiskOrg[] = [];
 
       for (const org of orgs) {
-        // Skip very new orgs (less than 7 days old)
+        // Skip very new orgs (less than 3 days old) - give them time to get started
         const orgAge = differenceInDays(now, new Date(org.created_at));
-        if (orgAge < 7) continue;
+        if (orgAge < 3) continue;
 
         // Recent activity (last 30 days)
         const { count: recentCount } = await supabase
@@ -118,22 +118,45 @@ const ChurnRiskCard = () => {
         let riskLevel: RiskLevel = 'healthy';
         let reason = '';
 
-        // Inactive new org (7-14 days old with no activity)
-        if (orgAge >= 7 && orgAge < 14 && recent === 0) {
+        // New org (3-7 days old) with no activity at all
+        if (orgAge >= 3 && orgAge < 7 && recent === 0) {
           riskLevel = 'high';
           reason = 'No activity since signup';
-        } else if (daysSinceActivity >= 14) {
+        }
+        // Inactive new org (7-14 days old with no activity)
+        else if (orgAge >= 7 && orgAge < 14 && recent === 0) {
+          riskLevel = 'high';
+          reason = 'No activity since signup';
+        } 
+        // No activity in 14+ days (for any org)
+        else if (daysSinceActivity >= 14) {
           riskLevel = 'high';
           reason = `No activity in ${daysSinceActivity} days`;
-        } else if (dropPercent >= 50 && previous >= 10) {
+        } 
+        // Significant activity drop
+        else if (dropPercent >= 50 && previous >= 10) {
           riskLevel = 'high';
           reason = `${dropPercent}% drop in activity`;
-        } else if (daysSinceActivity >= 7) {
+        } 
+        // No activity in 7+ days
+        else if (daysSinceActivity >= 7) {
           riskLevel = 'medium';
           reason = `No activity in ${daysSinceActivity} days`;
-        } else if (dropPercent >= 30 && previous >= 10) {
+        } 
+        // Moderate activity drop
+        else if (dropPercent >= 30 && previous >= 10) {
           riskLevel = 'medium';
           reason = `${dropPercent}% drop in activity`;
+        }
+        // New org (3-14 days) with activity but showing signs of slowing (no activity in 3+ days)
+        else if (orgAge >= 3 && orgAge < 14 && daysSinceActivity >= 3) {
+          riskLevel = 'low';
+          reason = `Slowing activity (${daysSinceActivity} days since last visit)`;
+        }
+        // Low engagement: less than 1 visit per user per week
+        else if (totalUsers > 0 && recent < totalUsers * 4 && recent < 30) {
+          riskLevel = 'low';
+          reason = 'Low user engagement';
         }
 
         if (riskLevel !== 'healthy') {
