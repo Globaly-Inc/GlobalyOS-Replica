@@ -245,7 +245,7 @@ const ChurnRiskCard = () => {
                       </div>
                       <div className="min-w-0">
                         <h4 className="font-medium truncate">{org.name}</h4>
-                        <p className="text-xs text-muted-foreground capitalize">{org.plan} Plan</p>
+                        <p className="text-xs text-muted-foreground capitalize">{org.plan} Plan • Joined {format(new Date(org.createdAt), 'MMM yyyy')}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
@@ -280,7 +280,7 @@ const ChurnRiskCard = () => {
                           Last: {format(new Date(org.lastActivity), 'dd MMM')}
                         </span>
                       )}
-                      <span>Joined: {format(new Date(org.createdAt), 'MMM yyyy')}</span>
+                      
                     </div>
                   </div>
                 </div>
