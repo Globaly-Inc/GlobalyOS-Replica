@@ -14,7 +14,7 @@ import {
   Crown,
   Users,
 } from 'lucide-react';
-import { Post } from '@/services/useSocialFeed';
+import { Post, usePostReactions } from '@/services/useSocialFeed';
 import { OrgLink } from '@/components/OrgLink';
 import { cn, formatSmartDateTime } from '@/lib/utils';
 
@@ -22,6 +22,15 @@ interface PostCardCompactProps {
   post: Post;
   onClick?: (post: Post) => void;
 }
+
+// Group reactions by emoji and count them
+const groupReactionsByEmoji = (reactions: { emoji: string }[]) => {
+  const grouped: Record<string, number> = {};
+  reactions.forEach(r => {
+    grouped[r.emoji] = (grouped[r.emoji] || 0) + 1;
+  });
+  return Object.entries(grouped).sort((a, b) => b[1] - a[1]); // Sort by count desc
+};
 
 const POST_TYPE_CONFIG = {
   win: {
@@ -76,6 +85,8 @@ const stripHtmlAndTruncate = (html: string, maxLength: number = 100): string => 
 
 export const PostCardCompact = ({ post, onClick }: PostCardCompactProps) => {
   const config = POST_TYPE_CONFIG[post.post_type];
+  const { data: reactions = [] } = usePostReactions(post.id);
+  const groupedReactions = groupReactionsByEmoji(reactions);
   const Icon = config.icon;
 
   return (
@@ -128,6 +139,21 @@ export const PostCardCompact = ({ post, onClick }: PostCardCompactProps) => {
       <p className="text-sm text-muted-foreground line-clamp-5 leading-relaxed">
         {stripHtmlAndTruncate(post.content || '', 300)}
       </p>
+
+      {/* Reactions with counts */}
+      {groupedReactions.length > 0 && (
+        <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border/50">
+          {groupedReactions.map(([emoji, count]) => (
+            <span 
+              key={emoji} 
+              className="inline-flex items-center gap-0.5 text-xs bg-muted/50 rounded-full px-1.5 py-0.5"
+            >
+              <span>{emoji}</span>
+              <span className="text-muted-foreground">{count}</span>
+            </span>
+          ))}
+        </div>
+      )}
     </Card>
   );
 };
