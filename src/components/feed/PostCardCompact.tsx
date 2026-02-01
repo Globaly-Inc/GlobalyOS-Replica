@@ -168,9 +168,12 @@ export const PostCardCompact = ({ post, onClick }: PostCardCompactProps) => {
         </div>
       </div>
 
-      {/* Content: 5-line truncated text */}
-      <p className="text-sm text-muted-foreground line-clamp-5 leading-relaxed">
-        {stripHtmlAndTruncate(post.content || '', 300)}
+      {/* Content: 3 lines if tagged, 5 lines otherwise */}
+      <p className={cn(
+        "text-sm text-muted-foreground leading-relaxed",
+        taggedMembers.length > 0 ? "line-clamp-3" : "line-clamp-5"
+      )}>
+        {stripHtmlAndTruncate(post.content || '', taggedMembers.length > 0 ? 180 : 300)}
       </p>
 
       {/* Tagged members as stacked avatars (below content) */}
