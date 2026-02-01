@@ -1382,21 +1382,8 @@ const TeamMemberProfile = () => {
               </div>
             </Card>
 
-            {/* Activity Feed - Posts, Kudos Received, Mentions */}
-            <Card className="overflow-hidden order-8 lg:order-none">
-              <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
-                <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
-                  <Activity className="h-5 w-5 text-primary" />
-                  Activity Feed
-                </h2>
-              </div>
-              <div className="p-4">
-                <ProfileActivityFeed employeeId={id!} />
-              </div>
-            </Card>
-
             {/* Documents - Admin/HR, own profile, or manager */}
-            {canViewAllDetails && <Card className="overflow-hidden order-9 lg:order-none">
+            {canViewAllDetails && <Card className="overflow-hidden order-8 lg:order-none">
                 <div className="flex items-center justify-between px-5 py-4 bg-card border-b gap-4">
                   <h2 className="flex items-center gap-2 text-base font-semibold text-foreground shrink-0">
                     <FolderOpen className="h-5 w-5 text-primary" />
@@ -1411,6 +1398,19 @@ const TeamMemberProfile = () => {
                   <EmployeeDocuments employeeId={id!} isOwnProfile={isOwnProfile} searchQuery={documentSearch} />
                 </div>
               </Card>}
+
+            {/* Activity Feed - Posts, Kudos Received, Mentions */}
+            <Card className="overflow-hidden order-9 lg:order-none">
+              <div className="flex items-center justify-between px-5 py-4 bg-card border-b">
+                <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                  <Activity className="h-5 w-5 text-primary" />
+                  Activity Feed
+                </h2>
+              </div>
+              <div className="p-4">
+                <ProfileActivityFeed employeeId={id!} />
+              </div>
+            </Card>
           </div>
         </div>
       </div>
