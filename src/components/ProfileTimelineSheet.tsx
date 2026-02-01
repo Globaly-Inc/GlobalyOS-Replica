@@ -133,7 +133,7 @@ export const ProfileTimelineSheet = ({
           Timeline
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-full sm:max-w-md">
+      <SheetContent className="w-full sm:max-w-md p-6">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <History className="h-5 w-5" />
@@ -157,7 +157,7 @@ export const ProfileTimelineSheet = ({
           />
         </div>
         
-        <ScrollArea className="h-[calc(100vh-200px)] mt-4 pr-4">
+        <ScrollArea className="h-[calc(100vh-220px)] mt-4 pr-2">
           {isLoading || roleLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
