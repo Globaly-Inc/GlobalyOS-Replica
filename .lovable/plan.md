@@ -1,514 +1,297 @@
 
 
-# Employee Activity Timeline Log - Implementation Plan
+# Team Profile Timeline / Activity Log - Audit Report
 
 ## Executive Summary
 
-This plan enhances the existing `ProfileTimelineSheet` component to become a comprehensive, role-restricted Employee Activity Log. The system will aggregate events from multiple existing sources into a unified timeline view with filtering capabilities.
+The Employee Activity Timeline feature is **partially implemented** but has several functional gaps, UI issues, and missing test coverage. The feature works for basic viewing but has pagination bugs, missing event logging for key actions, and no visibility control on the Timeline button itself.
 
 ---
 
-## Current State Analysis
+## 1. Plan vs Reality Check
 
-### Already Implemented ✅
+### What the Plan Required vs What Exists
 
-| Feature | Location | Status |
-|---------|----------|--------|
-| Timeline Sheet UI | `ProfileTimelineSheet.tsx` | Working - slide-out sheet with timeline visualization |
-| Access control model | Same component | 4-tier: public, manager, hr_admin, self |
-| `user_activity_logs` table | Database | Tracks attendance, leave_requested, wiki, chat |
-| `kpi_activity_logs` table | Database | Tracks KPI operations |
-| `workflow_activity_logs` table | Database | Tracks onboarding/offboarding tasks |
-| `leave_balance_logs` table | Database | Detailed leave balance changes |
-| `is_manager_of_employee()` | Database function | Validates direct manager relationship |
-| Manager hierarchy validation | `is_manager_of_employee()` | Only validates direct manager (not full chain) |
+| Requirement | Status | Notes |
+|-------------|--------|-------|
+| Timeline Sheet UI | **Implemented** | `ProfileTimelineSheet.tsx` renders correctly in a slide-out sheet |
+| RPC function aggregating events | **Implemented** | `get_employee_activity_timeline` aggregates from 7+ sources |
+| Access control (Owner/Admin/HR) | **Implemented** | RPC enforces `has_role()` checks |
+| Access control (Direct Manager) | **Implemented** | RPC checks `manager_id = viewer_employee_id` |
+| Access control (Self-view) | **Implemented** | RPC checks `viewer_employee_id = target_employee_id` |
+| Filter by event type | **Implemented** | Category dropdown with 8 categories |
+| Filter by date range | **Implemented** | Presets + custom date picker |
+| Pagination | **Implemented but flawed** | "Load More" increments offset but doesn't append results |
+| Leave approved/rejected logging | **Implemented** | `logEmployeeActivity` called in `useUpdateLeaveStatus` |
+| Document upload logging | **Implemented** | `logEmployeeActivity` called in `UploadDocumentDialog` |
+| Document delete logging | **Implemented** | `logEmployeeActivity` called in `EmployeeDocuments` |
+| Attendance check-in logging | **Implemented (via trigger)** | DB trigger logs `attendance_checked_in` |
+| Attendance check-out logging | **Missing** | No trigger or service call logs checkout |
+| Profile field change logging | **Missing** | No logging when profile fields are updated |
+| Performance index creation | **Implemented** | Indexes on `user_activity_logs(user_id, created_at)` |
+| Frontend tests | **Missing** | No tests for timeline components |
+| Timeline button visibility control | **Missing** | Button visible to all users, even those with no access |
 
-### Partially Implemented ⚠️
+### Undocumented Behavior Found
 
-| Feature | Current State | Gap |
-|---------|---------------|-----|
-| Leave events | Only `leave_requested` logged | Missing: approved, rejected, cancelled |
-| Attendance | Only check-in logged | Check-out not consistently logged |
-| Position changes | Stored in `position_history` table | Not emitting to activity log |
-| Document events | Documents stored in `employee_documents` | No activity log on upload/delete |
-
-### Missing ❌
-
-| Feature | Description |
-|---------|-------------|
-| Unified timeline API | No RPC to aggregate all event sources |
-| Event type filtering | No filter UI in timeline sheet |
-| Date range filtering | No date picker in timeline |
-| Profile change logging | Field changes not logged |
-| Performance review events | Not aggregated into timeline |
-| Full manager chain access | Only direct manager validated, not full hierarchy |
+1. **Event types not in plan**: `chat_sent`, `wiki_created`, `update_posted`, `kudos_given` are logged via DB triggers but not documented in the plan
+2. **Actor name logic bug**: Line 124 in `ActivityTimelineItem.tsx` has dead code: `event.actor_id !== event.actor_id` is always false
 
 ---
 
-## Proposed Solution Architecture
+## 2. User Flow Validation
 
-### Database Design
+### Flow: HR/Admin Viewing Employee Timeline
 
-Rather than creating a new unified table, we will:
-1. Extend `user_activity_logs` to log additional employee-specific events
-2. Create a secure RPC function `get_employee_activity_timeline` that:
-   - Aggregates from `user_activity_logs`, `kpi_activity_logs`, `leave_balance_logs`, `position_history`
-   - Enforces role-based access at the database level
-   - Supports pagination and filtering
+| Step | Expected | Actual | Status |
+|------|----------|--------|--------|
+| Click "Timeline" button | Opens sheet | Works | **OK** |
+| See access level indicator | Shows "HR/Admin" | Works | **OK** |
+| See events | Shows chronological list | Works | **OK** |
+| Filter by category | Shows filtered events | Works | **OK** |
+| Filter by date | Shows date-filtered events | Works | **OK** |
+| Click "Load More" | Appends older events | **Replaces** events instead of appending | **Bug** |
+| See access level badges | Shows on each event | Works | **OK** |
 
-### Activity Event Types
+### Flow: Manager Viewing Direct Report
 
-```text
-┌─────────────────────────────────────────────────────────────────────┐
-│                    ACTIVITY EVENT CATEGORIES                        │
-├─────────────────────────────────────────────────────────────────────┤
-│ PROFILE (public/manager)                                            │
-│   - profile_activated, joined_organization, profile_updated         │
-│   - position_changed, department_changed, manager_changed           │
-├─────────────────────────────────────────────────────────────────────┤
-│ ATTENDANCE (manager)                                                │
-│   - attendance_checked_in, attendance_checked_out                   │
-│   - attendance_adjusted                                             │
-├─────────────────────────────────────────────────────────────────────┤
-│ LEAVE (manager)                                                     │
-│   - leave_requested, leave_approved, leave_rejected                 │
-│   - leave_cancelled, leave_modified                                 │
-├─────────────────────────────────────────────────────────────────────┤
-│ KPI & PERFORMANCE (manager)                                         │
-│   - kpi_created, kpi_updated, kpi_milestone_reached                 │
-│   - review_started, review_completed                                │
-├─────────────────────────────────────────────────────────────────────┤
-│ LEARNING & DEVELOPMENT (manager)                                    │
-│   - training_assigned, training_completed, certification_earned     │
-├─────────────────────────────────────────────────────────────────────┤
-│ DOCUMENTS (self/hr_admin)                                           │
-│   - document_uploaded, document_deleted, document_acknowledged      │
-├─────────────────────────────────────────────────────────────────────┤
-│ RECOGNITION (public)                                                │
-│   - kudos_received, achievement_unlocked                            │
-└─────────────────────────────────────────────────────────────────────┘
-```
+| Step | Expected | Actual | Status |
+|------|----------|--------|--------|
+| Click "Timeline" button | Opens sheet | Opens (button always visible) | **Partial** |
+| See events | Shows manager+ and public events | Works | **OK** |
+| Cannot see hr_admin events | Should be filtered | Works | **OK** |
+
+### Flow: Regular Member Viewing Peer
+
+| Step | Expected | Actual | Status |
+|------|----------|--------|--------|
+| Should not see Timeline button | Hidden | Button is **visible** | **Bug** |
+| Click Timeline (if visible) | Should return empty | Returns empty | **OK** |
+
+### UX Friction Points
+
+1. **Timeline button visible to unauthorized users** - Confusing UX when button exists but returns nothing
+2. **No loading skeleton** - Just a spinner, no progressive loading
+3. **Pagination replaces instead of appends** - User loses scroll position and earlier events
+4. **Custom date picker is awkward** - Two-click workflow to select range is not intuitive
+5. **No "Profile Activated" for some users** - Only shows if `status = 'active'` and `updated_at` used incorrectly
 
 ---
 
-## Implementation Steps
+## 3. Code Quality Review
 
-### Phase 1: Backend - Activity Logging Enhancement
+### Issues Found
 
-**Step 1.1: Add missing activity type logging**
+| Location | Issue | Severity |
+|----------|-------|----------|
+| `ProfileTimelineSheet.tsx:89` | Pagination increments offset but query replaces data instead of appending | High |
+| `ActivityTimelineItem.tsx:124` | Dead code: `event.actor_id !== event.actor_id` always false | Low |
+| `useEmployeeActivityTimeline.ts:29` | Uses `as any` for RPC call (type safety bypass) | Medium |
+| `ProfileTimelineSheet.tsx:40` | Missing dependency in useEffect: `employeeId` | Low |
+| `ProfileTimelineSheet.tsx:50-75` | Inline Supabase queries in component (should be hooks) | Medium |
+| Console log | React ref warning on `ClickToEdit` component | Low |
 
-Modify existing service functions to emit activity logs:
+### Separation of Concerns
 
-| Module | File | Events to Add |
-|--------|------|---------------|
-| Leave | `useLeave.ts` | `leave_approved`, `leave_rejected`, `leave_cancelled` |
-| Attendance | `useAttendance.ts` | `attendance_checked_out` (verify consistency) |
-| Documents | `UploadDocumentDialog.tsx` | `document_uploaded` |
-| Documents | `EmployeeDocuments.tsx` | `document_deleted` |
+- **Good**: Timeline components are modular (`ActivityTimelineItem`, `ActivityTimelineFilters`, `ActivityTimelineEmpty`)
+- **Good**: RPC aggregation keeps complex logic in database
+- **Issue**: Access level checking is duplicated between component and RPC (component has its own check logic that could drift)
 
-**Step 1.2: Create unified timeline RPC**
+### Type Safety
 
-```sql
-CREATE OR REPLACE FUNCTION get_employee_activity_timeline(
-  target_employee_id UUID,
-  limit_count INTEGER DEFAULT 50,
-  offset_count INTEGER DEFAULT 0,
-  event_types TEXT[] DEFAULT NULL,
-  start_date TIMESTAMPTZ DEFAULT NULL,
-  end_date TIMESTAMPTZ DEFAULT NULL
-) RETURNS TABLE (...)
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  -- Enforces: Owner/Admin/HR can view all
-  -- Manager can view direct reports only
-  -- Self can view own timeline
-  -- Returns events from multiple sources, filtered by access level
-$$
-```
-
-### Phase 2: Frontend - Enhanced Timeline UI
-
-**Step 2.1: Create new components**
-
-| Component | Purpose |
-|-----------|---------|
-| `EmployeeActivityTimeline.tsx` | Main container with filters |
-| `ActivityTimelineFilters.tsx` | Event type & date filters |
-| `useEmployeeActivityTimeline.ts` | React Query hook for timeline API |
-
-**Step 2.2: Enhance existing ProfileTimelineSheet**
-
-- Add filter controls (matching wireframe)
-- Implement pagination/infinite scroll
-- Add event type grouping toggles
-- Improve mobile responsiveness
-
-### Phase 3: Access Control Verification
-
-**Step 3.1: Validate manager hierarchy**
-
-Current `is_manager_of_employee()` only checks direct manager. For full manager chain access, we need to:
-- Option A: Extend to recursive manager check (performance impact)
-- Option B: Keep direct manager only (current behavior, simpler)
-
-**Recommendation**: Keep direct manager only for Phase 1, consider hierarchy in future iteration.
-
-**Step 3.2: RLS policy for activity logs**
-
-Ensure `user_activity_logs` has proper RLS:
-- INSERT: Allow authenticated users to log their own activities
-- SELECT: Enforce via RPC function (no direct table access for timeline)
+- `useEmployeeActivityTimeline` uses `as unknown as ActivityTimelineEvent[]` - risky if RPC return type changes
+- `ActivityEventType` includes types that don't exist in data (e.g., `attendance_checked_out`, `review_started`)
 
 ---
 
-## Detailed Technical Specifications
+## 4. Component & Platform Reuse
 
-### Database Migration
+### Existing Patterns Followed
 
-```sql
--- Add new activity types to user_activity_logs (no schema change needed)
--- The activity_type column is TEXT, so new types can be added
+| Pattern | Usage |
+|---------|-------|
+| Sheet component | Reuses `@/components/ui/sheet` |
+| ScrollArea | Reuses `@/components/ui/scroll-area` |
+| Badge | Reuses `@/components/ui/badge` |
+| Button | Reuses `@/components/ui/button` |
+| Select | Reuses `@/components/ui/select` |
+| useUserRole | Correctly reuses role checking hook |
+| formatDateTime | Reuses from `@/lib/utils` |
 
--- Create secure RPC function for timeline
-CREATE OR REPLACE FUNCTION get_employee_activity_timeline(
-  target_employee_id UUID,
-  p_limit INTEGER DEFAULT 50,
-  p_offset INTEGER DEFAULT 0,
-  p_event_types TEXT[] DEFAULT NULL,
-  p_start_date DATE DEFAULT NULL,
-  p_end_date DATE DEFAULT NULL
-)
-RETURNS TABLE (
-  event_id UUID,
-  event_type TEXT,
-  event_category TEXT,
-  title TEXT,
-  description TEXT,
-  actor_id UUID,
-  actor_name TEXT,
-  actor_avatar TEXT,
-  event_timestamp TIMESTAMPTZ,
-  metadata JSONB,
-  access_level TEXT
-)
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  viewer_employee_id UUID;
-  is_admin_hr BOOLEAN;
-  is_own_profile BOOLEAN;
-  is_direct_manager BOOLEAN;
-BEGIN
-  -- Get viewer's employee ID
-  SELECT id INTO viewer_employee_id FROM employees WHERE user_id = auth.uid();
-  
-  -- Check permissions
-  is_admin_hr := has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'hr') OR has_role(auth.uid(), 'owner');
-  is_own_profile := viewer_employee_id = target_employee_id;
-  is_direct_manager := EXISTS (SELECT 1 FROM employees WHERE id = target_employee_id AND manager_id = viewer_employee_id);
-  
-  -- Access denied if not authorized
-  IF NOT (is_admin_hr OR is_own_profile OR is_direct_manager) THEN
-    RETURN;
-  END IF;
-  
-  -- Return aggregated events from multiple sources
-  RETURN QUERY
-  WITH all_events AS (
-    -- User activity logs
-    SELECT 
-      ual.id as event_id,
-      ual.activity_type as event_type,
-      CASE 
-        WHEN ual.activity_type LIKE 'attendance%' THEN 'attendance'
-        WHEN ual.activity_type LIKE 'leave%' THEN 'leave'
-        WHEN ual.activity_type LIKE 'document%' THEN 'documents'
-        ELSE 'other'
-      END as event_category,
-      ual.activity_type as title,
-      '' as description,
-      ual.user_id as actor_id,
-      ual.created_at as event_timestamp,
-      ual.metadata,
-      'manager' as access_level
-    FROM user_activity_logs ual
-    JOIN employees e ON e.user_id = ual.user_id
-    WHERE e.id = target_employee_id
-    
-    UNION ALL
-    
-    -- KPI activity logs
-    SELECT 
-      kal.id,
-      kal.action_type,
-      'kpi',
-      kal.action_type,
-      kal.description,
-      e.user_id,
-      kal.created_at,
-      jsonb_build_object('kpi_id', kal.kpi_id, 'old_value', kal.old_value, 'new_value', kal.new_value),
-      'manager'
-    FROM kpi_activity_logs kal
-    JOIN kpi_owners ko ON ko.kpi_id = kal.kpi_id
-    JOIN employees e ON e.id = ko.employee_id
-    WHERE e.id = target_employee_id
-    
-    -- Add more UNION ALLs for other sources...
-  )
-  SELECT 
-    ae.event_id,
-    ae.event_type,
-    ae.event_category,
-    ae.title,
-    ae.description,
-    ae.actor_id,
-    p.full_name as actor_name,
-    p.avatar_url as actor_avatar,
-    ae.event_timestamp,
-    ae.metadata,
-    ae.access_level
-  FROM all_events ae
-  LEFT JOIN profiles p ON p.id = ae.actor_id
-  WHERE (p_event_types IS NULL OR ae.event_type = ANY(p_event_types))
-    AND (p_start_date IS NULL OR ae.event_timestamp::date >= p_start_date)
-    AND (p_end_date IS NULL OR ae.event_timestamp::date <= p_end_date)
-  ORDER BY ae.event_timestamp DESC
-  LIMIT p_limit
-  OFFSET p_offset;
-END;
-$$;
-```
+### Missing Reuse Opportunities
 
-### Frontend Component Structure
-
-```text
-src/
-├── components/
-│   ├── timeline/
-│   │   ├── EmployeeActivityTimeline.tsx    # Main container
-│   │   ├── ActivityTimelineFilters.tsx     # Filter controls
-│   │   ├── ActivityTimelineItem.tsx        # Single event card
-│   │   └── ActivityTimelineEmpty.tsx       # Empty state
-│   └── ProfileTimelineSheet.tsx            # Existing (to be enhanced)
-├── services/
-│   └── useEmployeeActivityTimeline.ts      # React Query hook
-└── types/
-    └── activity.ts                         # Type definitions
-```
-
-### React Query Hook
-
-```typescript
-// src/services/useEmployeeActivityTimeline.ts
-export interface ActivityTimelineEvent {
-  event_id: string;
-  event_type: string;
-  event_category: string;
-  title: string;
-  description: string;
-  actor_id: string;
-  actor_name: string;
-  actor_avatar: string | null;
-  event_timestamp: string;
-  metadata: Record<string, unknown>;
-  access_level: 'public' | 'manager' | 'hr_admin' | 'self';
-}
-
-export interface UseActivityTimelineOptions {
-  employeeId: string;
-  limit?: number;
-  offset?: number;
-  eventTypes?: string[];
-  startDate?: string;
-  endDate?: string;
-}
-
-export const useEmployeeActivityTimeline = (options: UseActivityTimelineOptions) => {
-  return useQuery({
-    queryKey: ['employee-activity-timeline', options],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_employee_activity_timeline', {
-        target_employee_id: options.employeeId,
-        p_limit: options.limit || 50,
-        p_offset: options.offset || 0,
-        p_event_types: options.eventTypes || null,
-        p_start_date: options.startDate || null,
-        p_end_date: options.endDate || null,
-      });
-      if (error) throw error;
-      return data as ActivityTimelineEvent[];
-    },
-    enabled: !!options.employeeId,
-  });
-};
-```
+1. **useInfiniteEmployeeActivityTimeline exists but unused** - The component uses basic `useQuery` with manual offset, but there's an `useInfiniteQuery` version available that would handle pagination correctly
+2. **Access check logic** - Could reuse a shared `canViewEmployeeTimeline()` function instead of duplicating checks
 
 ---
 
-## UI/UX Specifications
+## 5. Performance & "Instant Feel"
 
-### Wireframe Alignment
+### Database Performance
 
-Based on the provided wireframe:
+| Aspect | Status | Notes |
+|--------|--------|-------|
+| Indexes on user_activity_logs | **OK** | Created in migration |
+| Query complexity | **Concerning** | 9 UNION ALLs in CTE could be slow with large data |
+| Pagination | **OK** | Uses LIMIT/OFFSET |
+| No N+1 queries | **OK** | Single RPC call with JOINs |
 
-```text
-┌─────────────────────────────────────────────────────┐
-│  [Employee Name]'s Timeline                    [X]  │
-├─────────────────────────────────────────────────────┤
-│  ┌─────────────────────────────────────────────────┐│
-│  │ Log Types: [All ▼]  Date: [Any ▼]              ││
-│  └─────────────────────────────────────────────────┘│
-├─────────────────────────────────────────────────────┤
-│  ○────┬─────────────────────────────────────────────│
-│       │ ┌───────────────────────────────────┐      │
-│       │ │ Profile Activated                 │      │
-│       │ │ John activated their account      │      │
-│       │ │ 24 Jan 2026 - 3:22 PM    [profile]│      │
-│       │ └───────────────────────────────────┘      │
-│  ○────┤                                            │
-│       │ ┌───────────────────────────────────┐      │
-│       │ │ Sick Leave Approved               │      │
-│       │ │ 1 day from 08/12/2025             │      │
-│       │ │ 17 Dec 2025 - 7:26 AM    [leave]  │      │
-│       │ └───────────────────────────────────┘      │
-│  ○────┘                                            │
-│                                                     │
-│            [Load More]                              │
-└─────────────────────────────────────────────────────┘
-```
+### Frontend Performance
 
-### Filter Options
+| Aspect | Status | Notes |
+|--------|--------|-------|
+| Query caching | **OK** | 1-minute staleTime |
+| Lazy loading | **OK** | Only fetches when sheet opens |
+| Memoization | **Missing** | viewerLevel is memoized, but events array recreation on every render |
+| Re-renders | **Potential issue** | Filter changes cause full refetch |
 
-| Filter | Options |
-|--------|---------|
-| Log Types | All, Profile, Attendance, Leave, KPI, Documents, Recognition |
-| Date Range | Any, Last 7 days, Last 30 days, Last 90 days, Custom |
+### Instant Feel Assessment
 
-### Event Card Design
-
-Each event card will display:
-- Colored icon (based on category)
-- Event title (human-readable)
-- Event description
-- Timestamp
-- Category badge
-- Access level badge (visible to HR/Admin only)
+- ✅ Sheet opens instantly (data loads after)
+- ✅ Filter changes show loading state
+- ⚠️ No optimistic updates (expected for read-only view)
+- ❌ Pagination replaces data causing visible flicker
 
 ---
 
-## Security Considerations
-
-### Access Control Matrix
-
-| Viewer Role | Can See | Cannot See |
-|-------------|---------|------------|
-| Owner/Admin/HR | All employee logs | - |
-| Direct Manager | Manager-level and public events | Self-only events (e.g., documents) |
-| Employee (Self) | All their own events | Other employees' logs |
-| Regular Member | Nothing (timeline hidden) | All timeline data |
+## 6. Security Findings
 
 ### Backend Enforcement
 
-1. RPC function `get_employee_activity_timeline` validates access before returning data
-2. `is_manager_of_employee()` checks direct manager relationship
-3. `has_role()` validates Owner/Admin/HR status
-4. No direct SELECT access to `user_activity_logs` for timeline feature
+| Check | Status | Notes |
+|-------|--------|-------|
+| Authentication required | **OK** | RPC checks `auth.uid()` |
+| Org isolation | **OK** | Filters by `organization_id` from employee record |
+| Role-based access | **OK** | Uses `has_role()` function |
+| Manager hierarchy check | **OK** | Checks direct `manager_id` match |
+| SECURITY DEFINER | **OK** | Function has `SET search_path = public` |
+| Empty result on access denied | **OK** | Returns empty set, no error |
 
 ### Frontend Enforcement
 
-1. Timeline button only visible to authorized viewers
-2. Access level indicator shown to HR/Admin
-3. No client-side filtering of events (all filtering in RPC)
+| Check | Status | Notes |
+|-------|--------|-------|
+| Button visibility | **Missing** | Button shown to all, should be hidden for unauthorized |
+| Access level indicator | **OK** | Shows viewer's access level |
+| No client-side data filtering | **OK** | All filtering in RPC |
+
+### Data Exposure Risks
+
+- **Low risk**: Metadata field exposes internal IDs (kpi_id, leave_id) but these are already visible elsewhere
+- **No PII leakage**: Actor names/avatars are already public profile data
 
 ---
 
-## Performance Considerations
+## 7. AI & Token Tracking
 
-1. **Pagination**: Default 50 events, load more on scroll
-2. **Indexes**: Ensure indexes on `user_activity_logs(user_id, created_at)`
-3. **Query Optimization**: Use CTEs with proper filtering before JOINs
-4. **Caching**: React Query with 5-minute stale time
+**Status: Not Applicable**
+
+No AI features are used in the Activity Timeline. The feature is purely data aggregation and display.
 
 ---
 
-## Testing Plan
+## 8. Error Logging & Observability
 
-### Unit Tests
-- Activity logging functions emit correct event types
-- Access control logic returns correct permissions
+### Current State
 
-### Integration Tests
-- RPC returns correct events for each role
-- Pagination works correctly
-- Filters return expected results
+| Aspect | Status | Notes |
+|--------|--------|-------|
+| RPC errors logged | **Partial** | `console.error` in hook, but not to central logging |
+| Activity logging errors | **OK** | `logEmployeeActivity` catches and logs errors non-fatally |
+| Request correlation | **Unknown** | No evidence of X-Request-ID in timeline calls |
+| Super-admin visibility | **Partial** | Activity logs table has super-admin SELECT policy |
+
+### Gaps
+
+1. **No observability on timeline access** - Cannot audit who viewed whose timeline
+2. **No metrics** - No counters for timeline views or filter usage
+3. **Error handling in RPC** - PostgreSQL errors would surface as generic failures
+
+---
+
+## 9. Test Coverage
+
+### Existing Tests
+
+- `src/test/security/rls-policies.test.ts` - Tests RLS on employees table but not activity timeline
+- `src/test/services/useLeave.test.ts` - Tests leave hooks but not activity logging
+
+### Missing Tests
+
+| Area | Importance |
+|------|------------|
+| `useEmployeeActivityTimeline` hook | High |
+| `ProfileTimelineSheet` component | High |
+| `ActivityTimelineFilters` component | Medium |
+| RPC function access control | High |
+| Activity logging in services | Medium |
 
 ### Manual QA Checklist
 
-| Scenario | Expected Result |
-|----------|-----------------|
-| Admin views employee X | Sees all events, access badges visible |
-| HR views employee X | Sees all events, access badges visible |
-| Manager of X views X | Sees manager+ and public events only |
-| Manager of Y views X | Timeline button hidden |
-| Employee views own profile | Sees all own events |
-| Employee views peer | Timeline button hidden |
+```text
+[ ] As Owner, view any employee timeline - should see all events
+[ ] As Admin, view employee timeline - should see all events with access badges
+[ ] As HR, view employee timeline - same as Admin
+[ ] As Manager, view direct report timeline - should see manager+ and public events
+[ ] As Manager, view non-report timeline - should see empty or no button
+[ ] As Employee, view own timeline - should see all own events
+[ ] As Employee, view peer timeline - button should be hidden OR empty
+[ ] Filter by category - verify filtering works
+[ ] Filter by date (Last 7 days) - verify filtering works
+[ ] Click Load More - verify events append (currently broken)
+[ ] Verify new leave request shows in timeline
+[ ] Verify leave approval/rejection shows in timeline
+[ ] Verify document upload shows in timeline
+```
 
 ---
 
-## Files to Create/Modify
+## 10. Prioritized Improvement List
 
-| File | Action | Description |
-|------|--------|-------------|
-| `supabase/migrations/xxx_employee_activity_timeline.sql` | Create | RPC function for timeline |
-| `src/services/useEmployeeActivityTimeline.ts` | Create | React Query hook |
-| `src/types/activity.ts` | Create | TypeScript types |
-| `src/components/timeline/ActivityTimelineFilters.tsx` | Create | Filter UI component |
-| `src/components/ProfileTimelineSheet.tsx` | Modify | Use new hook, add filters |
-| `src/services/useLeave.ts` | Modify | Add activity logging |
-| `src/components/dialogs/UploadDocumentDialog.tsx` | Modify | Add activity logging |
-| `src/components/EmployeeDocuments.tsx` | Modify | Add activity logging on delete |
+### Critical (Should Fix Now)
 
----
+| Issue | Impact | Risk | Effort |
+|-------|--------|------|--------|
+| **Pagination replaces instead of appends** | Data loss during "Load More" | Low | S |
+| **Timeline button visible to unauthorized users** | Confusing UX, potential security concern | Low | S |
 
-## Estimated Effort
+### High Priority
 
-| Phase | Task | Effort |
-|-------|------|--------|
-| 1.1 | Add missing activity logging | M |
-| 1.2 | Create RPC function | M |
-| 2.1 | Create new components | M |
-| 2.2 | Enhance ProfileTimelineSheet | M |
-| 3 | Access control verification | S |
-| Testing | Unit + integration + QA | M |
-| **Total** | | **~3-4 days** |
+| Issue | Impact | Risk | Effort |
+|-------|--------|------|--------|
+| **Missing attendance_checked_out logging** | Incomplete attendance history | Low | S |
+| **Switch to useInfiniteEmployeeActivityTimeline** | Fixes pagination properly | Low | M |
+| **Add basic tests for timeline feature** | Prevents regressions | Low | M |
 
----
+### Medium Priority
 
-## Risk Assessment
+| Issue | Impact | Risk | Effort |
+|-------|--------|------|--------|
+| **Fix actor_name display logic (dead code)** | Code quality | None | S |
+| **Type-safe RPC calls** | Maintainability | Low | M |
+| **Add timeline access audit logging** | Observability | Low | S |
 
-| Risk | Impact | Likelihood | Mitigation |
-|------|--------|------------|------------|
-| Performance with large event history | Medium | Low | Pagination, indexes |
-| Missing edge cases in access control | High | Low | Thorough testing matrix |
-| Breaking existing timeline behavior | Medium | Low | Incremental rollout, feature flag |
-| Manager hierarchy (full chain) not validated | Medium | Medium | Document limitation, Phase 2 enhancement |
+### Low Priority
+
+| Issue | Impact | Risk | Effort |
+|-------|--------|------|--------|
+| **Improve custom date picker UX** | Minor UX friction | None | M |
+| **Add loading skeleton** | Minor UX polish | None | S |
+| **Profile field change logging** | Completeness | Low | M |
 
 ---
 
-## Conflicts & Clarifications Needed
+## Summary
 
-### Conflicts Identified
+The Activity Timeline feature is **functional for its core use case** (HR/Admin viewing employee history) but has:
 
-1. **Manager Hierarchy**: Current `is_manager_of_employee()` only validates direct manager, not full chain. The wireframe implies managers "up the chain" should have access. This requires a recursive function or different approach.
+1. **Two critical bugs**: pagination and button visibility
+2. **One missing logging feature**: checkout events
+3. **Zero test coverage** for timeline-specific code
+4. **Acceptable security posture** with server-side enforcement
 
-2. **Self-View Policy**: The requirement states employees should only see their own log "if current product/privacy rules allow." Current implementation allows self-view. Need confirmation this is intended.
-
-### Clarifications Needed
-
-1. Should managers up the full reporting chain have access, or only direct managers?
-2. Should there be real-time updates when new events occur?
-3. Should events be clickable to navigate to the related entity (e.g., click leave event → open leave request)?
+**Recommended immediate actions:**
+1. Fix pagination by switching to `useInfiniteEmployeeActivityTimeline`
+2. Hide Timeline button for unauthorized viewers
+3. Add checkout event logging to `validate_qr_and_record_attendance` trigger
 
