@@ -4,8 +4,9 @@
  */
 
 import { useState } from 'react';
-import { useEmployeeFeed } from '@/services/useSocialFeed';
+import { useEmployeeFeed, Post } from '@/services/useSocialFeed';
 import { PostCardCompact } from './PostCardCompact';
+import { PostViewDialog } from './PostViewDialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Loader2, 
@@ -36,6 +37,7 @@ const POST_TYPE_FILTERS = [
 
 export const ProfileActivityFeed = ({ employeeId }: ProfileActivityFeedProps) => {
   const [filter, setFilter] = useState<PostTypeFilter>('all');
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const { data: posts = [], isLoading } = useEmployeeFeed(employeeId);
 
   const filteredPosts = posts.filter(post => {
@@ -47,6 +49,10 @@ export const ProfileActivityFeed = ({ employeeId }: ProfileActivityFeedProps) =>
   const getCount = (type: PostTypeFilter) => {
     if (type === 'all') return posts.length;
     return posts.filter(p => p.post_type === type).length;
+  };
+
+  const handleCardClick = (post: Post) => {
+    setSelectedPost(post);
   };
 
   if (isLoading) {
@@ -84,10 +90,21 @@ export const ProfileActivityFeed = ({ employeeId }: ProfileActivityFeedProps) =>
       ) : (
         <div className="flex gap-3 overflow-x-auto scrollbar-hide py-2 -mx-1 px-1">
           {filteredPosts.map(post => (
-            <PostCardCompact key={post.id} post={post} />
+            <PostCardCompact 
+              key={post.id} 
+              post={post} 
+              onClick={handleCardClick}
+            />
           ))}
         </div>
       )}
+
+      {/* Post View Dialog */}
+      <PostViewDialog
+        post={selectedPost}
+        open={!!selectedPost}
+        onOpenChange={(open) => !open && setSelectedPost(null)}
+      />
     </div>
   );
 };
