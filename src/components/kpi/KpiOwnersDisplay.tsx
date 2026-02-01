@@ -6,6 +6,7 @@ import { EditKpiOwnersDialog } from './EditKpiOwnersDialog';
 import { KpiOwner } from '@/services/useKpiOwners';
 import { OrgLink } from '@/components/OrgLink';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { ProfileStack } from '@/components/ui/ProfileStack';
 
 interface KpiOwnersDisplayProps {
   owners: KpiOwner[];
@@ -122,29 +123,17 @@ export function KpiOwnersDisplay({
           <span className="text-sm text-muted-foreground">No owners assigned</span>
         ) : (
           <>
-            {/* Stacked Avatars */}
-            <div className="flex -space-x-2">
-              {displayedOwners.map((owner) => (
-                <Avatar 
-                  key={owner.employee_id} 
-                  className="h-8 w-8 border-2 border-background ring-0"
-                  title={owner.full_name}
-                >
-                  <AvatarImage src={owner.avatar_url || undefined} alt={owner.full_name} />
-                  <AvatarFallback className="text-xs">
-                    {owner.full_name?.split(' ').map(n => n[0]).join('') || '?'}
-                  </AvatarFallback>
-                </Avatar>
-              ))}
-              
-              {remainingCount > 0 && (
-                <div className="h-8 w-8 rounded-full bg-muted border-2 border-background flex items-center justify-center">
-                  <span className="text-xs font-medium text-muted-foreground">
-                    +{remainingCount}
-                  </span>
-                </div>
-              )}
-            </div>
+            {/* Stacked Avatars using ProfileStack */}
+            <ProfileStack
+              users={owners.map(o => ({
+                id: o.employee_id,
+                name: o.full_name,
+                avatar: o.avatar_url,
+              }))}
+              size="lg"
+              maxVisible={maxDisplay}
+              showPopover={false}
+            />
             
             {/* Name(s) */}
             <span className="text-sm font-medium">

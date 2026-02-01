@@ -11,11 +11,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ProfileStack } from "@/components/ui/ProfileStack";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SmilePlus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { QUICK_REACTION_EMOJIS } from '@/lib/emojis';
 import { EmojiPicker } from '@/components/ui/EmojiPicker';
 import { useRecentEmojis } from '@/hooks/useRecentEmojis';
 
@@ -55,15 +54,6 @@ const MessageReactions = ({
   useEffect(() => {
     setLocalReactions(reactions);
   }, [reactions]);
-  
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
 
   // Get emojis that current user has reacted with
   const reactedEmojis = Object.values(localReactions)
@@ -175,36 +165,21 @@ const MessageReactions = ({
                       : "bg-muted/60 hover:bg-muted"
                   )}
                 >
-                  {/* Mobile: Show +N count only */}
+                {/* Mobile: Show count only */}
                   <span className="md:hidden text-xs font-medium">
                     {reaction.users.length}
                   </span>
                   
-                  {/* Desktop: Stacked avatars */}
-                  <div className="hidden md:flex -space-x-1">
-                    {reaction.users.slice(0, MAX_VISIBLE_AVATARS).map((user, index) => (
-                      <Avatar
-                        key={user.id}
-                        className={cn(
-                          "h-4 w-4 border border-background",
-                          hasReacted && user.id === currentEmployeeId && "ring-1 ring-primary"
-                        )}
-                        style={{ zIndex: MAX_VISIBLE_AVATARS - index }}
-                      >
-                        <AvatarImage src={user.avatar} alt={user.name} />
-                        <AvatarFallback className="text-[6px] bg-muted">
-                          {getInitials(user.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                    ))}
-                  </div>
-                  
-                  {/* Desktop: Overflow indicator */}
-                  {reaction.users.length > MAX_VISIBLE_AVATARS && (
-                    <span className="hidden md:inline text-[10px] text-muted-foreground font-medium ml-0.5">
-                      +{reaction.users.length - MAX_VISIBLE_AVATARS}
-                    </span>
-                  )}
+                  {/* Desktop: Stacked avatars using ProfileStack */}
+                  <ProfileStack
+                    users={reaction.users.map(u => ({ id: u.id, name: u.name, avatar: u.avatar || null }))}
+                    size="xs"
+                    maxVisible={MAX_VISIBLE_AVATARS}
+                    highlightUserId={currentEmployeeId}
+                    showPopover={false}
+                    mobileShowCount={false}
+                    className="hidden md:flex"
+                  />
                 </Button>
               </PopoverTrigger>
               
@@ -223,12 +198,12 @@ const MessageReactions = ({
                         key={user.id} 
                         className="flex items-center gap-2 py-1.5 px-1 rounded hover:bg-muted/80 transition-colors"
                       >
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage src={user.avatar} alt={user.name} />
-                          <AvatarFallback className="text-[8px] bg-muted">
-                            {getInitials(user.name)}
-                          </AvatarFallback>
-                        </Avatar>
+                        <ProfileStack
+                          users={[{ id: user.id, name: user.name, avatar: user.avatar || null }]}
+                          size="sm"
+                          showPopover={false}
+                          mobileShowCount={false}
+                        />
                         <span className="text-xs truncate flex-1">
                           {user.id === currentEmployeeId ? 'You' : user.name}
                         </span>

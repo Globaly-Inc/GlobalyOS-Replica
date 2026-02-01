@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
+import { ProfileStack } from "@/components/ui/ProfileStack";
 // Legacy components (WinCard, PostViewDialog, KudosViewDialog) removed - now using unified posts system
 import { PositionTimeline } from "@/components/PositionTimeline";
 import { PositionDialog } from "@/components/dialogs/PositionDialog";
@@ -863,39 +864,19 @@ const TeamMemberProfile = () => {
                   {/* Direct Reports */}
                   {directReports.length > 0 && <div className="flex items-center gap-1.5">
                       <span className="text-xs text-muted-foreground">Manages:</span>
-                      <div className="flex items-center">
-                        {directReports.slice(0, 5).map((report, index) => <OrgLink key={report.id} to={`/team/${report.id}`} className={`hover:z-20 transition-transform hover:scale-110 ${index > 0 ? '-ml-1.5' : ''}`} style={{
-                      zIndex: index
-                    }} title={report.profiles.full_name}>
-                            <Avatar className="h-6 w-6 border-2 border-background shadow-sm">
-                              <AvatarImage src={report.profiles.avatar_url || undefined} />
-                              <AvatarFallback className="text-xs bg-muted">
-                                {report.profiles.full_name.split(" ").map((n: string) => n[0]).join("")}
-                              </AvatarFallback>
-                            </Avatar>
-                          </OrgLink>)}
-                        {directReports.length > 5 && <Popover>
-                            <PopoverTrigger asChild>
-                              <button className="ml-0.5 text-xs text-muted-foreground hover:text-foreground hover:underline cursor-pointer">
-                                +{directReports.length - 5}
-                              </button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-64 p-2 bg-popover" align="start">
-                              <p className="text-xs font-medium text-muted-foreground mb-2">All Direct Reports ({directReports.length})</p>
-                              <div className="space-y-1 max-h-48 overflow-y-auto">
-                                {directReports.map(report => <OrgLink key={report.id} to={`/team/${report.id}`} className="flex items-center gap-2 p-1.5 rounded-md hover:bg-muted transition-colors">
-                                    <Avatar className="h-6 w-6 border border-border">
-                                      <AvatarImage src={report.profiles.avatar_url || undefined} />
-                                      <AvatarFallback className="text-xs bg-muted">
-                                        {report.profiles.full_name.split(" ").map((n: string) => n[0]).join("")}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <span className="text-sm text-foreground">{report.profiles.full_name}</span>
-                                  </OrgLink>)}
-                              </div>
-                            </PopoverContent>
-                          </Popover>}
-                      </div>
+                      <ProfileStack
+                        users={directReports.map(r => ({
+                          id: r.id,
+                          name: r.profiles.full_name,
+                          avatar: r.profiles.avatar_url || null,
+                        }))}
+                        size="md"
+                        maxVisible={5}
+                        showPopover
+                        linkToProfile
+                        popoverTitle={`All Direct Reports (${directReports.length})`}
+                        mobileShowCount={false}
+                      />
                     </div>}
                 </div>
               </div>

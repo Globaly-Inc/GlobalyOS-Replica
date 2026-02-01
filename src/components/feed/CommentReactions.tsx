@@ -6,13 +6,12 @@
 
 import { useState, useEffect } from 'react';
 import { useCommentReactions, useToggleCommentReaction, Reaction } from '@/services/useSocialFeed';
-import { QUICK_REACTION_EMOJIS } from '@/lib/emojis';
 import { EmojiPicker } from '@/components/ui/EmojiPicker';
 import { useRecentEmojis } from '@/hooks/useRecentEmojis';
 import { useCurrentEmployee } from '@/services/useCurrentEmployee';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ProfileStack } from '@/components/ui/ProfileStack';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SmilePlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -116,10 +115,6 @@ export const CommentReactions = ({ commentId, postId }: CommentReactionsProps) =
     toggleReaction.mutate({ commentId, postId, emoji, existingReactions: localReactions });
   };
 
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  };
-
   if (isLoading) return null;
 
   return (
@@ -164,20 +159,15 @@ export const CommentReactions = ({ commentId, postId }: CommentReactionsProps) =
                     +{group.users.length}
                   </span>
                   
-                  {/* Desktop: Stacked avatars */}
-                  <div className="hidden md:flex -space-x-1.5">
-                    {visibleUsers.map((user, idx) => (
-                      <Avatar 
-                        key={user.id + idx} 
-                        className="h-4 w-4 border border-background"
-                      >
-                        <AvatarImage src={user.avatar || undefined} />
-                        <AvatarFallback className="text-[8px] bg-muted-foreground/20">
-                          {getInitials(user.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                    ))}
-                  </div>
+                  {/* Desktop: Stacked avatars using ProfileStack */}
+                  <ProfileStack
+                    users={visibleUsers}
+                    size="xs"
+                    maxVisible={MAX_VISIBLE_AVATARS}
+                    showPopover={false}
+                    mobileShowCount={false}
+                    className="hidden md:flex"
+                  />
                   
                   {/* Desktop: Overflow indicator */}
                   {overflowCount > 0 && (
@@ -196,12 +186,12 @@ export const CommentReactions = ({ commentId, postId }: CommentReactionsProps) =
                   <div className="space-y-0.5 pr-3">
                     {group.users.map((user, idx) => (
                       <div key={user.id + idx} className="flex items-center gap-2 py-1.5 px-1.5 rounded-md hover:bg-muted/80 transition-colors">
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage src={user.avatar || undefined} />
-                          <AvatarFallback className="text-[9px] bg-muted">
-                            {getInitials(user.name)}
-                          </AvatarFallback>
-                        </Avatar>
+                        <ProfileStack
+                          users={[user]}
+                          size="sm"
+                          showPopover={false}
+                          mobileShowCount={false}
+                        />
                         <span className="text-xs truncate flex-1">{user.name}</span>
                       </div>
                     ))}
