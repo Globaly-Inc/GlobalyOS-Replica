@@ -55,8 +55,6 @@ interface AnalyticsFiltersProps {
   onCustomStartDateChange: (date: Date | undefined) => void;
   customEndDate: Date | undefined;
   onCustomEndDateChange: (date: Date | undefined) => void;
-  viewMode: ViewMode;
-  onViewModeChange: (mode: ViewMode) => void;
 }
 
 const DATE_PRESETS: { value: DatePreset; label: string }[] = [
@@ -79,8 +77,6 @@ const AnalyticsFilters = ({
   onCustomStartDateChange,
   customEndDate,
   onCustomEndDateChange,
-  viewMode,
-  onViewModeChange,
 }: AnalyticsFiltersProps) => {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);

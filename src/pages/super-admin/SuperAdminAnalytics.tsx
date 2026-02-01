@@ -90,7 +90,9 @@ const SuperAdminAnalytics = () => {
   // Filter states
   const [selectedOrgs, setSelectedOrgs] = useState<string[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
-  const [viewMode, setViewMode] = useState<ViewMode>('days');
+  const [orgViewMode, setOrgViewMode] = useState<ViewMode>('days');
+  const [userViewMode, setUserViewMode] = useState<ViewMode>('days');
+  const [activityViewMode, setActivityViewMode] = useState<ViewMode>('days');
   const [datePreset, setDatePreset] = useState<DatePreset>('last30');
   const [customStartDate, setCustomStartDate] = useState<Date | undefined>(subDays(new Date(), 30));
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>(new Date());
@@ -349,10 +351,8 @@ const SuperAdminAnalytics = () => {
     return { start, end };
   }, [datePreset, customStartDate, customEndDate]);
 
-  // Calculate growth data based on view mode and date range
-  const growthData = useMemo(() => {
-    if (!data) return { orgGrowth: [], userGrowth: [], activityGrowth: [] };
-
+  // Calculate growth data based on individual view modes and date range
+  const getGrowthData = (viewMode: ViewMode) => {
     const { start, end } = dateRange;
     let intervals: Date[];
     let labelFormat: string;
@@ -395,7 +395,13 @@ const SuperAdminAnalytics = () => {
       }
     };
 
-    const orgGrowth: GrowthDataPoint[] = intervals.map((intervalDate) => {
+    return { intervals, labelFormat, getIntervalBounds };
+  };
+
+  const orgGrowth = useMemo(() => {
+    if (!data) return [];
+    const { intervals, labelFormat, getIntervalBounds } = getGrowthData(orgViewMode);
+    return intervals.map((intervalDate) => {
       const { start: intervalStart, end: intervalEnd } = getIntervalBounds(intervalDate);
       const count = data.orgs.filter(org => {
         const createdAt = new Date(org.created_at);
@@ -403,8 +409,12 @@ const SuperAdminAnalytics = () => {
       }).length;
       return { label: format(intervalDate, labelFormat), count };
     });
+  }, [data, orgViewMode, dateRange]);
 
-    const userGrowth: GrowthDataPoint[] = intervals.map((intervalDate) => {
+  const userGrowth = useMemo(() => {
+    if (!data) return [];
+    const { intervals, labelFormat, getIntervalBounds } = getGrowthData(userViewMode);
+    return intervals.map((intervalDate) => {
       const { start: intervalStart, end: intervalEnd } = getIntervalBounds(intervalDate);
       const count = data.users.filter(user => {
         const createdAt = new Date(user.created_at);
@@ -412,8 +422,12 @@ const SuperAdminAnalytics = () => {
       }).length;
       return { label: format(intervalDate, labelFormat), count };
     });
+  }, [data, userViewMode, dateRange]);
 
-    const activityGrowth: GrowthDataPoint[] = intervals.map((intervalDate) => {
+  const activityGrowth = useMemo(() => {
+    if (!data) return [];
+    const { intervals, labelFormat, getIntervalBounds } = getGrowthData(activityViewMode);
+    return intervals.map((intervalDate) => {
       const { start: intervalStart, end: intervalEnd } = getIntervalBounds(intervalDate);
       const count = data.activities.filter(activity => {
         const createdAt = new Date(activity.created_at);
@@ -421,9 +435,7 @@ const SuperAdminAnalytics = () => {
       }).length;
       return { label: format(intervalDate, labelFormat), count };
     });
-
-    return { orgGrowth, userGrowth, activityGrowth };
-  }, [data, viewMode, dateRange]);
+  }, [data, activityViewMode, dateRange]);
 
   const toggleModule = (module: string) => {
     setOpenModules(prev => 
@@ -463,8 +475,6 @@ const SuperAdminAnalytics = () => {
           onCustomStartDateChange={setCustomStartDate}
           customEndDate={customEndDate}
           onCustomEndDateChange={setCustomEndDate}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
         />
 
         {/* Summary Cards */}
@@ -522,45 +532,40 @@ const SuperAdminAnalytics = () => {
 
         {/* Growth Charts */}
         <div className="space-y-6">
-          {/* Section Header with View Mode Toggle */}
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-foreground">Growth Charts</h2>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-muted-foreground">View:</span>
-              <div className="flex rounded-lg border border-border overflow-hidden">
-                {(['days', 'week', 'month'] as ViewMode[]).map((mode) => (
-                  <button
-                    key={mode}
-                    onClick={() => setViewMode(mode)}
-                    className={cn(
-                      "px-3 py-1.5 text-sm font-medium transition-colors",
-                      viewMode === mode
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-background text-muted-foreground hover:bg-muted"
-                    )}
-                  >
-                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
           <div className="grid gap-6 md:grid-cols-2">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Organisation Growth</CardTitle>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">View:</span>
+                  <div className="flex rounded-lg border border-border overflow-hidden">
+                    {(['days', 'week', 'month'] as ViewMode[]).map((mode) => (
+                      <button
+                        key={mode}
+                        onClick={() => setOrgViewMode(mode)}
+                        className={cn(
+                          "px-2 py-1 text-xs font-medium transition-colors",
+                          orgViewMode === mode
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-background text-muted-foreground hover:bg-muted"
+                        )}
+                      >
+                        {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={growthData.orgGrowth}>
+                    <BarChart data={orgGrowth}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                       <XAxis 
                         dataKey="label" 
                         className="text-xs"
                         tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                        interval={viewMode === 'days' && growthData.orgGrowth.length > 15 ? Math.floor(growthData.orgGrowth.length / 10) : 0}
+                        interval={orgViewMode === 'days' && orgGrowth.length > 15 ? Math.floor(orgGrowth.length / 10) : 0}
                       />
                       <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                       <Tooltip 
@@ -580,16 +585,37 @@ const SuperAdminAnalytics = () => {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Users Growth</CardTitle>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Cumulative</span>
-                  <Button
-                    variant={showCumulative ? "default" : "outline"}
-                    size="sm"
-                    className="h-7 px-2 text-xs"
-                    onClick={() => setShowCumulative(!showCumulative)}
-                  >
-                    {showCumulative ? "On" : "Off"}
-                  </Button>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">View:</span>
+                    <div className="flex rounded-lg border border-border overflow-hidden">
+                      {(['days', 'week', 'month'] as ViewMode[]).map((mode) => (
+                        <button
+                          key={mode}
+                          onClick={() => setUserViewMode(mode)}
+                          className={cn(
+                            "px-2 py-1 text-xs font-medium transition-colors",
+                            userViewMode === mode
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-background text-muted-foreground hover:bg-muted"
+                          )}
+                        >
+                          {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Cumulative</span>
+                    <Button
+                      variant={showCumulative ? "default" : "outline"}
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => setShowCumulative(!showCumulative)}
+                    >
+                      {showCumulative ? "On" : "Off"}
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -598,19 +624,19 @@ const SuperAdminAnalytics = () => {
                     <LineChart data={showCumulative 
                       ? (() => {
                           let cumulative = 0;
-                          return growthData.userGrowth.map(item => {
+                          return userGrowth.map(item => {
                             cumulative += item.count;
                             return { label: item.label, count: cumulative };
                           });
                         })()
-                      : growthData.userGrowth
+                      : userGrowth
                     }>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                       <XAxis 
                         dataKey="label" 
                         className="text-xs"
                         tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                        interval={viewMode === 'days' && growthData.userGrowth.length > 15 ? Math.floor(growthData.userGrowth.length / 10) : 0}
+                        interval={userViewMode === 'days' && userGrowth.length > 15 ? Math.floor(userGrowth.length / 10) : 0}
                       />
                       <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                       <Tooltip 
@@ -639,16 +665,37 @@ const SuperAdminAnalytics = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Activities Over Time</CardTitle>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Cumulative</span>
-                <Button
-                  variant={showActivitiesCumulative ? "default" : "outline"}
-                  size="sm"
-                  className="h-7 px-2 text-xs"
-                  onClick={() => setShowActivitiesCumulative(!showActivitiesCumulative)}
-                >
-                  {showActivitiesCumulative ? "On" : "Off"}
-                </Button>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">View:</span>
+                  <div className="flex rounded-lg border border-border overflow-hidden">
+                    {(['days', 'week', 'month'] as ViewMode[]).map((mode) => (
+                      <button
+                        key={mode}
+                        onClick={() => setActivityViewMode(mode)}
+                        className={cn(
+                          "px-2 py-1 text-xs font-medium transition-colors",
+                          activityViewMode === mode
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-background text-muted-foreground hover:bg-muted"
+                        )}
+                      >
+                        {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Cumulative</span>
+                  <Button
+                    variant={showActivitiesCumulative ? "default" : "outline"}
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => setShowActivitiesCumulative(!showActivitiesCumulative)}
+                  >
+                    {showActivitiesCumulative ? "On" : "Off"}
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -657,19 +704,19 @@ const SuperAdminAnalytics = () => {
                   <LineChart data={showActivitiesCumulative 
                     ? (() => {
                         let cumulative = 0;
-                        return growthData.activityGrowth.map(item => {
+                        return activityGrowth.map(item => {
                           cumulative += item.count;
                           return { label: item.label, count: cumulative };
                         });
                       })()
-                    : growthData.activityGrowth
+                    : activityGrowth
                   }>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis 
                       dataKey="label" 
                       className="text-xs"
                       tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                      interval={viewMode === 'days' && growthData.activityGrowth.length > 15 ? Math.floor(growthData.activityGrowth.length / 10) : 0}
+                      interval={activityViewMode === 'days' && activityGrowth.length > 15 ? Math.floor(activityGrowth.length / 10) : 0}
                     />
                     <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
                     <Tooltip 
