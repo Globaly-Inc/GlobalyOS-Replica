@@ -125,7 +125,7 @@ export const PostCardCompact = ({ post, onClick }: PostCardCompactProps) => {
   return (
     <Card 
       className={cn(
-        "shrink-0 w-[280px] p-3 bg-card border-border/50",
+        "shrink-0 w-[280px] h-[220px] p-3 bg-card border-border/50 flex flex-col",
         "hover:border-border hover:shadow-sm transition-all cursor-pointer"
       )}
       onClick={() => onClick?.(post)}
@@ -201,9 +201,9 @@ export const PostCardCompact = ({ post, onClick }: PostCardCompactProps) => {
         </div>
       )}
 
-      {/* Reactions and comments footer */}
+      {/* Reactions and comments footer - stuck to bottom */}
       {(groupedReactions.length > 0 || commentCount > 0) && (
-        <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
+        <div className="flex items-center justify-between mt-auto pt-2 border-t border-border/50">
           {/* Reactions on the left */}
           <div className="flex items-center gap-1.5">
             {groupedReactions.map(([emoji, count]) => (
