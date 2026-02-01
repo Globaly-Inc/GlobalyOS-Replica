@@ -145,7 +145,7 @@ export const ProfileTimelineSheet = ({
         <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
           <Lock className="h-3 w-3" />
           <span>
-            Viewing as: {viewerLevel === 'hr_admin' ? 'HR/Admin' : viewerLevel === 'self' ? 'Self' : viewerLevel === 'manager' ? 'Manager' : 'Team Member'}
+            Viewing as: {viewerLevel === 'hr_admin' ? 'Owner/Admin/HR' : viewerLevel === 'self' ? 'Self' : viewerLevel === 'manager' ? 'Manager' : 'Team Member'}
           </span>
         </div>
 
