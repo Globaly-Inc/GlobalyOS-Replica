@@ -175,29 +175,45 @@ export const PostCardCompact = ({ post, onClick }: PostCardCompactProps) => {
 
       {/* Tagged members as stacked avatars (below content) */}
       {taggedMembers.length > 0 && (
-        <div className="flex items-center gap-1 mt-2">
-          <div className="flex items-center -space-x-2">
-            {visibleMembers.map((member, idx) => (
-              <Avatar 
-                key={member.id} 
-                className="h-6 w-6 border-2 border-card"
-                style={{ zIndex: maxVisible - idx }}
-              >
-                <AvatarImage src={member.avatar || undefined} />
+        <div className="flex items-center gap-2 mt-2">
+          {taggedMembers.length === 1 ? (
+            // Single member: show avatar + full name
+            <div className="flex items-center gap-1.5">
+              <Avatar className="h-6 w-6 border-2 border-card">
+                <AvatarImage src={taggedMembers[0].avatar || undefined} />
                 <AvatarFallback className="text-[10px] bg-muted">
-                  {member.name.charAt(0)}
+                  {taggedMembers[0].name.charAt(0)}
                 </AvatarFallback>
               </Avatar>
-            ))}
-            {overflowCount > 0 && (
-              <div 
-                className="h-6 w-6 rounded-full bg-muted border-2 border-card flex items-center justify-center text-[10px] font-medium text-muted-foreground"
-                style={{ zIndex: 0 }}
-              >
-                +{overflowCount}
-              </div>
-            )}
-          </div>
+              <span className="text-xs text-muted-foreground truncate max-w-[180px]">
+                {taggedMembers[0].name}
+              </span>
+            </div>
+          ) : (
+            // Multiple members: show stacked avatars
+            <div className="flex items-center -space-x-2">
+              {visibleMembers.map((member, idx) => (
+                <Avatar 
+                  key={member.id} 
+                  className="h-6 w-6 border-2 border-card"
+                  style={{ zIndex: maxVisible - idx }}
+                >
+                  <AvatarImage src={member.avatar || undefined} />
+                  <AvatarFallback className="text-[10px] bg-muted">
+                    {member.name.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+              ))}
+              {overflowCount > 0 && (
+                <div 
+                  className="h-6 w-6 rounded-full bg-muted border-2 border-card flex items-center justify-center text-[10px] font-medium text-muted-foreground"
+                  style={{ zIndex: 0 }}
+                >
+                  +{overflowCount}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
