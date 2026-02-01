@@ -12,12 +12,14 @@ interface EditEmailDialogProps {
   userId: string;
   currentEmail: string;
   onSuccess: () => void;
+  trigger?: React.ReactNode;
 }
 
 export const EditEmailDialog = ({
   userId,
   currentEmail,
   onSuccess,
+  trigger,
 }: EditEmailDialogProps) => {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState(currentEmail);
@@ -57,12 +59,16 @@ export const EditEmailDialog = ({
     }
   };
 
+  const defaultTrigger = (
+    <Button variant="ghost" size="icon" className="h-6 w-6">
+      <Pencil className="h-3.5 w-3.5" />
+    </Button>
+  );
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-6 w-6">
-          <Pencil className="h-3.5 w-3.5" />
-        </Button>
+        {trigger || defaultTrigger}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

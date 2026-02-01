@@ -30,6 +30,7 @@ import { SetResignationDialog } from "@/components/dialogs/SetResignationDialog"
 import { EditableField } from "@/components/EditableField";
 import { EditableDateField } from "@/components/EditableDateField";
 import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen, Search, Trophy, Pencil, Settings2, Plus, ClipboardList, Target, Star, Home, Activity, Globe, UserX } from "lucide-react";
+import { ClickToEdit } from "@/components/ui/ClickToEdit";
 import { formatTimezoneLabel } from "@/hooks/useTimezone";
 import { WORK_LOCATION_CONFIG, WorkLocation, WorkLocationDisplay } from "@/types/wfh";
 import { useEmployeeWorkLocation, useHasApprovedWfhToday } from "@/services/useWfh";
@@ -730,17 +731,22 @@ const TeamMemberProfile = () => {
               </div>
               <div className="flex-1 space-y-1.5 flex flex-col justify-center min-w-0">
                 {/* Name with Status Badges */}
-                <div className="group flex items-center gap-2 flex-wrap">
-                  <h1 className="text-2xl font-bold text-foreground">{employee.profiles.full_name}</h1>
-                  {isAdminOrHR && <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
-                      <EditNameDialog userId={employee.user_id} currentName={employee.profiles.full_name} onSuccess={loadEmployee} />
-                    </span>}
-                  <Badge variant={employee.status === 'active' ? 'default' : employee.status === 'invited' ? 'secondary' : 'outline'} className={`text-xs ${employee.status === 'active' ? 'bg-green-500/10 text-green-600 border-green-500/20' : employee.status === 'invited' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-muted text-muted-foreground'}`}>
-                    {employee.status === 'active' ? 'Active' : employee.status === 'invited' ? 'Invited' : 'Inactive'}
-                  </Badge>
-                  {isAdminOrHR && <Button variant="ghost" size="icon" className="h-6 w-6 hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setEditStatusOpen(true)}>
-                      <Pencil className="h-3 w-3" />
-                    </Button>}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <EditNameDialog 
+                    userId={employee.user_id} 
+                    currentName={employee.profiles.full_name} 
+                    onSuccess={loadEmployee}
+                    trigger={
+                      <ClickToEdit canEdit={isAdminOrHR} onEdit={() => {}}>
+                        <h1 className="text-2xl font-bold text-foreground">{employee.profiles.full_name}</h1>
+                      </ClickToEdit>
+                    }
+                  />
+                  <ClickToEdit canEdit={isAdminOrHR} onEdit={() => setEditStatusOpen(true)}>
+                    <Badge variant={employee.status === 'active' ? 'default' : employee.status === 'invited' ? 'secondary' : 'outline'} className={`text-xs ${employee.status === 'active' ? 'bg-green-500/10 text-green-600 border-green-500/20' : employee.status === 'invited' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-muted text-muted-foreground'}`}>
+                      {employee.status === 'active' ? 'Active' : employee.status === 'invited' ? 'Invited' : 'Inactive'}
+                    </Badge>
+                  </ClickToEdit>
                   {currentLeave && <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20 flex items-center gap-1">
                       <Palmtree className="h-3 w-3" />
                       On {currentLeave.leave_type}
@@ -752,88 +758,106 @@ const TeamMemberProfile = () => {
                 </div>
                 
                 {/* Position, Department and Projects */}
-                <div className="group flex items-center gap-2 flex-wrap">
-                  <p className="text-base font-medium text-primary">{currentPosition?.position || employee.position}</p>
-                  <Badge variant="secondary" className="text-xs">{currentPosition?.department || employee.department}</Badge>
-                  {isAdminOrHR && <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-6 w-6"
-                        onClick={() => {
-                          setEditingCurrentPosition(!!currentPosition);
-                          setShowAddPositionDialog(true);
-                        }}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                    </span>}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <ClickToEdit 
+                    canEdit={isAdminOrHR} 
+                    onEdit={() => {
+                      setEditingCurrentPosition(!!currentPosition);
+                      setShowAddPositionDialog(true);
+                    }}
+                  >
+                    <p className="text-base font-medium text-primary">{currentPosition?.position || employee.position}</p>
+                    <Badge variant="secondary" className="text-xs">{currentPosition?.department || employee.department}</Badge>
+                  </ClickToEdit>
                   <span className="text-muted-foreground">·</span>
-                  {employeeProjects.length > 0 ? employeeProjects.map(ep => <Badge key={ep.id} variant="outline" className="flex items-center gap-1 text-xs px-2 py-0.5">
-                        {ep.project.logo_url ? (
-                          <img 
-                            src={ep.project.logo_url} 
-                            alt={ep.project.name}
-                            className="h-3 w-3 rounded-sm object-cover"
-                          />
+                  <EditProjectsDialog 
+                    employeeId={id!} 
+                    onSuccess={loadEmployeeProjects}
+                    trigger={
+                      <ClickToEdit canEdit={isAdminOrHR} onEdit={() => {}}>
+                        {employeeProjects.length > 0 ? (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {employeeProjects.map(ep => (
+                              <Badge key={ep.id} variant="outline" className="flex items-center gap-1 text-xs px-2 py-0.5">
+                                {ep.project.logo_url ? (
+                                  <img 
+                                    src={ep.project.logo_url} 
+                                    alt={ep.project.name}
+                                    className="h-3 w-3 rounded-sm object-cover"
+                                  />
+                                ) : (
+                                  <DynamicIcon name={ep.project.icon} className="h-3 w-3" style={{ color: ep.project.color }} />
+                                )}
+                                {ep.project.name}
+                              </Badge>
+                            ))}
+                          </div>
                         ) : (
-                          <DynamicIcon name={ep.project.icon} className="h-3 w-3" style={{
-                            color: ep.project.color
-                          }} />
+                          <span className="text-xs text-muted-foreground italic">No projects</span>
                         )}
-                        {ep.project.name}
-                      </Badge>) : <span className="text-xs text-muted-foreground italic">No projects</span>}
-                  {isAdminOrHR && <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
-                      <EditProjectsDialog employeeId={id!} onSuccess={loadEmployeeProjects} />
-                    </span>}
+                      </ClickToEdit>
+                    }
+                  />
                 </div>
                 
                 {/* Email and User Role */}
-                <div className="group flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">{employee.profiles.email}</span>
-                  {isAdminOrHR && <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
-                      <EditEmailDialog userId={employee.user_id} currentEmail={employee.profiles.email} onSuccess={loadEmployee} />
-                    </span>}
+                  <EditEmailDialog 
+                    userId={employee.user_id} 
+                    currentEmail={employee.profiles.email} 
+                    onSuccess={loadEmployee}
+                    trigger={
+                      <ClickToEdit canEdit={isAdminOrHR} onEdit={() => {}}>
+                        <span className="text-sm text-muted-foreground">{employee.profiles.email}</span>
+                      </ClickToEdit>
+                    }
+                  />
                   <span className="text-muted-foreground">·</span>
-                  <Badge variant={userRole === 'owner' ? 'default' : userRole === 'admin' ? 'default' : userRole === 'hr' ? 'secondary' : 'outline'} className="text-xs">
-                    {userRole === 'owner' ? 'Owner' : userRole === 'admin' ? 'Admin' : userRole === 'hr' ? 'HR' : 'Member'}
-                  </Badge>
-                  {isAdminOrHR && <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
-                      <EditUserRoleDialog userId={employee.user_id} currentRole={userRole} onSuccess={loadUserRole} />
-                    </span>}
+                  <EditUserRoleDialog 
+                    userId={employee.user_id} 
+                    currentRole={userRole} 
+                    onSuccess={loadUserRole}
+                    trigger={
+                      <ClickToEdit canEdit={isAdminOrHR} onEdit={() => {}}>
+                        <Badge variant={userRole === 'owner' ? 'default' : userRole === 'admin' ? 'default' : userRole === 'hr' ? 'secondary' : 'outline'} className="text-xs">
+                          {userRole === 'owner' ? 'Owner' : userRole === 'admin' ? 'Admin' : userRole === 'hr' ? 'HR' : 'Member'}
+                        </Badge>
+                      </ClickToEdit>
+                    }
+                  />
                 </div>
                 
                 {/* Manager and Manages */}
                 <div className="flex flex-wrap items-center gap-4 pt-1">
                   {/* Manager */}
-                  <div className="group flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5">
                     <span className="text-xs text-muted-foreground">Manager:</span>
-                    {manager ? <div className="flex items-center gap-1.5">
-                        <OrgLink to={`/team/${manager.id}`} className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
-                          <Avatar className="h-6 w-6 border-2 border-background">
-                            <AvatarImage src={manager.profiles.avatar_url || undefined} />
-                            <AvatarFallback className="text-xs bg-muted">
-                              {manager.profiles.full_name.split(" ").map((n: string) => n[0]).join("")}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-sm font-medium text-foreground hover:text-primary">{manager.profiles.full_name}</span>
-                        </OrgLink>
-                        {canEditManager && <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
-                            <EditManagerDialog employeeId={id!} currentManagerId={employee.manager_id} onSuccess={() => {
+                    <EditManagerDialog 
+                      employeeId={id!} 
+                      currentManagerId={employee.manager_id} 
+                      onSuccess={() => {
                         loadEmployee();
                         loadDirectReports();
-                      }} />
-                          </span>}
-                      </div> : <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-muted-foreground italic">Not assigned</span>
-                        {canEditManager && <span className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
-                            <EditManagerDialog employeeId={id!} currentManagerId={employee.manager_id} onSuccess={() => {
-                        loadEmployee();
-                        loadDirectReports();
-                      }} />
-                          </span>}
-                      </div>}
+                      }}
+                      trigger={
+                        <ClickToEdit canEdit={canEditManager} onEdit={() => {}}>
+                          {manager ? (
+                            <div className="flex items-center gap-1.5">
+                              <Avatar className="h-6 w-6 border-2 border-background">
+                                <AvatarImage src={manager.profiles.avatar_url || undefined} />
+                                <AvatarFallback className="text-xs bg-muted">
+                                  {manager.profiles.full_name.split(" ").map((n: string) => n[0]).join("")}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm font-medium text-foreground">{manager.profiles.full_name}</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground italic">Not assigned</span>
+                          )}
+                        </ClickToEdit>
+                      }
+                    />
                   </div>
                   
                   {/* Direct Reports */}

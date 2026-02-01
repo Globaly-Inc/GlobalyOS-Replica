@@ -18,6 +18,7 @@ interface EditManagerDialogProps {
   employeeId: string;
   currentManagerId: string | null;
   onSuccess: () => void;
+  trigger?: React.ReactNode;
 }
 
 /**
@@ -45,7 +46,7 @@ const getSubordinateIds = async (employeeId: string): Promise<string[]> => {
   return subordinateIds;
 };
 
-export const EditManagerDialog = ({ employeeId, currentManagerId, onSuccess }: EditManagerDialogProps) => {
+export const EditManagerDialog = ({ employeeId, currentManagerId, onSuccess, trigger }: EditManagerDialogProps) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -117,12 +118,16 @@ export const EditManagerDialog = ({ employeeId, currentManagerId, onSuccess }: E
     }
   };
 
+  const defaultTrigger = (
+    <Button variant="ghost" size="sm" className="h-6 px-2">
+      <Edit2 className="h-3 w-3" />
+    </Button>
+  );
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-6 px-2">
-          <Edit2 className="h-3 w-3" />
-        </Button>
+        {trigger || defaultTrigger}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
