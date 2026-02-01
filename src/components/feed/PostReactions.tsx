@@ -6,7 +6,6 @@
 
 import { useState, useEffect } from 'react';
 import { usePostReactions, useTogglePostReaction, Reaction } from '@/services/useSocialFeed';
-import { QUICK_REACTION_EMOJIS, ALL_EMOJIS } from '@/lib/emojis';
 import { EmojiPicker } from '@/components/ui/EmojiPicker';
 import { useRecentEmojis } from '@/hooks/useRecentEmojis';
 import { useCurrentEmployee } from '@/services/useCurrentEmployee';
@@ -16,7 +15,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ProfileStack } from '@/components/ui/ProfileStack';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SmilePlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -159,35 +158,20 @@ export const PostReactions = ({ postId }: PostReactionsProps) => {
                   +{users.length}
                 </span>
                 
-                {/* Desktop: Stacked avatars */}
-                <div className="hidden md:flex -space-x-1.5">
-                  {users.slice(0, MAX_VISIBLE_AVATARS).map((user, index) => (
-                    <Avatar
-                      key={user.id}
-                      className={cn(
-                        "h-5 w-5 border-2 border-background",
-                        hasCurrentUser && user.id === currentEmployee?.id && "ring-1 ring-primary"
-                      )}
-                      style={{ zIndex: MAX_VISIBLE_AVATARS - index }}
-                    >
-                      <AvatarImage src={user.avatar || undefined} alt={user.name} />
-                      <AvatarFallback className="text-[8px] bg-muted">
-                        {getInitials(user.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                  ))}
-                </div>
-                
-                {/* Desktop: Overflow indicator */}
-                {users.length > MAX_VISIBLE_AVATARS && (
-                  <span className="hidden md:inline text-xs text-muted-foreground font-medium ml-0.5">
-                    +{users.length - MAX_VISIBLE_AVATARS}
-                  </span>
-                )}
+                {/* Desktop: Stacked avatars using ProfileStack */}
+                <ProfileStack
+                  users={users}
+                  size="sm"
+                  maxVisible={MAX_VISIBLE_AVATARS}
+                  highlightUserId={currentEmployee?.id}
+                  showPopover={false}
+                  mobileShowCount={false}
+                  className="hidden md:flex"
+                />
               </Button>
             </PopoverTrigger>
             
-            {/* Full user list popover */}
+            {/* Full user list popover - reuse ProfileStack popover pattern */}
             <PopoverContent className="w-56 p-3" align="start">
               <div className="text-sm font-medium mb-2 flex items-center gap-2 pb-2 border-b border-border">
                 <span className="text-lg">{emoji}</span>
@@ -197,12 +181,12 @@ export const PostReactions = ({ postId }: PostReactionsProps) => {
                 <div className="space-y-0.5 pr-3">
                   {users.map(user => (
                     <div key={user.id} className="flex items-center gap-2.5 py-1.5 px-1.5 rounded-md hover:bg-muted/80 transition-colors">
-                      <Avatar className="h-7 w-7">
-                        <AvatarImage src={user.avatar || undefined} alt={user.name} />
-                        <AvatarFallback className="text-[10px] bg-muted">
-                          {getInitials(user.name)}
-                        </AvatarFallback>
-                      </Avatar>
+                      <ProfileStack
+                        users={[user]}
+                        size="md"
+                        showPopover={false}
+                        mobileShowCount={false}
+                      />
                       <span className="text-sm truncate flex-1">
                         {user.id === currentEmployee?.id ? 'You' : user.name}
                       </span>

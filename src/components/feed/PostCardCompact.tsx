@@ -7,12 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ProfileStack } from '@/components/ui/ProfileStack';
 import {
   Trophy,
   Heart,
@@ -183,74 +178,24 @@ export const PostCardCompact = ({ post, onClick }: PostCardCompactProps) => {
         {stripHtmlAndTruncate(post.content || '', taggedMembers.length > 0 ? 180 : 300)}
       </p>
 
-      {/* Tagged members with popover (similar to reactions UI) */}
+      {/* Tagged members with ProfileStack popover */}
       {taggedMembers.length > 0 && (
-        <div className="flex items-center mt-2">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 px-2 rounded-full hover:bg-muted gap-1.5"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {/* Stacked avatars */}
-                <div className="flex -space-x-1.5">
-                  {visibleMembers.map((member, idx) => (
-                    <Avatar
-                      key={member.id}
-                      className="h-5 w-5 border-2 border-background"
-                      style={{ zIndex: maxVisible - idx }}
-                    >
-                      <AvatarImage src={member.avatar || undefined} alt={member.name} />
-                      <AvatarFallback className="text-[8px] bg-muted">
-                        {member.name.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                  ))}
-                </div>
-                
-                {/* Show name if single, +N if multiple */}
-                {taggedMembers.length === 1 ? (
-                  <span className="text-xs text-muted-foreground truncate max-w-[120px]">
-                    {taggedMembers[0].name}
-                  </span>
-                ) : (
-                  <span className="text-xs text-muted-foreground font-medium">
-                    +{taggedMembers.length - maxVisible > 0 ? taggedMembers.length : taggedMembers.length}
-                  </span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            
-            {/* Full member list popover */}
-            <PopoverContent className="w-56 p-3" align="start">
-              <div className="text-sm font-medium mb-2 flex items-center gap-2 pb-2 border-b border-border">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">{taggedMembers.length} tagged</span>
-              </div>
-              <ScrollArea className="max-h-[200px]">
-                <div className="space-y-0.5 pr-3">
-                  {taggedMembers.map(member => (
-                    <OrgLink
-                      key={member.id}
-                      to={`/team/${member.id}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="flex items-center gap-2.5 py-1.5 px-1.5 rounded-md hover:bg-muted/80 transition-colors"
-                    >
-                      <Avatar className="h-7 w-7">
-                        <AvatarImage src={member.avatar || undefined} alt={member.name} />
-                        <AvatarFallback className="text-[10px] bg-muted">
-                          {member.name.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm truncate flex-1">{member.name}</span>
-                    </OrgLink>
-                  ))}
-                </div>
-              </ScrollArea>
-            </PopoverContent>
-          </Popover>
+        <div className="flex items-center mt-2" onClick={(e) => e.stopPropagation()}>
+          <ProfileStack
+            users={taggedMembers}
+            size="sm"
+            maxVisible={maxVisible}
+            showPopover
+            linkToProfile
+            popoverHeader={<Users className="h-4 w-4 text-muted-foreground" />}
+            popoverTitle={`${taggedMembers.length} tagged`}
+          />
+          {/* Show single name inline */}
+          {taggedMembers.length === 1 && (
+            <span className="ml-1.5 text-xs text-muted-foreground truncate max-w-[120px]">
+              {taggedMembers[0].name}
+            </span>
+          )}
         </div>
       )}
 
