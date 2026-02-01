@@ -520,20 +520,6 @@ const SuperAdminAnalytics = () => {
           </Card>
         </div>
 
-        {/* User Engagement Metrics */}
-        <EngagementMetrics
-          selectedOrgs={selectedOrgs}
-          selectedUsers={selectedUsers}
-          dateRange={dateRange}
-        />
-
-        {/* Activity Heatmap */}
-        <ActivityHeatmap
-          selectedOrgs={selectedOrgs}
-          selectedUsers={selectedUsers}
-          dateRange={dateRange}
-        />
-
         {/* Growth Charts */}
         <div className="space-y-6">
           {/* Section Header with View Mode Toggle */}
@@ -591,63 +577,63 @@ const SuperAdminAnalytics = () => {
               </CardContent>
             </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Users Growth</CardTitle>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Cumulative</span>
-                <Button
-                  variant={showCumulative ? "default" : "outline"}
-                  size="sm"
-                  className="h-7 px-2 text-xs"
-                  onClick={() => setShowCumulative(!showCumulative)}
-                >
-                  {showCumulative ? "On" : "Off"}
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={showCumulative 
-                    ? (() => {
-                        let cumulative = 0;
-                        return growthData.userGrowth.map(item => {
-                          cumulative += item.count;
-                          return { label: item.label, count: cumulative };
-                        });
-                      })()
-                    : growthData.userGrowth
-                  }>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis 
-                      dataKey="label" 
-                      className="text-xs"
-                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                      interval={viewMode === 'days' && growthData.userGrowth.length > 15 ? Math.floor(growthData.userGrowth.length / 10) : 0}
-                    />
-                    <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Line 
-                      type="monotone"
-                      dataKey="count" 
-                      stroke="hsl(142 76% 36%)"
-                      strokeWidth={2}
-                      dot={{ fill: 'hsl(142 76% 36%)', strokeWidth: 2, r: 4 }}
-                      activeDot={{ r: 6, fill: 'hsl(142 76% 36%)' }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Users Growth</CardTitle>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Cumulative</span>
+                  <Button
+                    variant={showCumulative ? "default" : "outline"}
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => setShowCumulative(!showCumulative)}
+                  >
+                    {showCumulative ? "On" : "Off"}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={showCumulative 
+                      ? (() => {
+                          let cumulative = 0;
+                          return growthData.userGrowth.map(item => {
+                            cumulative += item.count;
+                            return { label: item.label, count: cumulative };
+                          });
+                        })()
+                      : growthData.userGrowth
+                    }>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis 
+                        dataKey="label" 
+                        className="text-xs"
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                        interval={viewMode === 'days' && growthData.userGrowth.length > 15 ? Math.floor(growthData.userGrowth.length / 10) : 0}
+                      />
+                      <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                        }}
+                      />
+                      <Line 
+                        type="monotone"
+                        dataKey="count" 
+                        stroke="hsl(142 76% 36%)"
+                        strokeWidth={2}
+                        dot={{ fill: 'hsl(142 76% 36%)', strokeWidth: 2, r: 4 }}
+                        activeDot={{ r: 6, fill: 'hsl(142 76% 36%)' }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Activities Chart - Full Width */}
           <Card>
@@ -707,6 +693,20 @@ const SuperAdminAnalytics = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* User Engagement Metrics */}
+        <EngagementMetrics
+          selectedOrgs={selectedOrgs}
+          selectedUsers={selectedUsers}
+          dateRange={dateRange}
+        />
+
+        {/* Activity Heatmap */}
+        <ActivityHeatmap
+          selectedOrgs={selectedOrgs}
+          selectedUsers={selectedUsers}
+          dateRange={dateRange}
+        />
 
         {/* Churn Risk Card */}
         <ChurnRiskCard />
