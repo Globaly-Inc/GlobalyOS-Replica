@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import { useEmployeeFeed } from '@/services/useSocialFeed';
-import { PostCard } from './PostCard';
+import { PostCardCompact } from './PostCardCompact';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, MessageSquare, Heart, AtSign, FileText } from 'lucide-react';
 
@@ -84,9 +84,9 @@ export const ProfileActivityFeed = ({ employeeId }: ProfileActivityFeedProps) =>
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="flex gap-3 overflow-x-auto scrollbar-hide py-2 -mx-1 px-1">
           {filteredPosts.map(post => (
-            <PostCard key={post.id} post={post} />
+            <PostCardCompact key={post.id} post={post} />
           ))}
         </div>
       )}
