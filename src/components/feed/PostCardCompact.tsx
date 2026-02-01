@@ -171,9 +171,9 @@ export const PostCardCompact = ({ post, onClick }: PostCardCompactProps) => {
         {stripHtmlAndTruncate(post.content || '', 300)}
       </p>
 
-      {/* Tagged members as stacked avatars */}
+      {/* Tagged members as stacked avatars (below content) */}
       {taggedMembers.length > 0 && (
-        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/50">
+        <div className="flex items-center gap-1 mt-2">
           <div className="flex items-center -space-x-2">
             {visibleMembers.map((member, idx) => (
               <Avatar 
@@ -196,26 +196,11 @@ export const PostCardCompact = ({ post, onClick }: PostCardCompactProps) => {
               </div>
             )}
           </div>
-          
-          {/* Reactions with counts */}
-          {groupedReactions.length > 0 && (
-            <div className="flex items-center gap-1 ml-auto">
-              {groupedReactions.map(([emoji, count]) => (
-                <span 
-                  key={emoji} 
-                  className="inline-flex items-center gap-0.5 text-xs bg-muted/50 rounded-full px-1.5 py-0.5"
-                >
-                  <span>{emoji}</span>
-                  <span className="text-muted-foreground">{count}</span>
-                </span>
-              ))}
-            </div>
-          )}
         </div>
       )}
 
-      {/* Reactions only (when no tagged members) */}
-      {taggedMembers.length === 0 && groupedReactions.length > 0 && (
+      {/* Reactions with counts (always at bottom) */}
+      {groupedReactions.length > 0 && (
         <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border/50">
           {groupedReactions.map(([emoji, count]) => (
             <span 
