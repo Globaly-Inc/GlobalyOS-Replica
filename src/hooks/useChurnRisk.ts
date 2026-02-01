@@ -28,12 +28,17 @@ const calculateRiskLevel = (
   daysSinceActivity: number,
   orgAgeInDays: number
 ): { level: RiskLevel; reason: string } => {
-  // New orgs (less than 14 days old) get a "new" label
-  if (orgAgeInDays < 14) {
+  // New orgs (less than 7 days old) get a "new" label
+  if (orgAgeInDays < 7) {
     return { level: 'new', reason: 'New organisation' };
   }
 
-  // No activity ever
+  // Inactive new org (7-14 days old with no activity)
+  if (orgAgeInDays >= 7 && orgAgeInDays < 14 && daysSinceActivity >= 999) {
+    return { level: 'high', reason: 'No activity since signup' };
+  }
+
+  // No activity ever (for older orgs)
   if (daysSinceActivity >= 999) {
     return { level: 'high', reason: 'No recorded activity' };
   }

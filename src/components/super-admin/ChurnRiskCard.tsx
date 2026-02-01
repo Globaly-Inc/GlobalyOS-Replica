@@ -58,9 +58,9 @@ const ChurnRiskCard = () => {
       const atRisk: ChurnRiskOrg[] = [];
 
       for (const org of orgs) {
-        // Skip very new orgs (less than 14 days old)
+        // Skip very new orgs (less than 7 days old)
         const orgAge = differenceInDays(now, new Date(org.created_at));
-        if (orgAge < 14) continue;
+        if (orgAge < 7) continue;
 
         // Recent activity (last 30 days)
         const { count: recentCount } = await supabase
@@ -118,7 +118,11 @@ const ChurnRiskCard = () => {
         let riskLevel: RiskLevel = 'healthy';
         let reason = '';
 
-        if (daysSinceActivity >= 14) {
+        // Inactive new org (7-14 days old with no activity)
+        if (orgAge >= 7 && orgAge < 14 && recent === 0) {
+          riskLevel = 'high';
+          reason = 'No activity since signup';
+        } else if (daysSinceActivity >= 14) {
           riskLevel = 'high';
           reason = `No activity in ${daysSinceActivity} days`;
         } else if (dropPercent >= 50 && previous >= 10) {
