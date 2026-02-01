@@ -15,12 +15,14 @@ interface EditUserRoleDialogProps {
   userId: string;
   currentRole: AppRole | null;
   onSuccess: () => void;
+  trigger?: React.ReactNode;
 }
 
 export const EditUserRoleDialog = ({
   userId,
   currentRole,
   onSuccess,
+  trigger,
 }: EditUserRoleDialogProps) => {
   const [open, setOpen] = useState(false);
   const [role, setRole] = useState<AppRole>(currentRole || "member");
@@ -71,12 +73,16 @@ export const EditUserRoleDialog = ({
     }
   };
 
+  const defaultTrigger = (
+    <Button variant="ghost" size="icon" className="h-6 w-6">
+      <Pencil className="h-3.5 w-3.5" />
+    </Button>
+  );
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-6 w-6">
-          <Pencil className="h-3.5 w-3.5" />
-        </Button>
+        {trigger || defaultTrigger}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
