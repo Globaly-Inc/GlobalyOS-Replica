@@ -89,6 +89,37 @@ export const PostCardCompact = ({ post, onClick }: PostCardCompactProps) => {
   const groupedReactions = groupReactionsByEmoji(reactions);
   const Icon = config.icon;
 
+  // Combine kudos recipients and mentions into tagged members (deduplicated)
+  const taggedMembers = (() => {
+    const membersMap = new Map<string, { id: string; name: string; avatar: string | null }>();
+    
+    // Add kudos recipients
+    post.kudos_recipients?.forEach(r => {
+      membersMap.set(r.id, {
+        id: r.id,
+        name: r.profiles?.full_name || 'Unknown',
+        avatar: r.profiles?.avatar_url || null,
+      });
+    });
+    
+    // Add mentions
+    post.post_mentions?.forEach(m => {
+      if (!membersMap.has(m.employee_id)) {
+        membersMap.set(m.employee_id, {
+          id: m.employee_id,
+          name: m.employee?.profiles?.full_name || 'Unknown',
+          avatar: m.employee?.profiles?.avatar_url || null,
+        });
+      }
+    });
+    
+    return Array.from(membersMap.values());
+  })();
+  
+  const maxVisible = 5;
+  const visibleMembers = taggedMembers.slice(0, maxVisible);
+  const overflowCount = taggedMembers.length - maxVisible;
+
   return (
     <Card 
       className={cn(
@@ -140,8 +171,51 @@ export const PostCardCompact = ({ post, onClick }: PostCardCompactProps) => {
         {stripHtmlAndTruncate(post.content || '', 300)}
       </p>
 
-      {/* Reactions with counts */}
-      {groupedReactions.length > 0 && (
+      {/* Tagged members as stacked avatars */}
+      {taggedMembers.length > 0 && (
+        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/50">
+          <div className="flex items-center -space-x-2">
+            {visibleMembers.map((member, idx) => (
+              <Avatar 
+                key={member.id} 
+                className="h-6 w-6 border-2 border-card"
+                style={{ zIndex: maxVisible - idx }}
+              >
+                <AvatarImage src={member.avatar || undefined} />
+                <AvatarFallback className="text-[10px] bg-muted">
+                  {member.name.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+            ))}
+            {overflowCount > 0 && (
+              <div 
+                className="h-6 w-6 rounded-full bg-muted border-2 border-card flex items-center justify-center text-[10px] font-medium text-muted-foreground"
+                style={{ zIndex: 0 }}
+              >
+                +{overflowCount}
+              </div>
+            )}
+          </div>
+          
+          {/* Reactions with counts */}
+          {groupedReactions.length > 0 && (
+            <div className="flex items-center gap-1 ml-auto">
+              {groupedReactions.map(([emoji, count]) => (
+                <span 
+                  key={emoji} 
+                  className="inline-flex items-center gap-0.5 text-xs bg-muted/50 rounded-full px-1.5 py-0.5"
+                >
+                  <span>{emoji}</span>
+                  <span className="text-muted-foreground">{count}</span>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Reactions only (when no tagged members) */}
+      {taggedMembers.length === 0 && groupedReactions.length > 0 && (
         <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border/50">
           {groupedReactions.map(([emoji, count]) => (
             <span 
