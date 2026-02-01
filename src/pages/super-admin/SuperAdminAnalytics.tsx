@@ -98,6 +98,7 @@ const SuperAdminAnalytics = () => {
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>(new Date());
   
   // Section states
+  const [showOrgCumulative, setShowOrgCumulative] = useState(false);
   const [showCumulative, setShowCumulative] = useState(false);
   const [showActivitiesCumulative, setShowActivitiesCumulative] = useState(false);
   const [openModules, setOpenModules] = useState<string[]>(['team', 'hr', 'wiki', 'organization']);
@@ -536,30 +537,52 @@ const SuperAdminAnalytics = () => {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Organisation Growth</CardTitle>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">View:</span>
-                  <div className="flex rounded-lg border border-border overflow-hidden">
-                    {(['days', 'week', 'month'] as ViewMode[]).map((mode) => (
-                      <button
-                        key={mode}
-                        onClick={() => setOrgViewMode(mode)}
-                        className={cn(
-                          "px-2 py-1 text-xs font-medium transition-colors",
-                          orgViewMode === mode
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-background text-muted-foreground hover:bg-muted"
-                        )}
-                      >
-                        {mode.charAt(0).toUpperCase() + mode.slice(1)}
-                      </button>
-                    ))}
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">View:</span>
+                    <div className="flex rounded-lg border border-border overflow-hidden">
+                      {(['days', 'week', 'month'] as ViewMode[]).map((mode) => (
+                        <button
+                          key={mode}
+                          onClick={() => setOrgViewMode(mode)}
+                          className={cn(
+                            "px-2 py-1 text-xs font-medium transition-colors",
+                            orgViewMode === mode
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-background text-muted-foreground hover:bg-muted"
+                          )}
+                        >
+                          {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Cumulative</span>
+                    <Button
+                      variant={showOrgCumulative ? "default" : "outline"}
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => setShowOrgCumulative(!showOrgCumulative)}
+                    >
+                      {showOrgCumulative ? "On" : "Off"}
+                    </Button>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={orgGrowth}>
+                    <LineChart data={showOrgCumulative 
+                      ? (() => {
+                          let cumulative = 0;
+                          return orgGrowth.map(item => {
+                            cumulative += item.count;
+                            return { label: item.label, count: cumulative };
+                          });
+                        })()
+                      : orgGrowth
+                    }>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                       <XAxis 
                         dataKey="label" 
@@ -575,8 +598,15 @@ const SuperAdminAnalytics = () => {
                           borderRadius: '8px',
                         }}
                       />
-                      <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                    </BarChart>
+                      <Line 
+                        type="monotone"
+                        dataKey="count" 
+                        stroke="hsl(var(--primary))"
+                        strokeWidth={2}
+                        dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 4 }}
+                        activeDot={{ r: 6, fill: 'hsl(var(--primary))' }}
+                      />
+                    </LineChart>
                   </ResponsiveContainer>
                 </div>
               </CardContent>
