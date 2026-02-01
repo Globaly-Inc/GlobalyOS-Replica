@@ -1,124 +1,187 @@
 
-# Social Feed Horizontal Scroll Layout for Team Profile
+
+# Shared Profile Stack Component
 
 ## Summary
-The wireframe shows a **horizontal scrolling row** of compact post cards in the Team Profile Activity Feed section, not a vertical list or grid. This matches patterns already used in GlobalyOS (e.g., WorldClockCards, InlinePostComposer pills).
+Create a reusable `ProfileStack` component in `src/components/ui/` that consolidates the stacked avatar pattern currently duplicated across 6 different files. This component will handle avatar stacking, overflow counting, popover with full list, and optional profile linking.
 
 ---
 
-## Current State vs. Wireframe
+## Current State (Code Duplication)
 
-| Wireframe Element | Current Status | Notes |
-|-------------------|----------------|-------|
-| "Activity Feed" header | Implemented | Exists with Activity icon |
-| Filters row | Implemented | Tabs with All, Posts, Kudos Received, Mentioned In |
-| **Horizontal scroll container** | Missing | Currently vertical stack with `space-y-4` |
-| Compact post cards in a row | Missing | Using full-height `PostCard` components |
-| Fixed-width cards that scroll | Missing | Cards are full-width |
+| Location | Use Case | Avatar Size | Max Visible | Has Popover |
+|----------|----------|-------------|-------------|-------------|
+| `PostReactions.tsx` | Reaction users | h-5 w-5 | 6 | Yes |
+| `PostCardCompact.tsx` | Tagged members | h-5 w-5 | 5 | Yes |
+| `CommentReactions.tsx` | Reaction users | h-4 w-4 | 4 | Yes |
+| `MessageReactions.tsx` | Reaction users | h-4 w-4 | 5 | Yes |
+| `KpiOwnersDisplay.tsx` | KPI owners | h-8 w-8 | 3 | No |
+| `TeamMemberProfile.tsx` | Direct reports | h-6 w-6 | 5 | Yes |
+
+Each implementation has ~50-80 lines of nearly identical code for avatars, spacing, overflow indicators, and popovers.
 
 ---
 
 ## Proposed Solution
 
-### Layout Pattern
-Use the same horizontal scroll pattern from `WorldClockCards` and `InlinePostComposer`:
+### New Component: `ProfileStack`
 
+**Location:** `src/components/ui/ProfileStack.tsx`
+
+**Features:**
+- Configurable avatar sizes: `xs`, `sm`, `md`, `lg`
+- Configurable max visible count (default: 5)
+- Optional popover with full user list
+- Optional profile linking via `OrgLink`
+- Mobile-responsive (count-only on mobile, avatars on desktop)
+- Highlight current user option
+- Custom header for popover
+
+---
+
+## Component Interface
+
+```typescript
+interface ProfileStackUser {
+  id: string;
+  name: string;
+  avatar: string | null;
+}
+
+interface ProfileStackProps {
+  users: ProfileStackUser[];
+  
+  // Display options
+  maxVisible?: number;           // Default: 5
+  size?: 'xs' | 'sm' | 'md' | 'lg';  // xs=h-4, sm=h-5, md=h-6, lg=h-8
+  
+  // Behavior options
+  showPopover?: boolean;         // Default: true
+  linkToProfile?: boolean;       // Default: false (uses OrgLink)
+  highlightUserId?: string;      // Highlight current user with ring
+  
+  // Popover customization
+  popoverHeader?: React.ReactNode;
+  popoverTitle?: string;         // e.g., "5 reactions", "3 tagged"
+  
+  // Mobile behavior
+  mobileShowCount?: boolean;     // Default: true (show +N on mobile)
+  
+  // Styling
+  className?: string;
+}
 ```
-flex gap-3 overflow-x-auto scrollbar-hide py-2
-```
 
-Each card will be a fixed-width, compact representation:
-- `min-w-[280px]` or `w-[280px]` for consistent card widths
-- `shrink-0` to prevent flex shrinking
-- Height determined by content (2-3 lines max)
+---
 
-### Visual Structure
+## Visual Structure
+
 ```text
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│ Activity Feed (or "Social Feed")                                                │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│ [All] [Posts] [Kudos Received] [Mentioned In]                                   │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│ ◀ scroll                                                                        │
-│ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐            │
-│ │ [Avatar] Name│ │ [Avatar] Name│ │ [Avatar] Name│ │ [Avatar] Name│  → scroll  │
-│ │ [Badge] time │ │ [Badge] time │ │ [Badge] time │ │ [Badge] time │            │
-│ │ Content...   │ │ Content...   │ │ Content...   │ │ Content...   │            │
-│ └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘            │
-│                                                                     scroll →    │
-└─────────────────────────────────────────────────────────────────────────────────┘
+Desktop View:
+┌───────────────────────────────────────┐
+│ [Av1][Av2][Av3][Av4][Av5] +3          │
+│  ↑ Stacked with -space-x  ↑ Overflow  │
+└───────────────────────────────────────┘
+
+Mobile View:
+┌───────────────────────────────────────┐
+│ +8                                    │
+│  ↑ Count only                         │
+└───────────────────────────────────────┘
+
+Popover (on click):
+┌─────────────────────────┐
+│ 👥 8 members            │
+├─────────────────────────┤
+│ [Av] John Smith         │
+│ [Av] Jane Doe           │
+│ [Av] Bob Wilson         │
+│ ...scrollable...        │
+└─────────────────────────┘
 ```
 
 ---
 
 ## Implementation Plan
 
-### Step 1: Create `PostCardCompact.tsx` Component
+### Step 1: Create `ProfileStack.tsx` Component
 
-**Location:** `src/components/feed/PostCardCompact.tsx`
+**File:** `src/components/ui/ProfileStack.tsx`
 
-**Reuses from existing codebase:**
-- `POST_TYPE_CONFIG` from `PostCard.tsx` (colors, icons, labels)
-- `Avatar`, `Badge`, `Card` components
-- `OrgLink` for profile navigation
-- `formatSmartDateTime` utility
-- `TruncatedRichText` with reduced `maxLines={2}`
+Core functionality:
+- Accept array of users with `id`, `name`, `avatar`
+- Render stacked avatars with configurable sizing
+- Handle overflow with `+N` indicator
+- Optional popover showing full list with `ScrollArea`
+- Optional `OrgLink` wrapping for profile navigation
+- Current user highlighting with ring
 
-**Props:**
-```typescript
-interface PostCardCompactProps {
-  post: Post;
-  onClick?: (post: Post) => void;  // Optional: for future expand/modal
-}
+### Step 2: Update Existing Components
+
+Replace duplicated code in these files:
+
+| File | Changes |
+|------|---------|
+| `src/components/feed/PostReactions.tsx` | Replace stacked avatar + popover (~40 lines) |
+| `src/components/feed/PostCardCompact.tsx` | Replace tagged members section (~50 lines) |
+| `src/components/feed/CommentReactions.tsx` | Replace stacked avatar + popover (~40 lines) |
+| `src/components/chat/MessageReactions.tsx` | Replace stacked avatar + popover (~40 lines) |
+| `src/components/kpi/KpiOwnersDisplay.tsx` | Replace stacked avatar section (~25 lines) |
+| `src/pages/TeamMemberProfile.tsx` | Replace direct reports section (~30 lines) |
+
+### Step 3: Usage Examples
+
+**PostReactions (reactions with current user highlight):**
+```tsx
+<ProfileStack
+  users={users}
+  size="sm"
+  maxVisible={6}
+  highlightUserId={currentEmployee?.id}
+  popoverHeader={<span className="text-lg">{emoji}</span>}
+  popoverTitle={`${users.length} reaction${users.length !== 1 ? 's' : ''}`}
+/>
 ```
 
-**Card Structure:**
-```text
-┌────────────────────────────────────┐
-│ [Avatar] Name          [TypeBadge] │
-│          timestamp                 │
-├────────────────────────────────────┤
-│ Truncated content (2 lines max)... │
-└────────────────────────────────────┘
+**TeamMemberProfile (direct reports with profile links):**
+```tsx
+<ProfileStack
+  users={directReports.map(r => ({
+    id: r.id,
+    name: r.profiles.full_name,
+    avatar: r.profiles.avatar_url,
+  }))}
+  size="md"
+  maxVisible={5}
+  linkToProfile
+  popoverTitle={`All Direct Reports (${directReports.length})`}
+/>
 ```
 
-**Sizing:**
-- Fixed width: `w-[280px]` or `min-w-[280px]`
-- `shrink-0` to prevent compression
-- Consistent with WorldClockCards pattern
+**KpiOwnersDisplay (no popover, larger avatars):**
+```tsx
+<ProfileStack
+  users={owners.map(o => ({
+    id: o.employee_id,
+    name: o.full_name,
+    avatar: o.avatar_url,
+  }))}
+  size="lg"
+  maxVisible={3}
+  showPopover={false}
+/>
+```
 
 ---
 
-### Step 2: Update `ProfileActivityFeed.tsx` Layout
+## Size Mapping
 
-**Change from:**
-```tsx
-<div className="space-y-4">
-  {filteredPosts.map(post => (
-    <PostCard key={post.id} post={post} />
-  ))}
-</div>
-```
-
-**Change to:**
-```tsx
-<div className="flex gap-3 overflow-x-auto scrollbar-hide py-2 -mx-1 px-1">
-  {filteredPosts.map(post => (
-    <PostCardCompact key={post.id} post={post} />
-  ))}
-</div>
-```
-
-**Pattern reused from:**
-- `WorldClockCards.tsx` line 134: `flex gap-2 overflow-x-auto`
-- `InlinePostComposer.tsx` line 413: `flex gap-1.5 overflow-x-auto ... scrollbar-hide`
-
----
-
-### Step 3: Optional UI Refinements
-
-1. **Empty state:** Keep existing centered text, but may need horizontal alignment adjustment
-2. **Section rename:** Update header from "Activity Feed" to "Social Feed" if desired (in `TeamMemberProfile.tsx` line 1390)
+| Size | Avatar Class | Fallback Text | Border |
+|------|--------------|---------------|--------|
+| `xs` | h-4 w-4 | text-[6px] | border |
+| `sm` | h-5 w-5 | text-[8px] | border-2 |
+| `md` | h-6 w-6 | text-xs | border-2 |
+| `lg` | h-8 w-8 | text-xs | border-2 |
 
 ---
 
@@ -126,68 +189,39 @@ interface PostCardCompactProps {
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/components/feed/PostCardCompact.tsx` | Create | New compact card for horizontal scroll |
-| `src/components/feed/ProfileActivityFeed.tsx` | Modify | Change layout from vertical to horizontal scroll |
-| `src/pages/TeamMemberProfile.tsx` | Optional | Rename section header if needed |
+| `src/components/ui/ProfileStack.tsx` | Create | New shared component |
+| `src/components/feed/PostReactions.tsx` | Modify | Use ProfileStack |
+| `src/components/feed/PostCardCompact.tsx` | Modify | Use ProfileStack |
+| `src/components/feed/CommentReactions.tsx` | Modify | Use ProfileStack |
+| `src/components/chat/MessageReactions.tsx` | Modify | Use ProfileStack |
+| `src/components/kpi/KpiOwnersDisplay.tsx` | Modify | Use ProfileStack |
+| `src/pages/TeamMemberProfile.tsx` | Modify | Use ProfileStack |
 
 ---
 
 ## Technical Details
 
-### Horizontal Scroll CSS Pattern
-Already defined in `src/index.css` (lines 98-103):
-```css
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-```
+### Dependencies Used
+- `Avatar`, `AvatarImage`, `AvatarFallback` from `@/components/ui/avatar`
+- `Popover`, `PopoverContent`, `PopoverTrigger` from `@/components/ui/popover`
+- `ScrollArea` from `@/components/ui/scroll-area`
+- `OrgLink` from `@/components/OrgLink`
+- `cn` utility from `@/lib/utils`
 
-### PostCardCompact Component
-Will reuse:
-- `POST_TYPE_CONFIG` object (icon, colors, labels) from `PostCard.tsx`
-- `Avatar`, `AvatarImage`, `AvatarFallback` 
-- `Badge` for post type
-- `Card` with hover state
-- `OrgLink` for navigation to author profile
-- `formatSmartDateTime` for relative timestamps
-- `TruncatedRichText` with `maxLines={2}` for content
+### Accessibility
+- Avatars include `alt` text with user name
+- Popover trigger is keyboard accessible
+- Overflow count is readable by screen readers
 
 ---
 
-## Performance Considerations
+## Benefits
 
-- **Less DOM:** Compact cards render ~80% less DOM than full `PostCard`
-- **No API changes:** Reuses existing `useEmployeeFeed` hook
-- **Native scroll:** Uses browser's native horizontal scroll (no carousel library needed for this simple case)
-- **Efficient re-renders:** Each card is a simple presentational component
-
----
-
-## Security Considerations
-
-- No new permissions required
-- No additional data exposure
-- Uses same `OrgLink` patterns for navigation
-- Post visibility already enforced by `useEmployeeFeed` query
-
----
-
-## Testing Checklist
-
-- [ ] Horizontal scroll works on desktop (mouse wheel + drag)
-- [ ] Horizontal scroll works on mobile (touch swipe)
-- [ ] All filter tabs work correctly with horizontal layout
-- [ ] Post type badges display with correct colors/icons
-- [ ] Truncated content shows ellipsis after 2 lines
-- [ ] Avatar links navigate to correct profile
-- [ ] Empty states display correctly per filter
-- [ ] Loading spinner displays during data fetch
-- [ ] Cards have consistent width and don't compress
-- [ ] Scrollbar is hidden but scroll functionality works
+1. **Code Reduction**: ~200+ lines of duplicated code consolidated
+2. **Consistency**: Same visual pattern across all features
+3. **Maintainability**: Single source of truth for avatar stack UI
+4. **Flexibility**: Easy to add new sizes or behaviors
+5. **Testing**: One component to test instead of 6
 
 ---
 
@@ -195,7 +229,8 @@ Will reuse:
 
 | Task | Time |
 |------|------|
-| Create `PostCardCompact.tsx` | 20 min |
-| Update `ProfileActivityFeed.tsx` layout | 10 min |
-| Testing & refinement | 15 min |
-| **Total** | ~45 min |
+| Create `ProfileStack.tsx` component | 25 min |
+| Update 6 existing files | 30 min |
+| Testing across all use cases | 15 min |
+| **Total** | ~70 min |
+
