@@ -1,37 +1,43 @@
 
-# Team Profile Timeline / Activity Log - COMPLETE
 
-## Summary
+# Remove Chat/Wiki Events from Activity Timeline
 
-All items from the audit report have been implemented:
+## Problem
+The activity timeline is showing `chat_sent`, `chat_created`, and `wiki_updated` events that are not relevant to the employee profile timeline. These events clutter the timeline with noise since they have their own dedicated modules.
 
-### ✅ Completed Items
+## Events to Exclude (Per User Request)
+| Event Type | Reason |
+|------------|--------|
+| `chat_sent` | Chat messages have their own module |
+| `chat_created` | Chat conversations have their own module |
+| `wiki_updated` | Wiki has its own version history |
 
-| Issue | Status |
-|-------|--------|
-| Pagination replaces instead of appends | ✅ Fixed - Uses `useInfiniteEmployeeActivityTimeline` |
-| Timeline button visible to unauthorized users | ✅ Fixed - Hidden for non-authorized viewers |
-| Missing attendance_checked_out logging | ✅ Fixed - Added to `useRemoteAttendance` and `useQRAttendance` |
-| Dead code in ActivityTimelineItem | ✅ Fixed - Removed always-false condition |
-| Type-safe RPC calls | ✅ Fixed - Removed `as any` casts, uses proper types |
-| Add timeline feature tests | ✅ Done - 15 tests (8 service + 7 component) |
+## Events to Keep
+All other events remain visible in the timeline:
+- `wiki_created` - Creating wiki pages is a notable achievement
+- `update_posted` - Team feed posts show engagement
+- `kudos_given` - Shows recognition activity
+- All attendance, leave, document, KPI, and profile events
 
-### Test Coverage Added
+## Solution
+Update the database RPC function `get_employee_activity_timeline` to filter out only the three specified event types from the `user_activity_logs` query.
 
-- `src/test/services/useEmployeeActivityTimeline.test.ts` - 8 tests
-- `src/test/components/ProfileTimelineSheet.test.tsx` - 7 tests
+## Technical Changes
 
-### Files Modified
+### Database Migration
+Create migration to update the RPC function's `user_activity_logs` section:
 
-- `src/components/ProfileTimelineSheet.tsx` - Infinite query, access control props
-- `src/components/timeline/ActivityTimelineItem.tsx` - Fixed dead code
-- `src/pages/TeamMemberProfile.tsx` - Pass access props to timeline
-- `src/services/useEmployeeActivityTimeline.ts` - Type-safe RPC, proper mapping
-- `src/services/useAttendance.ts` - Checkout event logging
-- `src/services/useWfh.ts` - Checkout event logging
+```sql
+-- Add WHERE clause to exclude specific chat/wiki events:
+WHERE ual.organization_id = te.organization_id
+  AND ual.activity_type NOT IN ('chat_sent', 'chat_created', 'wiki_updated')
+```
 
-### Remaining (Low Priority)
+## Impact Assessment
+| Aspect | Details |
+|--------|---------|
+| User Impact | Cleaner timeline without chat noise |
+| Risk | Low - filtering display only, data preserved |
+| Effort | Small - single migration |
+| Testing | Verify excluded events don't appear, verify kept events still show |
 
-- Improve custom date picker UX
-- Add loading skeleton
-- Profile field change logging
