@@ -159,6 +159,29 @@ export const EmployeeDocuments = ({ employeeId, isOwnProfile, searchQuery = '' }
 
       if (dbError) throw dbError;
 
+      // Log activity for document deletion
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: employee } = await supabase
+        .from("employees")
+        .select("organization_id")
+        .eq("id", employeeId)
+        .single();
+
+      if (user && employee?.organization_id) {
+        const { logEmployeeActivity } = await import('@/services/useEmployeeActivityTimeline');
+        await logEmployeeActivity({
+          userId: user.id,
+          organizationId: employee.organization_id,
+          activityType: 'document_deleted',
+          entityType: 'document',
+          entityId: deleteId,
+          metadata: {
+            file_name: doc.file_name,
+            folder: doc.folder,
+          },
+        });
+      }
+
       toast({ title: "Document deleted" });
       loadDocuments();
     } catch (error: any) {

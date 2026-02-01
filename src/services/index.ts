@@ -33,3 +33,4 @@ export {
   useSeedWorkflowData
 } from './useWorkflowMutations';
 export * from './useLeaveRealtime';
+export { useEmployeeActivityTimeline, useInfiniteEmployeeActivityTimeline, logEmployeeActivity } from './useEmployeeActivityTimeline';
