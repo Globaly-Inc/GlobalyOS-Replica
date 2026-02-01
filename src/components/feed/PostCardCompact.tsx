@@ -124,9 +124,9 @@ export const PostCardCompact = ({ post, onClick }: PostCardCompactProps) => {
         </div>
       </div>
 
-      {/* Content: 2-line truncated text */}
-      <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-        {stripHtmlAndTruncate(post.content || '', 120)}
+      {/* Content: 5-line truncated text */}
+      <p className="text-sm text-muted-foreground line-clamp-5 leading-relaxed">
+        {stripHtmlAndTruncate(post.content || '', 300)}
       </p>
     </Card>
   );
