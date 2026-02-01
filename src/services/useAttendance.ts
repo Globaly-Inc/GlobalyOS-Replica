@@ -130,6 +130,8 @@ interface QRAttendanceInput {
 
 export const useQRAttendance = () => {
   const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
 
   return useMutation({
     mutationFn: async ({ action, qrCode, latitude, longitude }: QRAttendanceInput) => {
@@ -149,12 +151,33 @@ export const useQRAttendance = () => {
         throw new Error(result.error || 'Failed to record attendance');
       }
 
-      return result;
+      return { ...result, requestedAction: action };
     },
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       queryClient.invalidateQueries({ queryKey: ['today-attendance'] });
       queryClient.invalidateQueries({ queryKey: ['attendance-records'] });
+      queryClient.invalidateQueries({ queryKey: ['employee-activity-timeline-infinite'] });
       toast.success(`${result.action === 'check_in' ? 'Checked in' : 'Checked out'} successfully`);
+
+      // Log checkout event to activity logs (check-in is logged by DB trigger)
+      if (result.requestedAction === 'check_out' && currentEmployee?.id && currentOrg?.id) {
+        try {
+          const { logEmployeeActivity } = await import('./useEmployeeActivityTimeline');
+          await logEmployeeActivity({
+            userId: currentEmployee.user_id,
+            organizationId: currentOrg.id,
+            activityType: 'attendance_checked_out',
+            entityType: 'attendance',
+            metadata: {
+              employee_id: currentEmployee.id,
+              check_out_time: new Date().toISOString(),
+            },
+          });
+        } catch (e) {
+          // Non-fatal: don't interrupt the main operation
+          console.error('Failed to log checkout activity:', e);
+        }
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message);

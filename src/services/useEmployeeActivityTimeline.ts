@@ -7,11 +7,35 @@ import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { 
   ActivityTimelineEvent, 
-  UseActivityTimelineOptions 
+  UseActivityTimelineOptions,
+  ActivityCategory,
+  ActivityAccessLevel,
 } from '@/types/activity';
-import type { Json } from '@/integrations/supabase/types';
+import type { Json, Database } from '@/integrations/supabase/types';
 
 const DEFAULT_PAGE_SIZE = 50;
+
+// Type for the RPC response row
+type TimelineRPCResponse = Database['public']['Functions']['get_employee_activity_timeline']['Returns'];
+
+/**
+ * Transform RPC response to typed ActivityTimelineEvent
+ */
+function mapRPCResponseToEvent(row: TimelineRPCResponse[number]): ActivityTimelineEvent {
+  return {
+    event_id: row.event_id,
+    event_type: row.event_type,
+    event_category: row.event_category as ActivityCategory,
+    title: row.title,
+    description: row.description,
+    actor_id: row.actor_id,
+    actor_name: row.actor_name,
+    actor_avatar: row.actor_avatar,
+    event_timestamp: row.event_timestamp,
+    metadata: row.metadata as Record<string, unknown> | null,
+    access_level: row.access_level as ActivityAccessLevel,
+  };
+}
 
 /**
  * Fetch employee activity timeline with pagination
@@ -21,28 +45,24 @@ export const useEmployeeActivityTimeline = (options: UseActivityTimelineOptions)
 
   return useQuery({
     queryKey: ['employee-activity-timeline', employeeId, limit, offset, filters],
-    queryFn: async () => {
+    queryFn: async (): Promise<ActivityTimelineEvent[]> => {
       if (!employeeId) return [];
 
-      // Use raw SQL query via RPC
-      const { data, error } = await supabase.rpc(
-        'get_employee_activity_timeline' as any,
-        {
-          target_employee_id: employeeId,
-          p_limit: limit,
-          p_offset: offset,
-          p_event_types: filters?.eventTypes || null,
-          p_start_date: filters?.startDate || null,
-          p_end_date: filters?.endDate || null,
-        }
-      );
+      const { data, error } = await supabase.rpc('get_employee_activity_timeline', {
+        target_employee_id: employeeId,
+        p_limit: limit,
+        p_offset: offset,
+        p_event_types: filters?.eventTypes || null,
+        p_start_date: filters?.startDate || null,
+        p_end_date: filters?.endDate || null,
+      });
 
       if (error) {
         console.error('Error fetching activity timeline:', error);
         throw error;
       }
 
-      return (data || []) as unknown as ActivityTimelineEvent[];
+      return (data || []).map(mapRPCResponseToEvent);
     },
     enabled: !!employeeId,
     staleTime: 60 * 1000, // 1 minute
@@ -58,27 +78,24 @@ export const useInfiniteEmployeeActivityTimeline = (
 ) => {
   return useInfiniteQuery({
     queryKey: ['employee-activity-timeline-infinite', employeeId, filters],
-    queryFn: async ({ pageParam = 0 }) => {
+    queryFn: async ({ pageParam = 0 }): Promise<{ events: ActivityTimelineEvent[]; nextOffset: number | null }> => {
       if (!employeeId) return { events: [], nextOffset: null };
 
-      const { data, error } = await supabase.rpc(
-        'get_employee_activity_timeline' as any,
-        {
-          target_employee_id: employeeId,
-          p_limit: DEFAULT_PAGE_SIZE,
-          p_offset: pageParam,
-          p_event_types: filters?.eventTypes || null,
-          p_start_date: filters?.startDate || null,
-          p_end_date: filters?.endDate || null,
-        }
-      );
+      const { data, error } = await supabase.rpc('get_employee_activity_timeline', {
+        target_employee_id: employeeId,
+        p_limit: DEFAULT_PAGE_SIZE,
+        p_offset: pageParam,
+        p_event_types: filters?.eventTypes || null,
+        p_start_date: filters?.startDate || null,
+        p_end_date: filters?.endDate || null,
+      });
 
       if (error) {
         console.error('Error fetching activity timeline:', error);
         throw error;
       }
 
-      const events = (data || []) as unknown as ActivityTimelineEvent[];
+      const events = (data || []).map(mapRPCResponseToEvent);
       const nextOffset = events.length === DEFAULT_PAGE_SIZE ? pageParam + DEFAULT_PAGE_SIZE : null;
 
       return { events, nextOffset };

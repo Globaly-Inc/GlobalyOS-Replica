@@ -242,6 +242,8 @@ export const useCancelWfhRequest = () => {
 // Record remote attendance
 export const useRemoteAttendance = () => {
   const queryClient = useQueryClient();
+  const { data: currentEmployee } = useCurrentEmployee();
+  const { currentOrg } = useOrganization();
 
   return useMutation({
     mutationFn: async ({
@@ -272,13 +274,35 @@ export const useRemoteAttendance = () => {
         throw new Error(result.error || "Failed to record attendance");
       }
 
-      return result;
+      return { ...result, action };
     },
-    onSuccess: (_, { action }) => {
+    onSuccess: async ({ action }) => {
       toast.success(action === 'check_in' ? "Checked in successfully!" : "Checked out successfully!");
       queryClient.invalidateQueries({ queryKey: ["attendance-today"] });
       queryClient.invalidateQueries({ queryKey: ["attendance-week"] });
       queryClient.invalidateQueries({ queryKey: ["check-in-status"] });
+      queryClient.invalidateQueries({ queryKey: ["today-attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-activity-timeline-infinite"] });
+
+      // Log checkout event to activity logs (check-in is logged by DB trigger)
+      if (action === 'check_out' && currentEmployee?.id && currentOrg?.id) {
+        try {
+          const { logEmployeeActivity } = await import('./useEmployeeActivityTimeline');
+          await logEmployeeActivity({
+            userId: currentEmployee.user_id,
+            organizationId: currentOrg.id,
+            activityType: 'attendance_checked_out',
+            entityType: 'attendance',
+            metadata: {
+              employee_id: currentEmployee.id,
+              check_out_time: new Date().toISOString(),
+            },
+          });
+        } catch (e) {
+          // Non-fatal: don't interrupt the main operation
+          console.error('Failed to log checkout activity:', e);
+        }
+      }
     },
     onError: (error) => {
       const message = getErrorMessage(error, 'Failed to record attendance');
