@@ -7,36 +7,46 @@ import { useState } from 'react';
 import { useEmployeeFeed } from '@/services/useSocialFeed';
 import { PostCardCompact } from './PostCardCompact';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, MessageSquare, Heart, AtSign, FileText } from 'lucide-react';
+import { 
+  Loader2, 
+  Trophy, 
+  Heart, 
+  Megaphone, 
+  Users, 
+  MessageSquare, 
+  Crown,
+  FileText 
+} from 'lucide-react';
 
 interface ProfileActivityFeedProps {
   employeeId: string;
 }
 
-type ActivityFilter = 'all' | 'posts' | 'kudos' | 'mentions';
+type PostTypeFilter = 'all' | 'win' | 'kudos' | 'announcement' | 'social' | 'update' | 'executive_message';
+
+const POST_TYPE_FILTERS = [
+  { value: 'all', label: 'All', icon: FileText },
+  { value: 'win', label: 'Wins', icon: Trophy },
+  { value: 'kudos', label: 'Kudos', icon: Heart },
+  { value: 'announcement', label: 'Announcements', icon: Megaphone },
+  { value: 'social', label: 'Social', icon: Users },
+  { value: 'update', label: 'Updates', icon: MessageSquare },
+  { value: 'executive_message', label: 'Executive', icon: Crown },
+] as const;
 
 export const ProfileActivityFeed = ({ employeeId }: ProfileActivityFeedProps) => {
-  const [filter, setFilter] = useState<ActivityFilter>('all');
+  const [filter, setFilter] = useState<PostTypeFilter>('all');
   const { data: posts = [], isLoading } = useEmployeeFeed(employeeId);
 
   const filteredPosts = posts.filter(post => {
     if (filter === 'all') return true;
-    if (filter === 'posts') return post.employee_id === employeeId;
-    if (filter === 'kudos') {
-      return post.post_type === 'kudos' && post.kudos_recipient_ids?.includes(employeeId);
-    }
-    if (filter === 'mentions') {
-      return post.post_mentions?.some(m => m.employee_id === employeeId);
-    }
-    return true;
+    return post.post_type === filter;
   });
 
-  // Count for badges
-  const counts = {
-    all: posts.length,
-    posts: posts.filter(p => p.employee_id === employeeId).length,
-    kudos: posts.filter(p => p.post_type === 'kudos' && p.kudos_recipient_ids?.includes(employeeId)).length,
-    mentions: posts.filter(p => p.post_mentions?.some(m => m.employee_id === employeeId)).length,
+  // Count posts by type
+  const getCount = (type: PostTypeFilter) => {
+    if (type === 'all') return posts.length;
+    return posts.filter(p => p.post_type === type).length;
   };
 
   if (isLoading) {
@@ -49,38 +59,26 @@ export const ProfileActivityFeed = ({ employeeId }: ProfileActivityFeedProps) =>
 
   return (
     <div className="space-y-4">
-      <Tabs value={filter} onValueChange={(v) => setFilter(v as ActivityFilter)}>
-        <TabsList className="w-full justify-start bg-muted/50">
-          <TabsTrigger value="all" className="gap-1.5">
-            <FileText className="h-4 w-4" />
-            All
-            <span className="text-xs text-muted-foreground">({counts.all})</span>
-          </TabsTrigger>
-          <TabsTrigger value="posts" className="gap-1.5">
-            <MessageSquare className="h-4 w-4" />
-            Posts
-            <span className="text-xs text-muted-foreground">({counts.posts})</span>
-          </TabsTrigger>
-          <TabsTrigger value="kudos" className="gap-1.5">
-            <Heart className="h-4 w-4" />
-            Kudos Received
-            <span className="text-xs text-muted-foreground">({counts.kudos})</span>
-          </TabsTrigger>
-          <TabsTrigger value="mentions" className="gap-1.5">
-            <AtSign className="h-4 w-4" />
-            Mentioned In
-            <span className="text-xs text-muted-foreground">({counts.mentions})</span>
-          </TabsTrigger>
+      <Tabs value={filter} onValueChange={(v) => setFilter(v as PostTypeFilter)}>
+        <TabsList className="w-full justify-start bg-muted/50 overflow-x-auto scrollbar-hide">
+          {POST_TYPE_FILTERS.map(({ value, label, icon: Icon }) => {
+            const count = getCount(value);
+            if (value !== 'all' && count === 0) return null; // Hide empty types
+            return (
+              <TabsTrigger key={value} value={value} className="gap-1.5 shrink-0">
+                <Icon className="h-4 w-4" />
+                {label}
+                <span className="text-xs text-muted-foreground">({count})</span>
+              </TabsTrigger>
+            );
+          })}
         </TabsList>
       </Tabs>
 
       {filteredPosts.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground">
-            {filter === 'all' && 'No activity yet'}
-            {filter === 'posts' && 'No posts created yet'}
-            {filter === 'kudos' && 'No kudos received yet'}
-            {filter === 'mentions' && 'Not mentioned in any posts yet'}
+            {filter === 'all' ? 'No activity yet' : `No ${filter.replace('_', ' ')} posts yet`}
           </p>
         </div>
       ) : (
