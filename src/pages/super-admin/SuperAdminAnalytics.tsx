@@ -520,13 +520,6 @@ const SuperAdminAnalytics = () => {
           </Card>
         </div>
 
-        {/* User Engagement Metrics */}
-        <EngagementMetrics
-          selectedOrgs={selectedOrgs}
-          selectedUsers={selectedUsers}
-          dateRange={dateRange}
-        />
-
         {/* Growth Charts */}
         <div className="space-y-6">
           {/* Section Header with View Mode Toggle */}
@@ -701,6 +694,12 @@ const SuperAdminAnalytics = () => {
           </Card>
         </div>
 
+        {/* User Engagement Metrics */}
+        <EngagementMetrics
+          selectedOrgs={selectedOrgs}
+          selectedUsers={selectedUsers}
+          dateRange={dateRange}
+        />
 
         {/* Activity Heatmap & Churn Risk - Side by Side */}
         <div className="grid gap-6 lg:grid-cols-3">
