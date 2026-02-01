@@ -177,7 +177,7 @@ export const UploadDocumentDialog = ({ employeeId, folder, onSuccess }: UploadDo
 
         if (uploadError) throw uploadError;
 
-        const { error: dbError } = await supabase
+        const { data: insertedDoc, error: dbError } = await supabase
           .from("employee_documents")
           .insert({
             employee_id: employeeId,
@@ -188,11 +188,31 @@ export const UploadDocumentDialog = ({ employeeId, folder, onSuccess }: UploadDo
             file_size: file.size,
             file_type: file.type,
             uploaded_by: currentEmployeeId,
-          });
+          })
+          .select('id')
+          .single();
 
         if (dbError) {
           await supabase.storage.from("employee-documents").remove([filePath]);
           throw dbError;
+        }
+
+        // Log activity for document upload
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && insertedDoc) {
+          const { logEmployeeActivity } = await import('@/services/useEmployeeActivityTimeline');
+          await logEmployeeActivity({
+            userId: user.id,
+            organizationId: currentOrg.id,
+            activityType: 'document_uploaded',
+            entityType: 'document',
+            entityId: insertedDoc.id,
+            metadata: {
+              file_name: file.name,
+              folder,
+              file_size: file.size,
+            },
+          });
         }
 
         uploadedCount++;

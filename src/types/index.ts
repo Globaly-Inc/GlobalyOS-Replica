@@ -121,3 +121,6 @@ export type {
   EmployeeTaxProfile,
   EmployeeWithPayroll,
 } from './payroll';
+
+// Activity types
+export * from './activity';

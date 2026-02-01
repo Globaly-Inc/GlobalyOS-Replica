@@ -12875,6 +12875,29 @@ export type Database = {
         Args: { _org_id: string }
         Returns: string
       }
+      get_employee_activity_timeline: {
+        Args: {
+          p_end_date?: string
+          p_event_types?: string[]
+          p_limit?: number
+          p_offset?: number
+          p_start_date?: string
+          target_employee_id: string
+        }
+        Returns: {
+          access_level: string
+          actor_avatar: string
+          actor_id: string
+          actor_name: string
+          description: string
+          event_category: string
+          event_id: string
+          event_timestamp: string
+          event_type: string
+          metadata: Json
+          title: string
+        }[]
+      }
       get_employee_for_viewer:
         | {
             Args: { p_employee_id: string; p_viewer_id: string }

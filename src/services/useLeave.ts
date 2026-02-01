@@ -280,6 +280,7 @@ interface UpdateLeaveStatusInput {
 
 export const useUpdateLeaveStatus = () => {
   const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
   const { data: currentEmployee } = useCurrentEmployee();
 
   return useMutation({
@@ -287,6 +288,13 @@ export const useUpdateLeaveStatus = () => {
       if (!currentEmployee?.id) {
         throw new Error('Not authenticated');
       }
+
+      // Get the leave request to find employee info for activity log
+      const { data: leaveRequest } = await supabase
+        .from('leave_requests')
+        .select('employee_id, leave_type, days_count, employee:employees!leave_requests_employee_id_fkey(user_id)')
+        .eq('id', requestId)
+        .single();
 
       const { error } = await supabase
         .from('leave_requests')
@@ -298,11 +306,29 @@ export const useUpdateLeaveStatus = () => {
         .eq('id', requestId);
 
       if (error) throw error;
+
+      // Log activity for the employee whose leave was approved/rejected
+      if (leaveRequest?.employee?.user_id && currentOrg?.id) {
+        const { logEmployeeActivity } = await import('./useEmployeeActivityTimeline');
+        await logEmployeeActivity({
+          userId: leaveRequest.employee.user_id,
+          organizationId: currentOrg.id,
+          activityType: status === 'approved' ? 'leave_approved' : 'leave_rejected',
+          entityType: 'leave_request',
+          entityId: requestId,
+          metadata: {
+            leave_type: leaveRequest.leave_type,
+            days_count: leaveRequest.days_count,
+            reviewed_by: currentEmployee.id,
+          },
+        });
+      }
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pending-leave-approvals'] });
       queryClient.invalidateQueries({ queryKey: ['leave-balances'] });
+      queryClient.invalidateQueries({ queryKey: ['employee-activity-timeline'] });
       toast.success(`Leave request ${variables.status}`);
     },
     onError: (error) => {
