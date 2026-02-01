@@ -701,15 +701,19 @@ const SuperAdminAnalytics = () => {
           dateRange={dateRange}
         />
 
-        {/* Activity Heatmap */}
-        <ActivityHeatmap
-          selectedOrgs={selectedOrgs}
-          selectedUsers={selectedUsers}
-          dateRange={dateRange}
-        />
-
-        {/* Churn Risk Card */}
-        <ChurnRiskCard />
+        {/* Activity Heatmap & Churn Risk - Side by Side */}
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <ActivityHeatmap
+              selectedOrgs={selectedOrgs}
+              selectedUsers={selectedUsers}
+              dateRange={dateRange}
+            />
+          </div>
+          <div className="lg:col-span-1">
+            <ChurnRiskCard />
+          </div>
+        </div>
 
         {/* Feature Usage by Module - Collapsible */}
         <div className="space-y-4">
