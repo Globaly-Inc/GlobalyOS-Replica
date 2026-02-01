@@ -121,7 +121,7 @@ export const ActivityTimelineItem = ({ event, showAccessLevel = false }: Activit
             {event.description && (
               <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{event.description}</p>
             )}
-            {event.actor_name && event.actor_id !== event.actor_id && (
+            {event.actor_name && (
               <p className="text-xs text-muted-foreground/70 mt-1">
                 by {event.actor_name}
               </p>

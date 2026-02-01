@@ -21,7 +21,7 @@ The Employee Activity Timeline feature is **partially implemented** but has seve
 | Access control (Self-view) | **Implemented** | RPC checks `viewer_employee_id = target_employee_id` |
 | Filter by event type | **Implemented** | Category dropdown with 8 categories |
 | Filter by date range | **Implemented** | Presets + custom date picker |
-| Pagination | **Implemented but flawed** | "Load More" increments offset but doesn't append results |
+| Pagination | ✅ **Fixed** | Now uses `useInfiniteEmployeeActivityTimeline` - appends results correctly |
 | Leave approved/rejected logging | **Implemented** | `logEmployeeActivity` called in `useUpdateLeaveStatus` |
 | Document upload logging | **Implemented** | `logEmployeeActivity` called in `UploadDocumentDialog` |
 | Document delete logging | **Implemented** | `logEmployeeActivity` called in `EmployeeDocuments` |
@@ -30,12 +30,12 @@ The Employee Activity Timeline feature is **partially implemented** but has seve
 | Profile field change logging | **Missing** | No logging when profile fields are updated |
 | Performance index creation | **Implemented** | Indexes on `user_activity_logs(user_id, created_at)` |
 | Frontend tests | **Missing** | No tests for timeline components |
-| Timeline button visibility control | **Missing** | Button visible to all users, even those with no access |
+| Timeline button visibility control | ✅ **Fixed** | Button now hidden for unauthorized users |
 
 ### Undocumented Behavior Found
 
 1. **Event types not in plan**: `chat_sent`, `wiki_created`, `update_posted`, `kudos_given` are logged via DB triggers but not documented in the plan
-2. **Actor name logic bug**: Line 124 in `ActivityTimelineItem.tsx` has dead code: `event.actor_id !== event.actor_id` is always false
+2. ~~**Actor name logic bug**: Line 124 in `ActivityTimelineItem.tsx` has dead code: `event.actor_id !== event.actor_id` is always false~~ ✅ **Fixed**
 
 ---
 
@@ -50,14 +50,14 @@ The Employee Activity Timeline feature is **partially implemented** but has seve
 | See events | Shows chronological list | Works | **OK** |
 | Filter by category | Shows filtered events | Works | **OK** |
 | Filter by date | Shows date-filtered events | Works | **OK** |
-| Click "Load More" | Appends older events | **Replaces** events instead of appending | **Bug** |
+| Click "Load More" | Appends older events | ✅ Works correctly now | **Fixed** |
 | See access level badges | Shows on each event | Works | **OK** |
 
 ### Flow: Manager Viewing Direct Report
 
 | Step | Expected | Actual | Status |
 |------|----------|--------|--------|
-| Click "Timeline" button | Opens sheet | Opens (button always visible) | **Partial** |
+| Click "Timeline" button | Opens sheet | Works | **OK** |
 | See events | Shows manager+ and public events | Works | **OK** |
 | Cannot see hr_admin events | Should be filtered | Works | **OK** |
 
@@ -65,14 +65,14 @@ The Employee Activity Timeline feature is **partially implemented** but has seve
 
 | Step | Expected | Actual | Status |
 |------|----------|--------|--------|
-| Should not see Timeline button | Hidden | Button is **visible** | **Bug** |
+| Should not see Timeline button | Hidden | ✅ Now hidden | **Fixed** |
 | Click Timeline (if visible) | Should return empty | Returns empty | **OK** |
 
 ### UX Friction Points
 
-1. **Timeline button visible to unauthorized users** - Confusing UX when button exists but returns nothing
+1. ~~**Timeline button visible to unauthorized users** - Confusing UX when button exists but returns nothing~~ ✅ **Fixed**
 2. **No loading skeleton** - Just a spinner, no progressive loading
-3. **Pagination replaces instead of appends** - User loses scroll position and earlier events
+3. ~~**Pagination replaces instead of appends** - User loses scroll position and earlier events~~ ✅ **Fixed**
 4. **Custom date picker is awkward** - Two-click workflow to select range is not intuitive
 5. **No "Profile Activated" for some users** - Only shows if `status = 'active'` and `updated_at` used incorrectly
 
@@ -82,20 +82,20 @@ The Employee Activity Timeline feature is **partially implemented** but has seve
 
 ### Issues Found
 
-| Location | Issue | Severity |
-|----------|-------|----------|
-| `ProfileTimelineSheet.tsx:89` | Pagination increments offset but query replaces data instead of appending | High |
-| `ActivityTimelineItem.tsx:124` | Dead code: `event.actor_id !== event.actor_id` always false | Low |
-| `useEmployeeActivityTimeline.ts:29` | Uses `as any` for RPC call (type safety bypass) | Medium |
-| `ProfileTimelineSheet.tsx:40` | Missing dependency in useEffect: `employeeId` | Low |
-| `ProfileTimelineSheet.tsx:50-75` | Inline Supabase queries in component (should be hooks) | Medium |
-| Console log | React ref warning on `ClickToEdit` component | Low |
+| Location | Issue | Severity | Status |
+|----------|-------|----------|--------|
+| `ProfileTimelineSheet.tsx:89` | Pagination increments offset but query replaces data instead of appending | High | ✅ Fixed |
+| `ActivityTimelineItem.tsx:124` | Dead code: `event.actor_id !== event.actor_id` always false | Low | ✅ Fixed |
+| `useEmployeeActivityTimeline.ts:29` | Uses `as any` for RPC call (type safety bypass) | Medium | Pending |
+| `ProfileTimelineSheet.tsx:40` | Missing dependency in useEffect: `employeeId` | Low | ✅ Fixed |
+| `ProfileTimelineSheet.tsx:50-75` | Inline Supabase queries in component (should be hooks) | Medium | Improved |
+| Console log | React ref warning on `ClickToEdit` component | Low | Pending |
 
 ### Separation of Concerns
 
 - **Good**: Timeline components are modular (`ActivityTimelineItem`, `ActivityTimelineFilters`, `ActivityTimelineEmpty`)
 - **Good**: RPC aggregation keeps complex logic in database
-- **Issue**: Access level checking is duplicated between component and RPC (component has its own check logic that could drift)
+- ~~**Issue**: Access level checking is duplicated between component and RPC (component has its own check logic that could drift)~~ ✅ **Improved**: Now accepts pre-computed props from parent
 
 ### Type Safety
 
@@ -120,8 +120,8 @@ The Employee Activity Timeline feature is **partially implemented** but has seve
 
 ### Missing Reuse Opportunities
 
-1. **useInfiniteEmployeeActivityTimeline exists but unused** - The component uses basic `useQuery` with manual offset, but there's an `useInfiniteQuery` version available that would handle pagination correctly
-2. **Access check logic** - Could reuse a shared `canViewEmployeeTimeline()` function instead of duplicating checks
+1. ~~**useInfiniteEmployeeActivityTimeline exists but unused** - The component uses basic `useQuery` with manual offset, but there's an `useInfiniteQuery` version available that would handle pagination correctly~~ ✅ **Fixed**: Now using `useInfiniteEmployeeActivityTimeline`
+2. ~~**Access check logic** - Could reuse a shared `canViewEmployeeTimeline()` function instead of duplicating checks~~ ✅ **Improved**: Props passed from parent
 
 ---
 
@@ -142,15 +142,15 @@ The Employee Activity Timeline feature is **partially implemented** but has seve
 |--------|--------|-------|
 | Query caching | **OK** | 1-minute staleTime |
 | Lazy loading | **OK** | Only fetches when sheet opens |
-| Memoization | **Missing** | viewerLevel is memoized, but events array recreation on every render |
-| Re-renders | **Potential issue** | Filter changes cause full refetch |
+| Memoization | ✅ **Improved** | Events array now properly memoized from infinite query |
+| Re-renders | **OK** | Filter changes refetch data properly |
 
 ### Instant Feel Assessment
 
 - ✅ Sheet opens instantly (data loads after)
 - ✅ Filter changes show loading state
 - ⚠️ No optimistic updates (expected for read-only view)
-- ❌ Pagination replaces data causing visible flicker
+- ✅ Pagination now appends data smoothly
 
 ---
 
@@ -171,7 +171,7 @@ The Employee Activity Timeline feature is **partially implemented** but has seve
 
 | Check | Status | Notes |
 |-------|--------|-------|
-| Button visibility | **Missing** | Button shown to all, should be hidden for unauthorized |
+| Button visibility | ✅ **Fixed** | Button now hidden for unauthorized users |
 | Access level indicator | **OK** | Shows viewer's access level |
 | No client-side data filtering | **OK** | All filtering in RPC |
 
@@ -250,26 +250,26 @@ No AI features are used in the Activity Timeline. The feature is purely data agg
 
 ### Critical (Should Fix Now)
 
-| Issue | Impact | Risk | Effort |
-|-------|--------|------|--------|
-| **Pagination replaces instead of appends** | Data loss during "Load More" | Low | S |
-| **Timeline button visible to unauthorized users** | Confusing UX, potential security concern | Low | S |
+| Issue | Impact | Risk | Effort | Status |
+|-------|--------|------|--------|--------|
+| **Pagination replaces instead of appends** | Data loss during "Load More" | Low | S | ✅ Fixed |
+| **Timeline button visible to unauthorized users** | Confusing UX, potential security concern | Low | S | ✅ Fixed |
 
 ### High Priority
 
-| Issue | Impact | Risk | Effort |
-|-------|--------|------|--------|
-| **Missing attendance_checked_out logging** | Incomplete attendance history | Low | S |
-| **Switch to useInfiniteEmployeeActivityTimeline** | Fixes pagination properly | Low | M |
-| **Add basic tests for timeline feature** | Prevents regressions | Low | M |
+| Issue | Impact | Risk | Effort | Status |
+|-------|--------|------|--------|--------|
+| **Missing attendance_checked_out logging** | Incomplete attendance history | Low | S | Pending |
+| **Switch to useInfiniteEmployeeActivityTimeline** | Fixes pagination properly | Low | M | ✅ Fixed |
+| **Add basic tests for timeline feature** | Prevents regressions | Low | M | Pending |
 
 ### Medium Priority
 
-| Issue | Impact | Risk | Effort |
-|-------|--------|------|--------|
-| **Fix actor_name display logic (dead code)** | Code quality | None | S |
-| **Type-safe RPC calls** | Maintainability | Low | M |
-| **Add timeline access audit logging** | Observability | Low | S |
+| Issue | Impact | Risk | Effort | Status |
+|-------|--------|------|--------|--------|
+| **Fix actor_name display logic (dead code)** | Code quality | None | S | ✅ Fixed |
+| **Type-safe RPC calls** | Maintainability | Low | M | Pending |
+| **Add timeline access audit logging** | Observability | Low | S | Pending |
 
 ### Low Priority
 
@@ -283,15 +283,19 @@ No AI features are used in the Activity Timeline. The feature is purely data agg
 
 ## Summary
 
-The Activity Timeline feature is **functional for its core use case** (HR/Admin viewing employee history) but has:
+The Activity Timeline feature is **functional for its core use case** (HR/Admin viewing employee history) with:
 
-1. **Two critical bugs**: pagination and button visibility
-2. **One missing logging feature**: checkout events
-3. **Zero test coverage** for timeline-specific code
-4. **Acceptable security posture** with server-side enforcement
+### ✅ Fixed Issues (This Session)
+1. **Pagination now works correctly** - Uses `useInfiniteEmployeeActivityTimeline` to properly append results
+2. **Timeline button visibility** - Hidden for unauthorized viewers (regular members viewing peers)
+3. **Dead code removed** - Fixed the always-false condition in `ActivityTimelineItem.tsx`
+4. **Access control props** - `ProfileTimelineSheet` now accepts pre-computed access props from parent to avoid duplicate DB queries
 
-**Recommended immediate actions:**
-1. Fix pagination by switching to `useInfiniteEmployeeActivityTimeline`
-2. Hide Timeline button for unauthorized viewers
-3. Add checkout event logging to `validate_qr_and_record_attendance` trigger
+### Remaining Items
+1. **One missing logging feature**: checkout events
+2. **Zero test coverage** for timeline-specific code
+3. **Type safety** could be improved in RPC calls
 
+**Recommended next actions:**
+1. Add checkout event logging to `validate_qr_and_record_attendance` trigger
+2. Add basic tests for timeline components
