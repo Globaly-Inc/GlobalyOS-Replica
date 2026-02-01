@@ -1,151 +1,240 @@
 
-# Plan: Auto-save Super Admin Analytics Filters & Chart Settings
+# Plan: Enhanced Churn Risk Indicators with Detailed Data and Navigation
 
 ## Overview
-Implement automatic persistence of all filter and chart view settings on the Super Admin Analytics page. Changes will be saved to localStorage automatically and restored on page reload. Settings will only reset when the user explicitly clears filters.
+Enhance the Churn Risk feature to provide actionable insights for decision-making. This includes enriching the risk cards with comprehensive data, enabling navigation to organisation profiles, and displaying risk indicators in the organisations list.
 
 ---
 
-## What Will Be Saved
+## What Will Be Built
 
-The following settings will be automatically persisted:
+### 1. Enhanced ChurnRiskCard with Detailed Data
 
-### Filter Settings
-- Selected organisations
-- Selected users  
-- Date preset (last 7 days, last 30 days, etc.)
-- Custom date range (start & end dates)
+Each at-risk organisation card will display:
 
-### Chart View Settings
-- Organisation Growth: view mode (days/week/month) + cumulative toggle
-- Users Growth: view mode + cumulative toggle
-- Activities Over Time: view mode + cumulative toggle
+| Data Point | Description |
+|------------|-------------|
+| Organisation Name | Current ✓ |
+| Risk Level Badge | Current ✓ (High/Medium) |
+| Reason | Current ✓ (e.g., "No activity in 14 days") |
+| Last Activity Date | Current ✓ |
+| **Active Users** | Count of users who were active in last 30 days |
+| **Total Users** | Total employees/members in the org |
+| **Plan/Tier** | Current subscription plan (free/pro/enterprise) |
+| **Owner/Admin** | Primary contact name |
+| **Owner Email** | For quick outreach |
+| **Industry** | Organisation's industry |
+| **Company Size** | Size category |
+| **Created Date** | When they joined |
+| **Recent vs Previous Activity** | Visual comparison (e.g., "42 → 12 page views") |
+| **Activity Trend Arrow** | Visual indicator of direction |
 
-### UI Preferences
-- Expanded/collapsed module sections
+### 2. Clickable Cards with Navigation
+
+- Each organisation card becomes fully clickable
+- Clicking navigates to: `/super-admin/organisations/{orgId}`
+- Hover state with cursor pointer and subtle elevation
+- External link icon hint on hover
+
+### 3. Churn Risk Column in Organisation List
+
+Add a new "Risk" column to the organisation tables showing:
+- Risk badge (High/Medium/Low/Healthy)
+- Sortable by risk level
+- Tooltip with quick reason on hover
 
 ---
 
-## Implementation Approach
+## Technical Implementation
 
-### 1. Create a Super Admin-specific Persistence Hook
+### File: `src/components/super-admin/ChurnRiskCard.tsx`
 
-Since the existing `usePersistedFilters` hook is organisation-scoped (uses `currentOrg.id` in the storage key), I'll create a new approach that works for Super Admin context where there's no "current org".
-
-**Storage Key:** `super_admin_analytics_filters`
-
-### 2. State Structure to Persist
+**1. Expand the ChurnRiskOrg interface:**
 
 ```typescript
-interface SuperAdminAnalyticsState {
-  // Filter states
-  selectedOrgs: string[];
-  selectedUsers: string[];
-  datePreset: DatePreset;
-  customStartDate: string | null; // ISO string for storage
-  customEndDate: string | null;
-  
-  // Chart view modes
-  orgViewMode: ViewMode;
-  userViewMode: ViewMode;
-  activityViewMode: ViewMode;
-  
-  // Cumulative toggles
-  showOrgCumulative: boolean;
-  showCumulative: boolean;
-  showActivitiesCumulative: boolean;
-  
-  // UI state
-  openModules: string[];
+interface ChurnRiskOrg {
+  id: string;
+  name: string;
+  riskLevel: 'high' | 'medium' | 'low';
+  reason: string;
+  lastActivity: string | null;
+  activityDrop: number;
+  // New fields:
+  recentActivityCount: number;
+  previousActivityCount: number;
+  totalUsers: number;
+  activeUsers: number;
+  plan: string;
+  ownerName: string | null;
+  ownerEmail: string | null;
+  industry: string | null;
+  companySize: string | null;
+  createdAt: string;
 }
 ```
 
-### 3. Auto-save Behaviour
+**2. Fetch additional org data:**
+- Join/fetch from `organizations` table: plan, owner_name, owner_email, industry, company_size, created_at
+- Count from `employees` or `organization_members` for total users
+- Count active users (users with activity in last 30 days) from `user_page_visits`
 
-- Use a `useEffect` hook that watches all state values
-- Debounce saves to avoid excessive localStorage writes (300ms delay)
-- Save automatically whenever any setting changes
-- No manual "save" button needed
+**3. Add navigation using `useNavigate`:**
 
-### 4. Load on Mount
+```typescript
+import { useNavigate } from "react-router-dom";
 
-- On component mount, check localStorage for saved state
-- Merge saved values with defaults (handle missing/new fields gracefully)
-- Convert date strings back to Date objects
+const navigate = useNavigate();
 
-### 5. Clear Filters Behaviour
+// On card click:
+onClick={() => navigate(`/super-admin/organisations/${org.id}`)}
+```
 
-- When user clicks "X" to clear organisation/user filters, only those specific values reset
-- To fully reset all settings, user can manually clear from browser or we can add an optional "Reset all" action
+**4. Enhanced card layout:**
+- Two-column grid inside each card
+- Left: Org info (name, owner, plan)
+- Right: Activity metrics (users, trend)
+- Bottom: Reason and dates
+
+### File: `src/pages/super-admin/SuperAdminOrganisations.tsx`
+
+**1. Create a shared churn risk hook:**
+
+Create a new hook or utility to calculate churn risk that can be reused:
+
+```typescript
+// src/hooks/useChurnRisk.ts
+export interface ChurnRiskData {
+  organizationId: string;
+  riskLevel: 'high' | 'medium' | 'low' | 'healthy';
+  reason: string;
+  daysSinceActivity: number;
+  activityDropPercent: number;
+}
+
+export const useChurnRisk = (organizationIds: string[]) => {
+  // Returns a Map<orgId, ChurnRiskData>
+};
+```
+
+**2. Add Risk column to OrganizationsTable:**
+
+```typescript
+// New column in table header
+<TableHead>Risk</TableHead>
+
+// In table row
+<TableCell>
+  <ChurnRiskBadge 
+    level={riskData?.riskLevel || 'healthy'} 
+    reason={riskData?.reason}
+  />
+</TableCell>
+```
+
+**3. Create ChurnRiskBadge component:**
+
+```typescript
+const ChurnRiskBadge = ({ level, reason }: { level: string; reason?: string }) => {
+  const badgeConfig = {
+    high: { variant: 'destructive', icon: AlertTriangle },
+    medium: { className: 'bg-amber-500/20 text-amber-700', icon: AlertCircle },
+    low: { variant: 'secondary', icon: null },
+    healthy: { className: 'bg-emerald-500/20 text-emerald-700', icon: CheckCircle },
+  };
+  // Render badge with tooltip showing reason
+};
+```
+
+### File: `src/hooks/useChurnRisk.ts` (New File)
+
+A reusable hook that:
+1. Takes an array of organisation IDs
+2. Fetches activity data for all in parallel
+3. Calculates risk levels using the same logic as ChurnRiskCard
+4. Returns a Map for O(1) lookup in tables
+5. Caches results using React Query
 
 ---
 
-## Technical Changes
+## UI/UX Enhancements
 
-### File: `src/pages/super-admin/SuperAdminAnalytics.tsx`
+### ChurnRiskCard Enhanced Layout
 
-1. **Add new state management logic:**
-   - Create a custom hook `useSuperAdminAnalyticsState` or inline logic
-   - Load initial state from localStorage with defaults fallback
-   - Save state changes with debouncing
+```text
+┌─────────────────────────────────────────────────────────┐
+│ [Logo] Acme Corp                        [High Risk] 🔗  │
+│ ─────────────────────────────────────────────────────── │
+│                                                         │
+│ Owner: John Smith (john@acme.com)                       │
+│ Plan: Pro  •  Industry: Technology  •  Size: 11-50      │
+│                                                         │
+│ ┌──────────────────┐  ┌──────────────────┐             │
+│ │ 📊 Activity      │  │ 👥 Users         │             │
+│ │ 42 → 12 (-71%)   │  │ 8 active / 24    │             │
+│ │ ↓ Declining      │  │ total            │             │
+│ └──────────────────┘  └──────────────────┘             │
+│                                                         │
+│ ⚠️ No activity in 18 days                               │
+│ Last seen: 14 Jan 2026  •  Joined: Aug 2025            │
+└─────────────────────────────────────────────────────────┘
+```
 
-2. **Modify existing `useState` initialisers:**
-   - Replace hardcoded defaults with values loaded from localStorage
-   
-3. **Add save effect:**
-   ```typescript
-   useEffect(() => {
-     const timeoutId = setTimeout(() => {
-       localStorage.setItem(STORAGE_KEY, JSON.stringify({
-         selectedOrgs,
-         selectedUsers,
-         datePreset,
-         customStartDate: customStartDate?.toISOString() || null,
-         customEndDate: customEndDate?.toISOString() || null,
-         orgViewMode,
-         userViewMode,
-         activityViewMode,
-         showOrgCumulative,
-         showCumulative,
-         showActivitiesCumulative,
-         openModules,
-       }));
-     }, 300);
-     return () => clearTimeout(timeoutId);
-   }, [/* all state dependencies */]);
-   ```
+### Organisation List Risk Column
 
-4. **Add load logic on mount:**
-   ```typescript
-   const loadSavedState = () => {
-     try {
-       const saved = localStorage.getItem(STORAGE_KEY);
-       if (saved) return JSON.parse(saved);
-     } catch (e) {
-       console.error('Failed to load analytics state:', e);
-     }
-     return null;
-   };
-   ```
+```text
+| Organisation | Code | Status | Plan | Users | Risk     | Owner    | Created     |
+|--------------|------|--------|------|-------|----------|----------|-------------|
+| Acme Corp    | acme | Active | Pro  | 24    | ⚠️ High  | J. Smith | 15 Aug 2025 |
+| Beta Inc     | beta | Active | Free | 12    | ✓ Healthy| M. Jones | 22 Sep 2025 |
+```
 
 ---
 
-## User Experience
+## Data Fetching Strategy
 
-| Action | Result |
-|--------|--------|
-| Change any filter/setting | Automatically saved (debounced 300ms) |
-| Refresh page | All settings restored |
-| Clear specific filter (X button) | Only that filter resets, others remain |
-| Change view mode on chart | Saved automatically |
-| Toggle cumulative | Saved automatically |
-| Expand/collapse modules | Saved automatically |
+### For ChurnRiskCard (Enhanced)
+
+```typescript
+// Fetch orgs with additional data
+const { data: orgs } = await supabase
+  .from('organizations')
+  .select(`
+    id, name, plan, created_at,
+    owner_name, owner_email, industry, company_size
+  `);
+
+// For each org, also get:
+// 1. Total users (employees count)
+// 2. Active users (distinct users in user_page_visits last 30 days)
+// 3. Recent/Previous activity counts (existing logic)
+```
+
+### For Organisation List (Optimised)
+
+Since the list can have many orgs, we'll:
+1. Fetch all orgs first (existing)
+2. Batch fetch activity data for displayed orgs
+3. Calculate risk in frontend
+4. Use React Query caching to avoid recalculating
+
+---
+
+## Files to Create/Modify
+
+| File | Action |
+|------|--------|
+| `src/components/super-admin/ChurnRiskCard.tsx` | Modify - Add details, navigation, enhanced UI |
+| `src/hooks/useChurnRisk.ts` | Create - Shared churn risk calculation hook |
+| `src/components/super-admin/ChurnRiskBadge.tsx` | Create - Reusable badge component |
+| `src/pages/super-admin/SuperAdminOrganisations.tsx` | Modify - Add Risk column to tables |
 
 ---
 
 ## Edge Cases Handled
 
-- **Invalid saved data**: Falls back to defaults
-- **New settings added later**: Missing keys use defaults
-- **Date parsing errors**: Falls back to default dates
-- **Large storage**: State is small, no size concerns
+- New organisations with no activity yet → Show "New" label instead of risk
+- Organisations with very low previous activity → Don't flag as risky if previous < 10
+- Clicked card loads quickly with optimistic navigation
+- Missing owner data → Display "N/A" gracefully
+- Performance: Limit to top 10 at-risk orgs in card, but show all in list
+
