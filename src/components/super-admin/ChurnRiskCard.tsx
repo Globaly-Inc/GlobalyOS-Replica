@@ -266,38 +266,6 @@ const ChurnRiskCard = () => {
                     </div>
                   )}
 
-                  {/* Metrics Grid */}
-                  <div className="grid grid-cols-2 gap-3 mb-3">
-                    {/* Activity Metric */}
-                    <div className="p-2 rounded bg-background/50 border border-border/50">
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
-                        <TrendingDown className="h-3 w-3" />
-                        <span>Activity</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-sm font-medium">{org.previousActivityCount}</span>
-                        <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-sm font-medium">{org.recentActivityCount}</span>
-                        {trend !== null && trend !== 0 && (
-                          <span className={`text-xs ml-1 ${trend < 0 ? 'text-destructive' : 'text-emerald-600'}`}>
-                            ({trend > 0 ? '+' : ''}{trend}%)
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Users Metric */}
-                    <div className="p-2 rounded bg-background/50 border border-border/50">
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
-                        <Users className="h-3 w-3" />
-                        <span>Users</span>
-                      </div>
-                      <div className="text-sm font-medium">
-                        <span className={org.activeUsers === 0 ? 'text-destructive' : ''}>{org.activeUsers}</span>
-                        <span className="text-muted-foreground"> / {org.totalUsers} active</span>
-                      </div>
-                    </div>
-                  </div>
 
                   {/* Footer Info */}
                   <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border/50">
