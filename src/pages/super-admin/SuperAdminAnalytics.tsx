@@ -535,36 +535,61 @@ const SuperAdminAnalytics = () => {
         />
 
         {/* Growth Charts */}
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Organisation Growth</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={growthData.orgGrowth}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis 
-                      dataKey="label" 
-                      className="text-xs"
-                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                      interval={viewMode === 'days' && growthData.orgGrowth.length > 15 ? Math.floor(growthData.orgGrowth.length / 10) : 0}
-                    />
-                    <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+        <div className="space-y-6">
+          {/* Section Header with View Mode Toggle */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-foreground">Growth Charts</h2>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground">View:</span>
+              <div className="flex rounded-lg border border-border overflow-hidden">
+                {(['days', 'week', 'month'] as ViewMode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setViewMode(mode)}
+                    className={cn(
+                      "px-3 py-1.5 text-sm font-medium transition-colors",
+                      viewMode === mode
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-background text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                  </button>
+                ))}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Organisation Growth</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={growthData.orgGrowth}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis 
+                        dataKey="label" 
+                        className="text-xs"
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                        interval={viewMode === 'days' && growthData.orgGrowth.length > 15 ? Math.floor(growthData.orgGrowth.length / 10) : 0}
+                      />
+                      <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                        }}
+                      />
+                      <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
@@ -624,63 +649,64 @@ const SuperAdminAnalytics = () => {
           </Card>
         </div>
 
-        {/* Activities Chart - Full Width */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Activities Over Time</CardTitle>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Cumulative</span>
-              <Button
-                variant={showActivitiesCumulative ? "default" : "outline"}
-                size="sm"
-                className="h-7 px-2 text-xs"
-                onClick={() => setShowActivitiesCumulative(!showActivitiesCumulative)}
-              >
-                {showActivitiesCumulative ? "On" : "Off"}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={showActivitiesCumulative 
-                  ? (() => {
-                      let cumulative = 0;
-                      return growthData.activityGrowth.map(item => {
-                        cumulative += item.count;
-                        return { label: item.label, count: cumulative };
-                      });
-                    })()
-                  : growthData.activityGrowth
-                }>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis 
-                    dataKey="label" 
-                    className="text-xs"
-                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                    interval={viewMode === 'days' && growthData.activityGrowth.length > 15 ? Math.floor(growthData.activityGrowth.length / 10) : 0}
-                  />
-                  <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                    }}
-                  />
-                  <Line 
-                    type="monotone"
-                    dataKey="count" 
-                    stroke="hsl(280 65% 60%)"
-                    strokeWidth={2}
-                    dot={{ fill: 'hsl(280 65% 60%)', strokeWidth: 2, r: 4 }}
-                    activeDot={{ r: 6, fill: 'hsl(280 65% 60%)' }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+          {/* Activities Chart - Full Width */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Activities Over Time</CardTitle>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Cumulative</span>
+                <Button
+                  variant={showActivitiesCumulative ? "default" : "outline"}
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => setShowActivitiesCumulative(!showActivitiesCumulative)}
+                >
+                  {showActivitiesCumulative ? "On" : "Off"}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={showActivitiesCumulative 
+                    ? (() => {
+                        let cumulative = 0;
+                        return growthData.activityGrowth.map(item => {
+                          cumulative += item.count;
+                          return { label: item.label, count: cumulative };
+                        });
+                      })()
+                    : growthData.activityGrowth
+                  }>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis 
+                      dataKey="label" 
+                      className="text-xs"
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      interval={viewMode === 'days' && growthData.activityGrowth.length > 15 ? Math.floor(growthData.activityGrowth.length / 10) : 0}
+                    />
+                    <YAxis className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                    />
+                    <Line 
+                      type="monotone"
+                      dataKey="count" 
+                      stroke="hsl(280 65% 60%)"
+                      strokeWidth={2}
+                      dot={{ fill: 'hsl(280 65% 60%)', strokeWidth: 2, r: 4 }}
+                      activeDot={{ r: 6, fill: 'hsl(280 65% 60%)' }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Churn Risk Card */}
         <ChurnRiskCard />

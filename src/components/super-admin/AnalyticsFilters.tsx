@@ -325,27 +325,6 @@ const AnalyticsFilters = ({
 
       <div className="h-6 w-px bg-border" />
 
-      {/* View Mode */}
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-muted-foreground">View:</span>
-        <div className="flex rounded-lg border border-border overflow-hidden">
-          {(['days', 'week', 'month'] as ViewMode[]).map((mode) => (
-            <button
-              key={mode}
-              onClick={() => onViewModeChange(mode)}
-              className={cn(
-                "px-3 py-1.5 text-sm font-medium transition-colors",
-                viewMode === mode
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-background text-muted-foreground hover:bg-muted"
-              )}
-            >
-              {mode.charAt(0).toUpperCase() + mode.slice(1)}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Date Range */}
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium text-muted-foreground">Period:</span>
