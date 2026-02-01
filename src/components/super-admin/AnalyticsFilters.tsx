@@ -14,8 +14,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, X, Building2, Users } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { CalendarIcon, X, Building2, Users, Check, ChevronsUpDown } from "lucide-react";
 import { format, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +34,7 @@ export type ViewMode = 'days' | 'week' | 'month';
 interface Organization {
   id: string;
   name: string;
+  logo_url: string | null;
 }
 
 interface UserProfile {
@@ -76,6 +86,8 @@ const AnalyticsFilters = ({
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loadingOrgs, setLoadingOrgs] = useState(true);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [orgSearchOpen, setOrgSearchOpen] = useState(false);
+  const [orgSearch, setOrgSearch] = useState("");
 
   useEffect(() => {
     fetchOrganizations();
@@ -98,7 +110,7 @@ const AnalyticsFilters = ({
     try {
       const { data } = await supabase
         .from('organizations')
-        .select('id, name')
+        .select('id, name, logo_url')
         .order('name');
       setOrganizations(data || []);
     } catch (error) {
@@ -169,29 +181,100 @@ const AnalyticsFilters = ({
     return `${selectedUsers.length} users`;
   };
 
+  const selectedOrg = selectedOrgs.length === 1 ? organizations.find(o => o.id === selectedOrgs[0]) : null;
+
   return (
     <div className="flex flex-wrap items-center gap-4 p-4 bg-card rounded-lg border border-border">
-      {/* Organization Filter */}
+      {/* Organization Filter - Searchable */}
       <div className="flex items-center gap-2">
         <Building2 className="h-4 w-4 text-muted-foreground" />
-        <Select
-          value={selectedOrgs.length === 0 ? 'all' : selectedOrgs[0]}
-          onValueChange={handleOrgSelect}
-        >
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Select organisation">
-              {getOrgLabel()}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Organisations</SelectItem>
-            {organizations.map((org) => (
-              <SelectItem key={org.id} value={org.id}>
-                {org.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Popover open={orgSearchOpen} onOpenChange={setOrgSearchOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={orgSearchOpen}
+              className="w-[240px] justify-between"
+            >
+              <div className="flex items-center gap-2 truncate">
+                {selectedOrg ? (
+                  <>
+                    <Avatar className="h-5 w-5 rounded">
+                      <AvatarImage src={selectedOrg.logo_url || ''} alt={selectedOrg.name} className="object-cover" />
+                      <AvatarFallback className="rounded bg-primary/10 text-primary text-[10px] font-semibold">
+                        {selectedOrg.name?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="truncate">{selectedOrg.name}</span>
+                  </>
+                ) : (
+                  <span>All Organisations</span>
+                )}
+              </div>
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[280px] p-0" align="start">
+            <Command shouldFilter={false}>
+              <CommandInput 
+                placeholder="Search organisations..." 
+                value={orgSearch}
+                onValueChange={setOrgSearch}
+              />
+              <CommandList className="max-h-[280px]">
+                <CommandEmpty>No organisation found.</CommandEmpty>
+                <CommandGroup>
+                  <CommandItem
+                    value="all"
+                    onSelect={() => {
+                      onOrgsChange([]);
+                      setOrgSearchOpen(false);
+                      setOrgSearch("");
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        selectedOrgs.length === 0 ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    <Building2 className="mr-2 h-4 w-4 text-muted-foreground" />
+                    All Organisations
+                  </CommandItem>
+                  {organizations
+                    .filter(org => 
+                      org.name.toLowerCase().includes(orgSearch.toLowerCase())
+                    )
+                    .map((org) => (
+                      <CommandItem
+                        key={org.id}
+                        value={org.id}
+                        onSelect={() => {
+                          handleOrgSelect(org.id);
+                          setOrgSearchOpen(false);
+                          setOrgSearch("");
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            selectedOrgs.includes(org.id) ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                        <Avatar className="mr-2 h-5 w-5 rounded">
+                          <AvatarImage src={org.logo_url || ''} alt={org.name} className="object-cover" />
+                          <AvatarFallback className="rounded bg-primary/10 text-primary text-[10px] font-semibold">
+                            {org.name?.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="truncate">{org.name}</span>
+                      </CommandItem>
+                    ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
         {selectedOrgs.length > 0 && (
           <Button
             variant="ghost"
