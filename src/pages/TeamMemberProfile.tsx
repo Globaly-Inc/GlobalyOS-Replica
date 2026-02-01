@@ -711,7 +711,13 @@ const TeamMemberProfile = () => {
             {(isOwner || isAdmin) && !isOwnProfile && <div className="hidden sm:block">
                 <DeleteTeamMemberDialog employeeId={id!} employeeName={employee.profiles.full_name} userId={employee.user_id} />
               </div>}
-            <ProfileTimelineSheet employeeId={id!} employeeName={employee.profiles.full_name} />
+            <ProfileTimelineSheet 
+              employeeId={id!} 
+              employeeName={employee.profiles.full_name}
+              isAdminOrHR={isAdminOrHR}
+              isOwnProfile={isOwnProfile}
+              isManagerOfEmployee={isManagerOfEmployee}
+            />
           </div>
         </div>
 

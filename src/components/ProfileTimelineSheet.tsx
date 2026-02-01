@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -6,88 +6,124 @@ import { History, Lock, Loader2 } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { useEmployeeActivityTimeline } from "@/services/useEmployeeActivityTimeline";
+import { useInfiniteEmployeeActivityTimeline } from "@/services/useEmployeeActivityTimeline";
 import { ActivityTimelineFilters, ActivityTimelineItem, ActivityTimelineEmpty } from "@/components/timeline";
 import type { ActivityTimelineFilters as FilterType } from "@/types/activity";
 
 interface ProfileTimelineSheetProps {
   employeeId: string;
   employeeName: string;
+  /** Pre-computed: is the viewer HR/Admin/Owner? */
+  isAdminOrHR?: boolean;
+  /** Pre-computed: is the viewer viewing their own profile? */
+  isOwnProfile?: boolean;
+  /** Pre-computed: is the viewer the direct manager of this employee? */
+  isManagerOfEmployee?: boolean;
 }
 
-export const ProfileTimelineSheet = ({ employeeId, employeeName }: ProfileTimelineSheetProps) => {
+export const ProfileTimelineSheet = ({ 
+  employeeId, 
+  employeeName,
+  isAdminOrHR: propIsAdminOrHR,
+  isOwnProfile: propIsOwnProfile,
+  isManagerOfEmployee: propIsManagerOfEmployee,
+}: ProfileTimelineSheetProps) => {
   const [open, setOpen] = useState(false);
-  const [isOwnProfile, setIsOwnProfile] = useState(false);
-  const [isManager, setIsManager] = useState(false);
+  const [localIsOwnProfile, setLocalIsOwnProfile] = useState(false);
+  const [localIsManager, setLocalIsManager] = useState(false);
+  const [accessChecked, setAccessChecked] = useState(false);
   const [filters, setFilters] = useState<FilterType>({});
-  const [offset, setOffset] = useState(0);
-  const { isAdmin, isHR, loading: roleLoading } = useUserRole();
+  const { isAdmin, isHR, isOwner, loading: roleLoading } = useUserRole();
   const { user } = useAuth();
 
-  // Fetch timeline events using the RPC
-  const { data: events = [], isLoading, refetch } = useEmployeeActivityTimeline({
-    employeeId: open ? employeeId : '',
-    limit: 50,
-    offset,
-    filters,
-  });
+  // Use props if provided, otherwise fall back to local state
+  const isOwnProfile = propIsOwnProfile ?? localIsOwnProfile;
+  const isManager = propIsManagerOfEmployee ?? localIsManager;
+  const isAdminOrHR = propIsAdminOrHR ?? (isOwner || isAdmin || isHR);
 
-  // Check access level on open
-  useEffect(() => {
-    if (open && user) {
-      checkAccessLevel();
-    }
-  }, [open, user, employeeId]);
+  // Determine if user can view timeline
+  const canViewTimeline = isAdminOrHR || isOwnProfile || isManager;
 
-  // Refetch when filters change
-  useEffect(() => {
-    if (open) {
-      setOffset(0);
-      refetch();
-    }
-  }, [filters, open]);
+  // Fetch timeline events using infinite query for proper pagination
+  const { 
+    data, 
+    isLoading, 
+    fetchNextPage, 
+    hasNextPage, 
+    isFetchingNextPage 
+  } = useInfiniteEmployeeActivityTimeline(
+    open && canViewTimeline ? employeeId : undefined,
+    filters
+  );
 
-  const checkAccessLevel = async () => {
-    if (!user) return;
+  // Flatten all pages into single events array
+  const events = useMemo(() => {
+    return data?.pages.flatMap(page => page.events) ?? [];
+  }, [data]);
 
-    // Check if viewing own profile
-    const { data: ownEmployee } = await supabase
-      .from("employees")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
-
-    if (ownEmployee?.id === employeeId) {
-      setIsOwnProfile(true);
+  // Check access level when props are not provided
+  const checkAccessLevel = useCallback(async () => {
+    if (!user || propIsOwnProfile !== undefined || propIsManagerOfEmployee !== undefined) {
+      setAccessChecked(true);
       return;
     }
 
-    // Check if current user is the manager of this employee
-    const { data: employee } = await supabase
-      .from("employees")
-      .select("manager_id")
-      .eq("id", employeeId)
-      .single();
+    try {
+      // Check if viewing own profile
+      const { data: ownEmployee } = await supabase
+        .from("employees")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
 
-    if (employee?.manager_id && ownEmployee?.id === employee.manager_id) {
-      setIsManager(true);
+      if (ownEmployee?.id === employeeId) {
+        setLocalIsOwnProfile(true);
+        setAccessChecked(true);
+        return;
+      }
+
+      // Check if current user is the manager of this employee
+      const { data: employee } = await supabase
+        .from("employees")
+        .select("manager_id")
+        .eq("id", employeeId)
+        .single();
+
+      if (employee?.manager_id && ownEmployee?.id === employee.manager_id) {
+        setLocalIsManager(true);
+      }
+    } finally {
+      setAccessChecked(true);
     }
-  };
+  }, [user, employeeId, propIsOwnProfile, propIsManagerOfEmployee]);
+
+  // Check access on mount (for button visibility)
+  useEffect(() => {
+    if (user && !accessChecked) {
+      checkAccessLevel();
+    }
+  }, [user, accessChecked, checkAccessLevel]);
 
   // Determine viewer access level
   const viewerLevel = useMemo(() => {
-    if (isAdmin || isHR) return 'hr_admin';
+    if (isAdminOrHR) return 'hr_admin';
     if (isOwnProfile) return 'self';
     if (isManager) return 'manager';
     return 'public';
-  }, [isAdmin, isHR, isOwnProfile, isManager]);
+  }, [isAdminOrHR, isOwnProfile, isManager]);
 
-  const showAccessLevel = isAdmin || isHR;
+  const showAccessLevel = isAdminOrHR;
   const hasActiveFilters = filters.eventTypes?.length || filters.startDate || filters.endDate;
 
-  const handleLoadMore = () => {
-    setOffset(prev => prev + 50);
-  };
+  // Don't render button if user doesn't have access
+  if (!roleLoading && accessChecked && !canViewTimeline) {
+    return null;
+  }
+
+  // Show loading state while checking access
+  if (roleLoading || !accessChecked) {
+    return null;
+  }
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -144,15 +180,15 @@ export const ProfileTimelineSheet = ({ employeeId, employeeName }: ProfileTimeli
               </div>
 
               {/* Load More button */}
-              {events.length >= 50 && (
+              {hasNextPage && (
                 <div className="mt-6 flex justify-center">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleLoadMore}
-                    disabled={isLoading}
+                    onClick={() => fetchNextPage()}
+                    disabled={isFetchingNextPage}
                   >
-                    {isLoading ? (
+                    {isFetchingNextPage ? (
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     ) : null}
                     Load More
