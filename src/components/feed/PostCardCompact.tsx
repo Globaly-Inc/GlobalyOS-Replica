@@ -15,6 +15,7 @@ import {
   Users,
 } from 'lucide-react';
 import { Post, usePostReactions } from '@/services/useSocialFeed';
+import { useCommentCount } from '@/services/usePostStats';
 import { OrgLink } from '@/components/OrgLink';
 import { cn, formatSmartDateTime } from '@/lib/utils';
 
@@ -86,6 +87,7 @@ const stripHtmlAndTruncate = (html: string, maxLength: number = 100): string => 
 export const PostCardCompact = ({ post, onClick }: PostCardCompactProps) => {
   const config = POST_TYPE_CONFIG[post.post_type];
   const { data: reactions = [] } = usePostReactions(post.id);
+  const { data: commentCount = 0 } = useCommentCount(post.id);
   const groupedReactions = groupReactionsByEmoji(reactions);
   const Icon = config.icon;
 
@@ -199,18 +201,29 @@ export const PostCardCompact = ({ post, onClick }: PostCardCompactProps) => {
         </div>
       )}
 
-      {/* Reactions with counts (always at bottom) */}
-      {groupedReactions.length > 0 && (
-        <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border/50">
-          {groupedReactions.map(([emoji, count]) => (
-            <span 
-              key={emoji} 
-              className="inline-flex items-center gap-0.5 text-xs bg-muted/50 rounded-full px-1.5 py-0.5"
-            >
-              <span>{emoji}</span>
-              <span className="text-muted-foreground">{count}</span>
-            </span>
-          ))}
+      {/* Reactions and comments footer */}
+      {(groupedReactions.length > 0 || commentCount > 0) && (
+        <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
+          {/* Reactions on the left */}
+          <div className="flex items-center gap-1.5">
+            {groupedReactions.map(([emoji, count]) => (
+              <span 
+                key={emoji} 
+                className="inline-flex items-center gap-0.5 text-xs bg-muted/50 rounded-full px-1.5 py-0.5"
+              >
+                <span>{emoji}</span>
+                <span className="text-muted-foreground">{count}</span>
+              </span>
+            ))}
+          </div>
+          
+          {/* Comments on the right */}
+          {commentCount > 0 && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <MessageSquare className="h-3.5 w-3.5" />
+              <span>{commentCount}</span>
+            </div>
+          )}
         </div>
       )}
     </Card>
