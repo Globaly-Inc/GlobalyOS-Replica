@@ -14,6 +14,7 @@ interface ClickToEditProps {
   onEdit: () => void;
   className?: string;
   iconSize?: 'sm' | 'md';
+  showIcon?: boolean;
 }
 
 export const ClickToEdit = ({
@@ -22,6 +23,7 @@ export const ClickToEdit = ({
   onEdit,
   className,
   iconSize = 'sm',
+  showIcon = false,
 }: ClickToEditProps) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -46,13 +48,15 @@ export const ClickToEdit = ({
       onMouseLeave={() => setIsHovered(false)}
     >
       {children}
-      <Pencil 
-        className={cn(
-          'text-muted-foreground transition-opacity shrink-0',
-          iconSize === 'sm' ? 'h-3 w-3' : 'h-3.5 w-3.5',
-          isHovered ? 'opacity-100' : 'opacity-0'
-        )} 
-      />
+      {showIcon && (
+        <Pencil 
+          className={cn(
+            'text-muted-foreground transition-opacity shrink-0',
+            iconSize === 'sm' ? 'h-3 w-3' : 'h-3.5 w-3.5',
+            isHovered ? 'opacity-100' : 'opacity-0'
+          )} 
+        />
+      )}
     </button>
   );
 };
