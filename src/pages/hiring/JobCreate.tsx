@@ -365,10 +365,26 @@ export default function JobCreate() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="USD">USD</SelectItem>
-                      <SelectItem value="EUR">EUR</SelectItem>
-                      <SelectItem value="GBP">GBP</SelectItem>
-                      <SelectItem value="INR">INR</SelectItem>
+                      <SelectItem value="USD">$ USD</SelectItem>
+                      <SelectItem value="EUR">€ EUR</SelectItem>
+                      <SelectItem value="GBP">£ GBP</SelectItem>
+                      <SelectItem value="INR">₹ INR</SelectItem>
+                      <SelectItem value="CAD">$ CAD</SelectItem>
+                      <SelectItem value="AUD">$ AUD</SelectItem>
+                      <SelectItem value="JPY">¥ JPY</SelectItem>
+                      <SelectItem value="CNY">¥ CNY</SelectItem>
+                      <SelectItem value="CHF">₣ CHF</SelectItem>
+                      <SelectItem value="SGD">$ SGD</SelectItem>
+                      <SelectItem value="AED">د.إ AED</SelectItem>
+                      <SelectItem value="BRL">R$ BRL</SelectItem>
+                      <SelectItem value="MXN">$ MXN</SelectItem>
+                      <SelectItem value="ZAR">R ZAR</SelectItem>
+                      <SelectItem value="SEK">kr SEK</SelectItem>
+                      <SelectItem value="NOK">kr NOK</SelectItem>
+                      <SelectItem value="DKK">kr DKK</SelectItem>
+                      <SelectItem value="PLN">zł PLN</SelectItem>
+                      <SelectItem value="HKD">$ HKD</SelectItem>
+                      <SelectItem value="NZD">$ NZD</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
