@@ -27,6 +27,7 @@ import {
 import { format, isPast, formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { HelmetProvider, Helmet } from 'react-helmet-async';
+import DOMPurify from 'dompurify';
 import type { SubmissionData } from '@/types/hiring';
 
 export default function AssignmentSubmission() {
@@ -181,7 +182,7 @@ export default function AssignmentSubmission() {
                 <CardContent>
                   <div 
                     className="prose prose-sm max-w-none dark:prose-invert"
-                    dangerouslySetInnerHTML={{ __html: assignment?.instructions || '' }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(assignment?.instructions || '') }}
                   />
                 </CardContent>
               </Card>

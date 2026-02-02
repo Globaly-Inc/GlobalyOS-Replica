@@ -5,8 +5,9 @@
 
 import { useParams, Link } from 'react-router-dom';
 import { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { usePublicJob } from '@/services/useHiring';
-import { usePublicApplication } from '@/services/useHiringMutations';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ import {
 } from '@/types/hiring';
 import { toast } from 'sonner';
 import { HelmetProvider, Helmet } from 'react-helmet-async';
+import DOMPurify from 'dompurify';
 
 export default function JobDetailPublic() {
   const { orgCode, jobSlug } = useParams<{ orgCode: string; jobSlug: string }>();
@@ -47,7 +49,45 @@ export default function JobDetailPublic() {
   const [showSuccess, setShowSuccess] = useState(false);
   
   const { data: job, isLoading, error } = usePublicJob(orgCode, jobSlug);
-  const submitApplication = usePublicApplication();
+
+  // Create mutation using the edge function
+  const submitApplication = useMutation({
+    mutationFn: async (data: {
+      orgCode: string;
+      jobId: string;
+      candidate: {
+        name: string;
+        email: string;
+        phone?: string;
+        linkedin_url?: string;
+      };
+      cover_letter?: string;
+    }) => {
+      const { data: response, error } = await supabase.functions.invoke('submit-public-application', {
+        body: {
+          org_code: data.orgCode,
+          job_id: data.jobId,
+          candidate: data.candidate,
+          cover_letter: data.cover_letter,
+        },
+      });
+
+      if (error) throw error;
+      if (response?.error) throw new Error(response.error);
+      return response;
+    },
+    onSuccess: () => {
+      toast.success('Application submitted successfully!');
+    },
+    onError: (error: Error) => {
+      console.error('Error submitting application:', error);
+      if (error.message?.includes('already applied')) {
+        toast.error('You have already applied for this position');
+      } else {
+        toast.error(error.message || 'Failed to submit application. Please try again.');
+      }
+    },
+  });
 
   // Application form state
   const [formData, setFormData] = useState({
@@ -201,7 +241,7 @@ export default function JobDetailPublic() {
                       <CardContent>
                         <div 
                           className="prose prose-sm max-w-none dark:prose-invert"
-                          dangerouslySetInnerHTML={{ __html: job.description }}
+                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(job.description) }}
                         />
                       </CardContent>
                     </Card>
@@ -215,7 +255,7 @@ export default function JobDetailPublic() {
                       <CardContent>
                         <div 
                           className="prose prose-sm max-w-none dark:prose-invert"
-                          dangerouslySetInnerHTML={{ __html: job.requirements }}
+                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(job.requirements) }}
                         />
                       </CardContent>
                     </Card>
@@ -229,7 +269,7 @@ export default function JobDetailPublic() {
                       <CardContent>
                         <div 
                           className="prose prose-sm max-w-none dark:prose-invert"
-                          dangerouslySetInnerHTML={{ __html: job.benefits }}
+                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(job.benefits) }}
                         />
                       </CardContent>
                     </Card>

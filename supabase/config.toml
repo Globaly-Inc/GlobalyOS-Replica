@@ -290,3 +290,6 @@ verify_jwt = false
 
 [functions.send-hiring-notification]
 verify_jwt = false
+
+[functions.submit-public-application]
+verify_jwt = false
