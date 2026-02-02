@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Building, Plus, Pencil, Trash2, Loader2, Users } from "lucide-react";
+import { Building, Plus, Pencil, Trash2, Loader2, Users, Briefcase } from "lucide-react";
 import { toast } from "sonner";
 import { useOrganization } from "@/hooks/useOrganization";
 
@@ -39,7 +39,8 @@ interface Department {
   id: string;
   name: string;
   description: string | null;
-  count: number;
+  employeeCount: number;
+  positionCount: number;
 }
 
 export const DepartmentsSettings = () => {
@@ -86,11 +87,28 @@ export const DepartmentsSettings = () => {
 
       if (countError) throw countError;
 
+      // Get position counts per department using department_id
+      const { data: positionCounts, error: posError } = await supabase
+        .from("positions")
+        .select("department_id")
+        .eq("organization_id", currentOrg.id)
+        .not("department_id", "is", null);
+
+      if (posError) throw posError;
+
       // Count employees per department
-      const deptCounts: Record<string, number> = {};
+      const empCounts: Record<string, number> = {};
       employeeCounts?.forEach((emp) => {
         if (emp.department_id) {
-          deptCounts[emp.department_id] = (deptCounts[emp.department_id] || 0) + 1;
+          empCounts[emp.department_id] = (empCounts[emp.department_id] || 0) + 1;
+        }
+      });
+
+      // Count positions per department
+      const posCounts: Record<string, number> = {};
+      positionCounts?.forEach((pos) => {
+        if (pos.department_id) {
+          posCounts[pos.department_id] = (posCounts[pos.department_id] || 0) + 1;
         }
       });
 
@@ -98,7 +116,8 @@ export const DepartmentsSettings = () => {
         id: dept.id,
         name: dept.name,
         description: dept.description,
-        count: deptCounts[dept.id] || 0,
+        employeeCount: empCounts[dept.id] || 0,
+        positionCount: posCounts[dept.id] || 0,
       }));
 
       setDepartments(deptList);
@@ -265,6 +284,7 @@ export const DepartmentsSettings = () => {
                 <TableRow>
                   <TableHead>Department</TableHead>
                   <TableHead>Employees</TableHead>
+                  <TableHead>Positions</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -282,7 +302,13 @@ export const DepartmentsSettings = () => {
                     <TableCell>
                       <Badge variant="secondary" className="gap-1">
                         <Users className="h-3 w-3" />
-                        {dept.count}
+                        {dept.employeeCount}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="gap-1">
+                        <Briefcase className="h-3 w-3" />
+                        {dept.positionCount}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
