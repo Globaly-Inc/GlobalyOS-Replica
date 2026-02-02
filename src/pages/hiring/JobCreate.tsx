@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,24 +14,11 @@ import {
 } from '@/components/ui/select';
 import { useCreateJob } from '@/services/useHiringMutations';
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
-import { JobStatus, generateJobSlug } from '@/types/hiring';
+import { useDepartments, useOffices } from '@/hooks/useOrganizationData';
+import { generateJobSlug } from '@/types/hiring';
 import { ArrowLeft, Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { OrgLink } from '@/components/OrgLink';
-
-const DEPARTMENTS = [
-  'Engineering',
-  'Product',
-  'Design',
-  'Marketing',
-  'Sales',
-  'Customer Success',
-  'Operations',
-  'Finance',
-  'HR',
-  'Legal',
-  'Other',
-];
 
 const EMPLOYMENT_TYPES = [
   { value: 'full_time', label: 'Full-time' },
@@ -50,10 +36,13 @@ const WORK_MODELS = [
 export default function JobCreate() {
   const { navigateOrg } = useOrgNavigation();
   const createJob = useCreateJob();
+  const { data: departments = [] } = useDepartments();
+  const { data: offices = [] } = useOffices();
 
   const [formData, setFormData] = useState({
     title: '',
-    department: '',
+    department_id: '',
+    office_id: '',
     location: '',
     work_model: 'onsite' as const,
     employment_type: 'full_time' as const,
@@ -87,6 +76,8 @@ export default function JobCreate() {
       const slug = generateJobSlug(formData.title);
       const job = await createJob.mutateAsync({
         title: formData.title,
+        department_id: formData.department_id || null,
+        office_id: formData.office_id || null,
         location: formData.location || null,
         work_model: formData.work_model,
         employment_type: formData.employment_type,
@@ -123,9 +114,10 @@ export default function JobCreate() {
     try {
       // TODO: Implement AI JD generation via edge function
       // For now, show a placeholder
+      const selectedDept = departments.find(d => d.id === formData.department_id);
       const placeholder = `# About the Role
 
-We are looking for a talented ${formData.title} to join our ${formData.department || 'team'}. This is a ${formData.work_model} position based in ${formData.location || 'our office'}.
+We are looking for a talented ${formData.title} to join our ${selectedDept?.name || 'team'}. This is a ${formData.work_model} position based in ${formData.location || 'our office'}.
 
 ## Responsibilities
 
@@ -195,18 +187,18 @@ We are looking for a talented ${formData.title} to join our ${formData.departmen
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="department">Department</Label>
+              <Label htmlFor="department_id">Department</Label>
               <Select
-                value={formData.department}
-                onValueChange={(value) => handleChange('department', value)}
+                value={formData.department_id}
+                onValueChange={(value) => handleChange('department_id', value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select department" />
                 </SelectTrigger>
                 <SelectContent>
-                  {DEPARTMENTS.map((dept) => (
-                    <SelectItem key={dept} value={dept}>
-                      {dept}
+                  {departments.map((dept) => (
+                    <SelectItem key={dept.id} value={dept.id}>
+                      {dept.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -214,16 +206,37 @@ We are looking for a talented ${formData.title} to join our ${formData.departmen
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="location">Location</Label>
+              <Label htmlFor="office_id">Office</Label>
+              <Select
+                value={formData.office_id}
+                onValueChange={(value) => handleChange('office_id', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select office" />
+                </SelectTrigger>
+                <SelectContent>
+                  {offices.map((office) => (
+                    <SelectItem key={office.id} value={office.id}>
+                      {office.name} {office.city ? `(${office.city})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="location">Location Override</Label>
               <Input
                 id="location"
-                placeholder="e.g. San Francisco, CA"
+                placeholder="e.g. San Francisco, CA (optional)"
                 value={formData.location}
                 onChange={(e) => handleChange('location', e.target.value)}
               />
             </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="work_model">Work Model</Label>
               <Select

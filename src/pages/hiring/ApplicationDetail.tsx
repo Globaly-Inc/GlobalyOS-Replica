@@ -44,7 +44,8 @@ import {
   User,
   MessageSquare,
   Send,
-  Star
+  Star,
+  Upload
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -72,6 +73,7 @@ import { toast } from 'sonner';
 import { AssignAssignmentDialog } from '@/components/hiring/assignments/AssignAssignmentDialog';
 import { ScheduleInterviewDialog } from '@/components/hiring/interviews/ScheduleInterviewDialog';
 import { CreateOfferDialog } from '@/components/hiring/offers/CreateOfferDialog';
+import { CVUpload } from '@/components/hiring/CVUpload';
 
 export default function ApplicationDetail() {
   const { applicationId } = useParams<{ applicationId: string }>();
@@ -232,6 +234,23 @@ export default function ApplicationDetail() {
             </TabsList>
 
             <TabsContent value="overview" className="space-y-4 mt-4">
+              {/* CV/Resume */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Upload className="h-5 w-5" />
+                    CV / Resume
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CVUpload
+                    candidateId={candidate?.id || ''}
+                    applicationId={application.id}
+                    currentFilePath={application.cv_file_path}
+                  />
+                </CardContent>
+              </Card>
+
               {/* Cover Letter */}
               {application.cover_letter && (
                 <Card>

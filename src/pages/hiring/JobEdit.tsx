@@ -22,9 +22,10 @@ import {
 import { useJob } from '@/services/useHiring';
 import { useUpdateJob, usePublishJob } from '@/services/useHiringMutations';
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
+import { useDepartments, useOffices } from '@/hooks/useOrganizationData';
 import type { WorkModel, HiringEmploymentType } from '@/types/hiring';
 import { OrgLink } from '@/components/OrgLink';
-import { ArrowLeft, Loader2, Sparkles, Save, Send, Globe } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 
 const EMPLOYMENT_TYPES = [
@@ -46,9 +47,13 @@ export default function JobEdit() {
   const { data: job, isLoading } = useJob(jobSlug);
   const updateJob = useUpdateJob();
   const publishJob = usePublishJob();
+  const { data: departments = [] } = useDepartments();
+  const { data: offices = [] } = useOffices();
 
   const [formData, setFormData] = useState({
     title: '',
+    department_id: '',
+    office_id: '',
     location: '',
     work_model: 'onsite' as WorkModel,
     employment_type: 'full_time' as HiringEmploymentType,
@@ -71,6 +76,8 @@ export default function JobEdit() {
     if (job) {
       setFormData({
         title: job.title || '',
+        department_id: job.department_id || '',
+        office_id: job.office_id || '',
         location: job.location || '',
         work_model: (job.work_model || 'onsite') as WorkModel,
         employment_type: (job.employment_type || 'full_time') as HiringEmploymentType,
@@ -105,6 +112,8 @@ export default function JobEdit() {
         jobId: job.id,
         input: {
           title: formData.title,
+          department_id: formData.department_id || null,
+          office_id: formData.office_id || null,
           location: formData.location || null,
           work_model: formData.work_model,
           employment_type: formData.employment_type,
@@ -202,10 +211,49 @@ export default function JobEdit() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="location">Location</Label>
+              <Label htmlFor="department_id">Department</Label>
+              <Select
+                value={formData.department_id}
+                onValueChange={(value) => handleChange('department_id', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent>
+                  {departments.map((dept) => (
+                    <SelectItem key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="office_id">Office</Label>
+              <Select
+                value={formData.office_id}
+                onValueChange={(value) => handleChange('office_id', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select office" />
+                </SelectTrigger>
+                <SelectContent>
+                  {offices.map((office) => (
+                    <SelectItem key={office.id} value={office.id}>
+                      {office.name} {office.city ? `(${office.city})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="location">Location Override</Label>
               <Input
                 id="location"
-                placeholder="e.g. San Francisco, CA"
+                placeholder="e.g. San Francisco, CA (optional)"
                 value={formData.location}
                 onChange={(e) => handleChange('location', e.target.value)}
               />
