@@ -37,7 +37,8 @@ interface Department {
 interface Office {
   id: string;
   name: string;
-  city?: string;
+  city?: string | null;
+  country?: string | null;
 }
 
 interface JobPostPreviewProps {
@@ -69,7 +70,16 @@ export function JobPostPreview({
   const department = departments.find(d => d.id === formData.department_id);
   const office = offices.find(o => o.id === formData.office_id);
   
-  const locationDisplay = formData.location || office?.city || 'Location not specified';
+  // Build location display with city and country
+  const getLocationDisplay = () => {
+    if (formData.location) return formData.location;
+    if (!office) return 'Location not specified';
+    
+    const parts = [office.city, office.country].filter(Boolean);
+    return parts.length > 0 ? parts.join(', ') : 'Location not specified';
+  };
+  
+  const locationDisplay = getLocationDisplay();
   
   const formatSalary = (min: string, max: string, currency: string) => {
     if (!min && !max) return null;
