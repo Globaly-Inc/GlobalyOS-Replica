@@ -23,6 +23,7 @@ import { OrgLink } from '@/components/OrgLink';
 import { supabase } from '@/integrations/supabase/client';
 import { PositionCombobox } from '@/components/hiring/PositionCombobox';
 import { JobPostPreview } from '@/components/hiring/JobPostPreview';
+import { CurrencyCombobox } from '@/components/hiring/CurrencyCombobox';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -356,37 +357,11 @@ export default function JobCreate() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="salary_currency">Currency</Label>
-                  <Select
+                  <Label>Currency</Label>
+                  <CurrencyCombobox
                     value={formData.salary_currency}
-                    onValueChange={(value) => handleChange('salary_currency', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="USD">$ USD</SelectItem>
-                      <SelectItem value="EUR">€ EUR</SelectItem>
-                      <SelectItem value="GBP">£ GBP</SelectItem>
-                      <SelectItem value="INR">₹ INR</SelectItem>
-                      <SelectItem value="CAD">$ CAD</SelectItem>
-                      <SelectItem value="AUD">$ AUD</SelectItem>
-                      <SelectItem value="JPY">¥ JPY</SelectItem>
-                      <SelectItem value="CNY">¥ CNY</SelectItem>
-                      <SelectItem value="CHF">₣ CHF</SelectItem>
-                      <SelectItem value="SGD">$ SGD</SelectItem>
-                      <SelectItem value="AED">د.إ AED</SelectItem>
-                      <SelectItem value="BRL">R$ BRL</SelectItem>
-                      <SelectItem value="MXN">$ MXN</SelectItem>
-                      <SelectItem value="ZAR">R ZAR</SelectItem>
-                      <SelectItem value="SEK">kr SEK</SelectItem>
-                      <SelectItem value="NOK">kr NOK</SelectItem>
-                      <SelectItem value="DKK">kr DKK</SelectItem>
-                      <SelectItem value="PLN">zł PLN</SelectItem>
-                      <SelectItem value="HKD">$ HKD</SelectItem>
-                      <SelectItem value="NZD">$ NZD</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    onChange={(value) => handleChange('salary_currency', value)}
+                  />
                 </div>
               </div>
 
