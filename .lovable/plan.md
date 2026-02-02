@@ -1,45 +1,74 @@
 
-# Plan: Fix Churn Risk Indicators - Adjust Risk Detection Logic
+# Plan: Redesign Churn Risk Indicators Card
 
-## Analysis Summary
+## Design Analysis from Wireframe
 
-After investigating the database and code, I found that the Churn Risk feature is working correctly, but **no organizations currently meet the risk criteria**:
+The wireframe shows a cleaner, more structured layout with:
 
-| Organization | Age (days) | Recent Activity | Previous Activity | Status |
-|-------------|------------|-----------------|-------------------|--------|
-| Alpha Venture Plus | 2 | 0 | 0 | Skipped (too new) |
-| Geshan.com.np | 2 | 0 | 0 | Skipped (too new) |
-| Aayushma & Associates | 3 | 36 | 0 | Skipped (too new) |
-| Test | 3 | 0 | 0 | Skipped (too new) |
-| Rudolph | 4 | 24 | 0 | Skipped (too new) |
-| Kundalini Dental Clinic | 6 | 53 | 0 | Skipped (too new) |
-| Grace International Group | 8 | 922 | 0 | Skipped (too new) |
-| GlobalyHub | 52 | 15,146 | 11,277 | Healthy (activity UP) |
-
-**Key findings:**
-- 7 of 8 organizations are less than 14 days old and get skipped
-- GlobalyHub has **growing** activity (+34%), so it's healthy
-- The 14-day minimum age threshold is too strict for a new platform
+1. **Header Section**: "Churn Risk Indicators" title
+2. **Summary Stats Row**: Three metric cards showing risk counts with trends
+3. **High Risk Customers List**: Simple, scannable rows with avatar, org/owner name, and join date
 
 ---
 
-## Proposed Fixes
+## Proposed New Layout
 
-### 1. Lower the Minimum Organization Age Threshold
+```text
++----------------------------------------------------------+
+|  Churn Risk Indicators                                    |
++----------------------------------------------------------+
+|                                                          |
+|  +----------------+  +----------------+  +---------------+ |
+|  |      2         |  |      1         |  |      3        | |
+|  |  High Risks    |  |  Medium Risks  |  |  Low Risks    | |
+|  |  New this week |  |  New this week |  |  New this week| |
+|  +----------------+  +----------------+  +---------------+ |
+|                                                          |
+|  High Risk Customers                                     |
+|  +------------------------------------------------------+ |
+|  | [T]  Test • Atul Bista              Joined 3 days ago| |
+|  +------------------------------------------------------+ |
+|  | [K]  Kundalini Dental • Sandip M.   Joined 27 Jan    | |
+|  +------------------------------------------------------+ |
+|                                                          |
++----------------------------------------------------------+
+```
 
-Change from 14 days to **7 days** so newer organizations can be evaluated earlier.
+---
 
-### 2. Add Detection for Inactive New Organizations
+## Key Design Changes
 
-Organizations with **zero activity in their first week** should show as at-risk (potential churn before they even start using the platform).
+| Current | Proposed |
+|---------|----------|
+| Detailed cards with multiple rows of info | Clean summary stats + simple list |
+| Risk badge on each card | Summary counts by risk level at top |
+| Plan, email, reason all shown | Simplified: just org name, owner, join date |
+| No aggregate metrics | Three stat cards with counts and trends |
 
-### 3. Add "Low Activity" Risk Detection
+---
 
-Flag organizations that have very low activity relative to their user count (e.g., less than 1 page visit per user per week).
+## UI Components
 
-### 4. Show "New" Organizations Separately
+### 1. Summary Stats Grid (New)
+Three stat cards showing:
+- **High Risks**: Count + "New this week" or trend comparison
+- **Medium Risks**: Count + trend
+- **Low Risks**: Count + trend
 
-Instead of just skipping new organizations, show them in a separate section as "Onboarding" so you can monitor their activation.
+Each card has:
+- Large number (prominent)
+- Risk level label
+- Trend indicator (e.g., "+2 from last week" or "New this week")
+
+### 2. High Risk Customers Section
+Section header: "High Risk Customers"
+
+Simple list items:
+- **Avatar**: Circle with first letter of org name
+- **Name**: "Org Name • Owner Name"
+- **Join Date**: "Joined X days ago" or "Joined DD MMM YYYY"
+
+Clicking a row still navigates to the org detail page.
 
 ---
 
@@ -47,65 +76,73 @@ Instead of just skipping new organizations, show them in a separate section as "
 
 ### File: `src/components/super-admin/ChurnRiskCard.tsx`
 
-**Changes to risk calculation logic:**
+**Changes:**
 
+1. **Add risk count aggregation**:
 ```typescript
-// Change threshold from 14 to 7 days
-const orgAge = differenceInDays(now, new Date(org.created_at));
-if (orgAge < 7) continue; // Reduced from 14
-
-// NEW: Detect inactive new organizations (7-14 days old with zero activity)
-if (orgAge >= 7 && orgAge < 14 && recent === 0) {
-  riskLevel = 'high';
-  reason = 'No activity since signup';
-}
-
-// NEW: Detect low engagement (active org but low usage)
-if (riskLevel === 'healthy' && totalUsers > 0) {
-  const visitsPerUser = recent / totalUsers;
-  if (visitsPerUser < 5 && recent < 20) { // Less than 5 visits per user in 30 days
-    riskLevel = 'low';
-    reason = 'Low user engagement';
-  }
-}
+const highRiskOrgs = atRiskOrgs.filter(o => o.riskLevel === 'high');
+const mediumRiskOrgs = atRiskOrgs.filter(o => o.riskLevel === 'medium');
+const lowRiskOrgs = atRiskOrgs.filter(o => o.riskLevel === 'low');
 ```
 
-### File: `src/hooks/useChurnRisk.ts`
+2. **New Summary Stats Row**:
+```tsx
+<div className="grid grid-cols-3 gap-4 mb-6">
+  <div className="p-4 rounded-lg border bg-red-50 dark:bg-red-950/20">
+    <div className="text-3xl font-bold text-red-600">{highRiskOrgs.length}</div>
+    <div className="text-sm font-medium">High Risks</div>
+    <div className="text-xs text-muted-foreground">New this week</div>
+  </div>
+  {/* Similar for Medium and Low */}
+</div>
+```
 
-**Update the shared hook with matching logic:**
+3. **Simplified List Items**:
+```tsx
+<div className="space-y-2">
+  <h4 className="text-sm font-semibold">High Risk Customers</h4>
+  {highRiskOrgs.map((org) => (
+    <div 
+      key={org.id}
+      onClick={() => handleCardClick(org.id)}
+      className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 cursor-pointer"
+    >
+      <div className="flex items-center gap-3">
+        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+          <span className="text-sm font-medium">{org.name.charAt(0)}</span>
+        </div>
+        <span className="font-medium">
+          {org.name} • {org.ownerName || 'No owner'}
+        </span>
+      </div>
+      <span className="text-sm text-muted-foreground">
+        Joined {formatRelativeOrDate(org.createdAt)}
+      </span>
+    </div>
+  ))}
+</div>
+```
 
+4. **Helper function for relative dates**:
 ```typescript
-const calculateRiskLevel = (
-  recentCount: number,
-  previousCount: number,
-  daysSinceActivity: number,
-  orgAgeInDays: number
-): { level: RiskLevel; reason: string } => {
-  // New orgs (less than 7 days old) get a "new" label
-  if (orgAgeInDays < 7) {
-    return { level: 'new', reason: 'New organisation' };
-  }
-
-  // NEW: Inactive new org (7-14 days old with no activity)
-  if (orgAgeInDays >= 7 && orgAgeInDays < 14 && daysSinceActivity >= 999) {
-    return { level: 'high', reason: 'No activity since signup' };
-  }
-
-  // Rest of existing logic...
+const formatRelativeOrDate = (dateStr: string) => {
+  const days = differenceInDays(new Date(), new Date(dateStr));
+  if (days <= 7) return `${days} days ago`;
+  return format(new Date(dateStr), 'dd MMM yyyy');
 };
 ```
 
 ---
 
-## Expected Results After Fix
+## Visual Design Notes
 
-With the adjusted thresholds, the following organizations would now show risk indicators:
-
-| Organization | New Risk Level | Reason |
-|-------------|----------------|--------|
-| Grace International Group (8 days) | Evaluate normally | Will be assessed with regular criteria |
-| Kundalini Dental Clinic (6 days) | New | Just below 7-day threshold |
-| Organizations with 0 activity after 7 days | High | "No activity since signup" |
+- **Summary stat cards**: Use subtle background colors matching risk severity
+  - High: Red tint (`bg-red-50` / `bg-red-950/20` dark mode)
+  - Medium: Amber tint (`bg-amber-50` / `bg-amber-950/20`)
+  - Low: Orange tint (`bg-orange-50` / `bg-orange-950/20`)
+- **List items**: Clean borders, minimal padding, clear hover state
+- **Avatar circles**: Show org initial, consistent size (32px)
+- **Typography**: Large numbers (3xl), medium labels (sm), muted secondary text (xs)
 
 ---
 
@@ -113,5 +150,5 @@ With the adjusted thresholds, the following organizations would now show risk in
 
 | File | Changes |
 |------|---------|
-| `src/components/super-admin/ChurnRiskCard.tsx` | Lower age threshold, add new risk detection logic |
-| `src/hooks/useChurnRisk.ts` | Sync the shared hook with same logic changes |
+| `src/components/super-admin/ChurnRiskCard.tsx` | Complete redesign of the card layout |
+
