@@ -171,7 +171,7 @@ export default function JobCreate() {
           </OrgLink>
         </Button>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Create Job</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Create Job Vacancy</h1>
           <p className="text-muted-foreground">
             Define the role and requirements
           </p>
@@ -397,7 +397,7 @@ export default function JobCreate() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Job Description</CardTitle>
+                  <CardTitle>Job Vacancy Description</CardTitle>
                   <CardDescription>Detailed role description and requirements</CardDescription>
                 </div>
                 <Button

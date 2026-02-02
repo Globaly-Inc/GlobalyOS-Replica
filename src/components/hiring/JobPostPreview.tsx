@@ -188,7 +188,7 @@ export function JobPostPreview({
         {!formData.description && (
           <div className="rounded-lg border border-dashed p-4 text-center">
             <p className="text-xs text-muted-foreground">
-              Fill in the form to see a live preview of your job posting
+              Fill in the form to see a live preview of your vacancy
             </p>
           </div>
         )}

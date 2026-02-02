@@ -90,7 +90,7 @@ export default function JobsList({
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search jobs..."
+            placeholder="Search vacancies..."
             value={searchQuery}
             onChange={(e) => onSearchChange?.(e.target.value)}
             className="pl-9"
@@ -194,26 +194,26 @@ export default function JobsList({
                           <DropdownMenuItem asChild>
                             <OrgLink to={`/hiring/jobs/${job.slug}/edit`} className="flex items-center">
                               <Pencil className="h-4 w-4 mr-2" />
-                              Edit Job
+                              Edit Vacancy
                             </OrgLink>
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {job.status === 'open' && (
                             <DropdownMenuItem onClick={() => handleStatusChange(job.id, 'paused')}>
                               <Pause className="h-4 w-4 mr-2" />
-                              Pause Job
+                              Pause Vacancy
                             </DropdownMenuItem>
                           )}
                           {job.status === 'paused' && (
                             <DropdownMenuItem onClick={() => handleStatusChange(job.id, 'open')}>
                               <Play className="h-4 w-4 mr-2" />
-                              Resume Job
+                              Resume Vacancy
                             </DropdownMenuItem>
                           )}
                           {(job.status === 'open' || job.status === 'paused') && (
                             <DropdownMenuItem onClick={() => handleStatusChange(job.id, 'closed')}>
                               <Archive className="h-4 w-4 mr-2" />
-                              Close Job
+                              Close Vacancy
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuSeparator />
@@ -222,7 +222,7 @@ export default function JobsList({
                             onClick={() => handleDeleteJob(job.id)}
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
-                            Delete Job
+                            Delete Vacancy
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -239,17 +239,17 @@ export default function JobsList({
             <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
               <Building className="h-8 w-8 text-muted-foreground" />
             </div>
-            <h3 className="text-lg font-semibold mb-2">No jobs found</h3>
+            <h3 className="text-lg font-semibold mb-2">No vacancies found</h3>
             <p className="text-muted-foreground text-center mb-6 max-w-sm">
               {searchQuery || statusFilter !== 'all'
                 ? 'Try adjusting your search or filters'
-                : 'Create your first job posting to start hiring'}
+                : 'Create your first vacancy to start hiring'}
             </p>
             {!searchQuery && statusFilter === 'all' && (
               <Button asChild>
                 <OrgLink to="/hiring/jobs/new">
                   <Plus className="h-4 w-4 mr-2" />
-                  Create Job
+                  Create Job Vacancy
                 </OrgLink>
               </Button>
             )}

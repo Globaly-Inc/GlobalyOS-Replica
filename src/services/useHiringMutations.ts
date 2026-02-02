@@ -107,11 +107,11 @@ export function useCreateJob() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hiring', 'jobs'] });
-      toast.success('Job created successfully');
+      toast.success('Job vacancy created successfully');
     },
     onError: (error) => {
       console.error('Error creating job:', error);
-      toast.error('Failed to create job');
+      toast.error('Failed to create vacancy');
     },
   });
 }
@@ -140,11 +140,11 @@ export function useUpdateJob() {
       queryClient.invalidateQueries({ queryKey: ['hiring', 'jobs'] });
       queryClient.invalidateQueries({ queryKey: ['hiring', 'job', currentOrg?.id, data.id] });
       queryClient.invalidateQueries({ queryKey: ['hiring', 'job', currentOrg?.id, data.slug] });
-      toast.success('Job updated successfully');
+      toast.success('Job vacancy updated successfully');
     },
     onError: (error) => {
       console.error('Error updating job:', error);
-      toast.error('Failed to update job');
+      toast.error('Failed to update vacancy');
     },
   });
 }
@@ -186,11 +186,11 @@ export function useApproveJob() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hiring', 'jobs'] });
-      toast.success('Job approved successfully');
+      toast.success('Job vacancy approved successfully');
     },
     onError: (error) => {
       console.error('Error approving job:', error);
-      toast.error('Failed to approve job');
+      toast.error('Failed to approve vacancy');
     },
   });
 }
@@ -240,11 +240,11 @@ export function usePublishJob() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hiring', 'jobs'] });
-      toast.success('Job published successfully');
+      toast.success('Job vacancy published successfully');
     },
     onError: (error) => {
       console.error('Error publishing job:', error);
-      toast.error('Failed to publish job');
+      toast.error('Failed to publish vacancy');
     },
   });
 }
@@ -285,11 +285,11 @@ export function useCloseJob() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hiring', 'jobs'] });
-      toast.success('Job closed successfully');
+      toast.success('Job vacancy closed successfully');
     },
     onError: (error) => {
       console.error('Error closing job:', error);
-      toast.error('Failed to close job');
+      toast.error('Failed to close vacancy');
     },
   });
 }

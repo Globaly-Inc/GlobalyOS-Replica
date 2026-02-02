@@ -211,10 +211,10 @@ export default function JobEdit() {
   if (!job) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
-        <h2 className="text-xl font-semibold mb-2">Job not found</h2>
-        <p className="text-muted-foreground mb-4">The job you're looking for doesn't exist.</p>
+        <h2 className="text-xl font-semibold mb-2">Job vacancy not found</h2>
+        <p className="text-muted-foreground mb-4">The vacancy you're looking for doesn't exist.</p>
         <Button asChild>
-          <OrgLink to="/hiring/jobs">Back to Jobs</OrgLink>
+          <OrgLink to="/hiring/jobs">Back to Vacancies</OrgLink>
         </Button>
       </div>
     );
@@ -232,7 +232,7 @@ export default function JobEdit() {
           </OrgLink>
         </Button>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Edit Job</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Edit Job Vacancy</h1>
           <p className="text-muted-foreground">
             Update job details and requirements
           </p>
@@ -424,7 +424,7 @@ export default function JobEdit() {
               onCheckedChange={(checked) => handleChange('salary_visible', checked)}
             />
             <Label htmlFor="salary_visible" className="cursor-pointer">
-              Show salary range on job posting
+              Show salary range on vacancy
             </Label>
           </div>
         </CardContent>
@@ -435,7 +435,7 @@ export default function JobEdit() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Job Description</CardTitle>
+              <CardTitle>Job Vacancy Description</CardTitle>
               <CardDescription>Detailed role description and requirements</CardDescription>
             </div>
             <Button

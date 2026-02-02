@@ -127,7 +127,7 @@ export default function HiringDashboard() {
             Hiring
           </h1>
           <p className="text-sm text-muted-foreground">
-            Manage job postings, candidates, and recruitment pipeline
+            Manage job vacancies, candidates, and recruitment pipeline
           </p>
         </div>
         <div className="flex gap-2">
@@ -151,7 +151,7 @@ export default function HiringDashboard() {
           <Button asChild>
             <OrgLink to="/hiring/jobs/new" className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
-              Create Job
+              Create Job Vacancy
             </OrgLink>
           </Button>
         </div>
@@ -178,7 +178,7 @@ export default function HiringDashboard() {
               className="gap-1.5 h-7"
             >
               <Briefcase className="h-4 w-4" />
-              <span className="hidden sm:inline">Jobs</span>
+              <span className="hidden sm:inline">Vacancies</span>
             </Button>
             <Button 
               variant={activeTab === 'candidates' ? 'secondary' : 'ghost'}
@@ -202,7 +202,7 @@ export default function HiringDashboard() {
               <div className="relative hidden md:block">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search jobs..."
+                  placeholder="Search vacancies..."
                   value={jobSearchQuery}
                   onChange={(e) => setJobSearchQuery(e.target.value)}
                   className="pl-9 h-9 w-[200px] bg-background"
@@ -305,7 +305,7 @@ export default function HiringDashboard() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Jobs</CardTitle>
+                <CardTitle className="text-sm font-medium">Active Vacancies</CardTitle>
                 <Briefcase className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
