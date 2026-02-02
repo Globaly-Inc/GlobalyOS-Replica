@@ -617,6 +617,27 @@ export const CANDIDATE_SOURCE_LABELS: Record<CandidateSource, string> = {
   other: 'Other',
 };
 
+// Helper functions
+export function getJobStatusLabel(status: JobStatus): string {
+  return JOB_STATUS_LABELS[status] || status;
+}
+
+export function getJobStatusColor(status: JobStatus): string {
+  return JOB_STATUS_COLORS[status] || 'bg-muted text-muted-foreground';
+}
+
+export function getApplicationStageLabel(stage: ApplicationStage): string {
+  return APPLICATION_STAGE_LABELS[stage] || stage;
+}
+
+export function getCandidateSourceLabel(source: CandidateSource | undefined | null): string {
+  return source ? CANDIDATE_SOURCE_LABELS[source] || source : 'Unknown';
+}
+
+export function getAssignmentStatusLabel(status: AssignmentStatus): string {
+  return ASSIGNMENT_STATUS_LABELS[status] || status;
+}
+
 // Utility function to generate a URL-friendly slug
 export function generateJobSlug(title: string): string {
   return title
