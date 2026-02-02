@@ -32,9 +32,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Briefcase, Plus, Pencil, Trash2, Loader2, Sparkles, X, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useDepartments } from "@/hooks/useOrganizationData";
 
 interface Position {
   id: string;
@@ -48,6 +56,7 @@ interface Position {
 
 export const PositionsSettings = () => {
   const { currentOrg } = useOrganization();
+  const { data: departments = [] } = useDepartments();
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -447,12 +456,21 @@ export const PositionsSettings = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="positionDepartment">Department</Label>
-                <Input
-                  id="positionDepartment"
+                <Select
                   value={positionDepartment}
-                  onChange={(e) => setPositionDepartment(e.target.value)}
-                  placeholder="e.g., Engineering"
-                />
+                  onValueChange={setPositionDepartment}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.map((dept) => (
+                      <SelectItem key={dept.id} value={dept.name}>
+                        {dept.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
