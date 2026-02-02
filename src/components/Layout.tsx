@@ -5,7 +5,7 @@ import { OrganizationSwitcher } from "./OrganizationSwitcher";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { TopNav } from "./TopNav";
 import { SubNav } from "./SubNav";
-
+import { HiringSubNav } from "./hiring/HiringSubNav";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { PullToRefreshIndicator } from "./PullToRefreshIndicator";
 import TrialBanner from "./TrialBanner";
@@ -146,6 +146,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
       {/* Sub Navigation for Team section (includes Hiring) */}
       <SubNav />
+      
+      {/* Secondary Sub Navigation for Hiring pages */}
+      <HiringSubNav />
 
       {/* Page Content */}
       <main className={`container px-4 md:px-8 ${isFullHeightPage ? 'h-[calc(100vh-4rem)] overflow-hidden pt-0 pb-0' : 'pt-2 pb-24 md:pb-8 overflow-x-hidden'}`}>
