@@ -21,6 +21,7 @@ import { ArrowLeft, Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { OrgLink } from '@/components/OrgLink';
 import { supabase } from '@/integrations/supabase/client';
+import { PositionCombobox } from '@/components/hiring/PositionCombobox';
 
 const EMPLOYMENT_TYPES = [
   { value: 'full_time', label: 'Full-time' },
@@ -176,11 +177,11 @@ export default function JobCreate() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="title">Job Title *</Label>
-              <Input
-                id="title"
-                placeholder="e.g. Senior Software Engineer"
+              <PositionCombobox
                 value={formData.title}
-                onChange={(e) => handleChange('title', e.target.value)}
+                onChange={(value) => handleChange('title', value)}
+                departmentId={formData.department_id || undefined}
+                placeholder="Select or create position..."
               />
             </div>
             <div className="space-y-2">
