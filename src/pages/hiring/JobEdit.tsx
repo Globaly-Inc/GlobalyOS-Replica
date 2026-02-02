@@ -23,10 +23,12 @@ import { useJob } from '@/services/useHiring';
 import { useUpdateJob, usePublishJob } from '@/services/useHiringMutations';
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { useDepartments, useOffices } from '@/hooks/useOrganizationData';
+import { useOrganization } from '@/hooks/useOrganization';
 import type { WorkModel, HiringEmploymentType } from '@/types/hiring';
 import { OrgLink } from '@/components/OrgLink';
-import { ArrowLeft, Loader2, Save, Globe } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, Globe, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const EMPLOYMENT_TYPES = [
   { value: 'full_time', label: 'Full-time' },
@@ -44,11 +46,13 @@ const WORK_MODELS = [
 export default function JobEdit() {
   const { jobSlug } = useParams<{ jobSlug: string }>();
   const { navigateOrg } = useOrgNavigation();
+  const { currentOrg } = useOrganization();
   const { data: job, isLoading } = useJob(jobSlug);
   const updateJob = useUpdateJob();
   const publishJob = usePublishJob();
   const { data: departments = [] } = useDepartments();
   const { data: offices = [] } = useOffices();
+  const [isGeneratingJD, setIsGeneratingJD] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -149,6 +153,48 @@ export default function JobEdit() {
       toast.success('Job published');
     } catch (error) {
       toast.error('Failed to publish job');
+    }
+  };
+
+  const generateJobDescription = async () => {
+    if (!formData.title) {
+      toast.error('Please enter a job title first');
+      return;
+    }
+
+    setIsGeneratingJD(true);
+    try {
+      const selectedDept = departments.find(d => d.id === formData.department_id);
+      const selectedOffice = offices.find(o => o.id === formData.office_id);
+      
+      const { data, error } = await supabase.functions.invoke('generate-job-description', {
+        body: {
+          organization_id: currentOrg?.id,
+          title: formData.title,
+          department: selectedDept?.name,
+          location: formData.location || selectedOffice?.city,
+          work_model: formData.work_model,
+          employment_type: formData.employment_type,
+          salary_min: formData.salary_min ? parseFloat(formData.salary_min) : undefined,
+          salary_max: formData.salary_max ? parseFloat(formData.salary_max) : undefined,
+          salary_currency: formData.salary_currency,
+          company_name: currentOrg?.name,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.success && data?.description) {
+        handleChange('description', data.description);
+        toast.success('Job description generated!');
+      } else {
+        throw new Error(data?.message || 'Failed to generate description');
+      }
+    } catch (error: any) {
+      console.error('Error generating job description:', error);
+      toast.error('Failed to generate job description');
+    } finally {
+      setIsGeneratingJD(false);
     }
   };
 
@@ -387,8 +433,25 @@ export default function JobEdit() {
       {/* Job Description */}
       <Card>
         <CardHeader>
-          <CardTitle>Job Description</CardTitle>
-          <CardDescription>Detailed role description and requirements</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Job Description</CardTitle>
+              <CardDescription>Detailed role description and requirements</CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={generateJobDescription}
+              disabled={isGeneratingJD}
+            >
+              {isGeneratingJD ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4 mr-2" />
+              )}
+              Generate with AI
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">

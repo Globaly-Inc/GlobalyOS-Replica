@@ -15,10 +15,12 @@ import {
 import { useCreateJob } from '@/services/useHiringMutations';
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { useDepartments, useOffices } from '@/hooks/useOrganizationData';
+import { useOrganization } from '@/hooks/useOrganization';
 import { generateJobSlug } from '@/types/hiring';
 import { ArrowLeft, Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { OrgLink } from '@/components/OrgLink';
+import { supabase } from '@/integrations/supabase/client';
 
 const EMPLOYMENT_TYPES = [
   { value: 'full_time', label: 'Full-time' },
@@ -35,6 +37,7 @@ const WORK_MODELS = [
 
 export default function JobCreate() {
   const { navigateOrg } = useOrgNavigation();
+  const { currentOrg } = useOrganization();
   const createJob = useCreateJob();
   const { data: departments = [] } = useDepartments();
   const { data: offices = [] } = useOffices();
@@ -112,40 +115,34 @@ export default function JobCreate() {
 
     setIsGeneratingJD(true);
     try {
-      // TODO: Implement AI JD generation via edge function
-      // For now, show a placeholder
       const selectedDept = departments.find(d => d.id === formData.department_id);
-      const placeholder = `# About the Role
+      const selectedOffice = offices.find(o => o.id === formData.office_id);
+      
+      const { data, error } = await supabase.functions.invoke('generate-job-description', {
+        body: {
+          organization_id: currentOrg?.id,
+          title: formData.title,
+          department: selectedDept?.name,
+          location: formData.location || selectedOffice?.city,
+          work_model: formData.work_model,
+          employment_type: formData.employment_type,
+          salary_min: formData.salary_min ? parseFloat(formData.salary_min) : undefined,
+          salary_max: formData.salary_max ? parseFloat(formData.salary_max) : undefined,
+          salary_currency: formData.salary_currency,
+          company_name: currentOrg?.name,
+        },
+      });
 
-We are looking for a talented ${formData.title} to join our ${selectedDept?.name || 'team'}. This is a ${formData.work_model} position based in ${formData.location || 'our office'}.
+      if (error) throw error;
 
-## Responsibilities
-
-- Define and execute key initiatives
-- Collaborate with cross-functional teams
-- Drive continuous improvement and innovation
-
-## Requirements
-
-- Relevant experience in the field
-- Strong communication skills
-- Problem-solving mindset
-
-## Nice to Have
-
-- Previous startup experience
-- Industry-specific knowledge
-
-## Benefits
-
-- Competitive salary
-- Health insurance
-- Flexible working arrangements
-- Professional development opportunities`;
-
-      handleChange('description', placeholder);
-      toast.success('Job description generated');
-    } catch (error) {
+      if (data?.success && data?.description) {
+        handleChange('description', data.description);
+        toast.success('Job description generated!');
+      } else {
+        throw new Error(data?.message || 'Failed to generate description');
+      }
+    } catch (error: any) {
+      console.error('Error generating job description:', error);
       toast.error('Failed to generate job description');
     } finally {
       setIsGeneratingJD(false);
