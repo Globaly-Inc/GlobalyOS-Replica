@@ -12,6 +12,7 @@ export interface Position {
   name: string;
   department_id: string | null;
   description: string | null;
+  responsibilities: string[] | null;
 }
 
 /**
@@ -27,7 +28,7 @@ export const usePositions = (departmentId?: string) => {
 
       let query = supabase
         .from('positions')
-        .select('id, name, department_id, description')
+        .select('id, name, department_id, description, responsibilities')
         .eq('organization_id', currentOrg.id)
         .order('name');
 
