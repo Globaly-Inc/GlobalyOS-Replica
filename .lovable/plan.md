@@ -1,81 +1,138 @@
 
 
-# Rename "Job" to "Job Vacancy" Throughout System
+# Convert Job Description to Rich Text Editor & Include Responsibilities
 
 ## Summary
-Rename all user-facing instances of "Job" to "Job Vacancy" (singular) or "Job Vacancies" (plural) throughout the hiring module. This ensures consistent terminology across the application.
+Replace the plain textarea for job descriptions with the existing RichTextEditor component and automatically include both the position description AND responsibilities when an existing position is selected.
 
-## Scope of Changes
+## Current Behavior
+- Job description uses a plain `Textarea` component (no formatting)
+- When selecting an existing position, only the `description` field is copied
+- The `responsibilities` array from positions is not fetched or used
 
-### Pages and Components Affected
+## Proposed Behavior
+- Job description uses the `RichTextEditor` component with toolbar (bold, italic, lists, etc.)
+- When selecting an existing position:
+  - The description is added as formatted text
+  - The responsibilities are appended as a bulleted list below the description
+- AI-generated descriptions also work with the rich text editor
+
+## Implementation Details
+
+### 1. Update usePositions hook to fetch responsibilities
+
+**File:** `src/hooks/usePositions.ts`
+
+Add `responsibilities` to the Position interface and SELECT query:
+
+| Change | Details |
+|--------|---------|
+| Add to interface | `responsibilities: string[] \| null` |
+| Update select query | Add `responsibilities` to the select clause |
+
+### 2. Update PositionCombobox to pass responsibilities
+
+**File:** `src/components/hiring/PositionCombobox.tsx`
+
+Update the `onChange` callback to also include responsibilities:
+
+| Change | Details |
+|--------|---------|
+| Update onChange signature | `onChange: (value: string, description?: string \| null, responsibilities?: string[] \| null) => void` |
+| Pass responsibilities in handleSelect | Include `position.responsibilities` when calling onChange |
+
+### 3. Replace Textarea with RichTextEditor
+
+**File:** `src/pages/hiring/JobCreate.tsx`
+
+| Change | Details |
+|--------|---------|
+| Import RichTextEditor | Add import from `@/components/ui/rich-text-editor` |
+| Replace Textarea | Replace the description Textarea with RichTextEditor |
+| Update onChange handler | Combine description + responsibilities into formatted HTML |
+| Move AI button to toolbar | Use `renderToolbarRight` prop to place the "Generate with AI" button in the editor toolbar |
+
+### Formatting Logic for Position Selection
+
+When a position is selected, format the content as:
+
+```html
+<p>[Position description text]</p>
+<p><strong>Key Responsibilities:</strong></p>
+<ul>
+  <li>Responsibility 1</li>
+  <li>Responsibility 2</li>
+  ...
+</ul>
+```
+
+## Technical Details
+
+### Helper function for formatting
+
+```typescript
+const formatPositionAsRichText = (
+  description: string | null | undefined, 
+  responsibilities: string[] | null | undefined
+): string => {
+  let html = '';
+  
+  if (description) {
+    html += `<p>${description}</p>`;
+  }
+  
+  if (responsibilities && responsibilities.length > 0) {
+    html += '<p><strong>Key Responsibilities:</strong></p>';
+    html += '<ul>';
+    responsibilities.forEach(r => {
+      html += `<li>${r}</li>`;
+    });
+    html += '</ul>';
+  }
+  
+  return html;
+};
+```
+
+### RichTextEditor integration
+
+The RichTextEditor component already:
+- Supports bold, italic, underline, bullet and numbered lists
+- Sanitizes HTML with DOMPurify
+- Syncs with external value changes (for AI generation)
+- Has a `renderToolbarRight` prop for additional toolbar content (perfect for the AI generate button)
+
+## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/hiring/JobCreate.tsx` | "Create Job" to "Create Job Vacancy", "Job Description" to "Job Vacancy Description" |
-| `src/pages/hiring/JobDetail.tsx` | "Job not found" to "Job vacancy not found", "Back to Jobs" to "Back to Vacancies", "Job Description" to "Vacancy Description", "Job approved" to "Job vacancy approved" |
-| `src/pages/hiring/JobEdit.tsx` | "Edit Job" to "Edit Job Vacancy", "Job not found" to "Job vacancy not found", "Back to Jobs" to "Back to Vacancies", "Job Description" to "Job Vacancy Description", "Show salary range on job posting" to "Show salary range on vacancy" |
-| `src/pages/hiring/JobsList.tsx` | "Search jobs..." to "Search vacancies...", "No jobs found" to "No vacancies found", "Create Job" to "Create Job Vacancy", "Edit Job" to "Edit Vacancy", "Pause Job" to "Pause Vacancy", "Resume Job" to "Resume Vacancy", "Close Job" to "Close Vacancy", "Delete Job" to "Delete Vacancy", "Create your first job posting to start hiring" to "Create your first vacancy to start hiring" |
-| `src/pages/hiring/HiringDashboard.tsx` | "Create Job" to "Create Job Vacancy", "Jobs" tab to "Vacancies", "Active Jobs" to "Active Vacancies", "Search jobs..." to "Search vacancies...", "Manage job postings, candidates, and recruitment pipeline" to "Manage job vacancies, candidates, and recruitment pipeline" |
-| `src/components/hiring/JobPostPreview.tsx` | "Fill in the form to see a live preview of your job posting" to "Fill in the form to see a live preview of your vacancy" |
-| `src/services/useHiringMutations.ts` | Toast messages: "Job created" to "Job vacancy created", "Job updated" to "Job vacancy updated", "Job approved" to "Job vacancy approved", "Job published" to "Job vacancy published", "Job closed" to "Job vacancy closed", "Failed to create job" to "Failed to create vacancy", etc. |
-| `src/pages/careers/CareersPage.tsx` | "Search jobs by title or location..." to "Search vacancies by title or location..." |
-| `src/components/super-admin/OrganizationFeaturesManager.tsx` | "Job postings, applicant tracking..." to "Job vacancies, applicant tracking..." |
+| `src/hooks/usePositions.ts` | Add `responsibilities` to interface and query |
+| `src/components/hiring/PositionCombobox.tsx` | Update onChange to include responsibilities |
+| `src/pages/hiring/JobCreate.tsx` | Replace Textarea with RichTextEditor, format combined content |
 
-### Technical Details
+## Visual Changes
 
-#### UI Text Changes (All Files)
-- Page headers/titles
-- Button labels
-- Placeholder text in search inputs
-- Empty state messages
-- Toast notification messages
-- Tab labels
-- Dropdown menu items
-- Descriptive text/subtitles
+Before:
+```
++----------------------------------+
+| Textarea (plain text, mono font) |
+|                                  |
+| Supports Markdown formatting     |
++----------------------------------+
+```
 
-#### Specific Replacements
-
-**Singular Forms:**
-- "Create Job" → "Create Job Vacancy"
-- "Edit Job" → "Edit Job Vacancy"
-- "Delete Job" → "Delete Vacancy"
-- "Pause Job" → "Pause Vacancy"
-- "Resume Job" → "Resume Vacancy"
-- "Close Job" → "Close Vacancy"
-- "Job not found" → "Job vacancy not found"
-- "Job Description" → "Job Vacancy Description" (contextual)
-- "Job created" → "Job vacancy created"
-- "Job updated" → "Job vacancy updated"
-- "Job approved" → "Job vacancy approved"
-- "Job published" → "Job vacancy published"
-- "Job closed" → "Job vacancy closed"
-- "Failed to create job" → "Failed to create vacancy"
-- "job posting" → "vacancy" (in context)
-
-**Plural Forms:**
-- "Jobs" (tab) → "Vacancies"
-- "Active Jobs" → "Active Vacancies"
-- "Search jobs..." → "Search vacancies..."
-- "No jobs found" → "No vacancies found"
-- "Back to Jobs" → "Back to Vacancies"
-- "job postings" → "job vacancies"
-
-### Files to Modify
-
-1. `src/pages/hiring/JobCreate.tsx` - 3 text changes
-2. `src/pages/hiring/JobDetail.tsx` - 6 text changes
-3. `src/pages/hiring/JobEdit.tsx` - 6 text changes
-4. `src/pages/hiring/JobsList.tsx` - 10 text changes
-5. `src/pages/hiring/HiringDashboard.tsx` - 6 text changes
-6. `src/components/hiring/JobPostPreview.tsx` - 1 text change
-7. `src/services/useHiringMutations.ts` - 10 toast message changes
-8. `src/pages/careers/CareersPage.tsx` - 1 text change
-9. `src/components/super-admin/OrganizationFeaturesManager.tsx` - 1 text change
-
-### What Stays the Same
-- File names remain unchanged (JobCreate.tsx, JobsList.tsx, etc.) as these are technical identifiers
-- Route URLs remain unchanged (`/hiring/jobs`, `/hiring/jobs/new`, etc.) for URL stability
-- Database table names and field names remain unchanged
-- Function/hook names remain unchanged (useCreateJob, useJobs, etc.)
-- Internal code variables and types remain unchanged
+After:
+```
++-----------------------------------------------+
+| [B] [I] [U] | [•] [1.] |      [✨ Generate AI] |
++-----------------------------------------------+
+|                                               |
+| Rich text content with formatting...          |
+|                                               |
+| Key Responsibilities:                         |
+| • Responsibility 1                            |
+| • Responsibility 2                            |
+|                                               |
++-----------------------------------------------+
+```
 
