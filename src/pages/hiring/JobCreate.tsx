@@ -17,12 +17,16 @@ import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { useDepartments, useOffices } from '@/hooks/useOrganizationData';
 import { useOrganization } from '@/hooks/useOrganization';
 import { generateJobSlug } from '@/types/hiring';
-import { ArrowLeft, Loader2, Sparkles } from 'lucide-react';
+import { ArrowLeft, Loader2, Sparkles, CalendarIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { OrgLink } from '@/components/OrgLink';
 import { supabase } from '@/integrations/supabase/client';
 import { PositionCombobox } from '@/components/hiring/PositionCombobox';
 import { JobPostPreview } from '@/components/hiring/JobPostPreview';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
 const EMPLOYMENT_TYPES = [
   { value: 'full_time', label: 'Full-time' },
@@ -290,13 +294,34 @@ export default function JobCreate() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="target_start_date">Target Start Date</Label>
-                  <Input
-                    id="target_start_date"
-                    type="date"
-                    value={formData.target_start_date}
-                    onChange={(e) => handleChange('target_start_date', e.target.value)}
-                  />
+                  <Label>Target Start Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !formData.target_start_date && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.target_start_date ? (
+                          format(new Date(formData.target_start_date), "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={formData.target_start_date ? new Date(formData.target_start_date) : undefined}
+                        onSelect={(date) => handleChange('target_start_date', date ? format(date, 'yyyy-MM-dd') : '')}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
             </CardContent>
