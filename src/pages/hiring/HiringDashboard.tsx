@@ -269,40 +269,6 @@ export default function HiringDashboard() {
         </Card>
       </div>
 
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-4">
-            <Button variant="outline" className="h-auto py-4 flex flex-col gap-2" asChild>
-              <OrgLink to="/hiring/jobs/new">
-                <Plus className="h-5 w-5" />
-                <span>Create Job</span>
-              </OrgLink>
-            </Button>
-            <Button variant="outline" className="h-auto py-4 flex flex-col gap-2" asChild>
-              <OrgLink to="/hiring/candidates">
-                <Users className="h-5 w-5" />
-                <span>View Candidates</span>
-              </OrgLink>
-            </Button>
-            <Button variant="outline" className="h-auto py-4 flex flex-col gap-2" asChild>
-              <OrgLink to="/hiring/settings">
-                <FileText className="h-5 w-5" />
-                <span>Assignment Templates</span>
-              </OrgLink>
-            </Button>
-            <Button variant="outline" className="h-auto py-4 flex flex-col gap-2" asChild>
-              <OrgLink to="/hiring/analytics">
-                <TrendingUp className="h-5 w-5" />
-                <span>View Analytics</span>
-              </OrgLink>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
