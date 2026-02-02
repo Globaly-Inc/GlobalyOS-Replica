@@ -1,45 +1,75 @@
-import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { OrgLink } from '@/components/OrgLink';
-import { useJobs, useHiringMetrics, useUpcomingInterviews } from '@/services/useHiring';
 import { useOrganization } from '@/hooks/useOrganization';
+import { useHiringMetrics } from '@/services/useHiring';
+import { 
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
+} from 'recharts';
 import { 
   Briefcase, 
   Users, 
   UserCheck, 
-  Calendar,
   Clock,
-  Plus,
   ExternalLink,
-  TrendingUp,
-  FileText,
-  ArrowRight,
+  Plus,
   Settings
 } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+
+const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', 'hsl(var(--muted))', '#8884d8', '#82ca9d'];
+
+// Mock data for charts - will be replaced with real data
+const stageData = [
+  { name: 'Applied', count: 45 },
+  { name: 'Screening', count: 32 },
+  { name: 'Assignment', count: 18 },
+  { name: 'Interview 1', count: 12 },
+  { name: 'Interview 2', count: 8 },
+  { name: 'Offer', count: 4 },
+  { name: 'Hired', count: 3 },
+];
+
+const sourceData = [
+  { name: 'Careers Site', value: 35 },
+  { name: 'LinkedIn', value: 25 },
+  { name: 'Referral', value: 20 },
+  { name: 'Job Board', value: 15 },
+  { name: 'Other', value: 5 },
+];
+
+const timeToFillData = [
+  { month: 'Jan', days: 28 },
+  { month: 'Feb', days: 32 },
+  { month: 'Mar', days: 25 },
+  { month: 'Apr', days: 22 },
+  { month: 'May', days: 30 },
+  { month: 'Jun', days: 24 },
+];
 
 export default function HiringDashboard() {
   const { currentOrg } = useOrganization();
-  const { data: jobs, isLoading: jobsLoading } = useJobs({ status: 'open' });
-  const { data: metrics, isLoading: metricsLoading } = useHiringMetrics();
-  const { data: upcomingInterviews, isLoading: interviewsLoading } = useUpcomingInterviews();
-
-  const openJobsCount = jobs?.length || 0;
-  const candidatesInPipeline = metrics?.total_candidates || 0;
-  const hiresLast30Days = metrics?.hires_last_30_days || 0;
-  const averageTimeToFill = metrics?.avg_time_to_fill_days || 0;
+  const { data: metrics, isLoading } = useHiringMetrics();
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Hiring Dashboard</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
           <p className="text-muted-foreground">
-            Manage job openings, candidates, and recruitment pipeline
+            Track recruitment performance and identify opportunities
           </p>
         </div>
         <div className="flex gap-2">
@@ -69,56 +99,62 @@ export default function HiringDashboard() {
         </div>
       </div>
 
-      {/* Metrics Cards */}
+      {/* Key Metrics */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Open Jobs</CardTitle>
-            <Briefcase className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {jobsLoading ? (
-              <Skeleton className="h-8 w-16" />
-            ) : (
-              <div className="text-2xl font-bold">{openJobsCount}</div>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Active positions
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Candidates in Pipeline</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Candidates</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {metricsLoading ? (
+            {isLoading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
-              <div className="text-2xl font-bold">{candidatesInPipeline}</div>
+              <>
+                <div className="text-2xl font-bold">{metrics?.total_candidates || 0}</div>
+                <p className="text-xs text-muted-foreground">
+                  +12% from last month
+                </p>
+              </>
             )}
-            <p className="text-xs text-muted-foreground">
-              Active applications
-            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Hires (30 days)</CardTitle>
+            <CardTitle className="text-sm font-medium">Active Jobs</CardTitle>
+            <Briefcase className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{metrics?.open_jobs || 0}</div>
+                <p className="text-xs text-muted-foreground">
+                  Currently open
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Hires This Month</CardTitle>
             <UserCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {metricsLoading ? (
+            {isLoading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
-              <div className="text-2xl font-bold">{hiresLast30Days}</div>
+              <>
+                <div className="text-2xl font-bold">{metrics?.hires_last_30_days || 0}</div>
+                <p className="text-xs text-muted-foreground">
+                  {metrics?.hires_last_90_days || 0} in last 90 days
+                </p>
+              </>
             )}
-            <p className="text-xs text-muted-foreground">
-              New team members
-            </p>
           </CardContent>
         </Card>
 
@@ -128,147 +164,138 @@ export default function HiringDashboard() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {metricsLoading ? (
+            {isLoading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
-              <div className="text-2xl font-bold">{averageTimeToFill} days</div>
+              <>
+                <div className="text-2xl font-bold">{metrics?.avg_time_to_fill_days || 0} days</div>
+                <p className="text-xs text-muted-foreground">
+                  -3 days from last month
+                </p>
+              </>
             )}
-            <p className="text-xs text-muted-foreground">
-              From open to hired
-            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Main Content Grid */}
+      {/* Charts Row 1 */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Open Jobs List */}
+        {/* Funnel Chart */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Open Jobs</CardTitle>
-                <CardDescription>Recently posted positions</CardDescription>
-              </div>
-              <Button variant="ghost" size="sm" asChild>
-                <OrgLink to="/hiring/jobs" className="flex items-center gap-1">
-                  View all
-                  <ArrowRight className="h-3 w-3" />
-                </OrgLink>
-              </Button>
-            </div>
+            <CardTitle>Hiring Funnel</CardTitle>
+            <CardDescription>Candidates by pipeline stage</CardDescription>
           </CardHeader>
           <CardContent>
-            {jobsLoading ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-16 w-full" />
-                ))}
-              </div>
-            ) : jobs && jobs.length > 0 ? (
-              <div className="space-y-4">
-                {jobs.slice(0, 5).map((job) => (
-                  <OrgLink
-                    key={job.id}
-                    to={`/hiring/jobs/${job.slug}`}
-                    className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent transition-colors"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{job.title}</p>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span>{typeof job.department === 'object' ? job.department?.name : job.department || 'No department'}</span>
-                        {job.location && (
-                          <>
-                            <span>•</span>
-                            <span>{job.location}</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    <Badge variant="secondary" className="ml-2">
-                      {job._count?.candidate_applications || 0} candidates
-                    </Badge>
-                  </OrgLink>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <Briefcase className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                <p className="text-muted-foreground mb-4">No open jobs yet</p>
-                <Button asChild>
-                  <OrgLink to="/hiring/jobs/new">Create your first job</OrgLink>
-                </Button>
-              </div>
-            )}
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={stageData} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" />
+                <YAxis dataKey="name" type="category" width={80} />
+                <Tooltip />
+                <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Upcoming Interviews */}
+        {/* Source of Hire */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Upcoming Interviews</CardTitle>
-                <CardDescription>Scheduled for the next 7 days</CardDescription>
-              </div>
-              <Button variant="ghost" size="sm" asChild>
-                <OrgLink to="/hiring/candidates" className="flex items-center gap-1">
-                  View all
-                  <ArrowRight className="h-3 w-3" />
-                </OrgLink>
-              </Button>
-            </div>
+            <CardTitle>Source of Hire</CardTitle>
+            <CardDescription>Where candidates come from</CardDescription>
           </CardHeader>
           <CardContent>
-            {interviewsLoading ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-16 w-full" />
-                ))}
-              </div>
-            ) : upcomingInterviews && upcomingInterviews.length > 0 ? (
-              <div className="space-y-4">
-                {upcomingInterviews.slice(0, 5).map((interview) => {
-                  const candidateName = interview.candidate_application?.candidate?.name || 'Unknown';
-                  const jobTitle = interview.candidate_application?.job?.title || 'Unknown Position';
-                  return (
-                    <div
-                      key={interview.id}
-                      className="flex items-center justify-between p-3 rounded-lg border"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <Calendar className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{candidateName}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {jobTitle} • {interview.interview_type}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-medium">
-                          {format(new Date(interview.scheduled_at), 'MMM d, h:mm a')}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(interview.scheduled_at), { addSuffix: true })}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                <p className="text-muted-foreground">No upcoming interviews</p>
-              </div>
-            )}
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={sourceData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {sourceData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
 
+      {/* Charts Row 2 */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Time to Fill Trend */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Time to Fill Trend</CardTitle>
+            <CardDescription>Average days to fill positions over time</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={timeToFillData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip />
+                <Line 
+                  type="monotone" 
+                  dataKey="days" 
+                  stroke="hsl(var(--primary))" 
+                  strokeWidth={2}
+                  dot={{ fill: 'hsl(var(--primary))' }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Assignment Metrics */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Assignment Performance</CardTitle>
+            <CardDescription>Take-home task completion rates</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Completion Rate</p>
+                  <p className="text-sm text-muted-foreground">Candidates who submitted</p>
+                </div>
+                <div className="text-2xl font-bold">{((metrics?.assignment_completion_rate || 0) * 100).toFixed(0)}%</div>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Average Rating</p>
+                  <p className="text-sm text-muted-foreground">Out of 5 stars</p>
+                </div>
+                <div className="text-2xl font-bold">{metrics?.avg_assignment_rating?.toFixed(1) || 'N/A'}</div>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">On-Time Submission</p>
+                  <p className="text-sm text-muted-foreground">Before deadline</p>
+                </div>
+                <div className="text-2xl font-bold">85%</div>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Avg. Review Time</p>
+                  <p className="text-sm text-muted-foreground">Time to rate submission</p>
+                </div>
+                <div className="text-2xl font-bold">2.3 days</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

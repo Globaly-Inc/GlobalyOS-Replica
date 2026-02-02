@@ -1,4 +1,4 @@
-import { Briefcase, Users, Settings, TrendingUp, LayoutDashboard } from 'lucide-react';
+import { Briefcase, Users, Settings, TrendingUp } from 'lucide-react';
 import { OrgLink } from '@/components/OrgLink';
 import { useLocation, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -10,10 +10,9 @@ interface HiringNavItem {
 }
 
 const hiringNavItems: HiringNavItem[] = [
-  { name: 'Dashboard', href: '/hiring', icon: LayoutDashboard },
+  { name: 'Analytics', href: '/hiring', icon: TrendingUp },
   { name: 'Jobs', href: '/hiring/jobs', icon: Briefcase },
   { name: 'Candidates', href: '/hiring/candidates', icon: Users },
-  { name: 'Analytics', href: '/hiring/analytics', icon: TrendingUp },
   { name: 'Settings', href: '/hiring/settings', icon: Settings },
 ];
 
