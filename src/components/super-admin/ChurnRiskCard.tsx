@@ -2,10 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, AlertTriangle, TrendingDown, Calendar, Users, ArrowRight, Mail, Building2, ExternalLink } from "lucide-react";
+import { Loader2, AlertTriangle, TrendingUp, TrendingDown } from "lucide-react";
 import { format, subDays, differenceInDays } from "date-fns";
-import ChurnRiskBadge from "./ChurnRiskBadge";
 import { RiskLevel } from "@/hooks/useChurnRisk";
 
 interface ChurnRiskOrg {
@@ -15,7 +13,6 @@ interface ChurnRiskOrg {
   reason: string;
   lastActivity: string | null;
   activityDrop: number;
-  // Enhanced fields
   recentActivityCount: number;
   previousActivityCount: number;
   totalUsers: number;
@@ -27,6 +24,14 @@ interface ChurnRiskOrg {
   companySize: string | null;
   createdAt: string;
 }
+
+const formatRelativeOrDate = (dateStr: string) => {
+  const days = differenceInDays(new Date(), new Date(dateStr));
+  if (days === 0) return 'today';
+  if (days === 1) return '1 day ago';
+  if (days <= 7) return `${days} days ago`;
+  return format(new Date(dateStr), 'dd MMM yyyy');
+};
 
 const ChurnRiskCard = () => {
   const navigate = useNavigate();
@@ -44,7 +49,6 @@ const ChurnRiskCard = () => {
       const last30Days = subDays(now, 30);
       const prev30Days = subDays(now, 60);
 
-      // Get all organizations with additional details
       const { data: orgs } = await supabase
         .from('organizations')
         .select('id, name, plan, created_at, owner_name, owner_email, industry, company_size');
@@ -54,22 +58,18 @@ const ChurnRiskCard = () => {
         return;
       }
 
-      // Get activity counts for each org
       const atRisk: ChurnRiskOrg[] = [];
 
       for (const org of orgs) {
-        // Skip very new orgs (less than 3 days old) - give them time to get started
         const orgAge = differenceInDays(now, new Date(org.created_at));
         if (orgAge < 3) continue;
 
-        // Recent activity (last 30 days)
         const { count: recentCount } = await supabase
           .from('user_page_visits')
           .select('*', { count: 'exact', head: true })
           .eq('organization_id', org.id)
           .gte('visited_at', last30Days.toISOString());
 
-        // Previous period activity (30-60 days ago)
         const { count: previousCount } = await supabase
           .from('user_page_visits')
           .select('*', { count: 'exact', head: true })
@@ -77,7 +77,6 @@ const ChurnRiskCard = () => {
           .gte('visited_at', prev30Days.toISOString())
           .lt('visited_at', last30Days.toISOString());
 
-        // Get last activity date
         const { data: lastVisit } = await supabase
           .from('user_page_visits')
           .select('visited_at')
@@ -86,13 +85,11 @@ const ChurnRiskCard = () => {
           .limit(1)
           .maybeSingle();
 
-        // Get total users count
         const { count: totalUsers } = await supabase
           .from('employees')
           .select('*', { count: 'exact', head: true })
           .eq('organization_id', org.id);
 
-        // Get active users (distinct users with activity in last 30 days)
         const { data: activeUserData } = await supabase
           .from('user_page_visits')
           .select('user_id')
@@ -114,46 +111,37 @@ const ChurnRiskCard = () => {
           ? differenceInDays(now, lastActivityDate) 
           : 999;
 
-        // Determine risk level
         let riskLevel: RiskLevel = 'healthy';
         let reason = '';
 
-        // New org (3-7 days old) with no activity at all
         if (orgAge >= 3 && orgAge < 7 && recent === 0) {
           riskLevel = 'high';
           reason = 'No activity since signup';
         }
-        // Inactive new org (7-14 days old with no activity)
         else if (orgAge >= 7 && orgAge < 14 && recent === 0) {
           riskLevel = 'high';
           reason = 'No activity since signup';
         } 
-        // No activity in 14+ days (for any org)
         else if (daysSinceActivity >= 14) {
           riskLevel = 'high';
           reason = `No activity in ${daysSinceActivity} days`;
         } 
-        // Significant activity drop
         else if (dropPercent >= 50 && previous >= 10) {
           riskLevel = 'high';
           reason = `${dropPercent}% drop in activity`;
         } 
-        // No activity in 7+ days
         else if (daysSinceActivity >= 7) {
           riskLevel = 'medium';
           reason = `No activity in ${daysSinceActivity} days`;
         } 
-        // Moderate activity drop
         else if (dropPercent >= 30 && previous >= 10) {
           riskLevel = 'medium';
           reason = `${dropPercent}% drop in activity`;
         }
-        // New org (3-14 days) with activity but showing signs of slowing (no activity in 3+ days)
         else if (orgAge >= 3 && orgAge < 14 && daysSinceActivity >= 3) {
           riskLevel = 'low';
           reason = `Slowing activity (${daysSinceActivity} days since last visit)`;
         }
-        // Low engagement: less than 1 visit per user per week
         else if (totalUsers > 0 && recent < totalUsers * 4 && recent < 30) {
           riskLevel = 'low';
           reason = 'Low user engagement';
@@ -181,7 +169,6 @@ const ChurnRiskCard = () => {
         }
       }
 
-      // Sort by risk level (high first) then by activity drop
       atRisk.sort((a, b) => {
         const riskOrder = { high: 0, medium: 1, low: 2, healthy: 3, new: 4 };
         if (riskOrder[a.riskLevel] !== riskOrder[b.riskLevel]) {
@@ -190,7 +177,7 @@ const ChurnRiskCard = () => {
         return b.activityDrop - a.activityDrop;
       });
 
-      setAtRiskOrgs(atRisk.slice(0, 10)); // Top 10 at-risk orgs
+      setAtRiskOrgs(atRisk.slice(0, 15));
     } catch (error) {
       console.error('Error analyzing churn risk:', error);
     } finally {
@@ -202,17 +189,16 @@ const ChurnRiskCard = () => {
     navigate(`/super-admin/organisations/${orgId}`);
   };
 
-  const getActivityTrend = (recent: number, previous: number) => {
-    if (previous === 0) return null;
-    const change = Math.round(((recent - previous) / previous) * 100);
-    return change;
-  };
+  // Categorize orgs by risk level
+  const highRiskOrgs = atRiskOrgs.filter(o => o.riskLevel === 'high');
+  const mediumRiskOrgs = atRiskOrgs.filter(o => o.riskLevel === 'medium');
+  const lowRiskOrgs = atRiskOrgs.filter(o => o.riskLevel === 'low');
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <AlertTriangle className="h-5 w-5 text-destructive" />
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <AlertTriangle className="h-4 w-4 text-destructive" />
           Churn Risk Indicators
         </CardTitle>
       </CardHeader>
@@ -227,65 +213,103 @@ const ChurnRiskCard = () => {
             <p className="text-xs text-muted-foreground mt-1">All organisations show healthy activity levels</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {atRiskOrgs.map((org) => {
-              const trend = getActivityTrend(org.recentActivityCount, org.previousActivityCount);
-              
-              return (
-                <div
-                  key={org.id}
-                  onClick={() => handleCardClick(org.id)}
-                  className="p-4 rounded-lg border border-border bg-muted/30 cursor-pointer hover:bg-muted/50 hover:shadow-sm transition-all group"
-                >
-                  {/* Header Row */}
-                  <div className="flex items-start justify-between gap-2 mb-3">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <Building2 className="h-4 w-4 text-primary" />
-                      </div>
-                      <div className="min-w-0">
-                        <h4 className="font-medium truncate">{org.name}</h4>
-                        <p className="text-xs text-muted-foreground capitalize">{org.plan} Plan • Joined {format(new Date(org.createdAt), 'MMM yyyy')}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <ChurnRiskBadge level={org.riskLevel} reason={org.reason} size="sm" />
-                      <ExternalLink className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                  </div>
+          <div className="space-y-5">
+            {/* Summary Stats Grid */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="p-3 rounded-lg border bg-red-50 dark:bg-red-950/20">
+                <div className="text-2xl font-bold text-red-600 dark:text-red-400">{highRiskOrgs.length}</div>
+                <div className="text-xs font-medium text-red-700 dark:text-red-300">High Risks</div>
+                <div className="text-[10px] text-red-600/70 dark:text-red-400/70 flex items-center gap-1 mt-0.5">
+                  {highRiskOrgs.length > 0 ? (
+                    <>
+                      <TrendingUp className="h-3 w-3" />
+                      Needs attention
+                    </>
+                  ) : (
+                    'None detected'
+                  )}
+                </div>
+              </div>
+              <div className="p-3 rounded-lg border bg-amber-50 dark:bg-amber-950/20">
+                <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{mediumRiskOrgs.length}</div>
+                <div className="text-xs font-medium text-amber-700 dark:text-amber-300">Medium Risks</div>
+                <div className="text-[10px] text-amber-600/70 dark:text-amber-400/70 flex items-center gap-1 mt-0.5">
+                  {mediumRiskOrgs.length > 0 ? (
+                    <>
+                      <TrendingDown className="h-3 w-3" />
+                      Monitor closely
+                    </>
+                  ) : (
+                    'None detected'
+                  )}
+                </div>
+              </div>
+              <div className="p-3 rounded-lg border bg-orange-50 dark:bg-orange-950/20">
+                <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{lowRiskOrgs.length}</div>
+                <div className="text-xs font-medium text-orange-700 dark:text-orange-300">Low Risks</div>
+                <div className="text-[10px] text-orange-600/70 dark:text-orange-400/70 mt-0.5">
+                  {lowRiskOrgs.length > 0 ? 'Early signs' : 'None detected'}
+                </div>
+              </div>
+            </div>
 
-                  {/* Owner Info */}
-                  {(org.ownerName || org.ownerEmail) && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
-                      <Mail className="h-3 w-3" />
-                      <span className="truncate">
-                        {org.ownerName && <span className="font-medium">{org.ownerName}</span>}
-                        {org.ownerName && org.ownerEmail && ' • '}
-                        {org.ownerEmail && <span>{org.ownerEmail}</span>}
+            {/* High Risk Customers List */}
+            {highRiskOrgs.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">High Risk Customers</h4>
+                <div className="space-y-1.5">
+                  {highRiskOrgs.slice(0, 5).map((org) => (
+                    <div 
+                      key={org.id}
+                      onClick={() => handleCardClick(org.id)}
+                      className="flex items-center justify-between p-2.5 rounded-lg border hover:bg-muted/50 cursor-pointer transition-colors group"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="h-7 w-7 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
+                          <span className="text-xs font-semibold text-red-600 dark:text-red-400">{org.name.charAt(0).toUpperCase()}</span>
+                        </div>
+                        <span className="text-sm font-medium truncate">
+                          {org.name}
+                          {org.ownerName && <span className="text-muted-foreground"> • {org.ownerName}</span>}
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted-foreground flex-shrink-0">
+                        Joined {formatRelativeOrDate(org.createdAt)}
                       </span>
                     </div>
-                  )}
-
-
-                  {/* Footer Info */}
-                  <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border/50">
-                    <div className="flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3" />
-                      <span>{org.reason}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {org.lastActivity && (
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          Last: {format(new Date(org.lastActivity), 'dd MMM')}
-                        </span>
-                      )}
-                      
-                    </div>
-                  </div>
+                  ))}
                 </div>
-              );
-            })}
+              </div>
+            )}
+
+            {/* Medium Risk Customers List */}
+            {mediumRiskOrgs.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Medium Risk Customers</h4>
+                <div className="space-y-1.5">
+                  {mediumRiskOrgs.slice(0, 3).map((org) => (
+                    <div 
+                      key={org.id}
+                      onClick={() => handleCardClick(org.id)}
+                      className="flex items-center justify-between p-2.5 rounded-lg border hover:bg-muted/50 cursor-pointer transition-colors group"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="h-7 w-7 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">
+                          <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">{org.name.charAt(0).toUpperCase()}</span>
+                        </div>
+                        <span className="text-sm font-medium truncate">
+                          {org.name}
+                          {org.ownerName && <span className="text-muted-foreground"> • {org.ownerName}</span>}
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted-foreground flex-shrink-0">
+                        Joined {formatRelativeOrDate(org.createdAt)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </CardContent>
