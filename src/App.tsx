@@ -99,6 +99,7 @@ const JobDetailPublic = lazy(() => import('./pages/careers/JobDetailPublic'));
 const AssignmentSubmission = lazy(() => import('./pages/AssignmentSubmission'));
 const HiringSettings = lazy(() => import('./pages/hiring/HiringSettings'));
 const CandidateDetail = lazy(() => import('./pages/hiring/CandidateDetail'));
+const JobEdit = lazy(() => import('./pages/hiring/JobEdit'));
 
 // Support pages
 const Support = lazy(() => import('./pages/Support'));
@@ -253,6 +254,7 @@ const App = () => <QueryClientProvider client={queryClient}>
                   <Route path="hiring/jobs" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><JobsList /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="hiring/jobs/new" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><JobCreate /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="hiring/jobs/:jobSlug" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><JobDetail /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                  <Route path="hiring/jobs/:jobSlug/edit" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><JobEdit /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="hiring/candidates" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><CandidatesList /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="hiring/analytics" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><HiringAnalytics /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="hiring/applications/:applicationId" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><HiringApplicationDetail /></FeatureProtectedRoute></OrgProtectedRoute>} />

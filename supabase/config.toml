@@ -287,3 +287,6 @@ verify_jwt = false
 
 [functions.bulk-generate-wiki-content]
 verify_jwt = false
+
+[functions.send-hiring-notification]
+verify_jwt = false
