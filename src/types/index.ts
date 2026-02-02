@@ -122,5 +122,8 @@ export type {
   EmployeeWithPayroll,
 } from './payroll';
 
+// Hiring types
+export * from './hiring';
+
 // Activity types
 export * from './activity';
