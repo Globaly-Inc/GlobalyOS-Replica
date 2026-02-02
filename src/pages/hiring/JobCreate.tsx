@@ -28,6 +28,32 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
+
+// Helper function to format position data as rich text HTML
+const formatPositionAsRichText = (
+  description: string | null | undefined,
+  responsibilities: string[] | null | undefined
+): string => {
+  let html = '';
+
+  if (description) {
+    html += `<p>${description}</p>`;
+  }
+
+  if (responsibilities && responsibilities.length > 0) {
+    if (description) {
+      html += '<p><strong>Key Responsibilities:</strong></p>';
+    }
+    html += '<ul>';
+    responsibilities.forEach((r) => {
+      html += `<li>${r}</li>`;
+    });
+    html += '</ul>';
+  }
+
+  return html;
+};
 
 const EMPLOYMENT_TYPES = [
   { value: 'full_time', label: 'Full-time' },
@@ -194,11 +220,12 @@ export default function JobCreate() {
                   <Label htmlFor="title">Job Title *</Label>
                   <PositionCombobox
                     value={formData.title}
-                    onChange={(value, description) => {
+                    onChange={(value, description, responsibilities) => {
                       handleChange('title', value);
                       // Auto-fill description if position has one and current description is empty
-                      if (description && !formData.description) {
-                        handleChange('description', description);
+                      if ((description || responsibilities?.length) && !formData.description) {
+                        const formattedHtml = formatPositionAsRichText(description, responsibilities);
+                        handleChange('description', formattedHtml);
                       }
                     }}
                     departmentId={formData.department_id || undefined}
@@ -395,37 +422,34 @@ export default function JobCreate() {
           {/* Job Description */}
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Job Vacancy Description</CardTitle>
-                  <CardDescription>Detailed role description and requirements</CardDescription>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={generateJobDescription}
-                  disabled={isGeneratingJD}
-                >
-                  {isGeneratingJD ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Sparkles className="h-4 w-4 mr-2" />
-                  )}
-                  Generate with AI
-                </Button>
-              </div>
+              <CardTitle>Job Vacancy Description</CardTitle>
+              <CardDescription>Detailed role description and requirements</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-2">
-                <Textarea
-                  placeholder="Write a detailed job description..."
+                <RichTextEditor
                   value={formData.description}
-                  onChange={(e) => handleChange('description', e.target.value)}
-                  className="min-h-[300px] font-mono text-sm"
+                  onChange={(value) => handleChange('description', value)}
+                  placeholder="Write a detailed job description..."
+                  minHeight="300px"
+                  renderToolbarRight={() => (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={generateJobDescription}
+                      disabled={isGeneratingJD}
+                      className="h-8 gap-1.5 text-xs"
+                    >
+                      {isGeneratingJD ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-3.5 w-3.5" />
+                      )}
+                      Generate with AI
+                    </Button>
+                  )}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Supports Markdown formatting
-                </p>
               </div>
 
               <div className="space-y-2">
