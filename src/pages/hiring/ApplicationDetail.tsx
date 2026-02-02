@@ -73,6 +73,7 @@ import { toast } from 'sonner';
 import { AssignAssignmentDialog } from '@/components/hiring/assignments/AssignAssignmentDialog';
 import { ScheduleInterviewDialog } from '@/components/hiring/interviews/ScheduleInterviewDialog';
 import { CreateOfferDialog } from '@/components/hiring/offers/CreateOfferDialog';
+import { SendOfferDialog } from '@/components/hiring/offers/SendOfferDialog';
 import { CVUpload } from '@/components/hiring/CVUpload';
 
 export default function ApplicationDetail() {
@@ -80,6 +81,7 @@ export default function ApplicationDetail() {
   const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
   const [showInterviewDialog, setShowInterviewDialog] = useState(false);
   const [showOfferDialog, setShowOfferDialog] = useState(false);
+  const [showSendOfferDialog, setShowSendOfferDialog] = useState(false);
 
   const { data: application, isLoading } = useHiringApplication(applicationId);
   const { data: assignments } = useAssignmentInstances(applicationId);
@@ -230,6 +232,9 @@ export default function ApplicationDetail() {
               <TabsTrigger value="interviews">
                 Interviews ({interviews?.length || 0})
               </TabsTrigger>
+              <TabsTrigger value="offer">
+                Offer {offer ? '✓' : ''}
+              </TabsTrigger>
               <TabsTrigger value="activity">Activity</TabsTrigger>
             </TabsList>
 
@@ -358,6 +363,90 @@ export default function ApplicationDetail() {
                       onClick={() => setShowInterviewDialog(true)}
                     >
                       Schedule Interview
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            <TabsContent value="offer" className="mt-4">
+              {offer ? (
+                <Card>
+                  <CardContent className="py-4">
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h4 className="font-medium text-lg">{offer.title}</h4>
+                        {offer.level && (
+                          <p className="text-sm text-muted-foreground">Level: {offer.level}</p>
+                        )}
+                      </div>
+                      <Badge variant={
+                        offer.status === 'accepted' ? 'default' :
+                        offer.status === 'declined' ? 'destructive' :
+                        offer.status === 'sent' ? 'secondary' : 'outline'
+                      }>
+                        {offer.status?.charAt(0).toUpperCase() + offer.status?.slice(1)}
+                      </Badge>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                      {offer.base_salary && (
+                        <div>
+                          <span className="text-muted-foreground">Salary:</span>{' '}
+                          <span className="font-medium">
+                            {new Intl.NumberFormat('en-US', {
+                              style: 'currency',
+                              currency: offer.currency || 'USD',
+                              minimumFractionDigits: 0,
+                            }).format(offer.base_salary)}
+                          </span>
+                        </div>
+                      )}
+                      {offer.start_date && (
+                        <div>
+                          <span className="text-muted-foreground">Start Date:</span>{' '}
+                          <span className="font-medium">{format(new Date(offer.start_date), 'PP')}</span>
+                        </div>
+                      )}
+                      {offer.expires_at && (
+                        <div>
+                          <span className="text-muted-foreground">Expires:</span>{' '}
+                          <span className="font-medium">{format(new Date(offer.expires_at), 'PP')}</span>
+                        </div>
+                      )}
+                      {offer.employment_type && (
+                        <div>
+                          <span className="text-muted-foreground">Type:</span>{' '}
+                          <span className="font-medium">
+                            {offer.employment_type.replace('_', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {offer.status === 'draft' || offer.status === 'approved' ? (
+                      <Button onClick={() => setShowSendOfferDialog(true)} className="w-full">
+                        <Send className="h-4 w-4 mr-2" />
+                        Send Offer to Candidate
+                      </Button>
+                    ) : offer.status === 'sent' ? (
+                      <p className="text-center text-muted-foreground text-sm">
+                        Offer sent - awaiting candidate response
+                      </p>
+                    ) : null}
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardContent className="py-8 text-center">
+                    <DollarSign className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-muted-foreground">No offer created yet</p>
+                    <Button 
+                      variant="outline" 
+                      className="mt-4"
+                      onClick={() => setShowOfferDialog(true)}
+                    >
+                      Create Offer
                     </Button>
                   </CardContent>
                 </Card>
@@ -517,6 +606,16 @@ export default function ApplicationDetail() {
         applicationId={applicationId!}
         jobTitle={application.job?.title}
       />
+      {offer && (
+        <SendOfferDialog
+          open={showSendOfferDialog}
+          onOpenChange={setShowSendOfferDialog}
+          offerId={offer.id}
+          offerTitle={offer.title}
+          candidateName={candidate?.name}
+          candidateEmail={candidate?.email}
+        />
+      )}
     </div>
   );
 }
