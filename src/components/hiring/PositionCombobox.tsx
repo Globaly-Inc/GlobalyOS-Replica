@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Check, ChevronsUpDown, Plus, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { usePositions, useCreatePosition } from '@/hooks/usePositions';
+import { useDepartments } from '@/hooks/useOrganizationData';
 import { toast } from 'sonner';
 
 interface PositionComboboxProps {
@@ -36,9 +44,16 @@ export function PositionCombobox({
 }: PositionComboboxProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [newPositionDepartmentId, setNewPositionDepartmentId] = useState<string | undefined>(departmentId);
   
   const { data: positions = [], isLoading } = usePositions(departmentId);
+  const { data: departments = [], isLoading: isDepartmentsLoading } = useDepartments();
   const createPosition = useCreatePosition();
+
+  // Reset department selection when popover closes or departmentId prop changes
+  useEffect(() => {
+    setNewPositionDepartmentId(departmentId);
+  }, [departmentId, open]);
 
   // Filter positions based on search
   const filteredPositions = useMemo(() => {
@@ -64,10 +79,11 @@ export function PositionCombobox({
     try {
       const newPosition = await createPosition.mutateAsync({
         name: search.trim(),
-        department_id: departmentId,
+        department_id: newPositionDepartmentId,
       });
       onChange(newPosition.name);
       setSearch('');
+      setNewPositionDepartmentId(departmentId);
       setOpen(false);
       toast.success(`Position "${newPosition.name}" created`);
     } catch (error) {
@@ -80,8 +96,17 @@ export function PositionCombobox({
     setOpen(false);
   };
 
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (!isOpen) {
+      // Reset state when closing
+      setSearch('');
+      setNewPositionDepartmentId(departmentId);
+    }
+  };
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -135,19 +160,60 @@ export function PositionCombobox({
                 {canCreate && (
                   <>
                     {filteredPositions.length > 0 && <CommandSeparator />}
-                    <CommandGroup>
-                      <CommandItem
-                        onSelect={handleCreate}
-                        disabled={createPosition.isPending}
-                        className="text-primary"
-                      >
-                        {createPosition.isPending ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <Plus className="mr-2 h-4 w-4" />
-                        )}
-                        Create "{search.trim()}"
-                      </CommandItem>
+                    <CommandGroup heading="Create New">
+                      <div className="px-2 py-2 space-y-2">
+                        <div className="flex items-center gap-2 text-sm">
+                          {createPosition.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                          ) : (
+                            <Plus className="h-4 w-4 text-primary" />
+                          )}
+                          <span className="font-medium text-primary">
+                            Create "{search.trim()}"
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            Department:
+                          </span>
+                          <Select
+                            value={newPositionDepartmentId || '_none'}
+                            onValueChange={(val) => setNewPositionDepartmentId(val === '_none' ? undefined : val)}
+                            disabled={isDepartmentsLoading}
+                          >
+                            <SelectTrigger className="h-8 text-xs flex-1">
+                              <SelectValue placeholder="Select department" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="_none">
+                                <span className="text-muted-foreground">No department</span>
+                              </SelectItem>
+                              {departments.map((dept) => (
+                                <SelectItem key={dept.id} value={dept.id}>
+                                  {dept.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <Button
+                          size="sm"
+                          className="w-full h-8"
+                          onClick={handleCreate}
+                          disabled={createPosition.isPending}
+                        >
+                          {createPosition.isPending ? (
+                            <>
+                              <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                              Creating...
+                            </>
+                          ) : (
+                            'Create Position'
+                          )}
+                        </Button>
+                      </div>
                     </CommandGroup>
                   </>
                 )}
