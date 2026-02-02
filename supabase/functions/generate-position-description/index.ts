@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 // Model pricing per 1K tokens (aligned with other AI functions)
@@ -16,6 +16,32 @@ const MODEL_RATES: Record<string, { input: number; output: number }> = {
 function estimateCost(model: string, promptTokens: number, completionTokens: number): number {
   const rates = MODEL_RATES[model] || { input: 0.000001, output: 0.000002 };
   return (promptTokens / 1000) * rates.input + (completionTokens / 1000) * rates.output;
+}
+
+// Detect seniority level from position title
+function detectSeniorityLevel(title: string): string {
+  const lowerTitle = title.toLowerCase();
+  
+  const seniorityPatterns: { pattern: RegExp; level: string }[] = [
+    { pattern: /\b(chief|ceo|cfo|cto|coo|cmo|cio)\b/, level: "C-Level Executive" },
+    { pattern: /\b(vp|vice president)\b/, level: "Vice President" },
+    { pattern: /\b(director)\b/, level: "Director" },
+    { pattern: /\b(head of|head)\b/, level: "Head/Director" },
+    { pattern: /\b(principal|staff)\b/, level: "Principal/Staff" },
+    { pattern: /\b(senior|sr\.?|lead)\b/, level: "Senior" },
+    { pattern: /\b(manager|supervisor)\b/, level: "Manager" },
+    { pattern: /\b(mid-level|mid level|intermediate)\b/, level: "Mid-Level" },
+    { pattern: /\b(junior|jr\.?|associate)\b/, level: "Junior/Associate" },
+    { pattern: /\b(intern|trainee|apprentice|graduate)\b/, level: "Entry-Level/Intern" },
+  ];
+
+  for (const { pattern, level } of seniorityPatterns) {
+    if (pattern.test(lowerTitle)) {
+      return level;
+    }
+  }
+  
+  return "Mid-Level"; // Default assumption
 }
 
 serve(async (req) => {
@@ -66,10 +92,15 @@ serve(async (req) => {
       forceRegenerate,
       existingDescription,
       existingResponsibilities,
-      mode = "generate" // "generate" | "improve"
+      mode = "generate", // "generate" | "improve"
+      industry, // NEW: Business category / industry context
+      business_category, // Alternative name for industry (for super admin templates)
     } = await req.json();
 
     organizationId = orgId;
+    
+    // Use industry or business_category
+    const industryContext = industry || business_category;
 
     if (!positionName || !organizationId) {
       return new Response(
@@ -117,9 +148,19 @@ serve(async (req) => {
 
     console.log(`${mode === "improve" ? "Improving" : "Generating"} AI description for position:`, positionName);
 
+    // Detect seniority level
+    const seniorityLevel = detectSeniorityLevel(positionName);
+
     const keywordsContext = keywords?.length > 0 
       ? `Additional context/keywords: ${keywords.join(', ')}` 
       : '';
+
+    // Build enhanced system prompt
+    const systemPrompt = `You are an expert HR professional writing position descriptions${industryContext ? ` for the ${industryContext} industry` : ''}. 
+Create clear, professional, and factual content based ONLY on the information provided.
+Do NOT invent company-specific details, benefits, or requirements not explicitly given.
+Focus on the core purpose of the role and key value it brings to the organization.
+Use active voice, professional language, and industry-appropriate terminology.`;
 
     // Build prompt based on mode
     let userPrompt: string;
@@ -132,38 +173,46 @@ serve(async (req) => {
         ? `Current responsibilities:\n${existingResponsibilities.map((r: string, i: number) => `${i + 1}. ${r}`).join('\n')}\n\n`
         : '';
 
-      userPrompt = `Improve and enhance the job description for: ${positionName}
-Department: ${department || 'General'}
+      userPrompt = `Improve and enhance the position description for: ${positionName}
+Seniority Level: ${seniorityLevel}
+${department ? `Department: ${department}` : ''}
+${industryContext ? `Industry: ${industryContext}` : ''}
 ${keywordsContext}
 
 ${existingContent}${existingResp}
 
 Please improve the content by:
 - Making it more professional and engaging
-- Ensuring clarity and conciseness
-- Adding any missing key aspects based on the role
+- Ensuring clarity and conciseness  
+- Adding any missing key aspects based on the role and seniority level
 - Incorporating the keywords naturally if provided
+- Aligning experience expectations with the ${seniorityLevel} level
 
 Provide a JSON response with:
-1. "description": An improved professional description (100-150 words) explaining the role's purpose and scope
-2. "responsibilities": An improved array of 5-8 key responsibilities as concise bullet points (each 10-20 words)
+1. "description": An improved professional description (100-150 words) starting with the role's business impact
+2. "responsibilities": An improved array of 5-8 key responsibilities as concise bullet points (each 10-20 words), appropriate for ${seniorityLevel} level
 
 Respond ONLY with valid JSON, no markdown formatting.`;
     } else {
-      userPrompt = `Generate a job description for: ${positionName}
-Department: ${department || 'General'}
+      userPrompt = `Generate a position description for: ${positionName}
+Seniority Level: ${seniorityLevel}
+${department ? `Department: ${department}` : ''}
+${industryContext ? `Industry: ${industryContext}` : ''}
 ${keywordsContext}
 
 Provide a JSON response with:
-1. "description": A professional description (100-150 words) explaining the role's purpose and scope
-2. "responsibilities": An array of 5-8 key responsibilities as concise bullet points (each 10-20 words)
+1. "description": A professional description (100-150 words) starting with the role's purpose and direct business impact
+2. "responsibilities": An array of 5-8 key responsibilities as concise, actionable bullet points (each 10-20 words), appropriate for ${seniorityLevel} level
+
+Requirements:
+- Do NOT invent company-specific details or technologies not implied by the role
+- Keep experience/skill expectations realistic for ${seniorityLevel} level
+- Focus on what the person will DO, not what they should BE
 
 Respond ONLY with valid JSON, no markdown formatting.`;
     }
 
-    const systemPrompt = `You are an expert HR professional writing job descriptions. Create clear, professional, and industry-standard content. Focus on the core purpose of the role and key value it brings. Do not include salary information or specific company names. Use active voice and professional language.`;
-
-    const model = "google/gemini-2.5-flash";
+    const model = "google/gemini-3-flash-preview";
     const promptLength = systemPrompt.length + userPrompt.length;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -183,18 +232,18 @@ Respond ONLY with valid JSON, no markdown formatting.`;
             type: "function",
             function: {
               name: "generate_position_content",
-              description: "Generate or improve job description and responsibilities",
+              description: "Generate or improve position description and responsibilities",
               parameters: {
                 type: "object",
                 properties: {
                   description: { 
                     type: "string",
-                    description: "A professional job description of 100-150 words"
+                    description: "A professional position description of 100-150 words starting with business impact"
                   },
                   responsibilities: { 
                     type: "array",
                     items: { type: "string" },
-                    description: "5-8 key responsibilities as concise bullet points"
+                    description: "5-8 key responsibilities as concise, actionable bullet points"
                   }
                 },
                 required: ["description", "responsibilities"],
@@ -228,7 +277,8 @@ Respond ONLY with valid JSON, no markdown formatting.`;
           success: false, 
           error: `HTTP ${response.status}`,
           position_name: positionName,
-          department
+          department,
+          industry: industryContext
         }
       });
 
@@ -298,6 +348,8 @@ Respond ONLY with valid JSON, no markdown formatting.`;
         success: true,
         position_name: positionName,
         department,
+        industry: industryContext,
+        seniority_level: seniorityLevel,
         mode,
         cached: false
       }

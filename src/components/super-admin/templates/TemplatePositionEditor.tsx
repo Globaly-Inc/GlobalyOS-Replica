@@ -30,7 +30,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BUSINESS_CATEGORIES } from "@/constants/businessCategories";
-import { Pencil, Trash2, Loader2, Users, CheckCircle } from "lucide-react";
+import { Pencil, Trash2, Loader2, Users, CheckCircle, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 interface TemplatePosition {
@@ -83,6 +83,7 @@ export function TemplatePositionEditor({
     responsibilities: "",
     sort_order: 0,
   });
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
   // Get unique departments for the selected category
   const categoryDepartments = selectedCategory
@@ -110,6 +111,45 @@ export function TemplatePositionEditor({
       });
     }
   }, [position, selectedCategory, positions.length]);
+
+  const generateWithAI = async () => {
+    if (!formData.name.trim()) {
+      toast.error("Position name is required for AI generation");
+      return;
+    }
+
+    setIsGeneratingAI(true);
+    try {
+      // Use a system org ID for super admin AI calls
+      const { data, error } = await supabase.functions.invoke('generate-position-description', {
+        body: {
+          positionName: formData.name.trim(),
+          department: formData.department_name || null,
+          keywords: [],
+          organizationId: "00000000-0000-0000-0000-000000000000", // System org for templates
+          forceRegenerate: true,
+          mode: "generate",
+          business_category: formData.business_category, // Pass business category as industry context
+        }
+      });
+
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      setFormData(prev => ({
+        ...prev,
+        description: data.description || "",
+        responsibilities: data.responsibilities?.join("\n") || "",
+      }));
+
+      toast.success("AI description generated!");
+    } catch (error: any) {
+      console.error("AI generation error:", error);
+      toast.error("Failed to generate AI description: " + error.message);
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
 
   const saveMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -353,6 +393,24 @@ export function TemplatePositionEditor({
                 }
                 placeholder="e.g., Software Engineer"
               />
+            </div>
+
+            {/* AI Generate Button */}
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={generateWithAI}
+                disabled={isGeneratingAI || !formData.name.trim()}
+              >
+                {isGeneratingAI ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4 mr-2" />
+                )}
+                Generate with AI
+              </Button>
             </div>
 
             <div className="space-y-2">

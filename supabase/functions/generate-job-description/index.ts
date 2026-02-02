@@ -1,10 +1,9 @@
 /**
  * Generate Job Description Edge Function
- * Uses Lovable AI to generate job descriptions based on role details
+ * Uses Lovable AI to generate comprehensive job descriptions based on role details
  */
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,13 +16,64 @@ interface GenerateJDRequest {
   title: string;
   department?: string;
   location?: string;
+  office_country?: string;
   work_model?: string;
   employment_type?: string;
   salary_min?: number;
   salary_max?: number;
   salary_currency?: string;
+  salary_visible?: boolean;
   company_name?: string;
   industry?: string;
+  company_size?: string;
+  application_deadline?: string;
+}
+
+// Detect seniority level from position title
+function detectSeniorityLevel(title: string): string {
+  const lowerTitle = title.toLowerCase();
+  
+  const seniorityPatterns: { pattern: RegExp; level: string }[] = [
+    { pattern: /\b(chief|ceo|cfo|cto|coo|cmo|cio)\b/, level: "C-Level Executive" },
+    { pattern: /\b(vp|vice president)\b/, level: "Vice President" },
+    { pattern: /\b(director)\b/, level: "Director" },
+    { pattern: /\b(head of|head)\b/, level: "Head/Director" },
+    { pattern: /\b(principal|staff)\b/, level: "Principal/Staff" },
+    { pattern: /\b(senior|sr\.?|lead)\b/, level: "Senior" },
+    { pattern: /\b(manager|supervisor)\b/, level: "Manager" },
+    { pattern: /\b(mid-level|mid level|intermediate)\b/, level: "Mid-Level" },
+    { pattern: /\b(junior|jr\.?|associate)\b/, level: "Junior/Associate" },
+    { pattern: /\b(intern|trainee|apprentice|graduate)\b/, level: "Entry-Level/Intern" },
+  ];
+
+  for (const { pattern, level } of seniorityPatterns) {
+    if (pattern.test(lowerTitle)) {
+      return level;
+    }
+  }
+  
+  return "Mid-Level"; // Default assumption
+}
+
+// Format work model for display
+function formatWorkModel(workModel?: string): string {
+  switch (workModel) {
+    case 'remote': return 'Fully Remote';
+    case 'hybrid': return 'Hybrid (Remote + Office)';
+    case 'onsite': return 'On-site';
+    default: return workModel || 'On-site';
+  }
+}
+
+// Format employment type for display
+function formatEmploymentType(type?: string): string {
+  switch (type) {
+    case 'full_time': return 'Full-time';
+    case 'part_time': return 'Part-time';
+    case 'contract': return 'Contract';
+    case 'internship': return 'Internship';
+    default: return type?.replace('_', ' ') || 'Full-time';
+  }
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -32,22 +82,22 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const authHeader = req.headers.get("authorization");
-    
-    // Log for debugging
-    console.log("Auth header present:", !!authHeader);
-
     const body: GenerateJDRequest = await req.json();
     const {
       title,
       department,
       location,
+      office_country,
       work_model,
       employment_type,
       salary_min,
       salary_max,
       salary_currency,
+      salary_visible,
       company_name,
+      industry,
+      company_size,
+      application_deadline,
     } = body;
 
     if (!title) {
@@ -57,81 +107,120 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log("Generating job description for:", title);
+    console.log("Generating enhanced job description for:", title);
 
-    // Build context for the AI
-    const workModelText = work_model === 'remote' ? 'fully remote' : 
-                          work_model === 'hybrid' ? 'hybrid (remote + office)' : 'on-site';
+    // Detect seniority from title
+    const seniorityLevel = detectSeniorityLevel(title);
+    const workModelText = formatWorkModel(work_model);
+    const employmentText = formatEmploymentType(employment_type);
     
-    const employmentText = employment_type?.replace('_', '-') || 'full-time';
+    // Build location context
+    const locationContext = [location, office_country].filter(Boolean).join(", ");
     
-    const salaryText = salary_min && salary_max 
-      ? `${salary_currency || 'USD'} ${salary_min.toLocaleString()} - ${salary_max.toLocaleString()} per year`
-      : salary_min 
-        ? `Starting at ${salary_currency || 'USD'} ${salary_min.toLocaleString()}`
-        : '';
+    // Build salary text only if visible
+    let salaryText = "";
+    if (salary_visible && salary_min && salary_max) {
+      salaryText = `${salary_currency || 'USD'} ${salary_min.toLocaleString()} - ${salary_max.toLocaleString()} per year`;
+    }
 
-    const prompt = `Generate a professional job description for the following position. Use Markdown formatting with headers (##).
+    // Build the enhanced system prompt
+    const systemPrompt = `You are an expert HR professional and technical recruiter${industry ? ` specializing in the ${industry} industry` : ''}. 
+Create factual, professional job descriptions based ONLY on the information provided.
+Do NOT invent company-specific details, benefits, team names, or requirements not explicitly given.
+Do NOT use generic filler phrases like "competitive salary", "great culture", or "dynamic team".
+Use active voice, professional language, and industry-appropriate terminology.
+Keep the total description under 700 words.`;
 
-**Position Details:**
-- Job Title: ${title}
-${department ? `- Department: ${department}` : ''}
-${location ? `- Location: ${location}` : ''}
-- Work Model: ${workModelText}
-- Employment Type: ${employmentText}
-${salaryText ? `- Compensation: ${salaryText}` : ''}
-${company_name ? `- Company: ${company_name}` : ''}
+    // Build the enhanced user prompt
+    let userPrompt = `Generate a professional job description for:
+- Position: ${title}
+- Seniority Level: ${seniorityLevel}`;
 
-**Requirements:**
-1. Start with a compelling 2-3 sentence overview of the role
-2. Include sections for: Responsibilities (5-7 bullet points), Requirements (5-6 bullet points), Nice to Have (3-4 bullet points), and What We Offer (4-5 bullet points)
-3. Use professional but engaging language
-4. Be specific to the role type (technical roles should mention relevant skills, management roles should mention leadership)
-5. Keep the total length around 400-500 words
-6. Do NOT include the job title as a heading - start directly with the overview
+    if (industry) userPrompt += `\n- Industry: ${industry}`;
+    if (department) userPrompt += `\n- Department: ${department}`;
+    if (locationContext) userPrompt += `\n- Location: ${locationContext}`;
+    userPrompt += `\n- Work Model: ${workModelText}`;
+    userPrompt += `\n- Employment Type: ${employmentText}`;
+    if (company_size) userPrompt += `\n- Company Size: ${company_size}`;
+    if (salaryText) userPrompt += `\n- Compensation: ${salaryText}`;
+    if (application_deadline) userPrompt += `\n- Application Deadline: ${application_deadline}`;
 
-Generate the job description now:`;
+    userPrompt += `
 
-    // Use Lovable AI
-    const lovableAIUrl = Deno.env.get("LOVABLE_AI_URL") || "https://ai.lovable.dev/api/v1/chat";
-    const lovableAIKey = Deno.env.get("LOVABLE_AI_API_KEY");
+Generate the following sections (maximum 700 words total):
 
-    if (!lovableAIKey) {
-      // Fallback to a good template if AI is not configured
-      const fallbackJD = generateFallbackJD(title, department, location, workModelText, employmentText, salaryText);
+## Position Overview
+Start with a compelling 2-3 sentence description of the role's core purpose and its direct impact on business outcomes. Focus on what makes this position meaningful.
+
+## Key Responsibilities
+Provide 6-8 bullet points of specific, actionable responsibilities appropriate for a ${seniorityLevel} position. Each should clearly describe what the person will do.
+
+## Qualifications & Requirements
+- Education requirements appropriate for the role
+- Years of experience expected for ${seniorityLevel} level
+- Technical skills and competencies required
+- Any certifications or specific knowledge areas
+
+## Soft Skills & Mindset
+4-5 qualities and characteristics that would make someone successful in this role. Be specific to the position type.
+
+## How to Apply
+Brief instruction to submit application with CV/resume.${application_deadline ? ` Applications must be received by ${application_deadline}.` : ''}
+
+IMPORTANT RULES:
+- Do NOT include salary information${salary_visible ? ' (unless the position explicitly shows it above)' : ''}
+- Do NOT mention benefits, perks, or company culture (we haven't provided this information)
+- Do NOT invent project names, team names, or specific technologies unless they're clearly implied by the role
+- Keep experience requirements realistic for the ${seniorityLevel} level
+- Use Markdown formatting with ## headers`;
+
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+
+    if (!LOVABLE_API_KEY) {
+      // Fallback to template if AI is not configured
+      const fallbackJD = generateFallbackJD(title, department, locationContext, workModelText, employmentText, seniorityLevel);
       return new Response(
         JSON.stringify({ success: true, description: fallbackJD }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const aiResponse = await fetch(lovableAIUrl, {
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${lovableAIKey}`,
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3-flash-preview",
         messages: [
-          {
-            role: "system",
-            content: "You are an expert HR professional and technical recruiter. You write compelling, professional job descriptions that attract top talent. Your descriptions are specific, actionable, and avoid generic corporate jargon.",
-          },
-          {
-            role: "user",
-            content: prompt,
-          },
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
         ],
         temperature: 0.7,
-        max_tokens: 1500,
+        max_tokens: 2000,
       }),
     });
 
     if (!aiResponse.ok) {
-      console.error("AI API error:", await aiResponse.text());
+      const errorText = await aiResponse.text();
+      console.error("AI API error:", aiResponse.status, errorText);
+      
+      if (aiResponse.status === 429) {
+        return new Response(
+          JSON.stringify({ success: false, message: "Rate limit exceeded. Please try again later." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (aiResponse.status === 402) {
+        return new Response(
+          JSON.stringify({ success: false, message: "AI credits exhausted. Please add credits to continue." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
       // Fallback to template
-      const fallbackJD = generateFallbackJD(title, department, location, workModelText, employmentText, salaryText);
+      const fallbackJD = generateFallbackJD(title, department, locationContext, workModelText, employmentText, seniorityLevel);
       return new Response(
         JSON.stringify({ success: true, description: fallbackJD }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -140,7 +229,7 @@ Generate the job description now:`;
 
     const aiData = await aiResponse.json();
     const generatedDescription = aiData.choices?.[0]?.message?.content || 
-                                  generateFallbackJD(title, department, location, workModelText, employmentText, salaryText);
+      generateFallbackJD(title, department, locationContext, workModelText, employmentText, seniorityLevel);
 
     console.log("Job description generated successfully");
 
@@ -163,49 +252,43 @@ function generateFallbackJD(
   location?: string,
   workModel?: string,
   employmentType?: string,
-  salary?: string
+  seniorityLevel?: string
 ): string {
   const deptText = department ? ` in our ${department} team` : '';
   const locationText = location ? ` based in ${location}` : '';
   
-  return `We are seeking a talented and motivated ${title} to join our growing organization${deptText}. This is a ${employmentType} ${workModel} position${locationText}.
+  return `## Position Overview
 
-## About the Role
+We are seeking a talented ${title} to join our organization${deptText}. This is a ${employmentType} ${workModel} position${locationText}. As a ${seniorityLevel || 'mid-level'} role, you will play a key part in driving our mission forward.
 
-As a ${title}, you will play a key role in driving our mission forward. You'll work with a dynamic team of professionals who are passionate about making an impact.
+## Key Responsibilities
 
-## Responsibilities
-
-- Lead and execute key initiatives within your domain
+- Lead and execute key initiatives within your domain of expertise
 - Collaborate with cross-functional teams to deliver exceptional results
 - Identify opportunities for improvement and implement innovative solutions
 - Mentor team members and contribute to a positive team culture
-- Communicate progress and insights to stakeholders
+- Communicate progress and insights to stakeholders effectively
 - Stay current with industry trends and best practices
 
-## Requirements
+## Qualifications & Requirements
 
-- Proven experience in a similar role
+- Proven experience in a similar ${title} role
 - Strong analytical and problem-solving skills
 - Excellent written and verbal communication abilities
 - Ability to work independently and as part of a team
-- Track record of delivering results in a fast-paced environment
+- Track record of delivering results in a professional environment
 
-## Nice to Have
+## Soft Skills & Mindset
 
-- Experience in a startup or high-growth environment
-- Industry-specific certifications or training
-- Familiarity with relevant tools and technologies
-- Leadership or mentoring experience
+- Growth mindset with eagerness to learn and adapt
+- Strong attention to detail and quality
+- Collaborative approach to problem-solving
+- Proactive communication style
+- Resilience and ability to handle ambiguity
 
-## What We Offer
+## How to Apply
 
-- Competitive compensation${salary ? ` (${salary})` : ''}
-- Comprehensive health and wellness benefits
-- Flexible working arrangements
-- Professional development opportunities
-- Collaborative and inclusive work environment
-- Opportunity to make a meaningful impact`;
+Submit your application with an updated CV/resume through our application portal.`;
 }
 
 serve(handler);

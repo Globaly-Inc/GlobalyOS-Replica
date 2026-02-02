@@ -118,6 +118,7 @@ export const PositionsSettings = () => {
           mode,
           existingDescription: mode === "improve" ? positionDescription : undefined,
           existingResponsibilities: mode === "improve" ? positionResponsibilities : undefined,
+          industry: currentOrg.industry, // Pass organization's industry for better context
         }
       });
 
