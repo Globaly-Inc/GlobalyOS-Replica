@@ -84,6 +84,14 @@ const OrgOnboardingWizard = lazy(() => import('./pages/onboarding/OrgOnboardingW
 const EmployeeOnboardingWizard = lazy(() => import('./pages/onboarding/EmployeeOnboardingWizard'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
+// Hiring pages
+const HiringDashboard = lazy(() => import('./pages/hiring/HiringDashboard'));
+const JobsList = lazy(() => import('./pages/hiring/JobsList'));
+const JobCreate = lazy(() => import('./pages/hiring/JobCreate'));
+const JobDetail = lazy(() => import('./pages/hiring/JobDetail'));
+const CandidatesList = lazy(() => import('./pages/hiring/CandidatesList'));
+const HiringAnalytics = lazy(() => import('./pages/hiring/HiringAnalytics'));
+
 // Support pages
 const Support = lazy(() => import('./pages/Support'));
 const SupportGettingStarted = lazy(() => import('./pages/SupportGettingStarted'));
@@ -227,6 +235,14 @@ const App = () => <QueryClientProvider client={queryClient}>
                   <Route path="workflows" element={<OrgProtectedRoute><FeatureProtectedRoute feature="workflows"><Workflows /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="workflows/:workflowId" element={<OrgProtectedRoute><FeatureProtectedRoute feature="workflows"><ApplicationDetail /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="my-payslips" element={<OrgProtectedRoute><FeatureProtectedRoute feature="payroll"><MyPayslips /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                  
+                  {/* Hiring module */}
+                  <Route path="hiring" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><HiringDashboard /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                  <Route path="hiring/jobs" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><JobsList /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                  <Route path="hiring/jobs/new" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><JobCreate /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                  <Route path="hiring/jobs/:jobSlug" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><JobDetail /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                  <Route path="hiring/candidates" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><CandidatesList /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                  <Route path="hiring/analytics" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><HiringAnalytics /></FeatureProtectedRoute></OrgProtectedRoute>} />
                 </Route>
                 
                 {/* Super Admin Portal - separate from org context */}

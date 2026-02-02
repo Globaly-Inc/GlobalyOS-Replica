@@ -35,6 +35,25 @@ export {
 export * from './useLeaveRealtime';
 export { useEmployeeActivityTimeline, useInfiniteEmployeeActivityTimeline, logEmployeeActivity } from './useEmployeeActivityTimeline';
 
-// Hiring & Recruitment
-export * from './useHiring';
+// Hiring & Recruitment - explicit exports to avoid conflicts with useWorkflows
+export {
+  useJobs,
+  useJob,
+  useJobStages,
+  useCandidates,
+  useCandidate,
+  useApplications as useHiringApplications,
+  useApplication as useHiringApplication,
+  useAssignmentTemplates,
+  useAssignmentInstances,
+  useInterviews,
+  useUpcomingInterviews,
+  useOffer,
+  useHiringActivityLog,
+  useHiringEmailTemplates,
+  useHiringMetrics,
+  useAssignmentByToken,
+  usePublicJob,
+  usePublicJobs,
+} from './useHiring';
 export * from './useHiringMutations';
