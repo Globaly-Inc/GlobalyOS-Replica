@@ -131,12 +131,17 @@ export default function JobCreate() {
           title: formData.title,
           department: selectedDept?.name,
           location: formData.location || selectedOffice?.city,
+          office_country: selectedOffice?.country,
           work_model: formData.work_model,
           employment_type: formData.employment_type,
           salary_min: formData.salary_min ? parseFloat(formData.salary_min) : undefined,
           salary_max: formData.salary_max ? parseFloat(formData.salary_max) : undefined,
           salary_currency: formData.salary_currency,
+          salary_visible: formData.salary_visible,
           company_name: currentOrg?.name,
+          industry: currentOrg?.industry,
+          company_size: currentOrg?.company_size,
+          application_deadline: formData.target_start_date || undefined,
         },
       });
 
