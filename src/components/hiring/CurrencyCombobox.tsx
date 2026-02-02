@@ -21,6 +21,7 @@ const CURRENCIES = [
   { code: 'EUR', symbol: '€', name: 'Euro' },
   { code: 'GBP', symbol: '£', name: 'British Pound' },
   { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
+  { code: 'NPR', symbol: 'रू', name: 'Nepalese Rupee' },
   { code: 'CAD', symbol: '$', name: 'Canadian Dollar' },
   { code: 'AUD', symbol: '$', name: 'Australian Dollar' },
   { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
