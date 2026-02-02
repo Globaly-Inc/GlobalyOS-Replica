@@ -305,3 +305,9 @@ verify_jwt = false
 
 [functions.generate-job-description]
 verify_jwt = false
+
+[functions.parse-resume]
+verify_jwt = false
+
+[functions.convert-candidate-to-employee]
+verify_jwt = false

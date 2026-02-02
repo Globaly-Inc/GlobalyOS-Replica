@@ -45,7 +45,8 @@ import {
   MessageSquare,
   Send,
   Star,
-  Upload
+  Upload,
+  UserPlus
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -75,6 +76,8 @@ import { ScheduleInterviewDialog } from '@/components/hiring/interviews/Schedule
 import { CreateOfferDialog } from '@/components/hiring/offers/CreateOfferDialog';
 import { SendOfferDialog } from '@/components/hiring/offers/SendOfferDialog';
 import { CVUpload } from '@/components/hiring/CVUpload';
+import { ResumeParseButton } from '@/components/hiring/ResumeParseButton';
+import { ConvertToEmployeeDialog } from '@/components/hiring/ConvertToEmployeeDialog';
 
 export default function ApplicationDetail() {
   const { applicationId } = useParams<{ applicationId: string }>();
@@ -82,6 +85,7 @@ export default function ApplicationDetail() {
   const [showInterviewDialog, setShowInterviewDialog] = useState(false);
   const [showOfferDialog, setShowOfferDialog] = useState(false);
   const [showSendOfferDialog, setShowSendOfferDialog] = useState(false);
+  const [showConvertDialog, setShowConvertDialog] = useState(false);
 
   const { data: application, isLoading } = useHiringApplication(applicationId);
   const { data: assignments } = useAssignmentInstances(applicationId);
@@ -242,9 +246,18 @@ export default function ApplicationDetail() {
               {/* CV/Resume */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Upload className="h-5 w-5" />
-                    CV / Resume
+                  <CardTitle className="text-lg flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <Upload className="h-5 w-5" />
+                      CV / Resume
+                    </span>
+                    {application.cv_file_path && (
+                      <ResumeParseButton
+                        filePath={application.cv_file_path}
+                        candidateId={candidate?.id || ''}
+                        applicationId={application.id}
+                      />
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -273,7 +286,7 @@ export default function ApplicationDetail() {
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
-                      <Star className="h-5 w-5 text-yellow-500" />
+                      <Star className="h-5 w-5 text-warning" />
                       Rating: {application.rating}/5
                     </CardTitle>
                   </CardHeader>
@@ -303,7 +316,7 @@ export default function ApplicationDetail() {
                       </div>
                       {assignment.rating && (
                         <div className="mt-2 flex items-center gap-1">
-                          <Star className="h-4 w-4 text-yellow-500" />
+                          <Star className="h-4 w-4 text-warning" />
                           <span className="text-sm">{assignment.rating}/5</span>
                         </div>
                       )}
@@ -584,6 +597,15 @@ export default function ApplicationDetail() {
                 <DollarSign className="h-4 w-4 mr-2" />
                 Create Offer
               </Button>
+              {offer?.status === 'accepted' && application.status !== 'hired' && (
+                <Button 
+                  className="w-full justify-start"
+                  onClick={() => setShowConvertDialog(true)}
+                >
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Convert to Employee
+                </Button>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -616,6 +638,13 @@ export default function ApplicationDetail() {
           candidateEmail={candidate?.email}
         />
       )}
+      <ConvertToEmployeeDialog
+        open={showConvertDialog}
+        onOpenChange={setShowConvertDialog}
+        applicationId={applicationId!}
+        candidateName={candidate?.name}
+        jobTitle={application.job?.title}
+      />
     </div>
   );
 }
