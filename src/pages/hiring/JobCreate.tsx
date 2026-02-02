@@ -331,8 +331,22 @@ export default function JobCreate() {
           {/* Compensation */}
           <Card>
             <CardHeader>
-              <CardTitle>Compensation</CardTitle>
-              <CardDescription>Salary range for this position</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Compensation</CardTitle>
+                  <CardDescription>Salary range for this position</CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="salary_visible"
+                    checked={formData.salary_visible}
+                    onCheckedChange={(checked) => handleChange('salary_visible', checked)}
+                  />
+                  <Label htmlFor="salary_visible" className="cursor-pointer text-sm">
+                    Show on posting
+                  </Label>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid gap-4 md:grid-cols-3">
@@ -363,17 +377,6 @@ export default function JobCreate() {
                     onChange={(value) => handleChange('salary_currency', value)}
                   />
                 </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Switch
-                  id="salary_visible"
-                  checked={formData.salary_visible}
-                  onCheckedChange={(checked) => handleChange('salary_visible', checked)}
-                />
-                <Label htmlFor="salary_visible" className="cursor-pointer">
-                  Show salary range on job posting
-                </Label>
               </div>
             </CardContent>
           </Card>
