@@ -29,7 +29,7 @@ import { toast } from 'sonner';
 
 interface PositionComboboxProps {
   value: string;
-  onChange: (value: string) => void;
+  onChange: (value: string, description?: string | null) => void;
   departmentId?: string;
   placeholder?: string;
   disabled?: boolean;
@@ -91,8 +91,12 @@ export function PositionCombobox({
     }
   };
 
-  const handleSelect = (positionName: string) => {
-    onChange(positionName === value ? '' : positionName);
+  const handleSelect = (position: { name: string; description?: string | null }) => {
+    if (position.name === value) {
+      onChange('');
+    } else {
+      onChange(position.name, position.description);
+    }
     setOpen(false);
   };
 
@@ -143,7 +147,7 @@ export function PositionCombobox({
                       <CommandItem
                         key={position.id}
                         value={position.name}
-                        onSelect={() => handleSelect(position.name)}
+                        onSelect={() => handleSelect({ name: position.name, description: position.description })}
                       >
                         <Check
                           className={cn(
