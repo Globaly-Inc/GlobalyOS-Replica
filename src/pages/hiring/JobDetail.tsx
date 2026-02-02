@@ -46,7 +46,7 @@ export default function JobDetail() {
     if (!job) return;
     try {
       await approveJob.mutateAsync(job.id);
-      toast.success('Job approved and opened');
+      toast.success('Job vacancy approved and opened');
     } catch (error) {
       toast.error('Failed to approve job');
     }
@@ -65,10 +65,10 @@ export default function JobDetail() {
   if (!job) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
-        <h2 className="text-xl font-semibold mb-2">Job not found</h2>
-        <p className="text-muted-foreground mb-4">The job you're looking for doesn't exist.</p>
+        <h2 className="text-xl font-semibold mb-2">Job vacancy not found</h2>
+        <p className="text-muted-foreground mb-4">The vacancy you're looking for doesn't exist.</p>
         <Button asChild>
-          <OrgLink to="/hiring/jobs">Back to Jobs</OrgLink>
+          <OrgLink to="/hiring/jobs">Back to Vacancies</OrgLink>
         </Button>
       </div>
     );
@@ -206,7 +206,7 @@ export default function JobDetail() {
         <TabsContent value="description" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Job Description</CardTitle>
+              <CardTitle>Vacancy Description</CardTitle>
             </CardHeader>
             <CardContent>
               {job.description ? (

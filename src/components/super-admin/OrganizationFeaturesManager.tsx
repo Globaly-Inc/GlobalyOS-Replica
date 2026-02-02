@@ -58,7 +58,7 @@ const AVAILABLE_FEATURES = [
   { 
     name: "hiring", 
     label: "Hiring & Recruitment", 
-    description: "Job postings, applicant tracking, and candidate management",
+    description: "Job vacancies, applicant tracking, and candidate management",
     icon: UserPlus 
   },
 ];
