@@ -77,21 +77,6 @@ export default function JobsList() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Jobs</h1>
-          <p className="text-muted-foreground">
-            Manage job openings and recruitment pipelines
-          </p>
-        </div>
-        <Button asChild>
-          <OrgLink to="/hiring/jobs/new" className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Create Job
-          </OrgLink>
-        </Button>
-      </div>
 
       {/* Filters */}
       <Card>
