@@ -1,4 +1,4 @@
-import { Users, Calendar, CalendarDays, Clock, DollarSign, GitBranch } from 'lucide-react';
+import { Users, Calendar, CalendarDays, Clock, DollarSign, GitBranch, UserPlus } from 'lucide-react';
 import { OrgLink } from './OrgLink';
 import { useLocation, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,7 @@ const teamSubNavItems: SubNavItem[] = [
   { name: 'Team Cal', href: '/calendar', icon: Calendar },
   { name: 'Leave', href: '/leave-history', icon: CalendarDays },
   { name: 'Attendance', href: '/attendance-history', icon: Clock },
+  { name: 'Hiring', href: '/hiring', icon: UserPlus, adminOnly: true, featureFlag: 'hiring' },
   { name: 'Workflows', href: '/workflows', icon: GitBranch, adminOnly: true, featureFlag: 'workflows' },
   { name: 'Payroll', href: '/payroll', icon: DollarSign, adminOnly: true, featureFlag: 'payroll' },
 ];
@@ -45,6 +46,8 @@ export const SubNav = () => {
     location.pathname === `${basePath}/calendar` ||
     location.pathname === `${basePath}/leave-history` ||
     location.pathname === `${basePath}/attendance-history` ||
+    location.pathname === `${basePath}/hiring` ||
+    location.pathname.startsWith(`${basePath}/hiring/`) ||
     location.pathname === `${basePath}/workflows` ||
     location.pathname.startsWith(`${basePath}/workflows/`) ||
     location.pathname === `${basePath}/payroll` ||
