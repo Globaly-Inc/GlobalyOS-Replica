@@ -34,3 +34,7 @@ export {
 } from './useWorkflowMutations';
 export * from './useLeaveRealtime';
 export { useEmployeeActivityTimeline, useInfiniteEmployeeActivityTimeline, logEmployeeActivity } from './useEmployeeActivityTimeline';
+
+// Hiring & Recruitment
+export * from './useHiring';
+export * from './useHiringMutations';
