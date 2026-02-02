@@ -632,6 +632,35 @@ export const CANDIDATE_SOURCE_LABELS: Record<CandidateSource, string> = {
   other: 'Other',
 };
 
+export type EmailTrigger = 
+  | 'application_received'
+  | 'application_rejected'
+  | 'interview_scheduled'
+  | 'interview_reminder'
+  | 'assignment_sent'
+  | 'assignment_reminder'
+  | 'offer_sent'
+  | 'offer_accepted';
+
+export const EMAIL_TRIGGER_LABELS: Record<EmailTrigger, string> = {
+  application_received: 'Application Received',
+  application_rejected: 'Application Rejected',
+  interview_scheduled: 'Interview Scheduled',
+  interview_reminder: 'Interview Reminder',
+  assignment_sent: 'Assignment Sent',
+  assignment_reminder: 'Assignment Reminder',
+  offer_sent: 'Offer Sent',
+  offer_accepted: 'Offer Accepted',
+};
+
+export const ASSIGNMENT_TYPE_LABELS: Record<AssignmentType, string> = {
+  coding: 'Coding Challenge',
+  writing: 'Writing Sample',
+  design: 'Design Task',
+  case_study: 'Case Study',
+  general: 'General Assignment',
+};
+
 // Helper functions
 export function getJobStatusLabel(status: JobStatus): string {
   return JOB_STATUS_LABELS[status] || status;
