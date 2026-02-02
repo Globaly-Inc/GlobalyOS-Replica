@@ -10,11 +10,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
@@ -37,6 +33,7 @@ import {
   Loader2 
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { BulkEmailDialog } from './BulkEmailDialog';
 
 interface BulkActionsBarProps {
   selectedIds: string[];
@@ -62,6 +59,7 @@ export function BulkActionsBar({
 }: BulkActionsBarProps) {
   const updateStage = useUpdateApplicationStage();
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [showEmailDialog, setShowEmailDialog] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [isRejecting, setIsRejecting] = useState(false);
 
@@ -101,8 +99,7 @@ export function BulkActionsBar({
   };
 
   const handleSendEmail = () => {
-    // TODO: Implement bulk email functionality
-    toast.info('Bulk email feature coming soon');
+    setShowEmailDialog(true);
   };
 
   const isPending = updateStage.isPending || isRejecting;
@@ -208,6 +205,14 @@ export function BulkActionsBar({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk Email Dialog */}
+      <BulkEmailDialog
+        open={showEmailDialog}
+        onOpenChange={setShowEmailDialog}
+        selectedIds={selectedIds}
+        onSuccess={onClearSelection}
+      />
     </>
   );
 }

@@ -296,3 +296,9 @@ verify_jwt = false
 
 [functions.upload-assignment-file]
 verify_jwt = false
+
+[functions.send-bulk-hiring-email]
+verify_jwt = false
+
+[functions.send-offer-email]
+verify_jwt = false
