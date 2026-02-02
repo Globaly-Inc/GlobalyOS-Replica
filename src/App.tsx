@@ -90,7 +90,7 @@ const JobsList = lazy(() => import('./pages/hiring/JobsList'));
 const JobCreate = lazy(() => import('./pages/hiring/JobCreate'));
 const JobDetail = lazy(() => import('./pages/hiring/JobDetail'));
 const CandidatesList = lazy(() => import('./pages/hiring/CandidatesList'));
-const HiringAnalytics = lazy(() => import('./pages/hiring/HiringAnalytics'));
+
 const HiringApplicationDetail = lazy(() => import('./pages/hiring/ApplicationDetail'));
 
 // Public careers pages (no auth)
@@ -257,7 +257,7 @@ const App = () => <QueryClientProvider client={queryClient}>
                   <Route path="hiring/jobs/:jobSlug" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><JobDetail /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="hiring/jobs/:jobSlug/edit" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><JobEdit /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="hiring/candidates" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><CandidatesList /></FeatureProtectedRoute></OrgProtectedRoute>} />
-                  <Route path="hiring/analytics" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><HiringAnalytics /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                  
                   <Route path="hiring/applications/:applicationId" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><HiringApplicationDetail /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="hiring/candidates/:candidateId" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><CandidateDetail /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="hiring/settings" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><HiringSettings /></FeatureProtectedRoute></OrgProtectedRoute>} />
