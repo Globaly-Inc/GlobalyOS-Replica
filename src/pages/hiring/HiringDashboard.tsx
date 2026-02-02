@@ -1,11 +1,19 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { OrgLink } from '@/components/OrgLink';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useHiringMetrics } from '@/services/useHiring';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { 
   BarChart,
   Bar,
@@ -29,8 +37,11 @@ import {
   Plus,
   Settings,
   UserPlus,
-  TrendingUp
+  TrendingUp,
+  Search,
+  X
 } from 'lucide-react';
+import { JobStatus } from '@/types/hiring';
 
 // Lazy load tab content components
 const JobsList = lazy(() => import('./JobsList'));
@@ -73,6 +84,12 @@ export default function HiringDashboard() {
   const { data: metrics, isLoading } = useHiringMetrics();
   const [searchParams, setSearchParams] = useSearchParams();
   
+  // Filter states lifted from child components
+  const [jobSearchQuery, setJobSearchQuery] = useState('');
+  const [jobStatusFilter, setJobStatusFilter] = useState<JobStatus | 'all'>('all');
+  const [candidateSearchQuery, setCandidateSearchQuery] = useState('');
+  const [candidateSourceFilter, setCandidateSourceFilter] = useState<string>('all');
+  
   const tabParam = searchParams.get('tab') as TabType | null;
   const activeTab: TabType = tabParam || 'analytics';
 
@@ -84,6 +101,20 @@ export default function HiringDashboard() {
       newParams.set('tab', tab);
     }
     setSearchParams(newParams, { replace: true });
+  };
+
+  const hasActiveFilters = 
+    (activeTab === 'jobs' && (jobSearchQuery || jobStatusFilter !== 'all')) ||
+    (activeTab === 'candidates' && (candidateSearchQuery || candidateSourceFilter !== 'all'));
+
+  const clearFilters = () => {
+    if (activeTab === 'jobs') {
+      setJobSearchQuery('');
+      setJobStatusFilter('all');
+    } else if (activeTab === 'candidates') {
+      setCandidateSearchQuery('');
+      setCandidateSourceFilter('all');
+    }
   };
 
   return (
@@ -126,9 +157,9 @@ export default function HiringDashboard() {
         </div>
       </div>
 
-      {/* Sticky Tab Bar */}
-      <div className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm pb-2 -mt-2 pt-2 rounded-lg">
-        <div className="flex items-center gap-2 flex-wrap bg-secondary px-[5px] py-[5px] rounded-lg">
+      {/* Sticky Filter Bar - Light Purple Background */}
+      <div className="sticky top-0 z-10 bg-purple-50/80 dark:bg-purple-950/20 backdrop-blur-sm pb-2 -mt-2 pt-2 rounded-lg">
+        <div className="flex items-center gap-2 flex-wrap bg-slate-300 dark:bg-slate-700 px-[5px] py-[5px] rounded-lg">
           {/* Tab Toggle */}
           <div className="flex items-center gap-1 border rounded-lg p-1 bg-background">
             <Button 
@@ -159,6 +190,92 @@ export default function HiringDashboard() {
               <span className="hidden sm:inline">Candidates</span>
             </Button>
           </div>
+
+          {/* Divider */}
+          {(activeTab === 'jobs' || activeTab === 'candidates') && (
+            <div className="w-px h-6 bg-border hidden md:block" />
+          )}
+
+          {/* Jobs Tab Filters */}
+          {activeTab === 'jobs' && (
+            <>
+              <div className="relative hidden md:block">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search jobs..."
+                  value={jobSearchQuery}
+                  onChange={(e) => setJobSearchQuery(e.target.value)}
+                  className="pl-9 h-9 w-[200px] bg-background"
+                />
+              </div>
+              <div className="hidden md:block">
+                <Select
+                  value={jobStatusFilter}
+                  onValueChange={(value) => setJobStatusFilter(value as JobStatus | 'all')}
+                >
+                  <SelectTrigger className="h-9 min-w-[140px] bg-background">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="submitted">Submitted</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="open">Open</SelectItem>
+                    <SelectItem value="paused">Paused</SelectItem>
+                    <SelectItem value="closed">Closed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
+
+          {/* Candidates Tab Filters */}
+          {activeTab === 'candidates' && (
+            <>
+              <div className="relative hidden md:block">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search candidates..."
+                  value={candidateSearchQuery}
+                  onChange={(e) => setCandidateSearchQuery(e.target.value)}
+                  className="pl-9 h-9 w-[200px] bg-background"
+                />
+              </div>
+              <div className="hidden md:block">
+                <Select
+                  value={candidateSourceFilter}
+                  onValueChange={setCandidateSourceFilter}
+                >
+                  <SelectTrigger className="h-9 min-w-[140px] bg-background">
+                    <SelectValue placeholder="Source" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sources</SelectItem>
+                    <SelectItem value="careers_site">Careers Site</SelectItem>
+                    <SelectItem value="internal">Internal</SelectItem>
+                    <SelectItem value="referral">Referral</SelectItem>
+                    <SelectItem value="job_board">Job Board</SelectItem>
+                    <SelectItem value="manual">Manual</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
+
+          {/* Clear Filters */}
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              className="h-7 gap-1.5 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+              Clear
+            </Button>
+          )}
         </div>
       </div>
 
@@ -368,14 +485,24 @@ export default function HiringDashboard() {
       {/* Jobs Tab Content */}
       {activeTab === 'jobs' && (
         <Suspense fallback={<div className="space-y-4">{[1,2,3].map(i => <Skeleton key={i} className="h-32 w-full" />)}</div>}>
-          <JobsList />
+          <JobsList 
+            searchQuery={jobSearchQuery}
+            onSearchChange={setJobSearchQuery}
+            statusFilter={jobStatusFilter}
+            onStatusFilterChange={setJobStatusFilter}
+          />
         </Suspense>
       )}
 
       {/* Candidates Tab Content */}
       {activeTab === 'candidates' && (
         <Suspense fallback={<div className="space-y-4">{[1,2,3].map(i => <Skeleton key={i} className="h-24 w-full" />)}</div>}>
-          <CandidatesList />
+          <CandidatesList 
+            searchQuery={candidateSearchQuery}
+            onSearchChange={setCandidateSearchQuery}
+            sourceFilter={candidateSourceFilter}
+            onSourceFilterChange={setCandidateSourceFilter}
+          />
         </Suspense>
       )}
     </div>
