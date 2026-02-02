@@ -886,6 +886,102 @@ export function useRespondToOffer() {
 }
 
 // ============================================
+// PUBLIC APPLICATION (No auth required)
+// ============================================
+
+export function usePublicApplication() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      orgCode,
+      jobId,
+      candidate,
+      cover_letter,
+    }: {
+      orgCode: string;
+      jobId: string;
+      candidate: {
+        name: string;
+        email: string;
+        phone?: string;
+        linkedin_url?: string;
+      };
+      cover_letter?: string;
+    }) => {
+      // First, get the organization by code
+      const { data: org, error: orgError } = await (supabase
+        .from('organizations') as any)
+        .select('id')
+        .eq('code', orgCode)
+        .single();
+
+      if (orgError || !org) throw new Error('Organization not found');
+
+      // Check if candidate exists
+      let candidateId: string;
+      const { data: existingCandidate } = await supabase
+        .from('candidates')
+        .select('id')
+        .eq('organization_id', org.id)
+        .eq('email', candidate.email)
+        .maybeSingle();
+
+      if (existingCandidate) {
+        candidateId = existingCandidate.id;
+      } else {
+        // Create new candidate
+        const { data: newCandidate, error: candError } = await supabase
+          .from('candidates')
+          .insert({
+            organization_id: org.id,
+            email: candidate.email,
+            name: candidate.name,
+            phone: candidate.phone || null,
+            linkedin_url: candidate.linkedin_url || null,
+            source: 'careers_site',
+          })
+          .select()
+          .single();
+
+        if (candError) throw candError;
+        candidateId = newCandidate.id;
+      }
+
+      // Create the application
+      const { data: application, error: appError } = await (supabase
+        .from('candidate_applications') as any)
+        .insert({
+          organization_id: org.id,
+          candidate_id: candidateId,
+          job_id: jobId,
+          stage: 'applied',
+          status: 'active',
+          cover_letter: cover_letter || null,
+          source_of_application: 'careers_site',
+        })
+        .select()
+        .single();
+
+      if (appError) throw appError;
+
+      return application;
+    },
+    onSuccess: () => {
+      toast.success('Application submitted successfully!');
+    },
+    onError: (error: Error) => {
+      console.error('Error submitting application:', error);
+      if (error.message?.includes('duplicate')) {
+        toast.error('You have already applied for this position');
+      } else {
+        toast.error('Failed to submit application. Please try again.');
+      }
+    },
+  });
+}
+
+// ============================================
 // HIRE CONVERSION
 // ============================================
 
@@ -952,7 +1048,7 @@ export function useConvertToEmployee() {
         data.id,
         'hired',
         currentEmployee?.id || null,
-        { job_title: application.job?.title }
+        { job_title: (application as any).job?.title }
       );
 
       return data;

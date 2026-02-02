@@ -91,6 +91,12 @@ const JobCreate = lazy(() => import('./pages/hiring/JobCreate'));
 const JobDetail = lazy(() => import('./pages/hiring/JobDetail'));
 const CandidatesList = lazy(() => import('./pages/hiring/CandidatesList'));
 const HiringAnalytics = lazy(() => import('./pages/hiring/HiringAnalytics'));
+const HiringApplicationDetail = lazy(() => import('./pages/hiring/ApplicationDetail'));
+
+// Public careers pages (no auth)
+const CareersPage = lazy(() => import('./pages/careers/CareersPage'));
+const JobDetailPublic = lazy(() => import('./pages/careers/JobDetailPublic'));
+const AssignmentSubmission = lazy(() => import('./pages/AssignmentSubmission'));
 
 // Support pages
 const Support = lazy(() => import('./pages/Support'));
@@ -177,6 +183,10 @@ const App = () => <QueryClientProvider client={queryClient}>
                 <Route path="/join" element={<Join />} />
                 <Route path="/install" element={<Install />} />
                 
+                {/* Public Careers routes (no auth required) */}
+                <Route path="/careers/:orgCode" element={<CareersPage />} />
+                <Route path="/careers/:orgCode/:jobSlug" element={<JobDetailPublic />} />
+                <Route path="/assignment/:token" element={<AssignmentSubmission />} />
                 {/* Support pages - public for authenticated users */}
                 <Route path="/support" element={<Support />} />
                 <Route path="/support/getting-started" element={<SupportGettingStarted />} />
@@ -243,6 +253,7 @@ const App = () => <QueryClientProvider client={queryClient}>
                   <Route path="hiring/jobs/:jobSlug" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><JobDetail /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="hiring/candidates" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><CandidatesList /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="hiring/analytics" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><HiringAnalytics /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                  <Route path="hiring/applications/:applicationId" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><HiringApplicationDetail /></FeatureProtectedRoute></OrgProtectedRoute>} />
                 </Route>
                 
                 {/* Super Admin Portal - separate from org context */}
