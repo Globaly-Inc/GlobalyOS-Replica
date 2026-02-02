@@ -11,7 +11,8 @@ import {
   FlaskConical,
   Headphones,
   AlertCircle,
-  LayoutTemplate
+  LayoutTemplate,
+  UserPlus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -27,6 +28,7 @@ const navItems = [
   { path: "/super-admin/payments", label: "Subscription", icon: CreditCard },
   { path: "/super-admin/customer-success", label: "Customer Success", icon: Headphones },
   { path: "/super-admin/error-logs", label: "Error Logs", icon: AlertCircle },
+  { path: "/super-admin/hiring-logs", label: "Hiring Logs", icon: UserPlus },
   { path: "/super-admin/testing", label: "Testing", icon: FlaskConical },
   { path: "/super-admin/blog", label: "Blog", icon: FileText },
 ];
