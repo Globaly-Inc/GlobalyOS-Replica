@@ -585,12 +585,27 @@ export const ASSIGNMENT_STATUS_LABELS: Record<AssignmentStatus, string> = {
   reviewed: 'Reviewed',
 };
 
+export const INTERVIEW_STATUS_LABELS: Record<InterviewStatus, string> = {
+  scheduled: 'Scheduled',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+  no_show: 'No Show',
+};
+
 export const INTERVIEW_RECOMMENDATION_LABELS: Record<InterviewRecommendation, string> = {
   strong_yes: 'Strong Yes',
   yes: 'Yes',
   neutral: 'Neutral',
   no: 'No',
   strong_no: 'Strong No',
+};
+
+export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
+  active: 'Active',
+  on_hold: 'On Hold',
+  withdrawn: 'Withdrawn',
+  rejected: 'Rejected',
+  hired: 'Hired',
 };
 
 export const WORK_MODEL_LABELS: Record<WorkModel, string> = {
