@@ -194,7 +194,13 @@ export default function JobCreate() {
                   <Label htmlFor="title">Job Title *</Label>
                   <PositionCombobox
                     value={formData.title}
-                    onChange={(value) => handleChange('title', value)}
+                    onChange={(value, description) => {
+                      handleChange('title', value);
+                      // Auto-fill description if position has one and current description is empty
+                      if (description && !formData.description) {
+                        handleChange('description', description);
+                      }
+                    }}
                     departmentId={formData.department_id || undefined}
                     placeholder="Select or create position..."
                   />
