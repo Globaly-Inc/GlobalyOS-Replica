@@ -293,3 +293,6 @@ verify_jwt = false
 
 [functions.submit-public-application]
 verify_jwt = false
+
+[functions.upload-assignment-file]
+verify_jwt = false

@@ -14,7 +14,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
 import { 
   Clock, 
   FileText,
@@ -25,9 +24,9 @@ import {
   Send
 } from 'lucide-react';
 import { format, isPast, formatDistanceToNow } from 'date-fns';
-import { toast } from 'sonner';
 import { HelmetProvider, Helmet } from 'react-helmet-async';
 import DOMPurify from 'dompurify';
+import { AssignmentFileUpload } from '@/components/hiring/AssignmentFileUpload';
 import type { SubmissionData } from '@/types/hiring';
 
 export default function AssignmentSubmission() {
@@ -220,19 +219,25 @@ export default function AssignmentSubmission() {
                     </div>
                   ))}
 
-                  {/* File Upload Placeholder */}
+                  {/* File Upload */}
                   {assignment?.expected_deliverables?.files && (
                     <div className="space-y-2">
                       <Label className="flex items-center gap-2">
                         <Upload className="h-4 w-4" />
                         File Uploads
                       </Label>
-                      <div className="border-2 border-dashed rounded-lg p-8 text-center">
-                        <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                        <p className="text-sm text-muted-foreground">
-                          File upload coming soon. For now, please share files via the URL fields above.
-                        </p>
-                      </div>
+                      <AssignmentFileUpload
+                        assignmentId={assignment.id}
+                        token={token || ''}
+                        onFilesChange={(files) => {
+                          setSubmissionData(prev => ({
+                            ...prev,
+                            files: files.map(f => ({ name: f.name, path: f.url, size: f.size })),
+                          }));
+                        }}
+                        maxFiles={5}
+                        disabled={isOverdue}
+                      />
                     </div>
                   )}
                 </CardContent>
