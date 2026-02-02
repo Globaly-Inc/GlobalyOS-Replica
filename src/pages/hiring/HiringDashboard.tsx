@@ -16,7 +16,8 @@ import {
   ExternalLink,
   TrendingUp,
   FileText,
-  ArrowRight
+  ArrowRight,
+  Settings
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 
@@ -43,14 +44,20 @@ export default function HiringDashboard() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" asChild>
+            <OrgLink to="/hiring/settings" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              Settings
+            </OrgLink>
+          </Button>
+          <Button variant="outline" asChild>
             <a 
-              href={`/careers/${currentOrg?.slug}`} 
+              href={`/careers/${currentOrg?.slug || currentOrg?.id}`}
               target="_blank" 
               rel="noopener noreferrer"
               className="flex items-center gap-2"
             >
               <ExternalLink className="h-4 w-4" />
-              View Careers Site
+              Careers Site
             </a>
           </Button>
           <Button asChild>

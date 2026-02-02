@@ -1063,3 +1063,119 @@ export function useConvertToEmployee() {
     },
   });
 }
+
+// ============================================
+// EMAIL TEMPLATE MUTATIONS
+// ============================================
+
+export function useCreateEmailTemplate() {
+  const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+
+  return useMutation({
+    mutationFn: async (input: {
+      name: string;
+      trigger_type: string;
+      subject: string;
+      body_template: string;
+      is_active: boolean;
+    }) => {
+      if (!currentOrg?.id) throw new Error('No organization selected');
+
+      const { data, error } = await (supabase
+        .from('hiring_email_templates') as any)
+        .insert({
+          organization_id: currentOrg.id,
+          ...input,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hiring', 'email-templates'] });
+      toast.success('Email template created');
+    },
+    onError: (error) => {
+      console.error('Error creating email template:', error);
+      toast.error('Failed to create email template');
+    },
+  });
+}
+
+export function useUpdateEmailTemplate() {
+  const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+
+  return useMutation({
+    mutationFn: async ({ id, input }: { id: string; input: Partial<{
+      name: string;
+      trigger_type: string;
+      subject: string;
+      body_template: string;
+      is_active: boolean;
+    }> }) => {
+      if (!currentOrg?.id) throw new Error('No organization selected');
+
+      const { data, error } = await (supabase
+        .from('hiring_email_templates') as any)
+        .update(input)
+        .eq('id', id)
+        .eq('organization_id', currentOrg.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hiring', 'email-templates'] });
+      toast.success('Email template updated');
+    },
+    onError: (error) => {
+      console.error('Error updating email template:', error);
+      toast.error('Failed to update email template');
+    },
+  });
+}
+
+export function useUpdateAssignmentTemplate() {
+  const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+
+  return useMutation({
+    mutationFn: async ({ id, input }: { id: string; input: Partial<{
+      name: string;
+      type: string;
+      instructions: string;
+      default_deadline_hours: number;
+      recommended_effort: string;
+      role_tags: string[];
+      expected_deliverables: any;
+      is_active: boolean;
+    }> }) => {
+      if (!currentOrg?.id) throw new Error('No organization selected');
+
+      const { data, error } = await (supabase
+        .from('assignment_templates') as any)
+        .update(input)
+        .eq('id', id)
+        .eq('organization_id', currentOrg.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hiring', 'assignment-templates'] });
+      toast.success('Assignment template updated');
+    },
+    onError: (error) => {
+      console.error('Error updating assignment template:', error);
+      toast.error('Failed to update assignment template');
+    },
+  });
+}

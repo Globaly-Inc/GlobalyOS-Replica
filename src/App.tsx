@@ -97,6 +97,8 @@ const HiringApplicationDetail = lazy(() => import('./pages/hiring/ApplicationDet
 const CareersPage = lazy(() => import('./pages/careers/CareersPage'));
 const JobDetailPublic = lazy(() => import('./pages/careers/JobDetailPublic'));
 const AssignmentSubmission = lazy(() => import('./pages/AssignmentSubmission'));
+const HiringSettings = lazy(() => import('./pages/hiring/HiringSettings'));
+const CandidateDetail = lazy(() => import('./pages/hiring/CandidateDetail'));
 
 // Support pages
 const Support = lazy(() => import('./pages/Support'));
@@ -254,6 +256,8 @@ const App = () => <QueryClientProvider client={queryClient}>
                   <Route path="hiring/candidates" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><CandidatesList /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="hiring/analytics" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><HiringAnalytics /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="hiring/applications/:applicationId" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><HiringApplicationDetail /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                  <Route path="hiring/candidates/:candidateId" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><CandidateDetail /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                  <Route path="hiring/settings" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><HiringSettings /></FeatureProtectedRoute></OrgProtectedRoute>} />
                 </Route>
                 
                 {/* Super Admin Portal - separate from org context */}
