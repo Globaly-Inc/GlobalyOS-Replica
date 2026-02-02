@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCandidates } from '@/services/useHiring';
-import { CANDIDATE_SOURCE_LABELS, getCandidateSourceLabel } from '@/types/hiring';
+import { getCandidateSourceLabel } from '@/types/hiring';
 import { 
   Search, 
   Mail,
@@ -23,14 +22,21 @@ import {
   Linkedin,
   ExternalLink,
   Users,
-  Calendar
 } from 'lucide-react';
-import { format } from 'date-fns';
 
-export default function CandidatesList() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sourceFilter, setSourceFilter] = useState<string>('all');
+interface CandidatesListProps {
+  searchQuery?: string;
+  onSearchChange?: (value: string) => void;
+  sourceFilter?: string;
+  onSourceFilterChange?: (value: string) => void;
+}
 
+export default function CandidatesList({
+  searchQuery = '',
+  onSearchChange,
+  sourceFilter = 'all',
+  onSourceFilterChange,
+}: CandidatesListProps) {
   const { data: candidates, isLoading } = useCandidates();
 
   const filteredCandidates = candidates?.filter((candidate) => {
@@ -53,49 +59,35 @@ export default function CandidatesList() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Candidates</h1>
-          <p className="text-muted-foreground">
-            View and manage all candidates across jobs
-          </p>
+      {/* Mobile Filters */}
+      <div className="flex flex-col gap-3 md:hidden">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search by name or email..."
+            value={searchQuery}
+            onChange={(e) => onSearchChange?.(e.target.value)}
+            className="pl-9"
+          />
         </div>
+        <Select
+          value={sourceFilter}
+          onValueChange={(value) => onSourceFilterChange?.(value)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Filter by source" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Sources</SelectItem>
+            <SelectItem value="careers_site">Careers Site</SelectItem>
+            <SelectItem value="internal">Internal</SelectItem>
+            <SelectItem value="referral">Referral</SelectItem>
+            <SelectItem value="job_board">Job Board</SelectItem>
+            <SelectItem value="manual">Manual</SelectItem>
+            <SelectItem value="other">Other</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
-
-      {/* Filters */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search by name or email..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <Select
-              value={sourceFilter}
-              onValueChange={setSourceFilter}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by source" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All sources</SelectItem>
-                <SelectItem value="careers_site">Careers Site</SelectItem>
-                <SelectItem value="internal">Internal</SelectItem>
-                <SelectItem value="referral">Referral</SelectItem>
-                <SelectItem value="job_board">Job Board</SelectItem>
-                <SelectItem value="manual">Manual</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Candidates List */}
       {isLoading ? (
