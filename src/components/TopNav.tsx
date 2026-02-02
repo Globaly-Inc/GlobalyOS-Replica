@@ -17,6 +17,7 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   adminOnly: boolean;
   ownerOnly?: boolean;
+  hrAllowed?: boolean;
   isStatic?: boolean;
   featureFlag?: FeatureName;
 }
@@ -30,12 +31,12 @@ const mainNavItems: NavItem[] = [
   { name: 'Ask AI', href: '/ask-ai', icon: Sparkles, adminOnly: false, featureFlag: 'ask-ai' },
   { name: 'Tasks', href: '/tasks', icon: CheckSquare, adminOnly: false, ownerOnly: true, isStatic: true, featureFlag: 'tasks' },
   { name: 'CRM', href: '/crm', icon: Briefcase, adminOnly: false, ownerOnly: true, isStatic: true, featureFlag: 'crm' },
-  { name: 'Hiring', href: '/hiring', icon: UserPlus, adminOnly: false, ownerOnly: true, featureFlag: 'hiring' },
+  { name: 'Hiring', href: '/hiring', icon: UserPlus, adminOnly: true, hrAllowed: true, featureFlag: 'hiring' },
 ];
 
 export const TopNav = ({ isAdmin }: TopNavProps) => {
   const { isEnabled } = useFeatureFlags();
-  const { isOwner } = useUserRole();
+  const { isOwner, isHR } = useUserRole();
   const location = useLocation();
   const { orgCode } = useParams<{ orgCode: string }>();
   const { data: chatUnreadCount = 0 } = useTotalUnreadCount();
@@ -50,9 +51,12 @@ export const TopNav = ({ isAdmin }: TopNavProps) => {
     if (item.featureFlag && !isEnabled(item.featureFlag)) {
       return false;
     }
-    // If admin only, check admin status
-    if (item.adminOnly && !isAdmin) {
-      return false;
+    // If admin only, check admin status (or HR if hrAllowed)
+    if (item.adminOnly) {
+      const hasAccess = isAdmin || (item.hrAllowed && isHR);
+      if (!hasAccess) {
+        return false;
+      }
     }
     return true;
   });
