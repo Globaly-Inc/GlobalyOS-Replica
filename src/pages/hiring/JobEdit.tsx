@@ -26,9 +26,10 @@ import { useDepartments, useOffices } from '@/hooks/useOrganizationData';
 import { useOrganization } from '@/hooks/useOrganization';
 import type { WorkModel, HiringEmploymentType } from '@/types/hiring';
 import { OrgLink } from '@/components/OrgLink';
-import { ArrowLeft, Loader2, Save, Globe, Sparkles } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, Globe, Sparkles, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 
 const EMPLOYMENT_TYPES = [
   { value: 'full_time', label: 'Full-time' },
@@ -156,12 +157,16 @@ export default function JobEdit() {
     }
   };
 
+  // Check if description has meaningful content
+  const hasDescriptionContent = formData.description.trim().length > 50;
+
   const generateJobDescription = async () => {
     if (!formData.title) {
       toast.error('Please enter a job title first');
       return;
     }
 
+    const mode = hasDescriptionContent ? 'improve' : 'generate';
     setIsGeneratingJD(true);
     try {
       const selectedDept = departments.find(d => d.id === formData.department_id);
@@ -173,12 +178,19 @@ export default function JobEdit() {
           title: formData.title,
           department: selectedDept?.name,
           location: formData.location || selectedOffice?.city,
+          office_country: selectedOffice?.country,
+          office_region: (selectedOffice as any)?.region,
           work_model: formData.work_model,
           employment_type: formData.employment_type,
           salary_min: formData.salary_min ? parseFloat(formData.salary_min) : undefined,
           salary_max: formData.salary_max ? parseFloat(formData.salary_max) : undefined,
           salary_currency: formData.salary_currency,
+          salary_visible: formData.salary_visible,
           company_name: currentOrg?.name,
+          industry: currentOrg?.industry,
+          company_size: currentOrg?.company_size,
+          mode,
+          existing_description: mode === 'improve' ? formData.description : undefined,
         },
       });
 
@@ -186,7 +198,7 @@ export default function JobEdit() {
 
       if (data?.success && data?.description) {
         handleChange('description', data.description);
-        toast.success('Job description generated!');
+        toast.success(mode === 'improve' ? 'Job description improved!' : 'Job description generated!');
       } else {
         throw new Error(data?.message || 'Failed to generate description');
       }
@@ -197,6 +209,12 @@ export default function JobEdit() {
       setIsGeneratingJD(false);
     }
   };
+
+  // Dynamic button label and icon
+  const aiButtonLabel = isGeneratingJD 
+    ? (hasDescriptionContent ? 'Improving...' : 'Generating...') 
+    : (hasDescriptionContent ? 'Improve with AI' : 'Generate with AI');
+  const AiButtonIcon = hasDescriptionContent ? Wand2 : Sparkles;
 
   if (isLoading) {
     return (
@@ -433,35 +451,34 @@ export default function JobEdit() {
       {/* Job Description */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Job Vacancy Description</CardTitle>
-              <CardDescription>Detailed role description and requirements</CardDescription>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={generateJobDescription}
-              disabled={isGeneratingJD}
-            >
-              {isGeneratingJD ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4 mr-2" />
-              )}
-              Generate with AI
-            </Button>
-          </div>
+          <CardTitle>Job Vacancy Description</CardTitle>
+          <CardDescription>Detailed role description and requirements</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              placeholder="Describe the role, responsibilities, and what success looks like..."
+            <Label>Description</Label>
+            <RichTextEditor
               value={formData.description}
-              onChange={(e) => handleChange('description', e.target.value)}
-              className="min-h-[200px]"
+              onChange={(value) => handleChange('description', value)}
+              placeholder="Describe the role, responsibilities, and what success looks like..."
+              minHeight="200px"
+              renderToolbarRight={() => (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={generateJobDescription}
+                  disabled={isGeneratingJD}
+                  className="h-8 gap-1.5 text-xs"
+                >
+                  {isGeneratingJD ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <AiButtonIcon className="h-3.5 w-3.5" />
+                  )}
+                  {aiButtonLabel}
+                </Button>
+              )}
             />
           </div>
 
