@@ -67,7 +67,7 @@ export default function JobDetail() {
         <h2 className="text-xl font-semibold mb-2">Job vacancy not found</h2>
         <p className="text-muted-foreground mb-4">The vacancy you're looking for doesn't exist.</p>
         <Button asChild>
-          <OrgLink to="/hiring/jobs">Back to Vacancies</OrgLink>
+          <OrgLink to="/hiring?tab=jobs">Back to Vacancies</OrgLink>
         </Button>
       </div>
     );
@@ -81,7 +81,7 @@ export default function JobDetail() {
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-4">
           <Button variant="ghost" size="icon" asChild>
-            <OrgLink to="/hiring/jobs">
+            <OrgLink to="/hiring?tab=jobs">
               <ArrowLeft className="h-4 w-4" />
             </OrgLink>
           </Button>
