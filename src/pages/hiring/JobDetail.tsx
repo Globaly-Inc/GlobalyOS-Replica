@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { OrgLink } from '@/components/OrgLink';
-import { useJob, useJobStages } from '@/services/useHiring';
+import { useJob, useJobStages, useApplications } from '@/services/useHiring';
 import { useHiringApplications } from '@/services';
 import { useUpdateJob, useApproveJob } from '@/services/useHiringMutations';
 import { getJobStatusLabel, getJobStatusColor, APPLICATION_STAGE_LABELS } from '@/types/hiring';
@@ -28,7 +28,6 @@ import { toast } from 'sonner';
 
 // Create a local hook to fetch applications for a job
 function useJobApplications(jobId: string | undefined) {
-  const { useApplications } = require('@/services/useHiring');
   return useApplications(jobId ? { job_id: jobId } : undefined);
 }
 
