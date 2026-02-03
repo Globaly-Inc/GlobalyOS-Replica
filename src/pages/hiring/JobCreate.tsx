@@ -333,17 +333,16 @@ export default function JobCreate() {
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="headcount">Number of Positions</Label>
-                <Input
-                  id="headcount"
-                  type="number"
-                  min={1}
-                  value={formData.headcount}
-                  onChange={(e) => handleChange('headcount', parseInt(e.target.value) || 1)}
-                />
+                <div className="space-y-2">
+                  <Label htmlFor="headcount">Number of Positions</Label>
+                  <Input
+                    id="headcount"
+                    type="number"
+                    min={1}
+                    value={formData.headcount}
+                    onChange={(e) => handleChange('headcount', parseInt(e.target.value) || 1)}
+                  />
+                </div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
