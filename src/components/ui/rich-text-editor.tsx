@@ -7,7 +7,7 @@ import DOMPurify from "dompurify";
 // Configure DOMPurify with allowed tags and no attributes
 const sanitizeHtml = (html: string) => {
   return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ['b', 'strong', 'i', 'em', 'u', 'ul', 'ol', 'li', 'p', 'br', 'div', 'span'],
+    ALLOWED_TAGS: ['b', 'strong', 'i', 'em', 'u', 'ul', 'ol', 'li', 'p', 'br', 'div', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
     ALLOWED_ATTR: ['class', 'data-mention-id'],
     KEEP_CONTENT: true
   });
@@ -246,10 +246,13 @@ export const RichTextEditor = ({
           contentEditable
           className={cn(
             "p-3 outline-none prose prose-sm max-w-none",
-            "prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0",
+            "prose-headings:font-semibold prose-headings:text-foreground prose-headings:mt-3 prose-headings:mb-2",
+            "prose-h3:text-base prose-h3:font-semibold",
+            "prose-p:my-1 prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5",
             "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
             "[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5",
             "[&_li]:ml-0",
+            "[&_strong]:font-semibold",
             "text-foreground"
           )}
           style={{ minHeight }}
@@ -297,10 +300,13 @@ export const RichTextContent = ({
     <div 
       className={cn(
         "prose prose-sm max-w-none leading-normal",
-        "prose-p:mb-1 prose-p:mt-0 prose-ul:my-0.5 prose-ol:my-0.5 prose-li:my-0",
+        "prose-headings:font-semibold prose-headings:text-foreground prose-headings:mt-4 prose-headings:mb-2",
+        "prose-h3:text-base prose-h3:mt-4 prose-h3:mb-2",
+        "prose-p:mb-2 prose-p:mt-0 prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5",
         "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
         "[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5",
         "[&_li]:ml-0",
+        "[&_strong]:font-semibold [&_strong]:text-foreground",
         "[&_p:empty]:hidden [&_p:has(br:only-child)]:mb-1",
         "text-foreground/80",
         className

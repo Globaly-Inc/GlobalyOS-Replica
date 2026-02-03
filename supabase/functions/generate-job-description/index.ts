@@ -170,26 +170,37 @@ STRICT RULES:
 
 ${mode === "improve" ? "Improve the description following" : "Generate the following sections"} (maximum 700 words total):
 
-## Position Overview
-Start with a compelling 2-3 sentence description of the role's core purpose and its direct impact on business outcomes. Focus on what makes this position meaningful. (50-80 words)
+REQUIRED OUTPUT FORMAT - Use HTML tags exactly as shown:
 
-## Duties & Responsibilities
-Provide 6-8 bullet points of specific, actionable responsibilities appropriate for a ${seniorityLevel} position. Each should clearly describe what the person will do. (200-250 words)
+<h3>Position Overview</h3>
+<p>Start with a compelling 2-3 sentence description of the role's core purpose and its direct impact on business outcomes. Focus on what makes this position meaningful. (50-80 words)</p>
 
-## Qualifications & Requirements
-- Education requirements appropriate for the role and ${seniorityLevel} level
-- Years of experience expected for ${seniorityLevel} level
-- Technical skills and competencies required
-- Any certifications or specific knowledge areas
+<h3>Duties & Responsibilities</h3>
+<ul>
+<li>Provide 6-8 bullet points of specific, actionable responsibilities appropriate for a ${seniorityLevel} position.</li>
+<li>Each should clearly describe what the person will do.</li>
+</ul>
+(200-250 words total for this section)
+
+<h3>Qualifications & Requirements</h3>
+<ul>
+<li>Education requirements appropriate for the role and ${seniorityLevel} level</li>
+<li>Years of experience expected for ${seniorityLevel} level</li>
+<li>Technical skills and competencies required</li>
+<li>Any certifications or specific knowledge areas</li>
+</ul>
 (100-120 words)
 
-## Soft Skills & Mindset
-4-5 qualities and characteristics that would make someone successful in this role. Be specific to the position type. (80-100 words)
+<h3>Soft Skills & Mindset</h3>
+<ul>
+<li><strong>Quality Name:</strong> Description of the quality (use bold for the quality name)</li>
+</ul>
+4-5 qualities that would make someone successful. Be specific to the position type. (80-100 words)
 
-## How to Apply
-Brief instruction to submit application with CV/resume.${application_deadline ? ` Applications must be received by ${application_deadline}.` : ''} (30-50 words)
+<h3>How to Apply</h3>
+<p>Brief instruction to submit application with CV/resume.${application_deadline ? ` Applications must be received by <strong>${application_deadline}</strong>.` : ''} (30-50 words)</p>
 
-IMPORTANT: Use Markdown formatting with ## headers. Do NOT invent any information not provided above.`;
+CRITICAL: Output ONLY valid HTML. Use <h3> for headings, <ul><li> for lists, <p> for paragraphs, <strong> for bold text. Do NOT use markdown (##, *, **). Do NOT invent any information not provided above.`;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
@@ -245,8 +256,13 @@ IMPORTANT: Use Markdown formatting with ## headers. Do NOT invent any informatio
     }
 
     const aiData = await aiResponse.json();
-    const generatedDescription = aiData.choices?.[0]?.message?.content || 
+    let generatedDescription = aiData.choices?.[0]?.message?.content || 
       generateFallbackJD(title, department, locationContext, workModelText, employmentText, seniorityLevel, application_deadline);
+
+    // Convert markdown to HTML if the AI returned markdown format
+    if (generatedDescription.includes('## ') || generatedDescription.includes('### ')) {
+      generatedDescription = markdownToHtml(generatedDescription);
+    }
 
     console.log(`Job description ${mode === "improve" ? "improved" : "generated"} successfully`);
 
@@ -263,6 +279,61 @@ IMPORTANT: Use Markdown formatting with ## headers. Do NOT invent any informatio
   }
 };
 
+// Convert markdown to HTML if AI returns markdown format
+function markdownToHtml(text: string): string {
+  let html = text;
+  
+  // Convert ## headers to <h3>
+  html = html.replace(/^## (.+)$/gm, '<h3>$1</h3>');
+  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  
+  // Convert **bold** to <strong>
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  
+  // Convert *italic* to <em>
+  html = html.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
+  
+  // Convert bullet points - handle both * and - style
+  const lines = html.split('\n');
+  const result: string[] = [];
+  let inList = false;
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const bulletMatch = line.match(/^[\*\-]\s+(.+)$/);
+    
+    if (bulletMatch) {
+      if (!inList) {
+        result.push('<ul>');
+        inList = true;
+      }
+      result.push(`<li>${bulletMatch[1]}</li>`);
+    } else {
+      if (inList) {
+        result.push('</ul>');
+        inList = false;
+      }
+      // Wrap plain text paragraphs in <p> tags if not already HTML
+      if (line.trim() && !line.trim().startsWith('<') && !line.trim().match(/^<\/(h3|ul|li|p)>/)) {
+        result.push(`<p>${line}</p>`);
+      } else {
+        result.push(line);
+      }
+    }
+  }
+  
+  if (inList) {
+    result.push('</ul>');
+  }
+  
+  // Clean up empty paragraphs and extra whitespace
+  return result.join('\n')
+    .replace(/<p>\s*<\/p>/g, '')
+    .replace(/<p><h3>/g, '<h3>')
+    .replace(/<\/h3><\/p>/g, '</h3>')
+    .replace(/\n{3,}/g, '\n\n');
+}
+
 function generateFallbackJD(
   title: string,
   department?: string,
@@ -274,40 +345,41 @@ function generateFallbackJD(
 ): string {
   const deptText = department ? ` in our ${department} team` : '';
   const locationText = location ? ` based in ${location}` : '';
-  const deadlineText = applicationDeadline ? ` Applications must be received by ${applicationDeadline}.` : '';
+  const deadlineText = applicationDeadline ? ` Applications must be received by <strong>${applicationDeadline}</strong>.` : '';
   
-  return `## Position Overview
+  return `<h3>Position Overview</h3>
+<p>We are seeking a talented ${title} to join our organization${deptText}. This is a ${employmentType} ${workModel} position${locationText}. As a ${seniorityLevel || 'mid-level'} role, you will play a key part in driving our mission forward.</p>
 
-We are seeking a talented ${title} to join our organization${deptText}. This is a ${employmentType} ${workModel} position${locationText}. As a ${seniorityLevel || 'mid-level'} role, you will play a key part in driving our mission forward.
+<h3>Duties & Responsibilities</h3>
+<ul>
+<li>Lead and execute key initiatives within your domain of expertise</li>
+<li>Collaborate with cross-functional teams to deliver exceptional results</li>
+<li>Identify opportunities for improvement and implement innovative solutions</li>
+<li>Mentor team members and contribute to a positive team culture</li>
+<li>Communicate progress and insights to stakeholders effectively</li>
+<li>Stay current with industry trends and best practices</li>
+</ul>
 
-## Duties & Responsibilities
+<h3>Qualifications & Requirements</h3>
+<ul>
+<li>Proven experience in a similar ${title} role</li>
+<li>Strong analytical and problem-solving skills</li>
+<li>Excellent written and verbal communication abilities</li>
+<li>Ability to work independently and as part of a team</li>
+<li>Track record of delivering results in a professional environment</li>
+</ul>
 
-- Lead and execute key initiatives within your domain of expertise
-- Collaborate with cross-functional teams to deliver exceptional results
-- Identify opportunities for improvement and implement innovative solutions
-- Mentor team members and contribute to a positive team culture
-- Communicate progress and insights to stakeholders effectively
-- Stay current with industry trends and best practices
+<h3>Soft Skills & Mindset</h3>
+<ul>
+<li><strong>Growth Mindset:</strong> Eagerness to learn and adapt</li>
+<li><strong>Attention to Detail:</strong> Strong focus on quality</li>
+<li><strong>Collaboration:</strong> Team-oriented approach to problem-solving</li>
+<li><strong>Communication:</strong> Proactive and clear communication style</li>
+<li><strong>Resilience:</strong> Ability to handle ambiguity and change</li>
+</ul>
 
-## Qualifications & Requirements
-
-- Proven experience in a similar ${title} role
-- Strong analytical and problem-solving skills
-- Excellent written and verbal communication abilities
-- Ability to work independently and as part of a team
-- Track record of delivering results in a professional environment
-
-## Soft Skills & Mindset
-
-- Growth mindset with eagerness to learn and adapt
-- Strong attention to detail and quality
-- Collaborative approach to problem-solving
-- Proactive communication style
-- Resilience and ability to handle ambiguity
-
-## How to Apply
-
-Submit your application with an updated CV/resume through our application portal.${deadlineText}`;
+<h3>How to Apply</h3>
+<p>Submit your application with an updated CV/resume through our application portal.${deadlineText}</p>`;
 }
 
 serve(handler);
