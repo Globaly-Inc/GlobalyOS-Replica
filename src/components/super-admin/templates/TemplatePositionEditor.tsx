@@ -30,7 +30,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BUSINESS_CATEGORIES } from "@/constants/businessCategories";
-import { Pencil, Trash2, Loader2, Users, CheckCircle, Sparkles } from "lucide-react";
+import { Pencil, Trash2, Loader2, Users, CheckCircle, Sparkles, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface TemplatePosition {
@@ -112,7 +112,10 @@ export function TemplatePositionEditor({
     }
   }, [position, selectedCategory, positions.length]);
 
-  const generateWithAI = async () => {
+  // Check if description has meaningful content
+  const hasDescriptionContent = formData.description.trim().length > 30;
+
+  const generateWithAI = async (mode: "generate" | "improve" = "generate") => {
     if (!formData.name.trim()) {
       toast.error("Position name is required for AI generation");
       return;
@@ -128,8 +131,10 @@ export function TemplatePositionEditor({
           keywords: [],
           organizationId: "00000000-0000-0000-0000-000000000000", // System org for templates
           forceRegenerate: true,
-          mode: "generate",
+          mode,
           business_category: formData.business_category, // Pass business category as industry context
+          existingDescription: mode === "improve" ? formData.description : undefined,
+          existingResponsibilities: mode === "improve" ? formData.responsibilities.split("\n").filter(r => r.trim()) : undefined,
         }
       });
 
@@ -142,7 +147,7 @@ export function TemplatePositionEditor({
         responsibilities: data.responsibilities?.join("\n") || "",
       }));
 
-      toast.success("AI description generated!");
+      toast.success(mode === "improve" ? "AI description improved!" : "AI description generated!");
     } catch (error: any) {
       console.error("AI generation error:", error);
       toast.error("Failed to generate AI description: " + error.message);
@@ -395,13 +400,13 @@ export function TemplatePositionEditor({
               />
             </div>
 
-            {/* AI Generate Button */}
-            <div className="flex justify-end">
+            {/* AI Generate Buttons */}
+            <div className="flex justify-end gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={generateWithAI}
+                onClick={() => generateWithAI("generate")}
                 disabled={isGeneratingAI || !formData.name.trim()}
               >
                 {isGeneratingAI ? (
@@ -411,6 +416,18 @@ export function TemplatePositionEditor({
                 )}
                 Generate with AI
               </Button>
+              {hasDescriptionContent && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => generateWithAI("improve")}
+                  disabled={isGeneratingAI}
+                >
+                  <Wand2 className="h-4 w-4 mr-2" />
+                  Improve with AI
+                </Button>
+              )}
             </div>
 
             <div className="space-y-2">

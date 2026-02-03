@@ -1,6 +1,7 @@
 /**
  * Generate Job Description Edge Function
  * Uses Lovable AI to generate comprehensive job descriptions based on role details
+ * Supports both "generate" (new) and "improve" (existing) modes
  */
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
@@ -17,6 +18,7 @@ interface GenerateJDRequest {
   department?: string;
   location?: string;
   office_country?: string;
+  office_region?: string;
   work_model?: string;
   employment_type?: string;
   salary_min?: number;
@@ -27,6 +29,10 @@ interface GenerateJDRequest {
   industry?: string;
   company_size?: string;
   application_deadline?: string;
+  // New fields for enhanced generation
+  mode?: "generate" | "improve";
+  existing_description?: string;
+  seniority_level?: string;
 }
 
 // Detect seniority level from position title
@@ -88,6 +94,7 @@ const handler = async (req: Request): Promise<Response> => {
       department,
       location,
       office_country,
+      office_region,
       work_model,
       employment_type,
       salary_min,
@@ -98,6 +105,9 @@ const handler = async (req: Request): Promise<Response> => {
       industry,
       company_size,
       application_deadline,
+      mode = "generate",
+      existing_description,
+      seniority_level: providedSeniority,
     } = body;
 
     if (!title) {
@@ -107,15 +117,16 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log("Generating enhanced job description for:", title);
+    console.log(`${mode === "improve" ? "Improving" : "Generating"} job description for:`, title);
 
-    // Detect seniority from title
-    const seniorityLevel = detectSeniorityLevel(title);
+    // Detect seniority from title or use provided
+    const seniorityLevel = providedSeniority || detectSeniorityLevel(title);
     const workModelText = formatWorkModel(work_model);
     const employmentText = formatEmploymentType(employment_type);
     
     // Build location context
-    const locationContext = [location, office_country].filter(Boolean).join(", ");
+    const locationParts = [location, office_country, office_region].filter(Boolean);
+    const locationContext = locationParts.join(", ");
     
     // Build salary text only if visible
     let salaryText = "";
@@ -124,15 +135,25 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Build the enhanced system prompt
-    const systemPrompt = `You are an expert HR professional and technical recruiter${industry ? ` specializing in the ${industry} industry` : ''}. 
-Create factual, professional job descriptions based ONLY on the information provided.
-Do NOT invent company-specific details, benefits, team names, or requirements not explicitly given.
-Do NOT use generic filler phrases like "competitive salary", "great culture", or "dynamic team".
-Use active voice, professional language, and industry-appropriate terminology.
-Keep the total description under 700 words.`;
+    const systemPrompt = `You are an expert HR professional and technical recruiter${industry ? ` specializing in the ${industry} industry` : ''}.
+${mode === "improve" ? "Improve and enhance the provided job description while maintaining its core intent." : "Create a professional job description based ONLY on the information provided."}
 
-    // Build the enhanced user prompt
-    let userPrompt = `Generate a professional job description for:
+STRICT RULES:
+- Do NOT invent company-specific details, benefits, team names, or technologies not implied by the role
+- Do NOT use generic filler phrases like "competitive salary", "great culture", or "dynamic team"
+- Do NOT hallucinate any information not explicitly provided
+- Do NOT mention benefits, perks, or company culture unless explicitly provided
+- Keep experience requirements realistic for the ${seniorityLevel} level
+- Use active voice and industry-appropriate terminology
+- Maximum 700 words total
+- Use professional, engaging language appropriate for ${industry || 'a professional'} industry`;
+
+    // Build the user prompt based on mode
+    let userPrompt = mode === "improve" 
+      ? `Improve and enhance this existing job description while keeping its core purpose:\n\n${existing_description}\n\n---\n\nContext for improvement:`
+      : `Generate a professional job description for:`;
+
+    userPrompt += `
 - Position: ${title}
 - Seniority Level: ${seniorityLevel}`;
 
@@ -147,38 +168,34 @@ Keep the total description under 700 words.`;
 
     userPrompt += `
 
-Generate the following sections (maximum 700 words total):
+${mode === "improve" ? "Improve the description following" : "Generate the following sections"} (maximum 700 words total):
 
 ## Position Overview
-Start with a compelling 2-3 sentence description of the role's core purpose and its direct impact on business outcomes. Focus on what makes this position meaningful.
+Start with a compelling 2-3 sentence description of the role's core purpose and its direct impact on business outcomes. Focus on what makes this position meaningful. (50-80 words)
 
-## Key Responsibilities
-Provide 6-8 bullet points of specific, actionable responsibilities appropriate for a ${seniorityLevel} position. Each should clearly describe what the person will do.
+## Duties & Responsibilities
+Provide 6-8 bullet points of specific, actionable responsibilities appropriate for a ${seniorityLevel} position. Each should clearly describe what the person will do. (200-250 words)
 
 ## Qualifications & Requirements
-- Education requirements appropriate for the role
+- Education requirements appropriate for the role and ${seniorityLevel} level
 - Years of experience expected for ${seniorityLevel} level
 - Technical skills and competencies required
 - Any certifications or specific knowledge areas
+(100-120 words)
 
 ## Soft Skills & Mindset
-4-5 qualities and characteristics that would make someone successful in this role. Be specific to the position type.
+4-5 qualities and characteristics that would make someone successful in this role. Be specific to the position type. (80-100 words)
 
 ## How to Apply
-Brief instruction to submit application with CV/resume.${application_deadline ? ` Applications must be received by ${application_deadline}.` : ''}
+Brief instruction to submit application with CV/resume.${application_deadline ? ` Applications must be received by ${application_deadline}.` : ''} (30-50 words)
 
-IMPORTANT RULES:
-- Do NOT include salary information${salary_visible ? ' (unless the position explicitly shows it above)' : ''}
-- Do NOT mention benefits, perks, or company culture (we haven't provided this information)
-- Do NOT invent project names, team names, or specific technologies unless they're clearly implied by the role
-- Keep experience requirements realistic for the ${seniorityLevel} level
-- Use Markdown formatting with ## headers`;
+IMPORTANT: Use Markdown formatting with ## headers. Do NOT invent any information not provided above.`;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     if (!LOVABLE_API_KEY) {
       // Fallback to template if AI is not configured
-      const fallbackJD = generateFallbackJD(title, department, locationContext, workModelText, employmentText, seniorityLevel);
+      const fallbackJD = generateFallbackJD(title, department, locationContext, workModelText, employmentText, seniorityLevel, application_deadline);
       return new Response(
         JSON.stringify({ success: true, description: fallbackJD }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -220,7 +237,7 @@ IMPORTANT RULES:
       }
       
       // Fallback to template
-      const fallbackJD = generateFallbackJD(title, department, locationContext, workModelText, employmentText, seniorityLevel);
+      const fallbackJD = generateFallbackJD(title, department, locationContext, workModelText, employmentText, seniorityLevel, application_deadline);
       return new Response(
         JSON.stringify({ success: true, description: fallbackJD }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -229,9 +246,9 @@ IMPORTANT RULES:
 
     const aiData = await aiResponse.json();
     const generatedDescription = aiData.choices?.[0]?.message?.content || 
-      generateFallbackJD(title, department, locationContext, workModelText, employmentText, seniorityLevel);
+      generateFallbackJD(title, department, locationContext, workModelText, employmentText, seniorityLevel, application_deadline);
 
-    console.log("Job description generated successfully");
+    console.log(`Job description ${mode === "improve" ? "improved" : "generated"} successfully`);
 
     return new Response(
       JSON.stringify({ success: true, description: generatedDescription }),
@@ -252,16 +269,18 @@ function generateFallbackJD(
   location?: string,
   workModel?: string,
   employmentType?: string,
-  seniorityLevel?: string
+  seniorityLevel?: string,
+  applicationDeadline?: string
 ): string {
   const deptText = department ? ` in our ${department} team` : '';
   const locationText = location ? ` based in ${location}` : '';
+  const deadlineText = applicationDeadline ? ` Applications must be received by ${applicationDeadline}.` : '';
   
   return `## Position Overview
 
 We are seeking a talented ${title} to join our organization${deptText}. This is a ${employmentType} ${workModel} position${locationText}. As a ${seniorityLevel || 'mid-level'} role, you will play a key part in driving our mission forward.
 
-## Key Responsibilities
+## Duties & Responsibilities
 
 - Lead and execute key initiatives within your domain of expertise
 - Collaborate with cross-functional teams to deliver exceptional results
@@ -288,7 +307,7 @@ We are seeking a talented ${title} to join our organization${deptText}. This is 
 
 ## How to Apply
 
-Submit your application with an updated CV/resume through our application portal.`;
+Submit your application with an updated CV/resume through our application portal.${deadlineText}`;
 }
 
 serve(handler);

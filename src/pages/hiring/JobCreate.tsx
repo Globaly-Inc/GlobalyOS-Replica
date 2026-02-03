@@ -17,7 +17,7 @@ import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { useDepartments, useOffices } from '@/hooks/useOrganizationData';
 import { useOrganization } from '@/hooks/useOrganization';
 import { generateJobSlug } from '@/types/hiring';
-import { ArrowLeft, Loader2, Sparkles, CalendarIcon } from 'lucide-react';
+import { ArrowLeft, Loader2, Sparkles, Wand2, CalendarIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { OrgLink } from '@/components/OrgLink';
 import { supabase } from '@/integrations/supabase/client';
@@ -141,12 +141,16 @@ export default function JobCreate() {
     }
   };
 
+  // Check if description has meaningful content
+  const hasDescriptionContent = formData.description.trim().length > 50;
+
   const generateJobDescription = async () => {
     if (!formData.title) {
       toast.error('Please enter a job title first');
       return;
     }
 
+    const mode = hasDescriptionContent ? 'improve' : 'generate';
     setIsGeneratingJD(true);
     try {
       const selectedDept = departments.find(d => d.id === formData.department_id);
@@ -159,6 +163,7 @@ export default function JobCreate() {
           department: selectedDept?.name,
           location: formData.location || selectedOffice?.city,
           office_country: selectedOffice?.country,
+          office_region: (selectedOffice as any)?.region,
           work_model: formData.work_model,
           employment_type: formData.employment_type,
           salary_min: formData.salary_min ? parseFloat(formData.salary_min) : undefined,
@@ -168,7 +173,9 @@ export default function JobCreate() {
           company_name: currentOrg?.name,
           industry: currentOrg?.industry,
           company_size: currentOrg?.company_size,
-          application_deadline: formData.target_start_date || undefined,
+          application_deadline: formData.application_close_date || undefined,
+          mode,
+          existing_description: mode === 'improve' ? formData.description : undefined,
         },
       });
 
@@ -176,7 +183,7 @@ export default function JobCreate() {
 
       if (data?.success && data?.description) {
         handleChange('description', data.description);
-        toast.success('Job description generated!');
+        toast.success(mode === 'improve' ? 'Job description improved!' : 'Job description generated!');
       } else {
         throw new Error(data?.message || 'Failed to generate description');
       }
@@ -187,6 +194,12 @@ export default function JobCreate() {
       setIsGeneratingJD(false);
     }
   };
+
+  // Dynamic button label and icon
+  const aiButtonLabel = isGeneratingJD 
+    ? (hasDescriptionContent ? 'Improving...' : 'Generating...') 
+    : (hasDescriptionContent ? 'Improve with AI' : 'Generate with AI');
+  const AiButtonIcon = hasDescriptionContent ? Wand2 : Sparkles;
 
   return (
     <div className="space-y-6">
@@ -476,9 +489,9 @@ export default function JobCreate() {
                       {isGeneratingJD ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
-                        <Sparkles className="h-3.5 w-3.5" />
+                        <AiButtonIcon className="h-3.5 w-3.5" />
                       )}
-                      Generate with AI
+                      {aiButtonLabel}
                     </Button>
                   )}
                 />
