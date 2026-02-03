@@ -89,6 +89,7 @@ export default function JobCreate() {
     salary_max: '',
     salary_currency: 'USD',
     salary_visible: false,
+    application_close_date: '',
     target_start_date: '',
     justification: '',
     description: '',
@@ -321,16 +322,47 @@ export default function JobCreate() {
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="headcount">Number of Positions</Label>
+                <Input
+                  id="headcount"
+                  type="number"
+                  min={1}
+                  value={formData.headcount}
+                  onChange={(e) => handleChange('headcount', parseInt(e.target.value) || 1)}
+                />
+              </div>
+
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="headcount">Number of Positions</Label>
-                  <Input
-                    id="headcount"
-                    type="number"
-                    min={1}
-                    value={formData.headcount}
-                    onChange={(e) => handleChange('headcount', parseInt(e.target.value) || 1)}
-                  />
+                  <Label>Application Close Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !formData.application_close_date && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.application_close_date ? (
+                          format(new Date(formData.application_close_date), "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={formData.application_close_date ? new Date(formData.application_close_date) : undefined}
+                        onSelect={(date) => handleChange('application_close_date', date ? format(date, 'yyyy-MM-dd') : '')}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div className="space-y-2">
                   <Label>Target Start Date</Label>
