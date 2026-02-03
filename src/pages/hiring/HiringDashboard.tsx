@@ -157,8 +157,8 @@ export default function HiringDashboard() {
         </div>
       </div>
 
-      {/* Sticky Filter Bar - Light Purple Background */}
-      <div className="sticky top-0 z-10 bg-purple-50/80 dark:bg-purple-950/20 backdrop-blur-sm pb-2 -mt-2 pt-2 rounded-lg">
+      {/* Sticky Filter Bar - positioned below the layout header */}
+      <div className="sticky top-16 z-10 bg-purple-50/80 dark:bg-purple-950/20 backdrop-blur-sm -mx-4 px-4 py-2 -mt-2 rounded-lg">
         <div className="flex items-center gap-2 flex-wrap bg-slate-300 dark:bg-slate-700 px-[5px] py-[5px] rounded-lg">
           {/* Tab Toggle */}
           <div className="flex items-center gap-1 border rounded-lg p-1 bg-background">
