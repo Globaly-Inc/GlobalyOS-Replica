@@ -206,7 +206,7 @@ export default function JobCreate() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
-          <OrgLink to="/hiring/jobs">
+          <OrgLink to="/hiring?tab=jobs">
             <ArrowLeft className="h-4 w-4" />
           </OrgLink>
         </Button>
@@ -542,7 +542,7 @@ export default function JobCreate() {
           {/* Actions */}
           <div className="flex items-center justify-end gap-3 pb-8">
             <Button variant="outline" asChild>
-              <OrgLink to="/hiring/jobs">Cancel</OrgLink>
+              <OrgLink to="/hiring?tab=jobs">Cancel</OrgLink>
             </Button>
             <Button
               variant="outline"

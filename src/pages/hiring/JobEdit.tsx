@@ -238,7 +238,7 @@ export default function JobEdit() {
         <h2 className="text-xl font-semibold mb-2">Job vacancy not found</h2>
         <p className="text-muted-foreground mb-4">The vacancy you're looking for doesn't exist.</p>
         <Button asChild>
-          <OrgLink to="/hiring/jobs">Back to Vacancies</OrgLink>
+          <OrgLink to="/hiring?tab=jobs">Back to Vacancies</OrgLink>
         </Button>
       </div>
     );
