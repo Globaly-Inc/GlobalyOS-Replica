@@ -67,13 +67,17 @@ export default defineConfig(({ mode }) => ({
         navigateFallback: 'index.html',
       },
     }),
-    mode === 'production' && visualizer({
-      filename: 'dist/stats.html',
-      open: false,
-      gzipSize: true,
-      brotliSize: true,
-      template: 'treemap',
-    }),
+    // NOTE: The visualizer can be very heavy for large apps and may cause
+    // publish builds to time out or run out of memory. Enable only when needed.
+    mode === 'production' &&
+      process.env.ANALYZE === 'true' &&
+      visualizer({
+        filename: 'dist/stats.html',
+        open: false,
+        gzipSize: true,
+        brotliSize: true,
+        template: 'treemap',
+      }),
   ].filter(Boolean),
   resolve: {
     alias: {
