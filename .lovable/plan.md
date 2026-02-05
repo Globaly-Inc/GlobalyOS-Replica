@@ -1,116 +1,101 @@
 
 
-# Simplify Check-in Methods UI
+# Team Member Cards Redesign
 
 ## Summary
 
-Consolidate location settings into the work type cards, rename location options for clarity, add Remote Location Verification for hybrid/remote workers, and remove the Third-party System option.
+Replace the current list-style team member rows with rectangular cards in a 3-column grid layout, with a full-height avatar on the left and name/position/department stacked on the right. Remove schedule badge and related data fetching.
 
-## Current Issues
-
-1. **Redundant Location Settings section** - The separate "Location Settings" panel duplicates what should be configured per work type
-2. **Confusing naming** - "Location Verification" is ambiguous (office vs remote location)
-3. **Missing remote location option** - No way to verify remote workers' locations
-4. **Unused feature** - Third-party System is disabled and clutters the UI
-
-## Changes
-
-### 1. Remove Third-party System from All Cards
-
-Remove `third_party` from `AVAILABLE_METHODS` array entirely.
-
-### 2. Rename and Split Location Methods
-
-**Before:**
-- `location` = "Location Verification"
-
-**After:**
-- `location` = "Office Location Verification" (verify employee is at office)
-- `remote_location` = "Remote Location Verification" (verify employee's remote location)
-
-### 3. Update Available Methods per Work Type
-
-| Work Type | Available Methods |
-|-----------|------------------|
-| Office Workers | QR Code Scan, Office Location Verification |
-| Hybrid Workers | QR Code Scan, Office Location Verification, Remote Check-in, Remote Location Verification |
-| Remote Workers | Remote Check-in, Remote Location Verification |
-
-### 4. Add Geofence Radius Inline with Location Options
-
-When "Office Location Verification" is checked, show a small inline input for geofence radius directly below it (instead of in a separate section).
+## Suggested UI
 
 ```text
-[x] Office Location Verification
-    Geofence: [100] meters
++--------------------------------------+  +--------------------------------------+  +--------------------------------------+
+|  +------+                            |  |  +------+                            |  |  +------+                            |
+|  |      |  Aakriti Manandhar         |  |  |      |  Aayushma Shrestha         |  |  |      |  Abhilekh Singh             |
+|  | Ava- |  Customer Success Assoc.   |  |  | Ava- |  People & Culture Officer  |  |  | Ava- |  Customer Success Assoc.    |
+|  | tar  |  Customer Success          |  |  | tar  |  HR & Operations           |  |  | tar  |  Customer Success           |
+|  +------+                            |  |  +------+                            |  |  +------+                            |
++--------------------------------------+  +--------------------------------------+  +--------------------------------------+
+
++--------------------------------------+  +--------------------------------------+  +--------------------------------------+
+|  +------+                            |  |  +------+                            |  |  +------+                            |
+|  |      |  Akanshya Malla            |  |  |      |  Alija Rai                 |  |  |      |  Aman Awale                 |
+|  | Ava- |  Customer Rel. Officer     |  |  | Ava- |  Assoc. DevOps Engineer    |  |  | Ava- |  Digital Marketing Officer  |
+|  | tar  |  Customer Success          |  |  | tar  |  Software Engineering      |  |  | tar  |  Digital Marketing          |
+|  +------+                            |  |  +------+                            |  |  +------+                            |
++--------------------------------------+  +--------------------------------------+  +--------------------------------------+
 ```
 
-### 5. Remove Separate Location Settings Section
+- Online indicator dot on avatar (bottom-right green dot)
+- Hover effect on each card for interactivity
+- Responsive: 1 col on mobile, 2 on tablet, 3 on desktop
 
-Delete the entire `border-t pt-6` section (lines 129-177) since:
-- Geofence radius moves inline with office location option
-- The require_location toggles become redundant (checking the method = requiring it)
+## Changes to `src/components/offices/OfficeTeamList.tsx`
 
-## Updated AVAILABLE_METHODS
+### 1. Remove Schedule-Related Code
 
-```typescript
-const OFFICE_METHODS = [
-  { id: 'qr', label: 'QR Code Scan' },
-  { id: 'location', label: 'Office Location Verification' },
-];
+- Remove `has_schedule` from the `Employee` interface
+- Remove the `employee_schedules` query (lines 62-67)
+- Remove schedule mapping logic (lines 69-72)
+- Remove `Calendar`, `Clock` icon imports
+- Remove the `Badge` import and the schedule `Badge` element (lines 171-183)
+- Remove `cn` import (no longer needed)
 
-const HYBRID_METHODS = [
-  { id: 'qr', label: 'QR Code Scan' },
-  { id: 'location', label: 'Office Location Verification' },
-  { id: 'remote', label: 'Remote Check-in' },
-  { id: 'remote_location', label: 'Remote Location Verification' },
-];
+### 2. Replace List with 3-Column Grid
 
-const REMOTE_METHODS = [
-  { id: 'remote', label: 'Remote Check-in' },
-  { id: 'remote_location', label: 'Remote Location Verification' },
-];
+Change the employee container from `<div className="space-y-2">` to:
+```tsx
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
 ```
 
-## Visual Result
+### 3. New Card Markup per Employee
 
-**Before:**
-```text
-+------------------+------------------+------------------+
-| Office Workers   | Hybrid Workers   | Remote Workers   |
-| [ ] QR Code      | [ ] QR Code      | [x] Remote       |
-| [ ] Location     | [ ] Location     | [ ] Third-party  |
-| [ ] Third-party  | [ ] Remote       |                  |
-|                  | [ ] Third-party  |                  |
-+------------------+------------------+------------------+
-
---- Location Settings ---
-[ ] Require location for office
-[ ] Require location for hybrid
-Geofence: [100] meters
+```tsx
+<button
+  key={employee.id}
+  onClick={() => navigateOrg(`/team/${employee.id}`)}
+  className="flex items-stretch gap-3 p-3 rounded-lg border bg-card hover:shadow-md hover:bg-muted/30 transition-all text-left"
+>
+  <div className="relative flex-shrink-0 flex items-center">
+    <Avatar className="h-12 w-12">
+      <AvatarImage src={employee.avatar_url || undefined} />
+      <AvatarFallback>
+        {employee.full_name.split(' ').map(n => n[0]).join('')}
+      </AvatarFallback>
+    </Avatar>
+    {onlineStatuses[employee.id] && (
+      <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-background" />
+    )}
+  </div>
+  <div className="flex flex-col justify-center min-w-0 gap-0.5">
+    <span className="font-medium text-sm truncate">{employee.full_name}</span>
+    <span className="text-xs text-muted-foreground truncate">{employee.position}</span>
+    <span className="text-xs text-muted-foreground/70 truncate">{employee.department}</span>
+  </div>
+</button>
 ```
 
-**After:**
-```text
-+------------------+------------------+------------------+
-| Office Workers   | Hybrid Workers   | Remote Workers   |
-| [ ] QR Code      | [ ] QR Code      | [x] Remote       |
-| [ ] Office Loc   | [ ] Office Loc   | [ ] Remote Loc   |
-|   Radius: [100]m | [ ] Remote       |   Radius: [100]m |
-|                  | [ ] Remote Loc   |                  |
-|                  |   Radius: [100]m |                  |
-+------------------+------------------+------------------+
+### 4. Update Loading Skeleton
+
+Update the skeleton to match the grid layout:
+```tsx
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+  {[1, 2, 3].map((i) => (
+    <div key={i} className="flex items-center gap-3 p-3 rounded-lg border animate-pulse">
+      <div className="h-12 w-12 rounded-full bg-muted flex-shrink-0" />
+      <div className="space-y-2 flex-1">
+        <div className="h-4 bg-muted rounded w-2/3" />
+        <div className="h-3 bg-muted rounded w-1/2" />
+        <div className="h-3 bg-muted rounded w-1/3" />
+      </div>
+    </div>
+  ))}
+</div>
 ```
 
-## Files to Modify
+## File Modified
 
 | File | Changes |
 |------|---------|
-| `src/components/offices/attendance/CheckInMethodsTab.tsx` | Update methods, add inline geofence, remove Location Settings section |
-
-## Props Cleanup
-
-The following props can be simplified:
-- `requireLocationForOffice` / `requireLocationForHybrid` - No longer needed (method selection = requirement)
-- `locationRadiusMeters` - Still needed for inline geofence input
+| `src/components/offices/OfficeTeamList.tsx` | Grid layout, card design, remove schedule badge + query |
 
