@@ -1,26 +1,17 @@
 
 
-# Reorganize Office Detail View into 3 Tabs
+# Consolidate Address Display with Country Flag
 
 ## Summary
 
-Restructure the Office Detail View page from a vertically stacked card layout into a clean 3-tab interface. This will improve navigation and reduce scrolling while grouping related settings logically.
+Replace the 3-column address layout (Address, City, Country) with a single-line display showing the full formatted address with a country flag emoji.
 
 ## Current Layout
 
 ```text
 +----------------------------------------------------------+
-| Office Header Card (Name, Address, City, Country)        |
-+----------------------------------------------------------+
-| Today's Overview Stats                                   |
-+----------------------------------------------------------+
-| Default Work Schedule Card                               |
-+----------------------------------------------------------+
-| Leave Settings Card                                      |
-+----------------------------------------------------------+
-| Attendance Settings Card                                 |
-+----------------------------------------------------------+
-| Team Members List                                        |
+| Address              | City               | Country        |
+| 75 Dalmatia Avenue   | Sydney             | Australia      |
 +----------------------------------------------------------+
 ```
 
@@ -28,149 +19,92 @@ Restructure the Office Detail View page from a vertically stacked card layout in
 
 ```text
 +----------------------------------------------------------+
-| Office Header Card (Name, Address, City, Country)        |
-+----------------------------------------------------------+
-| [Overview & Team]  [Attendance Settings]  [Leave Settings]
-+----------------------------------------------------------+
-|                                                          |
-|  === OVERVIEW & TEAM TAB ===                             |
-|                                                          |
-|  +-- Today's Overview Stats -------------------------+   |
-|  | Present: 0  |  On Leave: 0  |  Remote: 0  |  ...  |   |
-|  +---------------------------------------------------+   |
-|                                                          |
-|  +-- Team Members -----------------------------------+   |
-|  | [Avatar] John Smith      CEO         [Schedule]   |   |
-|  | [Avatar] Jane Doe        Director    [Schedule]   |   |
-|  | ...                                               |   |
-|  +---------------------------------------------------+   |
-|                                                          |
-+----------------------------------------------------------+
-|                                                          |
-|  === ATTENDANCE SETTINGS TAB ===                         |
-|                                                          |
-|  +-- Default Work Schedule --------------------------+   |
-|  | Work Start: 09:00  |  Work End: 17:00            |   |
-|  | Break: 12:00-13:00 |  Timezone: UTC              |   |
-|  | Late Threshold: 15 min  |  Leave Year: Jan 1     |   |
-|  +---------------------------------------------------+   |
-|                                                          |
-|  +-- Attendance Rules -------------------------------+   |
-|  | [Tabs: Check-in Methods | Sessions | Overtime     |   |
-|  |        | Auto Checkout | Exemptions]              |   |
-|  |                                                   |   |
-|  | Configure how employees check in based on their   |   |
-|  | work type...                                      |   |
-|  +---------------------------------------------------+   |
-|                                                          |
-+----------------------------------------------------------+
-|                                                          |
-|  === LEAVE SETTINGS TAB ===                              |
-|                                                          |
-|  +-- Leave Year Configuration -----------------------+   |
-|  | Leave Year Start: Jan 1                          |   |
-|  +---------------------------------------------------+   |
-|                                                          |
-|  +-- Leave Types ------------------------------------+   |
-|  | [+] Annual Leave       paid    12 days           |   |
-|  | [+] Sick Leave         paid    7 days            |   |
-|  | [+] Unpaid Leave       unpaid  0 days            |   |
-|  +---------------------------------------------------+   |
-|                                                          |
+| Location                                                  |
+| [MapPin] 75 Dalmatia Avenue, Sydney, Australia  [flag]   |
 +----------------------------------------------------------+
 ```
-
-## Tab Structure
-
-| Tab | Components Included | Purpose |
-|-----|---------------------|---------|
-| **Overview & Team** | `OfficeOverviewStats`, `OfficeTeamList` | Daily status, team members with schedules |
-| **Attendance Settings** | `OfficeScheduleCard`, `OfficeAttendanceSettings` (without outer card wrapper) | Work schedules, check-in methods, overtime, exemptions |
-| **Leave Settings** | `OfficeLeaveSettings` (without outer card wrapper) | Leave year configuration, leave types |
 
 ## Implementation Details
 
 ### Changes to OfficeDetailView.tsx
 
-1. **Keep the header card** at the top (outside of tabs)
-2. **Add a Tabs component** below the header
-3. **Move components into their respective tabs**
-4. **Adjust component styling** to remove redundant card wrappers where needed
+1. **Remove the 3-column grid** for Address, City, and Country
+2. **Add a single address display line** that combines all parts
+3. **Import `getCountryFlag`** from `@/lib/countryFlags`
+4. **Format the address** as: `{address}, {city}, {country} {flag}`
+5. **Make each part editable** via a popover or inline editing approach
 
-### Component Modifications
+### Approach Options
 
-**OfficeAttendanceSettings.tsx**
-- Add an optional `embedded` prop to hide the outer Card wrapper when used inside a tab
-- When `embedded={true}`, render only the inner content without Card
+**Option A: Read-only display with Edit button**
+- Display combined address as read-only text with flag
+- "Edit" button opens a dialog/popover to edit individual fields
 
-**OfficeLeaveSettings.tsx**
-- Add an optional `embedded` prop to hide the outer Card wrapper when used inside a tab
-- When `embedded={true}`, render only the inner content without Card
+**Option B: Individual inline editable fields stacked**
+- Keep fields editable inline but display on one line when not editing
+- Show formatted address normally, expand to edit mode on click
 
-**OfficeScheduleCard.tsx**
-- No changes needed - already a standalone card
+**Recommended: Option A** - Cleaner UX, single click to edit all address fields
 
-### Visual Design
+### New Address Display Component
 
-- Tab bar will use the existing Tabs component with consistent styling
-- Icons in tab triggers for visual clarity:
-  - Overview & Team: `Users` icon
-  - Attendance Settings: `Clock` icon
-  - Leave Settings: `CalendarDays` icon
-- First tab (Overview & Team) is the default active tab
-- Content area has consistent padding and spacing
+```tsx
+// Inside CardContent
+<div className="flex items-center gap-2">
+  <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+  <div className="flex items-center gap-2 flex-1 min-w-0">
+    <p className="text-sm text-foreground">
+      {[office.address, office.city, office.country]
+        .filter(Boolean)
+        .join(', ') || 'No address specified'}
+    </p>
+    {office.country && (
+      <span className="text-lg">{getCountryFlag(office.country)}</span>
+    )}
+  </div>
+  <Button variant="ghost" size="sm" onClick={() => setEditingAddress(true)}>
+    <Pencil className="h-3 w-3" />
+  </Button>
+</div>
+```
+
+### Address Edit Dialog
+
+Create a simple dialog or popover that allows editing all three fields:
+
+```text
++-- Edit Address Dialog ------------------+
+| Street Address: [________________]      |
+| City:           [________________]      |
+| Country:        [________________]      |
+|                                         |
+|                     [Cancel] [Save]     |
++-----------------------------------------+
+```
 
 ### Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/offices/OfficeDetailView.tsx` | Add Tabs wrapper, reorganize components into tab content areas |
-| `src/components/offices/OfficeAttendanceSettings.tsx` | Add `embedded` prop to optionally hide Card wrapper |
-| `src/components/settings/OfficeLeaveSettings.tsx` | Add `embedded` prop to optionally hide Card wrapper |
+| `src/components/offices/OfficeDetailView.tsx` | Replace 3-column grid with single-line address display + edit dialog |
 
-### Tab Content Layout
+### Visual Result
 
-**Overview & Team Tab:**
+**Before:**
 ```text
-<TabsContent value="overview">
-  <div className="space-y-6">
-    <OfficeOverviewStats officeId={office.id} />
-    <OfficeTeamList officeId={office.id} officeName={office.name} />
-  </div>
-</TabsContent>
+Address              City           Country
+[MapPin] 75 Dalma... Sydney         Australia
 ```
 
-**Attendance Settings Tab:**
+**After:**
 ```text
-<TabsContent value="attendance">
-  <div className="space-y-6">
-    <OfficeScheduleCard office={office} onOfficeUpdated={onOfficeUpdated} />
-    <OfficeAttendanceSettings 
-      officeId={office.id} 
-      organizationId={currentOrg.id}
-      embedded={true}  // Removes outer Card wrapper
-    />
-  </div>
-</TabsContent>
+[MapPin] 75 Dalmatia Avenue, Sydney, Australia [flag] [Edit]
 ```
 
-**Leave Settings Tab:**
-```text
-<TabsContent value="leave">
-  <OfficeLeaveSettings
-    office={office}
-    organizationId={currentOrg.id}
-    onOfficeUpdated={onOfficeUpdated}
-    embedded={true}  // Removes outer Card wrapper
-  />
-</TabsContent>
-```
+### Benefits
 
-## Benefits
-
-1. **Reduced Scrolling**: Users don't need to scroll through all sections
-2. **Logical Grouping**: Related settings are grouped together
-3. **Cleaner Interface**: Less visual clutter on initial load
-4. **URL Persistence**: Can add URL tab state for deep linking (optional future enhancement)
-5. **Consistent UX**: Matches the tabbed pattern used elsewhere in the app (e.g., Attendance Settings inner tabs)
+1. **Cleaner layout** - Less visual clutter
+2. **More context** - Full address visible at a glance
+3. **Country flag** - Visual indicator of office location
+4. **Single edit action** - One click to edit all address components
 
