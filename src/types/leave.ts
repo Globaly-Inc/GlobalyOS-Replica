@@ -27,7 +27,7 @@ export type LeaveCategory = 'paid' | 'unpaid';
 export interface LeaveTypeBalance {
   id: string;
   employee_id: string;
-  leave_type_id: string;
+  office_leave_type_id: string;
   organization_id: string;
   balance: number;
   year: number;
