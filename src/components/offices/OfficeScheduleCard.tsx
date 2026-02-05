@@ -11,85 +11,83 @@ import { toast } from 'sonner';
 import { YearStartPicker } from '@/components/ui/year-start-picker';
 import { TimezoneSelector } from '@/components/ui/timezone-selector';
 import type { Office, OfficeSchedule } from '@/pages/ManageOffices';
-
 interface OfficeScheduleCardProps {
   office: Office;
   onOfficeUpdated?: (office: Partial<Office>) => void;
 }
-
-export const OfficeScheduleCard = ({ office, onOfficeUpdated }: OfficeScheduleCardProps) => {
-  const { currentOrg } = useOrganization();
+export const OfficeScheduleCard = ({
+  office,
+  onOfficeUpdated
+}: OfficeScheduleCardProps) => {
+  const {
+    currentOrg
+  } = useOrganization();
   const [schedule, setSchedule] = useState<OfficeSchedule | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
   const [applying, setApplying] = useState(false);
   const [employeesWithoutSchedule, setEmployeesWithoutSchedule] = useState(0);
-  const [leaveYearStart, setLeaveYearStart] = useState({ month: 1, day: 1 });
+  const [leaveYearStart, setLeaveYearStart] = useState({
+    month: 1,
+    day: 1
+  });
   const [savingLeaveYear, setSavingLeaveYear] = useState(false);
-
   const [formData, setFormData] = useState({
     work_start_time: '09:00',
     work_end_time: '17:00',
     break_start_time: '12:00',
     break_end_time: '13:00',
     late_threshold_minutes: 15,
-    timezone: 'UTC',
+    timezone: 'UTC'
   });
-
   useEffect(() => {
     loadSchedule();
     loadEmployeesWithoutSchedule();
     loadLeaveYearStart();
   }, [office.id]);
-
   const loadLeaveYearStart = async () => {
-    const { data } = await supabase
-      .from('offices')
-      .select('leave_year_start_month, leave_year_start_day')
-      .eq('id', office.id)
-      .single();
-    
+    const {
+      data
+    } = await supabase.from('offices').select('leave_year_start_month, leave_year_start_day').eq('id', office.id).single();
     if (data) {
       setLeaveYearStart({
         month: data.leave_year_start_month || 1,
-        day: data.leave_year_start_day || 1,
+        day: data.leave_year_start_day || 1
       });
     }
   };
-
   const handleLeaveYearChange = async (month: number, day: number) => {
-    setLeaveYearStart({ month, day });
+    setLeaveYearStart({
+      month,
+      day
+    });
     setSavingLeaveYear(true);
-    
-    const { error } = await supabase
-      .from('offices')
-      .update({ 
-        leave_year_start_month: month, 
-        leave_year_start_day: day 
-      })
-      .eq('id', office.id);
-    
+    const {
+      error
+    } = await supabase.from('offices').update({
+      leave_year_start_month: month,
+      leave_year_start_day: day
+    }).eq('id', office.id);
     setSavingLeaveYear(false);
-    
     if (error) {
       toast.error('Failed to save leave year start');
       console.error('Error saving leave year start:', error);
       return;
     }
-    
     toast.success('Leave year start updated');
-    onOfficeUpdated?.({ id: office.id, leave_year_start_month: month, leave_year_start_day: day } as Partial<Office>);
+    onOfficeUpdated?.({
+      id: office.id,
+      leave_year_start_month: month,
+      leave_year_start_day: day
+    } as Partial<Office>);
   };
-
   const loadSchedule = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('office_schedules')
-      .select('*')
-      .eq('office_id', office.id)
-      .maybeSingle();
-
+    const {
+      data,
+      error
+    } = await supabase.from('office_schedules').select('*').eq('office_id', office.id).maybeSingle();
     if (data) {
       setSchedule(data);
       setFormData({
@@ -98,45 +96,35 @@ export const OfficeScheduleCard = ({ office, onOfficeUpdated }: OfficeScheduleCa
         break_start_time: data.break_start_time?.slice(0, 5) || '12:00',
         break_end_time: data.break_end_time?.slice(0, 5) || '13:00',
         late_threshold_minutes: data.late_threshold_minutes || 15,
-        timezone: data.timezone || 'UTC',
+        timezone: data.timezone || 'UTC'
       });
     }
     setLoading(false);
   };
-
   const loadEmployeesWithoutSchedule = async () => {
     if (!currentOrg?.id) return;
 
     // Get employees in this office
-    const { data: employees } = await supabase
-      .from('employees')
-      .select('id')
-      .eq('office_id', office.id)
-      .eq('organization_id', currentOrg.id)
-      .eq('status', 'active');
-
+    const {
+      data: employees
+    } = await supabase.from('employees').select('id').eq('office_id', office.id).eq('organization_id', currentOrg.id).eq('status', 'active');
     if (!employees?.length) {
       setEmployeesWithoutSchedule(0);
       return;
     }
-
     const employeeIds = employees.map(e => e.id);
 
     // Get employees who have schedules
-    const { data: schedules } = await supabase
-      .from('employee_schedules')
-      .select('employee_id')
-      .in('employee_id', employeeIds);
-
+    const {
+      data: schedules
+    } = await supabase.from('employee_schedules').select('employee_id').in('employee_id', employeeIds);
     const withSchedule = new Set(schedules?.map(s => s.employee_id) || []);
     const withoutCount = employeeIds.filter(id => !withSchedule.has(id)).length;
     setEmployeesWithoutSchedule(withoutCount);
   };
-
   const handleSave = async () => {
     if (!currentOrg?.id) return;
     setSaving(true);
-
     const scheduleData = {
       office_id: office.id,
       organization_id: currentOrg.id,
@@ -145,68 +133,48 @@ export const OfficeScheduleCard = ({ office, onOfficeUpdated }: OfficeScheduleCa
       break_start_time: formData.break_start_time + ':00',
       break_end_time: formData.break_end_time + ':00',
       late_threshold_minutes: formData.late_threshold_minutes,
-      timezone: formData.timezone,
+      timezone: formData.timezone
     };
-
     let error;
     if (schedule) {
-      const result = await supabase
-        .from('office_schedules')
-        .update(scheduleData)
-        .eq('id', schedule.id);
+      const result = await supabase.from('office_schedules').update(scheduleData).eq('id', schedule.id);
       error = result.error;
     } else {
-      const result = await supabase
-        .from('office_schedules')
-        .insert(scheduleData)
-        .select()
-        .single();
+      const result = await supabase.from('office_schedules').insert(scheduleData).select().single();
       error = result.error;
       if (result.data) setSchedule(result.data);
     }
-
     setSaving(false);
-
     if (error) {
       toast.error('Failed to save schedule');
       console.error('Error saving schedule:', error);
       return;
     }
-
     toast.success('Schedule saved');
     loadSchedule();
   };
-
   const handleApplyToTeam = async () => {
     if (!currentOrg?.id) return;
     setApplying(true);
 
     // Get employees in this office without schedules
-    const { data: employees } = await supabase
-      .from('employees')
-      .select('id')
-      .eq('office_id', office.id)
-      .eq('organization_id', currentOrg.id)
-      .eq('status', 'active');
-
+    const {
+      data: employees
+    } = await supabase.from('employees').select('id').eq('office_id', office.id).eq('organization_id', currentOrg.id).eq('status', 'active');
     if (!employees?.length) {
       toast.info('No employees in this office');
       setApplying(false);
       setApplyDialogOpen(false);
       return;
     }
-
     const employeeIds = employees.map(e => e.id);
 
     // Get employees who already have schedules
-    const { data: existingSchedules } = await supabase
-      .from('employee_schedules')
-      .select('employee_id')
-      .in('employee_id', employeeIds);
-
+    const {
+      data: existingSchedules
+    } = await supabase.from('employee_schedules').select('employee_id').in('employee_id', employeeIds);
     const withSchedule = new Set(existingSchedules?.map(s => s.employee_id) || []);
     const toCreate = employeeIds.filter(id => !withSchedule.has(id));
-
     if (toCreate.length === 0) {
       toast.info('All employees already have schedules');
       setApplying(false);
@@ -224,29 +192,23 @@ export const OfficeScheduleCard = ({ office, onOfficeUpdated }: OfficeScheduleCa
       break_end_time: formData.break_end_time + ':00',
       late_threshold_minutes: formData.late_threshold_minutes,
       work_location: 'office' as const,
-      timezone: formData.timezone,
+      timezone: formData.timezone
     }));
-
-    const { error } = await supabase
-      .from('employee_schedules')
-      .insert(schedulesToInsert);
-
+    const {
+      error
+    } = await supabase.from('employee_schedules').insert(schedulesToInsert);
     setApplying(false);
     setApplyDialogOpen(false);
-
     if (error) {
       toast.error('Failed to apply schedules');
       console.error('Error applying schedules:', error);
       return;
     }
-
     toast.success(`Schedule applied to ${toCreate.length} employees`);
     loadEmployeesWithoutSchedule();
   };
-
   if (loading) {
-    return (
-      <Card>
+    return <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Clock className="h-5 w-5" />
@@ -258,105 +220,94 @@ export const OfficeScheduleCard = ({ office, onOfficeUpdated }: OfficeScheduleCa
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         </CardContent>
-      </Card>
-    );
+      </Card>;
   }
-
-  return (
-    <>
+  return <>
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-base">
               <Clock className="h-5 w-5" />
               Default Work Schedule
             </CardTitle>
-            {employeesWithoutSchedule > 0 && (
-              <Button variant="outline" size="sm" onClick={() => setApplyDialogOpen(true)}>
+            {employeesWithoutSchedule > 0 && <Button variant="outline" size="sm" onClick={() => setApplyDialogOpen(true)}>
                 <Users className="h-4 w-4 mr-2" />
                 Apply to {employeesWithoutSchedule} team
-              </Button>
-            )}
+              </Button>}
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>Work Start</Label>
-              <Input
-                type="time"
-                value={formData.work_start_time}
-                onChange={(e) => setFormData(prev => ({ ...prev, work_start_time: e.target.value }))}
-              />
+              <Input type="time" value={formData.work_start_time} onChange={e => setFormData(prev => ({
+              ...prev,
+              work_start_time: e.target.value
+            }))} />
             </div>
             <div className="space-y-2">
               <Label>Work End</Label>
-              <Input
-                type="time"
-                value={formData.work_end_time}
-                onChange={(e) => setFormData(prev => ({ ...prev, work_end_time: e.target.value }))}
-              />
+              <Input type="time" value={formData.work_end_time} onChange={e => setFormData(prev => ({
+              ...prev,
+              work_end_time: e.target.value
+            }))} />
             </div>
             <div className="space-y-2">
               <Label>Break Start</Label>
-              <Input
-                type="time"
-                value={formData.break_start_time}
-                onChange={(e) => setFormData(prev => ({ ...prev, break_start_time: e.target.value }))}
-              />
+              <Input type="time" value={formData.break_start_time} onChange={e => setFormData(prev => ({
+              ...prev,
+              break_start_time: e.target.value
+            }))} />
             </div>
             <div className="space-y-2">
               <Label>Break End</Label>
-              <Input
-                type="time"
-                value={formData.break_end_time}
-                onChange={(e) => setFormData(prev => ({ ...prev, break_end_time: e.target.value }))}
-              />
+              <Input type="time" value={formData.break_end_time} onChange={e => setFormData(prev => ({
+              ...prev,
+              break_end_time: e.target.value
+            }))} />
             </div>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>Late Threshold (min)</Label>
-              <Input
-                type="number"
-                min={0}
-                max={120}
-                value={formData.late_threshold_minutes}
-                onChange={(e) => setFormData(prev => ({ ...prev, late_threshold_minutes: parseInt(e.target.value) || 0 }))}
-              />
+              <Input type="number" min={0} max={120} value={formData.late_threshold_minutes} onChange={e => setFormData(prev => ({
+              ...prev,
+              late_threshold_minutes: parseInt(e.target.value) || 0
+            }))} />
             </div>
             <div className="space-y-2">
               <Label>Timezone</Label>
-              <TimezoneSelector 
-                value={formData.timezone} 
-                onChange={(value) => setFormData(prev => ({ ...prev, timezone: value }))}
-                countryCode={office.country || undefined}
-                className="w-full"
-              />
+              <TimezoneSelector value={formData.timezone} onChange={value => setFormData(prev => ({
+              ...prev,
+              timezone: value
+            }))} countryCode={office.country || undefined} className="w-full" />
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1">
+                <CalendarDays className="h-3 w-3" />
+                Leave Year Starts
+              </Label>
+              <YearStartPicker month={leaveYearStart.month} day={leaveYearStart.day} onChange={handleLeaveYearChange} disabled={savingLeaveYear} />
             </div>
             <div className="space-y-2">
               <Label className="text-muted-foreground">Break Duration</Label>
               <div className="h-9 flex items-center text-sm">
                 {(() => {
-                  const [startH, startM] = formData.break_start_time.split(':').map(Number);
-                  const [endH, endM] = formData.break_end_time.split(':').map(Number);
-                  const mins = (endH * 60 + endM) - (startH * 60 + startM);
-                  if (mins <= 0) return '—';
-                  if (mins >= 60) return `${Math.floor(mins / 60)} hour${Math.floor(mins / 60) > 1 ? 's' : ''} ${mins % 60 > 0 ? `${mins % 60} min` : ''}`;
-                  return `${mins} min`;
-                })()}
+                const [startH, startM] = formData.break_start_time.split(':').map(Number);
+                const [endH, endM] = formData.break_end_time.split(':').map(Number);
+                const mins = endH * 60 + endM - (startH * 60 + startM);
+                if (mins <= 0) return '—';
+                if (mins >= 60) return `${Math.floor(mins / 60)} hour${Math.floor(mins / 60) > 1 ? 's' : ''} ${mins % 60 > 0 ? `${mins % 60} min` : ''}`;
+                return `${mins} min`;
+              })()}
               </div>
             </div>
           </div>
 
           <div className="flex justify-end pt-2">
             <Button onClick={handleSave} disabled={saving}>
-              {saving ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4 mr-2" />
-              )}
+              {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Save Schedule
             </Button>
           </div>
@@ -380,6 +331,5 @@ export const OfficeScheduleCard = ({ office, onOfficeUpdated }: OfficeScheduleCa
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
-  );
+    </>;
 };
