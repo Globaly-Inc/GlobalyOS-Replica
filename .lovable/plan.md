@@ -1,65 +1,66 @@
 
-# Fix "column p.user_id does not exist" Error When Changing Office
+
+# Fix Leave Request Deletion - Missing Column Error
 
 ## Problem Summary
-When you try to change Kavita's office from Australia to USA and click "Save", the error "column p.user_id does not exist" appears. This prevents any office changes from being saved.
+When trying to delete Tula Bahadur Gurung's leave record, the operation fails with "Failed to delete leave record". The database logs show:
 
-## Root Cause
-There are **4 database trigger functions** that run when employee records are updated. These functions contain an incorrect SQL join condition:
-
-```text
-Current (WRONG):
-LEFT JOIN profiles p ON p.user_id = e.user_id
-
-Should be:
-LEFT JOIN profiles p ON p.id = e.user_id
+```
+ERROR: record "old" has no field "leave_type_id"
 ```
 
-The `profiles` table uses `id` as the user identifier (matching the auth system), not `user_id`. When you update an employee's office, the `sync_office_space_members` trigger fires and fails because it tries to use a column that doesn't exist.
+## Root Cause
+The `handle_leave_request_delete` database trigger function is using legacy column names that were removed during the office-centric leave migration:
 
-## Affected Functions
-| Function Name | Purpose |
-|--------------|---------|
-| `sync_office_space_members` | Updates chat space memberships when an employee's office changes |
-| `sync_department_space_members` | Updates chat space memberships when an employee's department changes |
-| `sync_company_space_members` | Updates chat space memberships when an employee's status changes |
-| `sync_project_space_members` | Updates chat space memberships when an employee is added/removed from projects |
+| What the function references | Current state |
+|------------------------------|---------------|
+| `OLD.leave_type_id` | Column was dropped from `leave_requests` |
+| `leave_types` table | Table was dropped |
+| `leave_type_balances.leave_type_id` | Column was dropped |
+| `leave_balance_logs.leave_type_id` | Column was dropped |
+
+The system now uses `office_leave_type_id` exclusively with the `office_leave_types` table.
 
 ## Solution
 
 ### Database Migration
-Create a new migration that fixes all 4 functions by changing the join from `p.user_id` to `p.id`:
+Create a new migration that rewrites the `handle_leave_request_delete()` function to use the office-centric architecture:
 
+**Key changes:**
+1. Use `OLD.office_leave_type_id` instead of `OLD.leave_type_id`
+2. Look up balances from `leave_type_balances` using `office_leave_type_id`
+3. Insert log entries with `office_leave_type_id` instead of `leave_type_id`
+4. Keep the same refund logic (restore balance when approved leave is deleted)
+
+**Updated function logic:**
 ```text
-Fix the profiles join in:
-1. sync_office_space_members() - Fix the join condition
-2. sync_department_space_members() - Fix the join condition
-3. sync_company_space_members() - Fix the join condition
-4. sync_project_space_members() - Fix both INSERT and DELETE handling joins
-```
-
-Each function will be recreated with `CREATE OR REPLACE FUNCTION` using the corrected join:
-```sql
-LEFT JOIN profiles p ON p.id = e.user_id
+1. Check if the leave being deleted was approved (skip if pending/rejected)
+2. Get the office_leave_type_id from the leave request being deleted
+3. If no office_leave_type_id, skip the balance refund (graceful handling)
+4. Calculate the year from the leave start date
+5. Get current balance from leave_type_balances using office_leave_type_id
+6. Insert a refund log entry with office_leave_type_id (sync trigger will update the actual balance)
+7. Allow the delete to proceed
 ```
 
 ## Technical Details
 
-The migration will:
-1. Create or replace all 4 functions with the corrected join condition
-2. Keep all existing logic and functionality intact
-3. Maintain `SECURITY DEFINER` and `SET search_path = public` for security
-4. No triggers need to be modified (they already point to the correct functions)
+| Aspect | Before (Broken) | After (Fixed) |
+|--------|-----------------|---------------|
+| Leave type lookup | `OLD.leave_type_id` + fallback to `leave_types` table | `OLD.office_leave_type_id` directly |
+| Balance lookup | `WHERE leave_type_id = v_leave_type_id` | `WHERE office_leave_type_id = v_office_leave_type_id` |
+| Log insertion | Inserts `leave_type_id` column | Inserts `office_leave_type_id` column |
+
+The existing `sync_balance_from_log` trigger will automatically update the `leave_type_balances` table when the refund log is inserted.
 
 ## Expected Outcome
 After this fix:
-- Changing an employee's office will work correctly
-- Changing an employee's department will work correctly
-- Employee status changes will work correctly
-- Project assignments will work correctly
-- Chat space auto-sync will properly resolve employee names
+- Deleting any leave request (pending, approved, rejected) will work correctly
+- For approved leaves, the balance will be automatically refunded
+- A log entry will be created showing the deletion and refund
 
 ## Files to Create
 | File | Description |
 |------|-------------|
-| `supabase/migrations/[timestamp]_fix_profiles_join_in_sync_functions.sql` | Fix all 4 sync functions |
+| `supabase/migrations/[timestamp]_fix_handle_leave_request_delete_office_centric.sql` | Update the delete trigger to use office_leave_type_id |
+
