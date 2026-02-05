@@ -26,9 +26,10 @@
  interface OfficeAttendanceSettingsProps {
    officeId: string;
    organizationId: string;
+  embedded?: boolean;
  }
  
- export const OfficeAttendanceSettings = ({ officeId, organizationId }: OfficeAttendanceSettingsProps) => {
+export const OfficeAttendanceSettings = ({ officeId, organizationId, embedded = false }: OfficeAttendanceSettingsProps) => {
    const { data: settings, isLoading } = useOfficeAttendanceSettings(officeId);
    const { data: exemptions = [], isLoading: exemptionsLoading } = useOfficeAttendanceExemptions(officeId);
    const { data: currentEmployee } = useCurrentEmployee();
@@ -106,6 +107,13 @@
    };
  
    if (isLoading || !localSettings) {
+    if (embedded) {
+      return (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      );
+    }
      return (
        <Card>
          <CardHeader>
@@ -121,6 +129,141 @@
      );
    }
  
+  const content = (
+    <>
+      <Tabs defaultValue="checkin" className="w-full">
+        <TabsList className="w-full justify-start flex-wrap h-auto gap-1 bg-muted/50 p-1">
+          <TabsTrigger value="checkin" className="gap-1.5 text-xs">
+            <QrCode className="h-3.5 w-3.5" />
+            Check-in Methods
+          </TabsTrigger>
+          <TabsTrigger value="sessions" className="gap-1.5 text-xs">
+            <Users className="h-3.5 w-3.5" />
+            Sessions
+          </TabsTrigger>
+          <TabsTrigger value="overtime" className="gap-1.5 text-xs">
+            <TrendingUp className="h-3.5 w-3.5" />
+            Overtime
+          </TabsTrigger>
+          <TabsTrigger value="autocheckout" className="gap-1.5 text-xs">
+            <LogOut className="h-3.5 w-3.5" />
+            Auto Checkout
+          </TabsTrigger>
+          <TabsTrigger value="exemptions" className="gap-1.5 text-xs">
+            <UserMinus className="h-3.5 w-3.5" />
+            Exemptions
+          </TabsTrigger>
+        </TabsList>
+
+        <div className="mt-4">
+          <TabsContent value="checkin" className="mt-0">
+            <CheckInMethodsTab
+              officeCheckinMethods={localSettings.office_checkin_methods || ['qr', 'location']}
+              hybridCheckinMethods={localSettings.hybrid_checkin_methods || ['qr', 'location', 'remote']}
+              remoteCheckinMethods={localSettings.remote_checkin_methods || ['remote']}
+              requireLocationForOffice={localSettings.require_location_for_office ?? true}
+              requireLocationForHybrid={localSettings.require_location_for_hybrid ?? false}
+              locationRadiusMeters={localSettings.location_radius_meters ?? 100}
+              onMethodChange={handleMethodChange}
+              onLocationSettingsChange={handleSettingChange}
+            />
+          </TabsContent>
+
+          <TabsContent value="sessions" className="mt-0">
+            <SessionsTab
+              multiSessionEnabled={localSettings.multi_session_enabled ?? true}
+              maxSessionsPerDay={localSettings.max_sessions_per_day ?? 3}
+              earlyCheckoutReasonRequired={localSettings.early_checkout_reason_required ?? true}
+              onSettingChange={handleSettingChange}
+            />
+          </TabsContent>
+
+          <TabsContent value="overtime" className="mt-0">
+            <OvertimeTab
+              autoAdjustmentsEnabled={localSettings.auto_adjustments_enabled ?? false}
+              overtimeCreditLeaveTypeId={localSettings.overtime_credit_leave_type_id ?? null}
+              undertimeDebitLeaveTypeId={localSettings.undertime_debit_leave_type_id ?? null}
+              undertimeFallbackLeaveTypeId={localSettings.undertime_fallback_leave_type_id ?? null}
+              maxDilDays={localSettings.max_dil_days ?? null}
+              minOvertimeMinutes={localSettings.min_overtime_minutes ?? 30}
+              minUndertimeMinutes={localSettings.min_undertime_minutes ?? 15}
+              leaveTypes={leaveTypes}
+              onSettingChange={handleSettingChange}
+            />
+          </TabsContent>
+
+          <TabsContent value="autocheckout" className="mt-0">
+            <AutoCheckoutTab
+              autoCheckoutEnabled={localSettings.auto_checkout_enabled ?? false}
+              autoCheckoutAfterMinutes={localSettings.auto_checkout_after_minutes ?? 60}
+              autoCheckoutStatus={localSettings.auto_checkout_status ?? 'present'}
+              onSettingChange={handleSettingChange}
+            />
+          </TabsContent>
+
+          <TabsContent value="exemptions" className="mt-0">
+            <ExemptionsTab
+              officeId={officeId}
+              exemptions={exemptions}
+              isLoading={exemptionsLoading}
+              onAddExemption={handleAddExemption}
+              onRemoveExemption={handleRemoveExemption}
+              isAdding={addExemption.isPending}
+              isRemoving={removeExemption.isPending}
+            />
+          </TabsContent>
+        </div>
+      </Tabs>
+
+      {/* Save button - show for all tabs except exemptions (which saves immediately) */}
+      {hasChanges && (
+        <div className="pt-4 border-t flex justify-end">
+          <Button onClick={handleSave} disabled={updateSettings.isPending} className="gap-2">
+            {updateSettings.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            {updateSettings.isPending ? 'Saving...' : 'Save Settings'}
+          </Button>
+        </div>
+      )}
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                Attendance Rules
+              </CardTitle>
+              <CardDescription>
+                Configure check-in rules and policies for this office
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="attendance-enabled" className="text-sm">Enabled</Label>
+                <Switch
+                  id="attendance-enabled"
+                  checked={localSettings.attendance_enabled ?? true}
+                  onCheckedChange={(checked) => handleSettingChange('attendance_enabled', checked)}
+                />
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {content}
+        </CardContent>
+      </Card>
+    );
+  }
+
    return (
      <Card>
        <CardHeader className="pb-3">
@@ -148,103 +291,7 @@
        </CardHeader>
  
        <CardContent className="space-y-4">
-         <Tabs defaultValue="checkin" className="w-full">
-           <TabsList className="w-full justify-start flex-wrap h-auto gap-1 bg-muted/50 p-1">
-             <TabsTrigger value="checkin" className="gap-1.5 text-xs">
-               <QrCode className="h-3.5 w-3.5" />
-               Check-in Methods
-             </TabsTrigger>
-             <TabsTrigger value="sessions" className="gap-1.5 text-xs">
-               <Users className="h-3.5 w-3.5" />
-               Sessions
-             </TabsTrigger>
-             <TabsTrigger value="overtime" className="gap-1.5 text-xs">
-               <TrendingUp className="h-3.5 w-3.5" />
-               Overtime
-             </TabsTrigger>
-             <TabsTrigger value="autocheckout" className="gap-1.5 text-xs">
-               <LogOut className="h-3.5 w-3.5" />
-               Auto Checkout
-             </TabsTrigger>
-             <TabsTrigger value="exemptions" className="gap-1.5 text-xs">
-               <UserMinus className="h-3.5 w-3.5" />
-               Exemptions
-             </TabsTrigger>
-           </TabsList>
- 
-           <div className="mt-4">
-             <TabsContent value="checkin" className="mt-0">
-               <CheckInMethodsTab
-                 officeCheckinMethods={localSettings.office_checkin_methods || ['qr', 'location']}
-                 hybridCheckinMethods={localSettings.hybrid_checkin_methods || ['qr', 'location', 'remote']}
-                 remoteCheckinMethods={localSettings.remote_checkin_methods || ['remote']}
-                 requireLocationForOffice={localSettings.require_location_for_office ?? true}
-                 requireLocationForHybrid={localSettings.require_location_for_hybrid ?? false}
-                 locationRadiusMeters={localSettings.location_radius_meters ?? 100}
-                 onMethodChange={handleMethodChange}
-                 onLocationSettingsChange={handleSettingChange}
-               />
-             </TabsContent>
- 
-             <TabsContent value="sessions" className="mt-0">
-               <SessionsTab
-                 multiSessionEnabled={localSettings.multi_session_enabled ?? true}
-                 maxSessionsPerDay={localSettings.max_sessions_per_day ?? 3}
-                 earlyCheckoutReasonRequired={localSettings.early_checkout_reason_required ?? true}
-                 onSettingChange={handleSettingChange}
-               />
-             </TabsContent>
- 
-             <TabsContent value="overtime" className="mt-0">
-               <OvertimeTab
-                 autoAdjustmentsEnabled={localSettings.auto_adjustments_enabled ?? false}
-                 overtimeCreditLeaveTypeId={localSettings.overtime_credit_leave_type_id ?? null}
-                 undertimeDebitLeaveTypeId={localSettings.undertime_debit_leave_type_id ?? null}
-                 undertimeFallbackLeaveTypeId={localSettings.undertime_fallback_leave_type_id ?? null}
-                 maxDilDays={localSettings.max_dil_days ?? null}
-                 minOvertimeMinutes={localSettings.min_overtime_minutes ?? 30}
-                 minUndertimeMinutes={localSettings.min_undertime_minutes ?? 15}
-                 leaveTypes={leaveTypes}
-                 onSettingChange={handleSettingChange}
-               />
-             </TabsContent>
- 
-             <TabsContent value="autocheckout" className="mt-0">
-               <AutoCheckoutTab
-                 autoCheckoutEnabled={localSettings.auto_checkout_enabled ?? false}
-                 autoCheckoutAfterMinutes={localSettings.auto_checkout_after_minutes ?? 60}
-                 autoCheckoutStatus={localSettings.auto_checkout_status ?? 'present'}
-                 onSettingChange={handleSettingChange}
-               />
-             </TabsContent>
- 
-             <TabsContent value="exemptions" className="mt-0">
-               <ExemptionsTab
-                 officeId={officeId}
-                 exemptions={exemptions}
-                 isLoading={exemptionsLoading}
-                 onAddExemption={handleAddExemption}
-                 onRemoveExemption={handleRemoveExemption}
-                 isAdding={addExemption.isPending}
-                 isRemoving={removeExemption.isPending}
-               />
-             </TabsContent>
-           </div>
-         </Tabs>
- 
-         {/* Save button - show for all tabs except exemptions (which saves immediately) */}
-         {hasChanges && (
-           <div className="pt-4 border-t flex justify-end">
-             <Button onClick={handleSave} disabled={updateSettings.isPending} className="gap-2">
-               {updateSettings.isPending ? (
-                 <Loader2 className="h-4 w-4 animate-spin" />
-               ) : (
-                 <Save className="h-4 w-4" />
-               )}
-               {updateSettings.isPending ? 'Saving...' : 'Save Settings'}
-             </Button>
-           </div>
-         )}
+        {content}
        </CardContent>
      </Card>
    );

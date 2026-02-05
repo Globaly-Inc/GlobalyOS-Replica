@@ -1,8 +1,9 @@
 import { useState } from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Building2, MapPin, Trash2 } from 'lucide-react';
+import { Building2, MapPin, Trash2, Users, Clock, CalendarDays } from 'lucide-react';
 import { EditableField } from '@/components/EditableField';
 import { OfficeScheduleCard } from './OfficeScheduleCard';
 import { OfficeOverviewStats } from './OfficeOverviewStats';
@@ -146,31 +147,54 @@ export const OfficeDetailView = ({ office, onOfficeUpdated, onOfficeDeleted }: O
         </CardContent>
       </Card>
 
-      {/* Today's Overview Stats */}
-      <OfficeOverviewStats officeId={office.id} />
+      {/* Tabbed Content */}
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="w-full justify-start">
+          <TabsTrigger value="overview" className="gap-1.5">
+            <Users className="h-4 w-4" />
+            Overview & Team
+          </TabsTrigger>
+          <TabsTrigger value="attendance" className="gap-1.5">
+            <Clock className="h-4 w-4" />
+            Attendance Settings
+          </TabsTrigger>
+          <TabsTrigger value="leave" className="gap-1.5">
+            <CalendarDays className="h-4 w-4" />
+            Leave Settings
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Office Schedule Card */}
-      <OfficeScheduleCard office={office} onOfficeUpdated={onOfficeUpdated} />
+        <TabsContent value="overview" className="mt-4">
+          <div className="space-y-6">
+            <OfficeOverviewStats officeId={office.id} />
+            <OfficeTeamList officeId={office.id} officeName={office.name} />
+          </div>
+        </TabsContent>
 
-      {/* Leave Settings */}
-      {currentOrg?.id && (
-        <OfficeLeaveSettings
-          office={office}
-          organizationId={currentOrg.id}
-          onOfficeUpdated={onOfficeUpdated}
-        />
-      )}
+        <TabsContent value="attendance" className="mt-4">
+          <div className="space-y-6">
+            <OfficeScheduleCard office={office} onOfficeUpdated={onOfficeUpdated} />
+            {currentOrg?.id && (
+              <OfficeAttendanceSettings
+                officeId={office.id}
+                organizationId={currentOrg.id}
+                embedded
+              />
+            )}
+          </div>
+        </TabsContent>
 
-       {/* Attendance Settings */}
-       {currentOrg?.id && (
-         <OfficeAttendanceSettings
-           officeId={office.id}
-           organizationId={currentOrg.id}
-         />
-       )}
- 
-      {/* Team Members List */}
-      <OfficeTeamList officeId={office.id} officeName={office.name} />
+        <TabsContent value="leave" className="mt-4">
+          {currentOrg?.id && (
+            <OfficeLeaveSettings
+              office={office}
+              organizationId={currentOrg.id}
+              onOfficeUpdated={onOfficeUpdated}
+              embedded
+            />
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
