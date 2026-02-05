@@ -10,9 +10,11 @@ import { OfficeOverviewStats } from './OfficeOverviewStats';
 import { OfficeTeamList } from './OfficeTeamList';
 import { OfficeLeaveSettings } from '@/components/settings/OfficeLeaveSettings';
  import { OfficeAttendanceSettings } from './OfficeAttendanceSettings';
+ import { OfficeAddressEditDialog } from './OfficeAddressEditDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useOrganization } from '@/hooks/useOrganization';
+ import { getCountryFlag } from '@/lib/countryFlags';
 
 export interface Office {
   id: string;
@@ -53,6 +55,37 @@ export const OfficeDetailView = ({ office, onOfficeUpdated, onOfficeDeleted }: O
     toast.success('Office updated');
   };
 
+   const handleUpdateAddress = async (address: string, city: string, country: string) => {
+     const { error } = await supabase
+       .from('offices')
+       .update({ 
+         address: address || null, 
+         city: city || null, 
+         country: country || null 
+       })
+       .eq('id', office.id);
+ 
+     if (error) {
+       toast.error('Failed to update address');
+       console.error('Error updating address:', error);
+       return;
+     }
+ 
+     onOfficeUpdated({ 
+       id: office.id, 
+       address: address || null, 
+       city: city || null, 
+       country: country || null 
+     });
+     toast.success('Address updated');
+   };
+ 
+   const formattedAddress = [office.address, office.city, office.country]
+     .filter(Boolean)
+     .join(', ');
+ 
+   const countryFlag = office.country ? getCountryFlag(office.country) : null;
+ 
   const handleDelete = async () => {
     setDeleting(true);
     const { error } = await supabase
@@ -120,27 +153,23 @@ export const OfficeDetailView = ({ office, onOfficeUpdated, onOfficeDeleted }: O
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <EditableField
-              label="Address"
-              value={office.address || ''}
-              onSave={(value) => handleUpdateField('address', value)}
-              placeholder="Street address"
-              icon={<MapPin className="h-4 w-4" />}
-            />
-            <EditableField
-              label="City"
-              value={office.city || ''}
-              onSave={(value) => handleUpdateField('city', value)}
-              placeholder="City"
-            />
-            <EditableField
-              label="Country"
-              value={office.country || ''}
-              onSave={(value) => handleUpdateField('country', value)}
-              placeholder="Country"
-            />
-          </div>
+           <div className="flex items-center gap-2">
+             <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+             <div className="flex items-center gap-2 flex-1 min-w-0">
+               <p className="text-sm text-foreground">
+                 {formattedAddress || 'No address specified'}
+               </p>
+               {countryFlag && (
+                 <span className="text-lg">{countryFlag}</span>
+               )}
+             </div>
+             <OfficeAddressEditDialog
+               address={office.address}
+               city={office.city}
+               country={office.country}
+               onSave={handleUpdateAddress}
+             />
+           </div>
           <div className="pt-2 text-sm text-muted-foreground">
             {office.employee_count} {office.employee_count === 1 ? 'employee' : 'employees'} in this office
           </div>
