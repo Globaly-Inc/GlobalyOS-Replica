@@ -8,6 +8,7 @@ import { OfficeScheduleCard } from './OfficeScheduleCard';
 import { OfficeOverviewStats } from './OfficeOverviewStats';
 import { OfficeTeamList } from './OfficeTeamList';
 import { OfficeLeaveSettings } from '@/components/settings/OfficeLeaveSettings';
+ import { OfficeAttendanceSettings } from './OfficeAttendanceSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useOrganization } from '@/hooks/useOrganization';
@@ -160,6 +161,14 @@ export const OfficeDetailView = ({ office, onOfficeUpdated, onOfficeDeleted }: O
         />
       )}
 
+       {/* Attendance Settings */}
+       {currentOrg?.id && (
+         <OfficeAttendanceSettings
+           officeId={office.id}
+           organizationId={currentOrg.id}
+         />
+       )}
+ 
       {/* Team Members List */}
       <OfficeTeamList officeId={office.id} officeName={office.name} />
     </div>
