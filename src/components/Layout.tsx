@@ -5,6 +5,7 @@ import { OrganizationSwitcher } from "./OrganizationSwitcher";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { TopNav } from "./TopNav";
 import { SubNav } from "./SubNav";
+ import { SettingsSubNav } from "./SettingsSubNav";
 
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { PullToRefreshIndicator } from "./PullToRefreshIndicator";
@@ -146,6 +147,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
       {/* Sub Navigation for Team section (includes Hiring) */}
       <SubNav />
+       
+       {/* Sub Navigation for Settings section */}
+       <SettingsSubNav />
       
 
       {/* Page Content */}
