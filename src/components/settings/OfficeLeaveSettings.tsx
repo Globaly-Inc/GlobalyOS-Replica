@@ -52,6 +52,7 @@ interface OfficeLeaveSettingsProps {
   office: Office;
   organizationId: string;
   onOfficeUpdated?: (updates: Partial<Office>) => void;
+  embedded?: boolean;
 }
 
 const CARRY_FORWARD_OPTIONS = [
@@ -61,7 +62,7 @@ const CARRY_FORWARD_OPTIONS = [
   { value: 'negative_only', label: 'Negative only', description: 'Only negative balances carry forward' },
 ];
 
-export function OfficeLeaveSettings({ office, organizationId, onOfficeUpdated }: OfficeLeaveSettingsProps) {
+export function OfficeLeaveSettings({ office, organizationId, onOfficeUpdated, embedded = false }: OfficeLeaveSettingsProps) {
   const [leaveTypes, setLeaveTypes] = useState<OfficeLeaveType[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -328,306 +329,320 @@ export function OfficeLeaveSettings({ office, organizationId, onOfficeUpdated }:
 
   const leaveEnabled = office.leave_enabled ?? true;
 
+  const headerContent = (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        <div className="p-2 rounded-lg bg-primary/10">
+          <CalendarDays className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <CardTitle className="text-base">Leave Settings</CardTitle>
+          <CardDescription>Configure leave types and policies for this office</CardDescription>
+        </div>
+      </div>
+      <Switch
+        checked={leaveEnabled}
+        onCheckedChange={handleLeaveEnabledChange}
+      />
+    </div>
+  );
+
+  const mainContent = leaveEnabled && (
+    <div className="space-y-6">
+      {/* Leave Year Configuration */}
+      <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
+        <div>
+          <Label className="text-sm font-medium">Leave Year Start</Label>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            When annual leave balances reset
+          </p>
+        </div>
+        <YearStartPicker
+          month={office.leave_year_start_month || 1}
+          day={office.leave_year_start_day || 1}
+          onChange={handleYearStartChange}
+        />
+      </div>
+
+      {/* Leave Types */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium">Leave Types</Label>
+          <div className="flex gap-2">
+            {leaveTypes.length === 0 && (
+              <Button variant="outline" size="sm" onClick={copyFromTemplates} disabled={saving}>
+                <Copy className="h-4 w-4 mr-1.5" />
+                Copy from Templates
+              </Button>
+            )}
+            <Button size="sm" onClick={openAddDialog}>
+              <Plus className="h-4 w-4 mr-1.5" />
+              Add Type
+            </Button>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : leaveTypes.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground border rounded-lg">
+            <CalendarDays className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">No leave types configured</p>
+            <p className="text-xs mt-1">Add leave types or copy from templates</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {leaveTypes.map((lt) => (
+              <div
+                key={lt.id}
+                className={cn(
+                  "flex items-center gap-3 p-3 rounded-lg border transition-colors",
+                  lt.is_active ? "bg-card" : "bg-muted/30 opacity-60"
+                )}
+              >
+                <Switch
+                  checked={lt.is_active}
+                  onCheckedChange={() => handleToggleActive(lt)}
+                  className="shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm">{lt.name}</span>
+                    <Badge
+                      variant="secondary"
+                      className={cn(
+                        "text-[10px] px-1.5 py-0",
+                        lt.category === 'paid'
+                          ? 'bg-green-100/80 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          : ''
+                      )}
+                    >
+                      {lt.category}
+                    </Badge>
+                    {lt.is_system && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                        System
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {lt.default_days} days • {lt.min_days_advance > 0 ? `${lt.min_days_advance}d advance` : 'No advance notice'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => openEditDialog(lt)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Leave Type</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete "{lt.name}"? This cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDelete(lt)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const dialogContent = (
+    <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{editingType ? 'Edit Leave Type' : 'Add Leave Type'}</DialogTitle>
+          <DialogDescription>
+            {editingType ? 'Update the leave type details' : 'Create a new leave type for this office'}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label>Name</Label>
+            <Input
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="e.g., Annual Leave"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Category</Label>
+              <Select
+                value={formData.category}
+                onValueChange={(v) => setFormData({ ...formData, category: v as 'paid' | 'unpaid' })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="unpaid">Unpaid</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Default Days</Label>
+              <Input
+                type="number"
+                min="0"
+                value={formData.default_days}
+                onChange={(e) => setFormData({ ...formData, default_days: parseInt(e.target.value) || 0 })}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Description</Label>
+            <Textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Optional description..."
+              className="h-20"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Advance Notice (days)</Label>
+              <Input
+                type="number"
+                min="0"
+                value={formData.min_days_advance}
+                onChange={(e) => setFormData({ ...formData, min_days_advance: parseInt(e.target.value) || 0 })}
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-1">
+                <Label>Max Negative Days</Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-[200px] text-xs">How many days employees can go negative before being blocked</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <Input
+                type="number"
+                min="0"
+                value={formData.max_negative_days}
+                onChange={(e) => setFormData({ ...formData, max_negative_days: parseInt(e.target.value) || 0 })}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Applies To</Label>
+              <Select
+                value={formData.applies_to_gender}
+                onValueChange={(v) => setFormData({ ...formData, applies_to_gender: v as 'all' | 'male' | 'female' })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Employees</SelectItem>
+                  <SelectItem value="male">Male Only</SelectItem>
+                  <SelectItem value="female">Female Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Carry Forward</Label>
+              <Select
+                value={formData.carry_forward_mode}
+                onValueChange={(v) => setFormData({ ...formData, carry_forward_mode: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CARRY_FORWARD_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 pt-2">
+            <Switch
+              id="is-active"
+              checked={formData.is_active}
+              onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+            />
+            <Label htmlFor="is-active">Active</Label>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+            {editingType ? 'Save Changes' : 'Add Leave Type'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
+  if (embedded) {
+    return (
+      <Card>
+        <CardHeader className="pb-4">
+          {headerContent}
+        </CardHeader>
+        {leaveEnabled && (
+          <CardContent className="space-y-6">
+            {mainContent}
+          </CardContent>
+        )}
+        {dialogContent}
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <CalendarDays className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <CardTitle className="text-base">Leave Settings</CardTitle>
-              <CardDescription>Configure leave types and policies for this office</CardDescription>
-            </div>
-          </div>
-          <Switch
-            checked={leaveEnabled}
-            onCheckedChange={handleLeaveEnabledChange}
-          />
-        </div>
+        {headerContent}
       </CardHeader>
 
       {leaveEnabled && (
         <CardContent className="space-y-6">
-          {/* Leave Year Configuration */}
-          <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
-            <div>
-              <Label className="text-sm font-medium">Leave Year Start</Label>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                When annual leave balances reset
-              </p>
-            </div>
-            <YearStartPicker
-              month={office.leave_year_start_month || 1}
-              day={office.leave_year_start_day || 1}
-              onChange={handleYearStartChange}
-            />
-          </div>
-
-          {/* Leave Types */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Leave Types</Label>
-              <div className="flex gap-2">
-                {leaveTypes.length === 0 && (
-                  <Button variant="outline" size="sm" onClick={copyFromTemplates} disabled={saving}>
-                    <Copy className="h-4 w-4 mr-1.5" />
-                    Copy from Templates
-                  </Button>
-                )}
-                <Button size="sm" onClick={openAddDialog}>
-                  <Plus className="h-4 w-4 mr-1.5" />
-                  Add Type
-                </Button>
-              </div>
-            </div>
-
-            {loading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : leaveTypes.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground border rounded-lg">
-                <CalendarDays className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No leave types configured</p>
-                <p className="text-xs mt-1">Add leave types or copy from templates</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {leaveTypes.map((lt) => (
-                  <div
-                    key={lt.id}
-                    className={cn(
-                      "flex items-center gap-3 p-3 rounded-lg border transition-colors",
-                      lt.is_active ? "bg-card" : "bg-muted/30 opacity-60"
-                    )}
-                  >
-                    <Switch
-                      checked={lt.is_active}
-                      onCheckedChange={() => handleToggleActive(lt)}
-                      className="shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{lt.name}</span>
-                        <Badge
-                          variant="secondary"
-                        className={cn(
-                          "text-[10px] px-1.5 py-0",
-                          lt.category === 'paid'
-                            ? 'bg-green-100/80 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                            : ''
-                        )}
-                        >
-                          {lt.category}
-                        </Badge>
-                        {lt.is_system && (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                            System
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {lt.default_days} days • {lt.min_days_advance > 0 ? `${lt.min_days_advance}d advance` : 'No advance notice'}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => openEditDialog(lt)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Leave Type</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete "{lt.name}"? This cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDelete(lt)}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          {mainContent}
         </CardContent>
       )}
 
-      {/* Edit/Add Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{editingType ? 'Edit Leave Type' : 'Add Leave Type'}</DialogTitle>
-            <DialogDescription>
-              Configure the leave type settings for this office
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-sm">Name</Label>
-                <Input
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g., Annual Leave"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm">Category</Label>
-                <Select
-                  value={formData.category}
-                  onValueChange={(v) => setFormData({ ...formData, category: v as 'paid' | 'unpaid' })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="paid">Paid</SelectItem>
-                    <SelectItem value="unpaid">Unpaid</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-sm">Description</Label>
-              <Textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Optional description..."
-                rows={2}
-              />
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-sm">Default Days</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={formData.default_days}
-                  onChange={(e) => setFormData({ ...formData, default_days: parseInt(e.target.value) || 0 })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Label className="text-sm flex items-center gap-1">
-                        Advance Notice
-                        <Info className="h-3 w-3 text-muted-foreground" />
-                      </Label>
-                    </TooltipTrigger>
-                    <TooltipContent>Days required before leave starts</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <Input
-                  type="number"
-                  min={0}
-                  value={formData.min_days_advance}
-                  onChange={(e) => setFormData({ ...formData, min_days_advance: parseInt(e.target.value) || 0 })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Label className="text-sm flex items-center gap-1">
-                        Max Negative
-                        <Info className="h-3 w-3 text-muted-foreground" />
-                      </Label>
-                    </TooltipTrigger>
-                    <TooltipContent>Maximum negative balance allowed</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <Input
-                  type="number"
-                  min={0}
-                  value={formData.max_negative_days}
-                  onChange={(e) => setFormData({ ...formData, max_negative_days: parseInt(e.target.value) || 0 })}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-sm">Applies to Gender</Label>
-                <Select
-                  value={formData.applies_to_gender}
-                  onValueChange={(v) => setFormData({ ...formData, applies_to_gender: v as 'all' | 'male' | 'female' })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="male">Male only</SelectItem>
-                    <SelectItem value="female">Female only</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm">Carry Forward</Label>
-                <Select
-                  value={formData.carry_forward_mode}
-                  onValueChange={(v) => setFormData({ ...formData, carry_forward_mode: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CARRY_FORWARD_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={formData.is_active}
-                onCheckedChange={(v) => setFormData({ ...formData, is_active: v })}
-              />
-              <Label className="text-sm">Active</Label>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {editingType ? 'Save Changes' : 'Add Leave Type'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {dialogContent}
     </Card>
   );
 }
