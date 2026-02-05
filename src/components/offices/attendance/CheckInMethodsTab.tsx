@@ -1,8 +1,9 @@
- import { Label } from "@/components/ui/label";
- import { Checkbox } from "@/components/ui/checkbox";
- import { Input } from "@/components/ui/input";
- import { Switch } from "@/components/ui/switch";
- import { Building2, Briefcase, Home, MapPin } from "lucide-react";
+  import { Label } from "@/components/ui/label";
+  import { Checkbox } from "@/components/ui/checkbox";
+  import { Input } from "@/components/ui/input";
+  import { Switch } from "@/components/ui/switch";
+  import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+  import { Building2, Briefcase, Home, MapPin } from "lucide-react";
  
  interface CheckInMethodsTabProps {
    officeCheckinMethods: string[];
@@ -51,33 +52,43 @@
      icon: React.ReactNode, 
      workType: 'office' | 'hybrid' | 'remote',
      methods: string[],
-     availableMethods: typeof AVAILABLE_METHODS
+    availableMethods: typeof AVAILABLE_METHODS,
+    accentColor: string
    ) => (
-     <div className="space-y-3">
-       <div className="flex items-center gap-2">
-         {icon}
-         <span className="font-medium text-sm">{title}</span>
-       </div>
-       <div className="pl-6 space-y-2">
+    <Card className="flex-1 min-w-0">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-sm font-medium">
+          <div className={`p-1.5 rounded-md ${accentColor}`}>
+            {icon}
+          </div>
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2.5">
          {availableMethods.map(method => (
-           <div key={method.id} className="flex items-center gap-3">
+          <div key={method.id} className="flex items-start gap-2.5">
              <Checkbox
                id={`${workType}-${method.id}`}
                checked={methods.includes(method.id)}
                onCheckedChange={() => !method.disabled && toggleMethod(workType, method.id)}
                disabled={method.disabled}
+              className="mt-0.5"
              />
-             <label
-               htmlFor={`${workType}-${method.id}`}
-               className={`text-sm cursor-pointer ${method.disabled ? 'text-muted-foreground' : ''}`}
-             >
-               {method.label}
-               {method.disabled && <span className="ml-2 text-xs text-muted-foreground">({method.description})</span>}
-             </label>
+            <div className="flex-1 min-w-0">
+              <label
+                htmlFor={`${workType}-${method.id}`}
+                className={`text-sm cursor-pointer block ${method.disabled ? 'text-muted-foreground' : ''}`}
+              >
+                {method.label}
+              </label>
+              {method.disabled && (
+                <span className="text-xs text-muted-foreground">{method.description}</span>
+              )}
+            </div>
            </div>
          ))}
-       </div>
-     </div>
+      </CardContent>
+    </Card>
    );
  
    return (
@@ -86,29 +97,32 @@
          Configure how employees check in based on their work type
        </p>
  
-       <div className="grid gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
          {renderMethodSection(
            'Office Workers',
-           <Building2 className="h-4 w-4 text-blue-500" />,
+          <Building2 className="h-4 w-4 text-blue-600" />,
            'office',
            officeCheckinMethods,
-           AVAILABLE_METHODS.filter(m => m.id !== 'remote')
+          AVAILABLE_METHODS.filter(m => m.id !== 'remote'),
+          'bg-blue-100 dark:bg-blue-900/30'
          )}
  
          {renderMethodSection(
            'Hybrid Workers',
-           <Briefcase className="h-4 w-4 text-purple-500" />,
+          <Briefcase className="h-4 w-4 text-purple-600" />,
            'hybrid',
            hybridCheckinMethods,
-           AVAILABLE_METHODS
+          AVAILABLE_METHODS,
+          'bg-purple-100 dark:bg-purple-900/30'
          )}
  
          {renderMethodSection(
            'Remote Workers',
-           <Home className="h-4 w-4 text-green-500" />,
+          <Home className="h-4 w-4 text-green-600" />,
            'remote',
            remoteCheckinMethods,
-           AVAILABLE_METHODS.filter(m => m.id === 'remote' || m.id === 'third_party')
+          AVAILABLE_METHODS.filter(m => m.id === 'remote' || m.id === 'third_party'),
+          'bg-green-100 dark:bg-green-900/30'
          )}
        </div>
  
