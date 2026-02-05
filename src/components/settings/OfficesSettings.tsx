@@ -106,7 +106,18 @@ export const OfficesSettings = () => {
 
   return (
     <div className="flex gap-6 min-h-[600px]">
-      {/* Left Content Area - 3/4 */}
+      {/* Left Sidebar */}
+      <OfficeSidebar
+        offices={filteredOffices}
+        selectedOfficeId={selectedOfficeId}
+        onSelectOffice={setSelectedOfficeId}
+        onOfficeCreated={handleOfficeCreated}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        loading={loading}
+      />
+
+      {/* Right Content Area */}
       <div className="flex-1 min-w-0">
         {selectedOffice ? (
           <OfficeDetailView
@@ -126,17 +137,6 @@ export const OfficesSettings = () => {
           </div>
         )}
       </div>
-
-      {/* Right Sidebar - 1/4 */}
-      <OfficeSidebar
-        offices={filteredOffices}
-        selectedOfficeId={selectedOfficeId}
-        onSelectOffice={setSelectedOfficeId}
-        onOfficeCreated={handleOfficeCreated}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        loading={loading}
-      />
     </div>
   );
 };
