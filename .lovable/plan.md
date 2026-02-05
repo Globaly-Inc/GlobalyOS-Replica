@@ -1,110 +1,116 @@
 
 
-# Office Header Card UI Refinements
+# Simplify Check-in Methods UI
 
 ## Summary
 
-Make three visual adjustments to the office header card: combine address and team members on the same row, show edit icons only on hover, and remove the redundant employee count text.
+Consolidate location settings into the work type cards, rename location options for clarity, add Remote Location Verification for hybrid/remote workers, and remove the Third-party System option.
+
+## Current Issues
+
+1. **Redundant Location Settings section** - The separate "Location Settings" panel duplicates what should be configured per work type
+2. **Confusing naming** - "Location Verification" is ambiguous (office vs remote location)
+3. **Missing remote location option** - No way to verify remote workers' locations
+4. **Unused feature** - Third-party System is disabled and clutters the UI
 
 ## Changes
 
-### 1. Combine Address and Team Stack on Same Row
+### 1. Remove Third-party System from All Cards
 
-**Current layout:**
+Remove `third_party` from `AVAILABLE_METHODS` array entirely.
+
+### 2. Rename and Split Location Methods
+
+**Before:**
+- `location` = "Location Verification"
+
+**After:**
+- `location` = "Office Location Verification" (verify employee is at office)
+- `remote_location` = "Remote Location Verification" (verify employee's remote location)
+
+### 3. Update Available Methods per Work Type
+
+| Work Type | Available Methods |
+|-----------|------------------|
+| Office Workers | QR Code Scan, Office Location Verification |
+| Hybrid Workers | QR Code Scan, Office Location Verification, Remote Check-in, Remote Location Verification |
+| Remote Workers | Remote Check-in, Remote Location Verification |
+
+### 4. Add Geofence Radius Inline with Location Options
+
+When "Office Location Verification" is checked, show a small inline input for geofence radius directly below it (instead of in a separate section).
+
 ```text
-[MapPin] 75 Dalmatia Avenue, Sydney, Australia [flag] [Edit]
-[UsersRound] [Avatar Stack]
-2 employees in this office
+[x] Office Location Verification
+    Geofence: [100] meters
 ```
 
-**New layout:**
-```text
-[MapPin] 75 Dalmatia Avenue, Sydney, Australia [flag] [Edit]  |  [UsersRound] [Avatar Stack]
+### 5. Remove Separate Location Settings Section
+
+Delete the entire `border-t pt-6` section (lines 129-177) since:
+- Geofence radius moves inline with office location option
+- The require_location toggles become redundant (checking the method = requiring it)
+
+## Updated AVAILABLE_METHODS
+
+```typescript
+const OFFICE_METHODS = [
+  { id: 'qr', label: 'QR Code Scan' },
+  { id: 'location', label: 'Office Location Verification' },
+];
+
+const HYBRID_METHODS = [
+  { id: 'qr', label: 'QR Code Scan' },
+  { id: 'location', label: 'Office Location Verification' },
+  { id: 'remote', label: 'Remote Check-in' },
+  { id: 'remote_location', label: 'Remote Location Verification' },
+];
+
+const REMOTE_METHODS = [
+  { id: 'remote', label: 'Remote Check-in' },
+  { id: 'remote_location', label: 'Remote Location Verification' },
+];
 ```
-
-- Use flexbox with `justify-between` to position address on the left and team stack on the right
-- Add a subtle visual separator (via spacing or border) between the two sections
-
-### 2. Show Edit Icons Only on Hover
-
-**Office Name (EditableField):**
-- The `EditableField` component already has hover-to-show functionality built-in (lines 87-94)
-- Currently showing the pencil icon on hover - no changes needed there
-
-**Address Edit Button:**
-- Wrap the address section in a group class
-- Apply `opacity-0 group-hover:opacity-100` to the edit button
-- Add smooth transition for the reveal effect
-
-### 3. Remove Employee Count Text
-
-- Delete the `<div className="pt-2 text-sm text-muted-foreground">` block (lines 213-215)
-- The team member avatar stack already provides visual indication of team size
-
-## Implementation Details
-
-### File to Modify
-
-`src/components/offices/OfficeDetailView.tsx`
-
-### Updated CardContent Structure
-
-```tsx
-<CardContent>
-  {/* Single row: Address (left) + Team Stack (right) */}
-  <div className="flex items-center justify-between gap-4 group">
-    {/* Address section */}
-    <div className="flex items-center gap-2 min-w-0 flex-1">
-      <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-      <p className="text-sm text-foreground truncate">
-        {formattedAddress || 'No address specified'}
-      </p>
-      {countryFlag && (
-        <span className="text-lg flex-shrink-0">{countryFlag}</span>
-      )}
-      {/* Edit button - hidden until hover */}
-      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-        <OfficeAddressEditDialog ... />
-      </div>
-    </div>
-    
-    {/* Team stack section */}
-    {teamMembers.length > 0 && (
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <UsersRound className="h-4 w-4 text-muted-foreground" />
-        <ProfileStack users={teamMembers} ... />
-      </div>
-    )}
-  </div>
-  
-  {/* REMOVED: Employee count text */}
-</CardContent>
-```
-
-### Office Name Edit Icon on Hover
-
-The `EditableField` component already handles hover behavior correctly. The pencil icon appears on hover by default (line 87-94 in EditableField.tsx).
 
 ## Visual Result
 
 **Before:**
 ```text
-+-----------------------------------------------------+
-| [Building] Sydney Office                    [Trash] |
-+-----------------------------------------------------+
-| [MapPin] 75 Dalmatia Avenue, Sydney [flag] [Edit]   |
-| [Users] [Avatar] [Avatar] [Avatar] +3               |
-| 22 employees in this office                         |
-+-----------------------------------------------------+
++------------------+------------------+------------------+
+| Office Workers   | Hybrid Workers   | Remote Workers   |
+| [ ] QR Code      | [ ] QR Code      | [x] Remote       |
+| [ ] Location     | [ ] Location     | [ ] Third-party  |
+| [ ] Third-party  | [ ] Remote       |                  |
+|                  | [ ] Third-party  |                  |
++------------------+------------------+------------------+
+
+--- Location Settings ---
+[ ] Require location for office
+[ ] Require location for hybrid
+Geofence: [100] meters
 ```
 
 **After:**
 ```text
-+-----------------------------------------------------+
-| [Building] Sydney Office                    [Trash] |
-+-----------------------------------------------------+
-| [MapPin] 75 Dalmatia Ave... [flag]   [Users] [Avatars] |
-|                            ^-- Edit appears on hover   |
-+-----------------------------------------------------+
++------------------+------------------+------------------+
+| Office Workers   | Hybrid Workers   | Remote Workers   |
+| [ ] QR Code      | [ ] QR Code      | [x] Remote       |
+| [ ] Office Loc   | [ ] Office Loc   | [ ] Remote Loc   |
+|   Radius: [100]m | [ ] Remote       |   Radius: [100]m |
+|                  | [ ] Remote Loc   |                  |
+|                  |   Radius: [100]m |                  |
++------------------+------------------+------------------+
 ```
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/components/offices/attendance/CheckInMethodsTab.tsx` | Update methods, add inline geofence, remove Location Settings section |
+
+## Props Cleanup
+
+The following props can be simplified:
+- `requireLocationForOffice` / `requireLocationForHybrid` - No longer needed (method selection = requirement)
+- `locationRadiusMeters` - Still needed for inline geofence input
 
