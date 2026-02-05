@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Building2, MapPin, Trash2, Users, Clock, CalendarDays } from 'lucide-react';
+import { Building2, MapPin, Trash2, Users, Clock, CalendarDays, UsersRound } from 'lucide-react';
 import { EditableField } from '@/components/EditableField';
 import { OfficeScheduleCard } from './OfficeScheduleCard';
 import { OfficeOverviewStats } from './OfficeOverviewStats';
@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useOrganization } from '@/hooks/useOrganization';
  import { getCountryFlag } from '@/lib/countryFlags';
+import { ProfileStack, type ProfileStackUser } from '@/components/ui/ProfileStack';
 
 export interface Office {
   id: string;
@@ -38,6 +39,32 @@ interface OfficeDetailViewProps {
 export const OfficeDetailView = ({ office, onOfficeUpdated, onOfficeDeleted }: OfficeDetailViewProps) => {
   const [deleting, setDeleting] = useState(false);
   const { currentOrg } = useOrganization();
+  const [teamMembers, setTeamMembers] = useState<ProfileStackUser[]>([]);
+
+  useEffect(() => {
+    const loadTeamMembers = async () => {
+      if (!currentOrg?.id) return;
+      
+      const { data } = await supabase
+        .from('employee_directory')
+        .select('id, full_name, avatar_url')
+        .eq('office_id', office.id)
+        .eq('organization_id', currentOrg.id)
+        .eq('status', 'active')
+        .order('full_name')
+        .limit(20);
+
+      if (data) {
+        setTeamMembers(data.map(e => ({
+          id: e.id,
+          name: e.full_name,
+          avatar: e.avatar_url,
+        })));
+      }
+    };
+
+    loadTeamMembers();
+  }, [office.id, currentOrg?.id]);
 
   const handleUpdateField = async (field: keyof Office, value: string) => {
     const { error } = await supabase
@@ -170,6 +197,19 @@ export const OfficeDetailView = ({ office, onOfficeUpdated, onOfficeDeleted }: O
                onSave={handleUpdateAddress}
              />
            </div>
+          {teamMembers.length > 0 && (
+            <div className="flex items-center gap-2 pt-1">
+              <UsersRound className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <ProfileStack
+                users={teamMembers}
+                maxVisible={6}
+                size="sm"
+                linkToProfile
+                popoverTitle={`${teamMembers.length} team member${teamMembers.length !== 1 ? 's' : ''}`}
+                popoverHeader={<UsersRound className="h-4 w-4 text-muted-foreground" />}
+              />
+            </div>
+          )}
           <div className="pt-2 text-sm text-muted-foreground">
             {office.employee_count} {office.employee_count === 1 ? 'employee' : 'employees'} in this office
           </div>
