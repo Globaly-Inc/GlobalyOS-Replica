@@ -53,6 +53,13 @@ const Growth = lazy(() => import('./pages/Growth'));
 const Auth = lazy(() => import('./pages/Auth'));
 const Signup = lazy(() => import('./pages/Signup'));
 const Settings = lazy(() => import('./pages/Settings'));
+ const SettingsOrganization = lazy(() => import('./pages/settings/SettingsOrganization'));
+ const SettingsOffices = lazy(() => import('./pages/settings/SettingsOffices'));
+ const SettingsProjects = lazy(() => import('./pages/settings/SettingsProjects'));
+ const SettingsKpis = lazy(() => import('./pages/settings/SettingsKpis'));
+ const SettingsWorkflows = lazy(() => import('./pages/settings/SettingsWorkflows'));
+ const SettingsAI = lazy(() => import('./pages/settings/SettingsAI'));
+ const SettingsBilling = lazy(() => import('./pages/settings/SettingsBilling'));
 const Join = lazy(() => import('./pages/Join'));
 const Leave = lazy(() => import('./pages/Leave'));
 const BulkLeaveImport = lazy(() => import('./pages/BulkLeaveImport'));
@@ -233,7 +240,13 @@ const App = () => <QueryClientProvider client={queryClient}>
                   <Route path="attendance-history" element={<OrgProtectedRoute><OrgAttendanceHistory /></OrgProtectedRoute>} />
                   
                   {/* Settings & Notifications */}
-                  <Route path="settings" element={<OrgProtectedRoute><Settings /></OrgProtectedRoute>} />
+                  <Route path="settings" element={<OrgProtectedRoute><SettingsOrganization /></OrgProtectedRoute>} />
+                  <Route path="settings/offices" element={<OrgProtectedRoute><SettingsOffices /></OrgProtectedRoute>} />
+                  <Route path="settings/projects" element={<OrgProtectedRoute><SettingsProjects /></OrgProtectedRoute>} />
+                  <Route path="settings/kpis" element={<OrgProtectedRoute><SettingsKpis /></OrgProtectedRoute>} />
+                  <Route path="settings/workflows" element={<OrgProtectedRoute><FeatureProtectedRoute feature="workflows"><SettingsWorkflows /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                  <Route path="settings/ai" element={<OrgProtectedRoute><FeatureProtectedRoute feature="ask-ai"><SettingsAI /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                  <Route path="settings/billing" element={<OrgProtectedRoute><SettingsBilling /></OrgProtectedRoute>} />
                   <Route path="settings/workflow/:templateId" element={<OrgProtectedRoute><WorkflowSettings /></OrgProtectedRoute>} />
                   <Route path="notifications" element={<OrgProtectedRoute><Notifications /></OrgProtectedRoute>} />
                   <Route path="notifications/preferences" element={<OrgProtectedRoute><NotificationPreferences /></OrgProtectedRoute>} />

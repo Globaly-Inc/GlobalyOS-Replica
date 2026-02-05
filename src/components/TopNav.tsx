@@ -1,4 +1,4 @@
-import { Home, Users, MessageSquare, BookOpen, CheckSquare, Briefcase, Target, Sparkles } from 'lucide-react';
+import { Home, Users, MessageSquare, BookOpen, CheckSquare, Briefcase, Target, Sparkles, Settings } from 'lucide-react';
 import { OrgLink } from './OrgLink';
 import { cn } from '@/lib/utils';
 import { useLocation, useParams } from 'react-router-dom';
@@ -31,6 +31,7 @@ const mainNavItems: NavItem[] = [
   { name: 'Ask AI', href: '/ask-ai', icon: Sparkles, adminOnly: false, featureFlag: 'ask-ai' },
   { name: 'Tasks', href: '/tasks', icon: CheckSquare, adminOnly: false, ownerOnly: true, isStatic: true, featureFlag: 'tasks' },
   { name: 'CRM', href: '/crm', icon: Briefcase, adminOnly: false, ownerOnly: true, isStatic: true, featureFlag: 'crm' },
+   { name: 'Settings', href: '/settings', icon: Settings, adminOnly: true, hrAllowed: true },
 ];
 
 export const TopNav = ({ isAdmin }: TopNavProps) => {
@@ -77,6 +78,9 @@ export const TopNav = ({ isAdmin }: TopNavProps) => {
              location.pathname === `${basePath}/payroll` ||
              location.pathname.startsWith(`${basePath}/payroll/`);
     }
+     if (href === '/settings') {
+       return location.pathname.startsWith(`${basePath}/settings`);
+     }
     if (href === '/kpi-dashboard') {
       return location.pathname === `${basePath}/kpi-dashboard` ||
              location.pathname.startsWith(`${basePath}/kpi-dashboard/`);
