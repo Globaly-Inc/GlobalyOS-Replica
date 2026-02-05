@@ -97,7 +97,7 @@ const GENDER_OPTIONS = [
   { value: 'male', label: 'Male' },
   { value: 'female', label: 'Female' },
   { value: 'non-binary', label: 'Non-binary' },
-  { value: 'prefer-not-to-say', label: 'Prefer not to say' },
+  { value: 'prefer_not_to_say', label: 'Prefer not to say' },
 ];
 
 const RELATIONSHIP_OPTIONS = [
