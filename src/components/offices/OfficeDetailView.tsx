@@ -51,8 +51,7 @@ export const OfficeDetailView = ({ office, onOfficeUpdated, onOfficeDeleted }: O
         .eq('office_id', office.id)
         .eq('organization_id', currentOrg.id)
         .eq('status', 'active')
-        .order('full_name')
-        .limit(20);
+        .order('full_name');
 
       if (data) {
         setTeamMembers(data.map(e => ({

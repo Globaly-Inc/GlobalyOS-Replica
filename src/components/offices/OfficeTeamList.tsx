@@ -44,8 +44,7 @@ export const OfficeTeamList = ({ officeId, officeName }: OfficeTeamListProps) =>
       .eq('office_id', officeId)
       .eq('organization_id', currentOrg.id)
       .eq('status', 'active')
-      .order('full_name')
-      .limit(20);
+      .order('full_name');
 
     if (!employeesData?.length) {
       setEmployees([]);
