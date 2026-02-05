@@ -1,300 +1,180 @@
 
-# Advanced Office-Level Attendance Settings
- 
- ## ✅ IMPLEMENTATION STATUS
- 
- **Completed:**
- - ✅ Database tables created (`office_attendance_settings`, `office_attendance_exemptions`)
- - ✅ RLS policies configured
- - ✅ Auto-migration of existing org-level settings to offices
- - ✅ Trigger for auto-creating settings on new office creation
- - ✅ All UI components created (5 tabs: Check-in Methods, Sessions, Overtime, Auto Checkout, Exemptions)
- - ✅ Integrated into OfficeDetailView
- - ✅ Data fetching hooks created
- 
- **Pending (Future Enhancements):**
- - Edge function for auto-checkout processing (cron job)
- - Update QRScannerDialog to validate against office settings
- - Update RemoteCheckInDialog to validate against office settings
- - Update process-attendance-adjustments to use office settings
+# Settings Page Navigation Refactor: Sidebar Sub-Navigation
 
-## Overview
+## Summary
 
-This plan transforms the current organization-wide attendance settings into a comprehensive **per-office configuration system**. Each office will have its own attendance policies, check-in methods, exemptions, and automation rules.
+Transform the Settings page from using a horizontal tab bar at the top to a sidebar-based sub-navigation pattern, consistent with the Team section's navigation. This will create a unified navigation experience across the application.
 
-## Current State Analysis
+## Current State
 
-| Feature | Current Implementation |
-|---------|----------------------|
-| Settings scope | Organization-level (all offices share same settings) |
-| Attendance settings location | Organization table columns + AttendanceSettingsDialog |
-| Check-in exemptions | Employee-level (`checkin_exempt` on employees table) |
-| Overtime/undertime adjustments | Organization-level toggle, fixed to "Day In Lieu" |
-| Check-in methods | QR codes per office (existing), no work-type-specific rules |
-| Auto checkout | Not implemented |
-| Check-in method by work type | Not implemented |
+| Aspect | Current Implementation |
+|--------|----------------------|
+| Settings navigation | Horizontal `TabsList` with 7-8 triggers at the top of the page |
+| Team navigation | Horizontal `SubNav` bar with routes like `/team`, `/calendar`, `/leave-history` |
+| Settings routes | Single route `/settings` with client-side tabs |
+| Page layout | `PageHeader` + `Tabs` component with `TabsContent` sections |
 
-## Solution Architecture
+## Proposed Architecture
 
-### New Database Schema
+### Navigation Model
 
-**New table: `office_attendance_settings`**
-```text
-- id (uuid, primary key)
-- office_id (uuid, foreign key to offices, unique)
-- organization_id (uuid, foreign key)
-- attendance_enabled (boolean, default true)
+Convert Settings to a route-based sub-navigation model similar to the Team section:
 
--- Session settings
-- multi_session_enabled (boolean, default true)
-- max_sessions_per_day (integer, default 3)
-- early_checkout_reason_required (boolean, default true)
+| Old Tab | New Route | Description |
+|---------|-----------|-------------|
+| Organization | `/settings` (default) | Organization details |
+| Offices & Structure | `/settings/offices` | Offices, departments, positions |
+| Projects | `/settings/projects` | Project management |
+| KPIs | `/settings/kpis` | KPI generation settings |
+| Workflows | `/settings/workflows` | Workflow templates (feature flag) |
+| Hiring | `/settings/hiring` | Link to hiring settings (feature flag) |
+| AI | `/settings/ai` | AI knowledge settings (feature flag) |
+| Billing | `/settings/billing` | Subscription and billing |
 
--- Automatic adjustments
-- auto_adjustments_enabled (boolean, default false)
-- overtime_credit_leave_type_id (uuid, FK to office_leave_types, nullable)
-- undertime_debit_leave_type_id (uuid, FK to office_leave_types, nullable)
-- max_dil_days (numeric, nullable - cap for Day In Lieu accumulation)
-- min_overtime_minutes (integer, default 30 - minimum overtime before credit)
-- min_undertime_minutes (integer, default 15 - grace period before deduction)
-
--- Auto checkout
-- auto_checkout_enabled (boolean, default false)
-- auto_checkout_after_minutes (integer, default 60 - minutes after schedule end)
-- auto_checkout_status (text, default 'present' - status to set on auto checkout)
-
--- Check-in methods by work type
-- office_checkin_methods (text[], default ['qr','location'])
-- hybrid_checkin_methods (text[], default ['qr','location','remote'])
-- remote_checkin_methods (text[], default ['remote'])
-
--- Location restrictions
-- require_location_for_office (boolean, default true)
-- require_location_for_hybrid (boolean, default false)
-- location_radius_meters (integer, default 100)
-
-- created_at (timestamptz)
-- updated_at (timestamptz)
-```
-
-**New table: `office_attendance_exemptions`**
-```text
-- id (uuid, primary key)
-- office_id (uuid, foreign key)
-- employee_id (uuid, foreign key, unique per office)
-- exempted_at (timestamptz)
-- exempted_by (uuid, who added the exemption)
-- reason (text, nullable)
-```
-
-### UI/UX Design
-
-**Main Navigation Change:**
-Move Attendance Settings from the modal dialog into the Office Detail View (alongside Leave Settings), creating a consistent per-office configuration experience.
-
-**Office Attendance Settings Card Structure:**
+### UI Layout
 
 ```text
 +----------------------------------------------------------+
-| Attendance Settings                          [Toggle On/Off]
-| Configure check-in rules and policies for this office
+| GlobalyOS    [Org Switcher]    Home Team KPIs Wiki ...   |
 +----------------------------------------------------------+
-| [Tabs: Check-in Methods | Sessions | Overtime | Auto Checkout | Exemptions]
-|
-| === CHECK-IN METHODS TAB ===
-| 
-| Configure how employees check in based on their work type
-|
-| +-- Office Workers ----------------------------------+
-| | [x] QR Code Scan                                  |
-| | [x] Location Verification                         |
-| | [ ] Third-party System (Coming Soon)              |
-| +---------------------------------------------------+
-|
-| +-- Hybrid Workers ----------------------------------+
-| | [x] QR Code Scan (when in office)                 |
-| | [x] Location Verification                         |
-| | [x] Remote Check-in (when working from home)      |
-| +---------------------------------------------------+
-|
-| +-- Remote Workers ----------------------------------+
-| | [x] Remote Check-in                               |
-| +---------------------------------------------------+
-|
-| Location Settings
-| [x] Require location verification for office check-in
-| [ ] Require location verification for hybrid check-in
-| Geofence radius: [100] meters
-|
-| === SESSIONS TAB ===
-|
-| [Switch] Allow Multiple Sessions Per Day
-|   Maximum sessions: [3 v]
-|
-| [Switch] Require Reason for Early Checkout
-|
-| === OVERTIME TAB ===
-|
-| [Switch] Enable Automatic Adjustments
-|
-| When enabled, overtime and undertime hours are automatically
-| converted to leave balance changes.
-|
-| +-- Overtime Credit --------------------------------+
-| | Credit leave type: [Day In Lieu v]               |
-| | Minimum overtime:  [30] minutes before credit    |
-| | Maximum balance:   [x] Cap at [10] days          |
-| +--------------------------------------------------+
-|
-| +-- Undertime Deduction ----------------------------+
-| | Deduct from:       [Day In Lieu v] (first)       |
-| |                    [Annual Leave v] (fallback)   |
-| | Grace period:      [15] minutes before deduction |
-| +--------------------------------------------------+
-|
-| === AUTO CHECKOUT TAB ===
-|
-| [Switch] Enable Auto Checkout
-|
-| Automatically check out employees who haven't checked out
-| after their scheduled end time.
-|
-| Auto checkout after: [60] minutes past schedule end
-| Set status to:       [Present v]
-|
-| [Info] Auto checkout runs daily at midnight office time
-|
-| === EXEMPTIONS TAB ===
-|
-| Employees exempt from check-in won't appear in "Not Checked In"
-| reports and won't receive reminders.
-|
-| +-- Exempt Employees -------------------------------+
-| | [Avatar] John Smith          CEO          [x]    |
-| | [Avatar] Jane Doe            Director     [x]    |
-| +--------------------------------------------------+
-| [+ Add exempt employee...]
-|
+| [Settings icon] Organization | Offices | Projects | KPIs | Workflows | AI | Billing
 +----------------------------------------------------------+
-| [Save Settings]
+|                                                          |
+| Organization Details                                     |
+| Manage your organization's basic information             |
+|                                                          |
+|  +-- Card Content ------------------------------+        |
+|  |  [Logo] Business Name: GlobalyOS             |        |
+|  |  Legal Name: ...                              |        |
+|  |  ...                                          |        |
+|  +----------------------------------------------+        |
+|                                                          |
 +----------------------------------------------------------+
 ```
 
 ### Implementation Plan
 
-**Phase 1: Database Migration**
+**Phase 1: Create New Routes**
 
-1. Create `office_attendance_settings` table with all columns
-2. Create `office_attendance_exemptions` table
-3. Migrate existing organization-level settings to office-level settings for each office
-4. Create RLS policies for both tables
-5. Create trigger to auto-create default settings when a new office is created
+Update `src/App.tsx` to add nested settings routes:
 
-**Phase 2: New Components**
-
-| Component | Purpose |
-|-----------|---------|
-| `OfficeAttendanceSettings.tsx` | Main attendance settings card for office detail view |
-| `AttendanceCheckInMethodsTab.tsx` | Configure check-in methods by work type |
-| `AttendanceSessionsTab.tsx` | Multi-session and early checkout settings |
-| `AttendanceOvertimeTab.tsx` | Overtime/undertime automatic adjustments |
-| `AttendanceAutoCheckoutTab.tsx` | Auto checkout configuration |
-| `AttendanceExemptionsTab.tsx` | Manage exempt employees for this office |
-
-**Phase 3: Service Layer Updates**
-
-1. Create `useOfficeAttendanceSettings` hook:
-   - Fetch settings for a specific office
-   - CRUD operations for settings
-   - React Query integration with proper cache invalidation
-
-2. Update `process-attendance-adjustments` edge function:
-   - Read from `office_attendance_settings` instead of organization table
-   - Use configurable leave types for credits/debits
-   - Respect per-office grace periods and caps
-
-3. Create `process-auto-checkout` edge function:
-   - Run on a cron schedule (every 15 minutes)
-   - Check each office's timezone and auto-checkout settings
-   - Auto-checkout employees past their schedule + buffer
-
-**Phase 4: Check-in Flow Updates**
-
-1. Update `QRScannerDialog` and `RemoteCheckInDialog`:
-   - Check office attendance settings for allowed methods
-   - Validate check-in method against employee's work type
-   - Show appropriate error if method not allowed
-
-2. Update attendance validation RPC:
-   - Add check for office-level exemptions
-   - Validate against office-specific multi-session limits
-
-**Phase 5: UI Integration**
-
-1. Add `OfficeAttendanceSettings` to `OfficeDetailView.tsx`
-2. Remove or deprecate the organization-level `AttendanceSettingsDialog`
-3. Update Settings page to point users to office-specific settings
-
-### Dialog Size Adjustment
-
-Increase dialog size by 80%:
 ```text
-Current: max-w-2xl (672px)
-New: max-w-[1200px] (approximately 80% larger)
+/org/:orgCode/settings              -> SettingsOrganization (default)
+/org/:orgCode/settings/offices      -> SettingsOffices
+/org/:orgCode/settings/projects     -> SettingsProjects
+/org/:orgCode/settings/kpis         -> SettingsKpis
+/org/:orgCode/settings/workflows    -> SettingsWorkflows (feature flag)
+/org/:orgCode/settings/ai           -> SettingsAI (feature flag)
+/org/:orgCode/settings/billing      -> SettingsBilling
 ```
 
-Since we're moving to a card-based approach in the Office Detail View, the dialog will be deprecated in favor of the inline card with tabs.
+**Phase 2: Create SettingsSubNav Component**
 
-### Additional Suggested Features
+Create a new `SettingsSubNav.tsx` component following the same pattern as `SubNav.tsx`:
 
-Based on analysis of modern attendance systems, these complementary features would enhance the system:
+- Located in `src/components/SettingsSubNav.tsx`
+- Uses the same styling as the Team sub-nav (sticky bar, border-b, backdrop-blur)
+- Shows a Settings icon before the first nav item to indicate context
+- Conditionally shows items based on feature flags
+- Highlights the active route
 
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| **Break tracking** | Track break time separately, enforce maximum break duration | Medium |
-| **Shift patterns** | Support rotating shifts beyond fixed schedules | Low |
-| **Attendance notifications** | Configurable reminders for late check-in, missed checkout | High |
-| **IP restriction** | Restrict remote check-in to specific IP ranges | Low |
-| **Device trust** | Remember trusted devices for faster check-in | Medium |
-| **Attendance reports** | Office-specific attendance reports and analytics | High |
-| **Holiday calendar sync** | Auto-mark holidays based on office location | High |
-| **Minimum work hours** | Alert when employee checks out before minimum hours | Medium |
+**Phase 3: Create Individual Settings Pages**
+
+Split the current monolithic Settings page into focused sub-pages:
+
+| New Page File | Content |
+|---------------|---------|
+| `src/pages/settings/SettingsOrganization.tsx` | `OrganizationSettings` component |
+| `src/pages/settings/SettingsOffices.tsx` | `OfficesStructureSettings` component |
+| `src/pages/settings/SettingsProjects.tsx` | `ProjectsSettings` component |
+| `src/pages/settings/SettingsKpis.tsx` | `KpiGenerationSettings` component |
+| `src/pages/settings/SettingsWorkflows.tsx` | `WorkflowsSettings` component |
+| `src/pages/settings/SettingsAI.tsx` | `AIKnowledgeSettings` component |
+| `src/pages/settings/SettingsBilling.tsx` | `BillingSettings` component |
+
+**Phase 4: Update Layout.tsx**
+
+Modify `Layout.tsx` to render `SettingsSubNav` when on settings routes (similar to how `SubNav` is shown for team routes).
+
+**Phase 5: Consistent Page Headers**
+
+Each settings sub-page will have a consistent layout:
+
+```tsx
+<PageBody>
+  <PageHeader 
+    title="Organization" 
+    subtitle="Manage your organization's basic information" 
+  />
+  <OrganizationSettings isOwner={isOwner} />
+</PageBody>
+```
+
+### Technical Details
+
+**SettingsSubNav Navigation Items**
+
+```typescript
+const settingsSubNavItems = [
+  { name: 'Organization', href: '/settings', icon: Building2, end: true },
+  { name: 'Offices', href: '/settings/offices', icon: Building2 },
+  { name: 'Projects', href: '/settings/projects', icon: Briefcase },
+  { name: 'KPIs', href: '/settings/kpis', icon: Target },
+  { name: 'Workflows', href: '/settings/workflows', icon: ClipboardCheck, featureFlag: 'workflows' },
+  { name: 'AI', href: '/settings/ai', icon: Sparkles, featureFlag: 'ask-ai' },
+  { name: 'Billing', href: '/settings/billing', icon: CreditCard },
+];
+```
+
+**Route Matching for SettingsSubNav**
+
+```typescript
+const isSettingsSection = 
+  location.pathname.startsWith(`${basePath}/settings`);
+
+if (!isSettingsSection) return null;
+```
+
+**Active Route Detection**
+
+```typescript
+const isActive = item.end 
+  ? location.pathname === `${basePath}${item.href}`
+  : location.pathname.startsWith(`${basePath}${item.href}`);
+```
 
 ### Files to Create
 
 | File | Description |
 |------|-------------|
-| `supabase/migrations/[timestamp]_create_office_attendance_settings.sql` | Database schema |
-| `src/components/offices/OfficeAttendanceSettings.tsx` | Main attendance settings component |
-| `src/components/offices/attendance/CheckInMethodsTab.tsx` | Check-in methods by work type |
-| `src/components/offices/attendance/SessionsTab.tsx` | Session settings |
-| `src/components/offices/attendance/OvertimeTab.tsx` | Overtime/undertime settings |
-| `src/components/offices/attendance/AutoCheckoutTab.tsx` | Auto checkout settings |
-| `src/components/offices/attendance/ExemptionsTab.tsx` | Employee exemptions |
-| `src/hooks/useOfficeAttendanceSettings.ts` | Data fetching hook |
-| `supabase/functions/process-auto-checkout/index.ts` | Auto checkout edge function |
+| `src/components/SettingsSubNav.tsx` | Settings sub-navigation component |
+| `src/pages/settings/SettingsOrganization.tsx` | Organization settings page |
+| `src/pages/settings/SettingsOffices.tsx` | Offices & Structure page |
+| `src/pages/settings/SettingsProjects.tsx` | Projects settings page |
+| `src/pages/settings/SettingsKpis.tsx` | KPI settings page |
+| `src/pages/settings/SettingsWorkflows.tsx` | Workflows settings page |
+| `src/pages/settings/SettingsAI.tsx` | AI settings page |
+| `src/pages/settings/SettingsBilling.tsx` | Billing settings page |
 
 ### Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/components/offices/OfficeDetailView.tsx` | Add OfficeAttendanceSettings card |
-| `src/components/dialogs/QRScannerDialog.tsx` | Check office settings for allowed methods |
-| `src/components/dialogs/RemoteCheckInDialog.tsx` | Check office settings for allowed methods |
-| `supabase/functions/process-attendance-adjustments/index.ts` | Read from office_attendance_settings |
-| `src/services/useAttendance.ts` | Update to respect office-level settings |
+| `src/App.tsx` | Add nested settings routes |
+| `src/components/Layout.tsx` | Render SettingsSubNav for settings routes |
+| `src/pages/Settings.tsx` | Simplify to redirect to `/settings` or remove entirely |
+| `src/components/TopNav.tsx` | Add Settings nav item with gear icon |
 
-### Migration Strategy
+### UX Improvements
 
-1. Deploy database migration first
-2. Create trigger to auto-populate settings for existing offices using current org-level values
-3. Deploy UI changes
-4. Users can then customize per-office as needed
-5. Keep organization-level settings as fallback for offices without custom settings (optional)
+1. **URL-based Navigation**: Users can bookmark or share links to specific settings sections
+2. **Back/Forward Support**: Browser navigation works naturally between settings sections  
+3. **Consistent Pattern**: Matches the Team section navigation users are already familiar with
+4. **Clear Visual Hierarchy**: Settings icon + section name clearly indicates context
+5. **Feature-Gated Items**: Workflows, Hiring, AI only show when enabled
 
-### Technical Considerations
+### Migration Notes
 
-- **Backward compatibility**: Existing org-level settings will be migrated to all offices
-- **Default settings**: New offices get sensible defaults via database trigger
-- **Performance**: Settings are cached per-office with React Query
-- **Multi-tenant security**: RLS ensures offices only see their own settings
+- The existing Settings.tsx can be kept as a redirect to `/settings` for backwards compatibility
+- All existing component logic remains unchanged - only the navigation wrapper changes
+- Links pointing to `/settings` will still work and show the Organization tab by default
