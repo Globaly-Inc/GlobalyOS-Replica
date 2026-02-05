@@ -29,7 +29,7 @@ describe('Leave Request Flow', () => {
   };
 
   const mockLeaveType = {
-    id: 'leave-type-annual',
+    id: 'office-leave-type-annual',
     name: 'Annual Leave',
     days_allowed: 20,
   };
@@ -49,7 +49,7 @@ describe('Leave Request Flow', () => {
       const leaveRequest = {
         employee_id: mockEmployee.id,
         organization_id: mockEmployee.organization_id,
-        leave_type_id: mockLeaveType.id,
+        office_leave_type_id: mockLeaveType.id,
         start_date: '2026-02-15',
         end_date: '2026-02-17',
         days_count: 3,
@@ -86,7 +86,7 @@ describe('Leave Request Flow', () => {
 
       const { data } = await mockSupabase.rpc('check_leave_balance', {
         p_employee_id: mockEmployee.id,
-        p_leave_type_id: mockLeaveType.id,
+        p_office_leave_type_id: mockLeaveType.id,
         p_days_count: 10,
       });
 
@@ -149,7 +149,7 @@ describe('Leave Request Flow', () => {
 
       const { data, error } = await mockSupabase.rpc('deduct_leave_balance', {
         p_employee_id: mockEmployee.id,
-        p_leave_type_id: mockLeaveType.id,
+        p_office_leave_type_id: mockLeaveType.id,
         p_days: 3,
       });
 
@@ -218,7 +218,7 @@ describe('Leave Request Flow', () => {
 
       const { data: balanceData, error: balanceError } = await mockSupabase.rpc('restore_leave_balance', {
         p_employee_id: mockEmployee.id,
-        p_leave_type_id: mockLeaveType.id,
+        p_office_leave_type_id: mockLeaveType.id,
         p_days: 3,
       });
 

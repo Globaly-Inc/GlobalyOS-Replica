@@ -44,11 +44,13 @@ interface Employee {
   id: string;
   email: string;
   full_name: string;
+  office_id: string | null;
 }
 
 interface LeaveType {
   id: string;
   name: string;
+  office_id: string;
 }
 
 interface EditingCell {
@@ -536,6 +538,7 @@ const BulkLeaveImport = () => {
   const [step, setStep] = useState<'upload' | 'preview' | 'results'>('upload');
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
+  const [allOfficeLeaveTypes, setAllOfficeLeaveTypes] = useState<LeaveType[]>([]);
   const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>(null);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -568,7 +571,7 @@ const BulkLeaveImport = () => {
     // Load employees with profiles
     const { data: empData } = await supabase
       .from('employees')
-      .select('id, profiles!inner(email, full_name)')
+      .select('id, office_id, profiles!inner(email, full_name)')
       .eq('organization_id', currentOrg.id)
       .eq('status', 'active');
 
@@ -576,21 +579,25 @@ const BulkLeaveImport = () => {
       setEmployees(empData.map((e: any) => ({
         id: e.id,
         email: e.profiles.email,
-        full_name: e.profiles.full_name
+        full_name: e.profiles.full_name,
+        office_id: e.office_id
       })));
     }
 
     // Load leave types from office_leave_types (org-wide deduplicated by name)
     const { data: ltData } = await supabase
       .from('office_leave_types')
-      .select('id, name')
+      .select('id, name, office_id')
       .eq('organization_id', currentOrg.id)
       .eq('is_active', true);
 
     if (ltData) {
+      // Store all office leave types for lookup during import
+      setAllOfficeLeaveTypes(ltData);
+      
       // Deduplicate by name for org-wide display
-      const uniqueTypes = new Map<string, { id: string; name: string }>();
-      ltData.forEach((lt: { id: string; name: string }) => {
+      const uniqueTypes = new Map<string, LeaveType>();
+      ltData.forEach((lt: LeaveType) => {
         if (!uniqueTypes.has(lt.name.toLowerCase())) {
           uniqueTypes.set(lt.name.toLowerCase(), lt);
         }
@@ -811,8 +818,17 @@ const BulkLeaveImport = () => {
     const results: ImportResult[] = [];
 
     try {
-      const employeeMap = new Map(employees.map(e => [e.email.toLowerCase(), e.id]));
-      const leaveTypeMap = new Map(leaveTypes.map(lt => [lt.name.toLowerCase(), lt.id]));
+      // Create employee lookup map with office_id
+      const employeeMap = new Map(employees.map(e => [e.email.toLowerCase(), { id: e.id, office_id: e.office_id }]));
+      
+      // Helper to find office_leave_type_id by name and office
+      const findOfficeLeaveTypeId = (leaveTypeName: string, officeId: string | null): string | null => {
+        if (!officeId) return null;
+        const match = allOfficeLeaveTypes.find(
+          lt => lt.name.toLowerCase() === leaveTypeName.toLowerCase() && lt.office_id === officeId
+        );
+        return match?.id || null;
+      };
 
       // Separate opening balances and leave requests
       const openingBalances = parsedData.filter(r => r.isOpeningBalance);
@@ -820,15 +836,28 @@ const BulkLeaveImport = () => {
 
       // Import opening balances (to leave_balance_logs)
       for (const record of openingBalances) {
-        const employeeId = employeeMap.get(record.employee_email.toLowerCase());
-        const leaveTypeId = leaveTypeMap.get(record.leave_type.toLowerCase());
+        const employee = employeeMap.get(record.employee_email.toLowerCase());
         
-        if (!employeeId || !leaveTypeId) {
+        if (!employee) {
           results.push({
             employee_email: record.employee_email,
             record_type: `Balance: ${record.leave_type}`,
             success: false,
-            error: !employeeId ? 'Employee not found' : 'Leave type not found'
+            error: 'Employee not found'
+          });
+          continue;
+        }
+
+        const officeLeaveTypeId = findOfficeLeaveTypeId(record.leave_type, employee.office_id);
+        
+        if (!officeLeaveTypeId) {
+          results.push({
+            employee_email: record.employee_email,
+            record_type: `Balance: ${record.leave_type}`,
+            success: false,
+            error: employee.office_id 
+              ? `Leave type "${record.leave_type}" not found for employee's office`
+              : 'Employee has no office assigned'
           });
           continue;
         }
@@ -836,9 +865,10 @@ const BulkLeaveImport = () => {
         const { error } = await supabase
           .from('leave_balance_logs')
           .insert({
-            employee_id: employeeId,
+            employee_id: employee.id,
             organization_id: currentOrg.id,
-            created_by: currentEmployeeId || employeeId,
+            created_by: currentEmployeeId || employee.id,
+            office_leave_type_id: officeLeaveTypeId,
             leave_type: record.leave_type,
             change_amount: record.days,
             previous_balance: 0,
@@ -857,9 +887,9 @@ const BulkLeaveImport = () => {
 
       // Import leave requests
       for (const record of leaveRequests) {
-        const employeeId = employeeMap.get(record.employee_email.toLowerCase());
+        const employee = employeeMap.get(record.employee_email.toLowerCase());
         
-        if (!employeeId) {
+        if (!employee) {
           results.push({
             employee_email: record.employee_email,
             record_type: `Leave: ${record.leave_type}`,
@@ -882,11 +912,26 @@ const BulkLeaveImport = () => {
           continue;
         }
 
+        const officeLeaveTypeId = findOfficeLeaveTypeId(record.leave_type, employee.office_id);
+        
+        if (!officeLeaveTypeId) {
+          results.push({
+            employee_email: record.employee_email,
+            record_type: `Leave: ${record.leave_type}`,
+            success: false,
+            error: employee.office_id 
+              ? `Leave type "${record.leave_type}" not found for employee's office`
+              : 'Employee has no office assigned'
+          });
+          continue;
+        }
+
         const { error } = await supabase
           .from('leave_requests')
           .insert({
-            employee_id: employeeId,
+            employee_id: employee.id,
             organization_id: currentOrg.id,
+            office_leave_type_id: officeLeaveTypeId,
             leave_type: record.leave_type,
             start_date: startDate,
             end_date: endDate,
