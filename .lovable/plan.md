@@ -1,45 +1,65 @@
 
-# Fix Vacancies Navigation - Consistent Page Context
+# Fix "column p.user_id does not exist" Error When Changing Office
 
-## Problem
-When navigating back from a job detail/edit/create page via the back arrow or "Back to Vacancies" links, users are taken to `/hiring/jobs` which renders a standalone `JobsList` component without the page title section or tab menu.
+## Problem Summary
+When you try to change Kavita's office from Australia to USA and click "Save", the error "column p.user_id does not exist" appears. This prevents any office changes from being saved.
 
-The correct destination should be `/hiring?tab=jobs` which renders the full `HiringDashboard` with:
-- Page title ("Hiring")
-- Tab menu (Analytics | Vacancies | Candidates)
-- Filter bar
-- Vacancies list
+## Root Cause
+There are **4 database trigger functions** that run when employee records are updated. These functions contain an incorrect SQL join condition:
+
+```text
+Current (WRONG):
+LEFT JOIN profiles p ON p.user_id = e.user_id
+
+Should be:
+LEFT JOIN profiles p ON p.id = e.user_id
+```
+
+The `profiles` table uses `id` as the user identifier (matching the auth system), not `user_id`. When you update an employee's office, the `sync_office_space_members` trigger fires and fails because it tries to use a column that doesn't exist.
+
+## Affected Functions
+| Function Name | Purpose |
+|--------------|---------|
+| `sync_office_space_members` | Updates chat space memberships when an employee's office changes |
+| `sync_department_space_members` | Updates chat space memberships when an employee's department changes |
+| `sync_company_space_members` | Updates chat space memberships when an employee's status changes |
+| `sync_project_space_members` | Updates chat space memberships when an employee is added/removed from projects |
 
 ## Solution
-Update all navigation links that currently point to `/hiring/jobs` to instead point to `/hiring?tab=jobs`.
 
-## Files to Modify
+### Database Migration
+Create a new migration that fixes all 4 functions by changing the join from `p.user_id` to `p.id`:
 
-| File | Line(s) | Current | Updated |
-|------|---------|---------|---------|
-| `src/pages/hiring/JobDetail.tsx` | 70, 84 | `/hiring/jobs` | `/hiring?tab=jobs` |
-| `src/pages/hiring/JobEdit.tsx` | 241 | `/hiring/jobs` | `/hiring?tab=jobs` |
-| `src/pages/hiring/JobCreate.tsx` | 209, 545 | `/hiring/jobs` | `/hiring?tab=jobs` |
+```text
+Fix the profiles join in:
+1. sync_office_space_members() - Fix the join condition
+2. sync_department_space_members() - Fix the join condition
+3. sync_company_space_members() - Fix the join condition
+4. sync_project_space_members() - Fix both INSERT and DELETE handling joins
+```
 
-## Specific Changes
+Each function will be recreated with `CREATE OR REPLACE FUNCTION` using the corrected join:
+```sql
+LEFT JOIN profiles p ON p.id = e.user_id
+```
 
-### JobDetail.tsx
-1. **Line 70** - "Back to Vacancies" button in the "not found" state
-2. **Line 84** - Back arrow button in the header
+## Technical Details
 
-### JobEdit.tsx
-1. **Line 241** - "Back to Vacancies" button in the "not found" state
+The migration will:
+1. Create or replace all 4 functions with the corrected join condition
+2. Keep all existing logic and functionality intact
+3. Maintain `SECURITY DEFINER` and `SET search_path = public` for security
+4. No triggers need to be modified (they already point to the correct functions)
 
-### JobCreate.tsx
-1. **Line 209** - Back arrow button in the header
-2. **Line 545** - "Cancel" button at the bottom of the form
+## Expected Outcome
+After this fix:
+- Changing an employee's office will work correctly
+- Changing an employee's department will work correctly
+- Employee status changes will work correctly
+- Project assignments will work correctly
+- Chat space auto-sync will properly resolve employee names
 
-## Optional Cleanup
-The standalone route `path="hiring/jobs"` in `App.tsx` (line 255) could be removed or redirected since it's now orphaned. However, keeping it provides a fallback if someone bookmarks or shares that URL.
-
-## Expected Result
-After the fix:
-- Clicking back from any job page returns to the full Hiring dashboard with the Vacancies tab active
-- Page title "Hiring" and subtitle are visible
-- Tab menu (Analytics | Vacancies | Candidates) is visible and Vacancies is selected
-- Filter bar with search and status filter is visible
+## Files to Create
+| File | Description |
+|------|-------------|
+| `supabase/migrations/[timestamp]_fix_profiles_join_in_sync_functions.sql` | Fix all 4 sync functions |
