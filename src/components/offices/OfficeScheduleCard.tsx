@@ -336,18 +336,6 @@ export const OfficeScheduleCard = ({ office, onOfficeUpdated }: OfficeScheduleCa
               />
             </div>
             <div className="space-y-2">
-              <Label className="flex items-center gap-1">
-                <CalendarDays className="h-3 w-3" />
-                Leave Year Starts
-              </Label>
-              <YearStartPicker
-                month={leaveYearStart.month}
-                day={leaveYearStart.day}
-                onChange={handleLeaveYearChange}
-                disabled={savingLeaveYear}
-              />
-            </div>
-            <div className="space-y-2">
               <Label className="text-muted-foreground">Break Duration</Label>
               <div className="h-9 flex items-center text-sm">
                 {(() => {
