@@ -6752,6 +6752,202 @@ export type Database = {
           },
         ]
       }
+      office_attendance_exemptions: {
+        Row: {
+          created_at: string
+          employee_id: string
+          exempted_at: string
+          exempted_by: string | null
+          id: string
+          office_id: string
+          organization_id: string
+          reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          exempted_at?: string
+          exempted_by?: string | null
+          id?: string
+          office_id: string
+          organization_id: string
+          reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          exempted_at?: string
+          exempted_by?: string | null
+          id?: string
+          office_id?: string
+          organization_id?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_attendance_exemptions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_attendance_exemptions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_attendance_exemptions_exempted_by_fkey"
+            columns: ["exempted_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_attendance_exemptions_exempted_by_fkey"
+            columns: ["exempted_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_attendance_exemptions_office_id_fkey"
+            columns: ["office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_attendance_exemptions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      office_attendance_settings: {
+        Row: {
+          attendance_enabled: boolean
+          auto_adjustments_enabled: boolean
+          auto_checkout_after_minutes: number
+          auto_checkout_enabled: boolean
+          auto_checkout_status: string
+          created_at: string
+          early_checkout_reason_required: boolean
+          hybrid_checkin_methods: string[]
+          id: string
+          location_radius_meters: number
+          max_dil_days: number | null
+          max_sessions_per_day: number
+          min_overtime_minutes: number
+          min_undertime_minutes: number
+          multi_session_enabled: boolean
+          office_checkin_methods: string[]
+          office_id: string
+          organization_id: string
+          overtime_credit_leave_type_id: string | null
+          remote_checkin_methods: string[]
+          require_location_for_hybrid: boolean
+          require_location_for_office: boolean
+          undertime_debit_leave_type_id: string | null
+          undertime_fallback_leave_type_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          attendance_enabled?: boolean
+          auto_adjustments_enabled?: boolean
+          auto_checkout_after_minutes?: number
+          auto_checkout_enabled?: boolean
+          auto_checkout_status?: string
+          created_at?: string
+          early_checkout_reason_required?: boolean
+          hybrid_checkin_methods?: string[]
+          id?: string
+          location_radius_meters?: number
+          max_dil_days?: number | null
+          max_sessions_per_day?: number
+          min_overtime_minutes?: number
+          min_undertime_minutes?: number
+          multi_session_enabled?: boolean
+          office_checkin_methods?: string[]
+          office_id: string
+          organization_id: string
+          overtime_credit_leave_type_id?: string | null
+          remote_checkin_methods?: string[]
+          require_location_for_hybrid?: boolean
+          require_location_for_office?: boolean
+          undertime_debit_leave_type_id?: string | null
+          undertime_fallback_leave_type_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attendance_enabled?: boolean
+          auto_adjustments_enabled?: boolean
+          auto_checkout_after_minutes?: number
+          auto_checkout_enabled?: boolean
+          auto_checkout_status?: string
+          created_at?: string
+          early_checkout_reason_required?: boolean
+          hybrid_checkin_methods?: string[]
+          id?: string
+          location_radius_meters?: number
+          max_dil_days?: number | null
+          max_sessions_per_day?: number
+          min_overtime_minutes?: number
+          min_undertime_minutes?: number
+          multi_session_enabled?: boolean
+          office_checkin_methods?: string[]
+          office_id?: string
+          organization_id?: string
+          overtime_credit_leave_type_id?: string | null
+          remote_checkin_methods?: string[]
+          require_location_for_hybrid?: boolean
+          require_location_for_office?: boolean
+          undertime_debit_leave_type_id?: string | null
+          undertime_fallback_leave_type_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_attendance_settings_office_id_fkey"
+            columns: ["office_id"]
+            isOneToOne: true
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_attendance_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_attendance_settings_overtime_credit_leave_type_id_fkey"
+            columns: ["overtime_credit_leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "office_leave_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_attendance_settings_undertime_debit_leave_type_id_fkey"
+            columns: ["undertime_debit_leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "office_leave_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "office_attendance_settings_undertime_fallback_leave_type_i_fkey"
+            columns: ["undertime_fallback_leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "office_leave_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       office_leave_types: {
         Row: {
           applies_to_employment_types: string[] | null
