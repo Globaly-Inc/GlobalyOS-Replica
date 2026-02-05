@@ -87,7 +87,7 @@ export const OfficeDetailView = ({ office, onOfficeUpdated, onOfficeDeleted }: O
                   label=""
                   value={office.name}
                   onSave={(value) => handleUpdateField('name', value)}
-                  className="text-xl font-semibold"
+                  className="text-2xl font-semibold"
                 />
               </div>
             </div>
