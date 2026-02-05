@@ -1,53 +1,52 @@
 
 
-# Fix: Owner Cannot Create Employee Record During Onboarding
+# Fix: Gender Value Mismatch Causing "Failed to save your profile"
 
 ## Root Cause
 
-Kavita (user `deebf648-23ad-495b-98d2-7891fc4ead09`) is the owner of "Kavita Demo" org (`51dcdc4b-5cfb-475e-b950-68b534df8046`). She has the role `owner` in `user_roles`.
+The `employees` table has a CHECK constraint on the `gender` column that only allows these values:
+- `male`
+- `female`
+- `other`
+- `prefer_not_to_say` (with underscores)
 
-The `employees` table INSERT policy only permits `hr` or `admin` roles:
+However, the `OwnerProfileStep.tsx` form sends these values:
+- `male` (OK)
+- `female` (OK)
+- `non-binary` (REJECTED -- not in constraint)
+- `prefer-not-to-say` (REJECTED -- uses hyphens instead of underscores)
 
-```sql
--- Current policy: "HR and admins can create employees"
-WITH CHECK (has_role(auth.uid(), 'hr') OR has_role(auth.uid(), 'admin'))
-```
-
-Since `owner` is not included, the insert is silently rejected by RLS, resulting in "Failed to save your profile: Unknown error."
+This CHECK constraint violation causes the INSERT/UPDATE to fail silently with an "Unknown error" toast.
 
 ## Fix
 
-Update the INSERT RLS policy on `employees` to also allow:
-1. **Owners** to insert employee records (they need to create their own record during onboarding)
-2. **Users inserting their own record** (`user_id = auth.uid()`) -- this is the safest approach since it covers all onboarding scenarios without over-granting permissions
+Two changes are needed:
 
-## Database Migration
+### 1. Database Migration: Update the CHECK constraint
+
+Update the `employees_gender_check` constraint to accept both `non-binary` and the corrected `prefer-not-to-say` value, aligning with the frontend options.
 
 ```sql
--- Drop existing restrictive INSERT policy
-DROP POLICY IF EXISTS "HR and admins can create employees" ON public.employees;
-
--- Create updated INSERT policy that also allows owners and self-insert during onboarding
-CREATE POLICY "HR admins owners can create employees"
-  ON public.employees
-  FOR INSERT
-  WITH CHECK (
-    has_role(auth.uid(), 'hr'::app_role)
-    OR has_role(auth.uid(), 'admin'::app_role)
-    OR has_role(auth.uid(), 'owner'::app_role)
-    OR (user_id = auth.uid() AND is_org_member(auth.uid(), organization_id))
-  );
+ALTER TABLE public.employees DROP CONSTRAINT employees_gender_check;
+ALTER TABLE public.employees ADD CONSTRAINT employees_gender_check 
+  CHECK (gender IN ('male', 'female', 'other', 'non-binary', 'prefer_not_to_say', 'prefer-not-to-say') OR gender IS NULL);
 ```
 
-The last condition (`user_id = auth.uid() AND is_org_member(auth.uid(), organization_id)`) allows any authenticated org member to create their own employee record -- essential for the onboarding flow. The `is_org_member` check ensures they can only do this within their own organization.
+### 2. Frontend: Align gender option values to database convention
 
-## No Frontend Changes Required
+Update `GENDER_OPTIONS` in `OwnerProfileStep.tsx` to use underscores (matching the DB convention used across the system):
 
-The `OwnerProfileStep.tsx` code is correct -- the insert/update logic works fine once RLS permits it.
+| Current Value | New Value |
+|---|---|
+| `non-binary` | `non-binary` (keep, now allowed in DB) |
+| `prefer-not-to-say` | `prefer_not_to_say` (align with DB convention) |
+
+Alternatively, standardize everything with hyphens (simpler for the user) and update the constraint accordingly. The plan above supports both formats in the constraint for backwards compatibility.
 
 ## Files to Modify
 
 | Type | Change |
 |------|--------|
-| Database migration | Update INSERT policy on `employees` table |
+| Database migration | Update `employees_gender_check` constraint to include `non-binary` and accept both `prefer_not_to_say` and `prefer-not-to-say` |
+| `src/components/onboarding/wizard/OwnerProfileStep.tsx` | Update `GENDER_OPTIONS` value for "Prefer not to say" to `prefer_not_to_say` |
 
