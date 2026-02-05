@@ -1,180 +1,176 @@
 
-# Settings Page Navigation Refactor: Sidebar Sub-Navigation
+
+# Reorganize Office Detail View into 3 Tabs
 
 ## Summary
 
-Transform the Settings page from using a horizontal tab bar at the top to a sidebar-based sub-navigation pattern, consistent with the Team section's navigation. This will create a unified navigation experience across the application.
+Restructure the Office Detail View page from a vertically stacked card layout into a clean 3-tab interface. This will improve navigation and reduce scrolling while grouping related settings logically.
 
-## Current State
-
-| Aspect | Current Implementation |
-|--------|----------------------|
-| Settings navigation | Horizontal `TabsList` with 7-8 triggers at the top of the page |
-| Team navigation | Horizontal `SubNav` bar with routes like `/team`, `/calendar`, `/leave-history` |
-| Settings routes | Single route `/settings` with client-side tabs |
-| Page layout | `PageHeader` + `Tabs` component with `TabsContent` sections |
-
-## Proposed Architecture
-
-### Navigation Model
-
-Convert Settings to a route-based sub-navigation model similar to the Team section:
-
-| Old Tab | New Route | Description |
-|---------|-----------|-------------|
-| Organization | `/settings` (default) | Organization details |
-| Offices & Structure | `/settings/offices` | Offices, departments, positions |
-| Projects | `/settings/projects` | Project management |
-| KPIs | `/settings/kpis` | KPI generation settings |
-| Workflows | `/settings/workflows` | Workflow templates (feature flag) |
-| Hiring | `/settings/hiring` | Link to hiring settings (feature flag) |
-| AI | `/settings/ai` | AI knowledge settings (feature flag) |
-| Billing | `/settings/billing` | Subscription and billing |
-
-### UI Layout
+## Current Layout
 
 ```text
 +----------------------------------------------------------+
-| GlobalyOS    [Org Switcher]    Home Team KPIs Wiki ...   |
+| Office Header Card (Name, Address, City, Country)        |
 +----------------------------------------------------------+
-| [Settings icon] Organization | Offices | Projects | KPIs | Workflows | AI | Billing
+| Today's Overview Stats                                   |
 +----------------------------------------------------------+
-|                                                          |
-| Organization Details                                     |
-| Manage your organization's basic information             |
-|                                                          |
-|  +-- Card Content ------------------------------+        |
-|  |  [Logo] Business Name: GlobalyOS             |        |
-|  |  Legal Name: ...                              |        |
-|  |  ...                                          |        |
-|  +----------------------------------------------+        |
-|                                                          |
+| Default Work Schedule Card                               |
++----------------------------------------------------------+
+| Leave Settings Card                                      |
++----------------------------------------------------------+
+| Attendance Settings Card                                 |
++----------------------------------------------------------+
+| Team Members List                                        |
 +----------------------------------------------------------+
 ```
 
-### Implementation Plan
-
-**Phase 1: Create New Routes**
-
-Update `src/App.tsx` to add nested settings routes:
+## Proposed Layout
 
 ```text
-/org/:orgCode/settings              -> SettingsOrganization (default)
-/org/:orgCode/settings/offices      -> SettingsOffices
-/org/:orgCode/settings/projects     -> SettingsProjects
-/org/:orgCode/settings/kpis         -> SettingsKpis
-/org/:orgCode/settings/workflows    -> SettingsWorkflows (feature flag)
-/org/:orgCode/settings/ai           -> SettingsAI (feature flag)
-/org/:orgCode/settings/billing      -> SettingsBilling
++----------------------------------------------------------+
+| Office Header Card (Name, Address, City, Country)        |
++----------------------------------------------------------+
+| [Overview & Team]  [Attendance Settings]  [Leave Settings]
++----------------------------------------------------------+
+|                                                          |
+|  === OVERVIEW & TEAM TAB ===                             |
+|                                                          |
+|  +-- Today's Overview Stats -------------------------+   |
+|  | Present: 0  |  On Leave: 0  |  Remote: 0  |  ...  |   |
+|  +---------------------------------------------------+   |
+|                                                          |
+|  +-- Team Members -----------------------------------+   |
+|  | [Avatar] John Smith      CEO         [Schedule]   |   |
+|  | [Avatar] Jane Doe        Director    [Schedule]   |   |
+|  | ...                                               |   |
+|  +---------------------------------------------------+   |
+|                                                          |
++----------------------------------------------------------+
+|                                                          |
+|  === ATTENDANCE SETTINGS TAB ===                         |
+|                                                          |
+|  +-- Default Work Schedule --------------------------+   |
+|  | Work Start: 09:00  |  Work End: 17:00            |   |
+|  | Break: 12:00-13:00 |  Timezone: UTC              |   |
+|  | Late Threshold: 15 min  |  Leave Year: Jan 1     |   |
+|  +---------------------------------------------------+   |
+|                                                          |
+|  +-- Attendance Rules -------------------------------+   |
+|  | [Tabs: Check-in Methods | Sessions | Overtime     |   |
+|  |        | Auto Checkout | Exemptions]              |   |
+|  |                                                   |   |
+|  | Configure how employees check in based on their   |   |
+|  | work type...                                      |   |
+|  +---------------------------------------------------+   |
+|                                                          |
++----------------------------------------------------------+
+|                                                          |
+|  === LEAVE SETTINGS TAB ===                              |
+|                                                          |
+|  +-- Leave Year Configuration -----------------------+   |
+|  | Leave Year Start: Jan 1                          |   |
+|  +---------------------------------------------------+   |
+|                                                          |
+|  +-- Leave Types ------------------------------------+   |
+|  | [+] Annual Leave       paid    12 days           |   |
+|  | [+] Sick Leave         paid    7 days            |   |
+|  | [+] Unpaid Leave       unpaid  0 days            |   |
+|  +---------------------------------------------------+   |
+|                                                          |
++----------------------------------------------------------+
 ```
 
-**Phase 2: Create SettingsSubNav Component**
+## Tab Structure
 
-Create a new `SettingsSubNav.tsx` component following the same pattern as `SubNav.tsx`:
+| Tab | Components Included | Purpose |
+|-----|---------------------|---------|
+| **Overview & Team** | `OfficeOverviewStats`, `OfficeTeamList` | Daily status, team members with schedules |
+| **Attendance Settings** | `OfficeScheduleCard`, `OfficeAttendanceSettings` (without outer card wrapper) | Work schedules, check-in methods, overtime, exemptions |
+| **Leave Settings** | `OfficeLeaveSettings` (without outer card wrapper) | Leave year configuration, leave types |
 
-- Located in `src/components/SettingsSubNav.tsx`
-- Uses the same styling as the Team sub-nav (sticky bar, border-b, backdrop-blur)
-- Shows a Settings icon before the first nav item to indicate context
-- Conditionally shows items based on feature flags
-- Highlights the active route
+## Implementation Details
 
-**Phase 3: Create Individual Settings Pages**
+### Changes to OfficeDetailView.tsx
 
-Split the current monolithic Settings page into focused sub-pages:
+1. **Keep the header card** at the top (outside of tabs)
+2. **Add a Tabs component** below the header
+3. **Move components into their respective tabs**
+4. **Adjust component styling** to remove redundant card wrappers where needed
 
-| New Page File | Content |
-|---------------|---------|
-| `src/pages/settings/SettingsOrganization.tsx` | `OrganizationSettings` component |
-| `src/pages/settings/SettingsOffices.tsx` | `OfficesStructureSettings` component |
-| `src/pages/settings/SettingsProjects.tsx` | `ProjectsSettings` component |
-| `src/pages/settings/SettingsKpis.tsx` | `KpiGenerationSettings` component |
-| `src/pages/settings/SettingsWorkflows.tsx` | `WorkflowsSettings` component |
-| `src/pages/settings/SettingsAI.tsx` | `AIKnowledgeSettings` component |
-| `src/pages/settings/SettingsBilling.tsx` | `BillingSettings` component |
+### Component Modifications
 
-**Phase 4: Update Layout.tsx**
+**OfficeAttendanceSettings.tsx**
+- Add an optional `embedded` prop to hide the outer Card wrapper when used inside a tab
+- When `embedded={true}`, render only the inner content without Card
 
-Modify `Layout.tsx` to render `SettingsSubNav` when on settings routes (similar to how `SubNav` is shown for team routes).
+**OfficeLeaveSettings.tsx**
+- Add an optional `embedded` prop to hide the outer Card wrapper when used inside a tab
+- When `embedded={true}`, render only the inner content without Card
 
-**Phase 5: Consistent Page Headers**
+**OfficeScheduleCard.tsx**
+- No changes needed - already a standalone card
 
-Each settings sub-page will have a consistent layout:
+### Visual Design
 
-```tsx
-<PageBody>
-  <PageHeader 
-    title="Organization" 
-    subtitle="Manage your organization's basic information" 
-  />
-  <OrganizationSettings isOwner={isOwner} />
-</PageBody>
-```
-
-### Technical Details
-
-**SettingsSubNav Navigation Items**
-
-```typescript
-const settingsSubNavItems = [
-  { name: 'Organization', href: '/settings', icon: Building2, end: true },
-  { name: 'Offices', href: '/settings/offices', icon: Building2 },
-  { name: 'Projects', href: '/settings/projects', icon: Briefcase },
-  { name: 'KPIs', href: '/settings/kpis', icon: Target },
-  { name: 'Workflows', href: '/settings/workflows', icon: ClipboardCheck, featureFlag: 'workflows' },
-  { name: 'AI', href: '/settings/ai', icon: Sparkles, featureFlag: 'ask-ai' },
-  { name: 'Billing', href: '/settings/billing', icon: CreditCard },
-];
-```
-
-**Route Matching for SettingsSubNav**
-
-```typescript
-const isSettingsSection = 
-  location.pathname.startsWith(`${basePath}/settings`);
-
-if (!isSettingsSection) return null;
-```
-
-**Active Route Detection**
-
-```typescript
-const isActive = item.end 
-  ? location.pathname === `${basePath}${item.href}`
-  : location.pathname.startsWith(`${basePath}${item.href}`);
-```
-
-### Files to Create
-
-| File | Description |
-|------|-------------|
-| `src/components/SettingsSubNav.tsx` | Settings sub-navigation component |
-| `src/pages/settings/SettingsOrganization.tsx` | Organization settings page |
-| `src/pages/settings/SettingsOffices.tsx` | Offices & Structure page |
-| `src/pages/settings/SettingsProjects.tsx` | Projects settings page |
-| `src/pages/settings/SettingsKpis.tsx` | KPI settings page |
-| `src/pages/settings/SettingsWorkflows.tsx` | Workflows settings page |
-| `src/pages/settings/SettingsAI.tsx` | AI settings page |
-| `src/pages/settings/SettingsBilling.tsx` | Billing settings page |
+- Tab bar will use the existing Tabs component with consistent styling
+- Icons in tab triggers for visual clarity:
+  - Overview & Team: `Users` icon
+  - Attendance Settings: `Clock` icon
+  - Leave Settings: `CalendarDays` icon
+- First tab (Overview & Team) is the default active tab
+- Content area has consistent padding and spacing
 
 ### Files to Modify
 
-| File | Change |
-|------|--------|
-| `src/App.tsx` | Add nested settings routes |
-| `src/components/Layout.tsx` | Render SettingsSubNav for settings routes |
-| `src/pages/Settings.tsx` | Simplify to redirect to `/settings` or remove entirely |
-| `src/components/TopNav.tsx` | Add Settings nav item with gear icon |
+| File | Changes |
+|------|---------|
+| `src/components/offices/OfficeDetailView.tsx` | Add Tabs wrapper, reorganize components into tab content areas |
+| `src/components/offices/OfficeAttendanceSettings.tsx` | Add `embedded` prop to optionally hide Card wrapper |
+| `src/components/settings/OfficeLeaveSettings.tsx` | Add `embedded` prop to optionally hide Card wrapper |
 
-### UX Improvements
+### Tab Content Layout
 
-1. **URL-based Navigation**: Users can bookmark or share links to specific settings sections
-2. **Back/Forward Support**: Browser navigation works naturally between settings sections  
-3. **Consistent Pattern**: Matches the Team section navigation users are already familiar with
-4. **Clear Visual Hierarchy**: Settings icon + section name clearly indicates context
-5. **Feature-Gated Items**: Workflows, Hiring, AI only show when enabled
+**Overview & Team Tab:**
+```text
+<TabsContent value="overview">
+  <div className="space-y-6">
+    <OfficeOverviewStats officeId={office.id} />
+    <OfficeTeamList officeId={office.id} officeName={office.name} />
+  </div>
+</TabsContent>
+```
 
-### Migration Notes
+**Attendance Settings Tab:**
+```text
+<TabsContent value="attendance">
+  <div className="space-y-6">
+    <OfficeScheduleCard office={office} onOfficeUpdated={onOfficeUpdated} />
+    <OfficeAttendanceSettings 
+      officeId={office.id} 
+      organizationId={currentOrg.id}
+      embedded={true}  // Removes outer Card wrapper
+    />
+  </div>
+</TabsContent>
+```
 
-- The existing Settings.tsx can be kept as a redirect to `/settings` for backwards compatibility
-- All existing component logic remains unchanged - only the navigation wrapper changes
-- Links pointing to `/settings` will still work and show the Organization tab by default
+**Leave Settings Tab:**
+```text
+<TabsContent value="leave">
+  <OfficeLeaveSettings
+    office={office}
+    organizationId={currentOrg.id}
+    onOfficeUpdated={onOfficeUpdated}
+    embedded={true}  // Removes outer Card wrapper
+  />
+</TabsContent>
+```
+
+## Benefits
+
+1. **Reduced Scrolling**: Users don't need to scroll through all sections
+2. **Logical Grouping**: Related settings are grouped together
+3. **Cleaner Interface**: Less visual clutter on initial load
+4. **URL Persistence**: Can add URL tab state for deep linking (optional future enhancement)
+5. **Consistent UX**: Matches the tabbed pattern used elsewhere in the app (e.g., Attendance Settings inner tabs)
+
