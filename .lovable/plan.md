@@ -1,66 +1,147 @@
 
 
-# Fix Leave Request Deletion - Missing Column Error
+# Comprehensive Migration: Legacy leave_type_id to Office-Centric Architecture
 
-## Problem Summary
-When trying to delete Tula Bahadur Gurung's leave record, the operation fails with "Failed to delete leave record". The database logs show:
+## Summary
 
-```
-ERROR: record "old" has no field "leave_type_id"
-```
+The leave management system has been partially migrated to the office-centric model, but several database trigger functions and UI components still contain legacy references that cause failures. The legacy `leave_types` table and `leave_type_id` columns have already been dropped from the database, but several functions still reference them and will fail.
 
-## Root Cause
-The `handle_leave_request_delete` database trigger function is using legacy column names that were removed during the office-centric leave migration:
+## Current State Analysis
 
-| What the function references | Current state |
-|------------------------------|---------------|
-| `OLD.leave_type_id` | Column was dropped from `leave_requests` |
-| `leave_types` table | Table was dropped |
-| `leave_type_balances.leave_type_id` | Column was dropped |
-| `leave_balance_logs.leave_type_id` | Column was dropped |
+### Database Schema (Already Cleaned)
+| Component | Status |
+|-----------|--------|
+| `leave_types` table | Dropped |
+| `leave_type_balances.leave_type_id` column | Dropped |
+| `leave_balance_logs.leave_type_id` column | Dropped |
+| `leave_requests.leave_type_id` column | Dropped |
+| `office_leave_types` table | Active (primary) |
+| `leave_type_balances.office_leave_type_id` | Active (required) |
+| `leave_balance_logs.office_leave_type_id` | Active (nullable) |
+| `leave_requests.office_leave_type_id` | Active (nullable) |
 
-The system now uses `office_leave_type_id` exclusively with the `office_leave_types` table.
+### Database Functions with Legacy Code
 
-## Solution
+| Function | Issue | Impact |
+|----------|-------|--------|
+| `handle_leave_request_approval` | Contains fallback to `leave_types` table (lines 50-109) | Will fail silently if office leave type not found |
+| `handle_leave_proration_on_offboarding` | Uses `leave_type_id` column and joins `leave_types` table | Will crash when setting resignation |
+| `handle_leave_request_cancellation` | Has legacy fallback block referencing `leave_types` and `leave_type_id` | Will fail on cancellation |
 
-### Database Migration
-Create a new migration that rewrites the `handle_leave_request_delete()` function to use the office-centric architecture:
+### Frontend Issues
 
-**Key changes:**
-1. Use `OLD.office_leave_type_id` instead of `OLD.leave_type_id`
-2. Look up balances from `leave_type_balances` using `office_leave_type_id`
-3. Insert log entries with `office_leave_type_id` instead of `leave_type_id`
-4. Keep the same refund logic (restore balance when approved leave is deleted)
+| File | Issue |
+|------|-------|
+| `src/types/leave.ts` | `LeaveTypeBalance` interface uses `leave_type_id` instead of `office_leave_type_id` |
+| `src/pages/BulkLeaveImport.tsx` | Does not set `office_leave_type_id` when inserting balance logs or leave requests |
+| `src/test/flows/leave-request.test.ts` | Test references `leave_type_id` in mocks |
 
-**Updated function logic:**
+## Solution Plan
+
+### Phase 1: Database Function Updates
+
+**Migration 1: Remove Legacy Fallbacks from Trigger Functions**
+
+Update 3 database functions to remove legacy code that references non-existent tables/columns:
+
+1. **`handle_leave_request_approval`**
+   - Remove the fallback block (lines 44-110) that tries to look up `leave_types` table
+   - Keep only the office-centric logic
+   - If no office_leave_type found, raise an informative notice and skip balance operations
+
+2. **`handle_leave_proration_on_offboarding`**
+   - Change from joining `leave_types` to joining `office_leave_types`
+   - Use `office_leave_type_id` instead of `leave_type_id` in log insertion
+   - Update the FOR loop to select from balances with office_leave_type_id
+
+3. **`handle_leave_request_cancellation`**
+   - Remove the legacy fallback block that references `leave_types` table
+   - Keep only the office-centric restoration logic
+
+### Phase 2: Frontend Code Updates
+
+**1. Update TypeScript Types (`src/types/leave.ts`)**
+
 ```text
-1. Check if the leave being deleted was approved (skip if pending/rejected)
-2. Get the office_leave_type_id from the leave request being deleted
-3. If no office_leave_type_id, skip the balance refund (graceful handling)
-4. Calculate the year from the leave start date
-5. Get current balance from leave_type_balances using office_leave_type_id
-6. Insert a refund log entry with office_leave_type_id (sync trigger will update the actual balance)
-7. Allow the delete to proceed
+LeaveTypeBalance interface:
+  - Change `leave_type_id: string` to `office_leave_type_id: string`
 ```
+
+**2. Fix BulkLeaveImport (`src/pages/BulkLeaveImport.tsx`)**
+
+For opening balance imports:
+- Look up the employee's office_id first
+- Find the matching office_leave_type by name + office_id
+- Include `office_leave_type_id` in the leave_balance_logs insert
+
+For leave request imports:
+- Look up employee's office_id
+- Find matching office_leave_type_id
+- Include `office_leave_type_id` in the leave_requests insert
+
+**3. Update Test Mocks (`src/test/flows/leave-request.test.ts`)**
+
+- Change mock data to use `office_leave_type_id` instead of `leave_type_id`
+- Update RPC function parameter names if needed
+
+### Phase 3: Verification
+
+After implementation:
+1. Test office change for employees (Kavita)
+2. Test leave deletion (Tula Bahadur Gurung)
+3. Test resignation/offboarding proration
+4. Test leave cancellation flow
+5. Test bulk leave import with opening balances
+6. Test bulk leave import with leave requests
 
 ## Technical Details
 
-| Aspect | Before (Broken) | After (Fixed) |
-|--------|-----------------|---------------|
-| Leave type lookup | `OLD.leave_type_id` + fallback to `leave_types` table | `OLD.office_leave_type_id` directly |
-| Balance lookup | `WHERE leave_type_id = v_leave_type_id` | `WHERE office_leave_type_id = v_office_leave_type_id` |
-| Log insertion | Inserts `leave_type_id` column | Inserts `office_leave_type_id` column |
+### handle_leave_proration_on_offboarding - Current vs Fixed
 
-The existing `sync_balance_from_log` trigger will automatically update the `leave_type_balances` table when the refund log is inserted.
+```text
+Current (Broken):
+FOR v_leave_type IN 
+  SELECT ltb.id, ltb.leave_type_id, ltb.balance, lt.default_days, lt.name
+  FROM leave_type_balances ltb
+  JOIN leave_types lt ON lt.id = ltb.leave_type_id
+  WHERE ltb.employee_id = NEW.id ...
 
-## Expected Outcome
-After this fix:
-- Deleting any leave request (pending, approved, rejected) will work correctly
-- For approved leaves, the balance will be automatically refunded
-- A log entry will be created showing the deletion and refund
+Fixed:
+FOR v_leave_type IN 
+  SELECT ltb.id, ltb.office_leave_type_id, ltb.balance, olt.default_days, olt.name
+  FROM leave_type_balances ltb
+  JOIN office_leave_types olt ON olt.id = ltb.office_leave_type_id
+  WHERE ltb.employee_id = NEW.id ...
+```
 
-## Files to Create
-| File | Description |
-|------|-------------|
-| `supabase/migrations/[timestamp]_fix_handle_leave_request_delete_office_centric.sql` | Update the delete trigger to use office_leave_type_id |
+### BulkLeaveImport - Enhanced Logic
+
+```text
+Opening Balance Flow:
+1. Get employee by email -> get employee.office_id
+2. Find office_leave_type where office_id + name match
+3. Insert into leave_balance_logs with office_leave_type_id
+
+Leave Request Flow:
+1. Get employee by email -> get employee.office_id  
+2. Find office_leave_type where office_id + name match
+3. Insert into leave_requests with office_leave_type_id
+```
+
+## Files to Create/Modify
+
+| Type | File | Description |
+|------|------|-------------|
+| Migration | `supabase/migrations/[timestamp]_cleanup_legacy_leave_type_references.sql` | Update 3 trigger functions to remove legacy code |
+| Update | `src/types/leave.ts` | Fix interface to use office_leave_type_id |
+| Update | `src/pages/BulkLeaveImport.tsx` | Add office_leave_type_id resolution and insertion |
+| Update | `src/test/flows/leave-request.test.ts` | Fix test mocks to use new column names |
+
+## Risk Assessment
+
+| Risk | Mitigation |
+|------|------------|
+| Existing approved leaves without office_leave_type_id | Functions already handle NULL gracefully |
+| Employee without office assignment | Functions already skip balance operations with notice |
+| Bulk import with unknown leave types | Will fail gracefully with clear error message |
 
