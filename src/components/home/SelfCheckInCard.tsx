@@ -10,6 +10,7 @@ import { useAttendanceRealtime } from "@/services/useAttendanceRealtime";
 import { RemoteCheckInDialog } from "@/components/dialogs/RemoteCheckInDialog";
 import { QRScannerDialog } from "@/components/dialogs/QRScannerDialog";
 import { useEmployeeWorkLocation, useHasApprovedWfhToday } from "@/services/useWfh";
+import { useMyOfficeAttendanceSettings } from "@/hooks/useMyOfficeAttendanceSettings";
 import { format, differenceInMinutes } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { getTimezoneAbbreviation } from "@/utils/timezone";
@@ -47,10 +48,23 @@ export const SelfCheckInCard = () => {
   // Work location hooks for smart check-in
   const { data: workLocation } = useEmployeeWorkLocation(employeeId || undefined);
   const { data: hasApprovedWfhToday } = useHasApprovedWfhToday(employeeId || undefined);
+  const { data: officeSettings } = useMyOfficeAttendanceSettings();
 
-  // Determine which check-in method to use (same logic as top bar)
-  const shouldUseRemoteCheckIn = workLocation === 'hybrid' || workLocation === 'remote' || 
-    (workLocation === 'office' && hasApprovedWfhToday);
+  // Determine which check-in method to use based on office settings
+  const shouldUseRemoteCheckIn = (() => {
+    const isRemoteWorker = workLocation === 'remote' || 
+      (workLocation === 'office' && hasApprovedWfhToday);
+    const isHybrid = workLocation === 'hybrid';
+
+    if (isRemoteWorker) return true;
+    if (isHybrid) {
+      const methods = officeSettings?.hybrid_checkin_methods || ['qr', 'remote'];
+      const hasRemote = methods.includes('remote') || methods.includes('remote_location');
+      const hasOffice = methods.includes('qr') || methods.includes('location');
+      return hasRemote || !hasOffice;
+    }
+    return false;
+  })();
 
   // Check if schedule has started based on work days and half-day leave
   useEffect(() => {

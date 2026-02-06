@@ -11,6 +11,7 @@ import { RemoteCheckInDialog } from './dialogs/RemoteCheckInDialog';
 import { MobileMoreMenu } from './MobileMoreMenu';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { useEmployeeWorkLocation, useHasApprovedWfhToday } from '@/services/useWfh';
+import { useMyOfficeAttendanceSettings } from '@/hooks/useMyOfficeAttendanceSettings';
 import { useTotalUnreadCount } from '@/services/useChat';
 
 interface NavItem {
@@ -54,10 +55,23 @@ export const MobileBottomNav = ({ userProfile, isOnline = false }: MobileBottomN
   // Work location and WFH hooks for smart check-in
   const { data: workLocation } = useEmployeeWorkLocation(employeeId || undefined);
   const { data: hasApprovedWfhToday } = useHasApprovedWfhToday(employeeId || undefined);
+  const { data: officeSettings } = useMyOfficeAttendanceSettings();
 
-  // Determine if user should use remote check-in (no QR scan)
-  const shouldUseRemoteCheckIn = workLocation === 'hybrid' || workLocation === 'remote' || 
-    (workLocation === 'office' && hasApprovedWfhToday);
+  // Determine if user should use remote check-in based on office settings
+  const shouldUseRemoteCheckIn = (() => {
+    const isRemoteWorker = workLocation === 'remote' || 
+      (workLocation === 'office' && hasApprovedWfhToday);
+    const isHybrid = workLocation === 'hybrid';
+
+    if (isRemoteWorker) return true;
+    if (isHybrid) {
+      const methods = officeSettings?.hybrid_checkin_methods || ['qr', 'remote'];
+      const hasRemote = methods.includes('remote') || methods.includes('remote_location');
+      const hasOffice = methods.includes('qr') || methods.includes('location');
+      return hasRemote || !hasOffice;
+    }
+    return false;
+  })();
 
   useEffect(() => {
     const loadEmployee = async () => {

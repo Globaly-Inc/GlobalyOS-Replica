@@ -19,6 +19,7 @@ import { Camera, Loader2, CheckCircle2, XCircle, MapPin, AlertTriangle, Clock, W
 import { Html5Qrcode } from "html5-qrcode";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useMyOfficeAttendanceSettings } from "@/hooks/useMyOfficeAttendanceSettings";
 import { getLocation, getLocationErrorTitle, getLocationErrorInstructions, type LocationErrorType } from "@/utils/geolocation";
 
 interface QRScannerDialogProps {
@@ -31,13 +32,13 @@ type LocationStatus = "pending" | "granted" | "denied" | "unavailable" | "timeou
 export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) => {
   const { user } = useAuth();
   const { currentOrg } = useOrganization();
+  const { data: officeSettings } = useMyOfficeAttendanceSettings();
   const [isScanning, setIsScanning] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
   const [currentAction, setCurrentAction] = useState<"check_in" | "check_out">("check_in");
   const [loading, setLoading] = useState(true);
   const [sessionCount, setSessionCount] = useState(0);
-  const [maxSessions, setMaxSessions] = useState(3);
   const [locationStatus, setLocationStatus] = useState<LocationStatus>("pending");
   const [locationErrorType, setLocationErrorType] = useState<LocationErrorType | null>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -45,10 +46,12 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
   const [showEarlyCheckoutWarning, setShowEarlyCheckoutWarning] = useState(false);
   const [pendingQrCode, setPendingQrCode] = useState<string | null>(null);
   const [earlyCheckoutReason, setEarlyCheckoutReason] = useState("");
-  const [earlyCheckoutReasonRequired, setEarlyCheckoutReasonRequired] = useState(true);
   const [retryingLocation, setRetryingLocation] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannerContainerRef = useRef<HTMLDivElement>(null);
+
+  const maxSessions = officeSettings?.max_sessions_per_day ?? 3;
+  const earlyCheckoutReasonRequired = officeSettings?.early_checkout_reason_required ?? true;
 
   // Request location permission using the improved utility
   useEffect(() => {
@@ -76,7 +79,7 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
     requestLocation();
   }, [open]);
 
-  // Determine current action based on today's attendance and fetch schedule + org settings
+  // Determine current action based on today's attendance and fetch schedule
   useEffect(() => {
     const fetchAttendanceStatus = async () => {
       if (!open || !user?.id) return;
@@ -94,18 +97,6 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
           return;
         }
 
-        // Fetch organization settings
-        const { data: orgSettings } = await supabase
-          .from("organizations")
-          .select("max_sessions_per_day, early_checkout_reason_required")
-          .eq("id", employee.organization_id)
-          .single();
-
-        if (orgSettings) {
-          setMaxSessions(orgSettings.max_sessions_per_day ?? 3);
-          setEarlyCheckoutReasonRequired(orgSettings.early_checkout_reason_required ?? true);
-        }
-
         // Fetch employee schedule
         const { data: schedule } = await supabase
           .from("employee_schedules")
@@ -119,7 +110,6 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
 
         const today = new Date().toISOString().split('T')[0];
         
-        // Get all sessions for today to count them
         const { data: todaySessions } = await supabase
           .from("attendance_records")
           .select("id, check_in_time, check_out_time")
@@ -130,10 +120,8 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
         const sessions = todaySessions || [];
         setSessionCount(sessions.length);
 
-        // Find any active session (checked in but not out)
         const activeSession = sessions.find(s => s.check_out_time === null);
 
-        // If there's an active session, next action is check_out
         if (activeSession) {
           setCurrentAction("check_out");
         } else {

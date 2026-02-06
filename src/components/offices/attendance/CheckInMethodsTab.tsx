@@ -34,7 +34,14 @@ const REMOTE_METHODS: MethodDef[] = [
   { id: 'remote_location', label: 'Remote Location Verification' },
 ];
 
-const LOCATION_METHOD_IDS = ['location', 'remote_location'];
+const LOCATION_METHOD_IDS = ['location'];
+
+const METHOD_DESCRIPTIONS: Record<string, string> = {
+  location: 'Verifies team member is within office geofence radius',
+  remote_location: 'Captures team member\'s current location during check-in/out',
+  qr: 'Scan office QR code to check in',
+  remote: 'Check in remotely without location tracking',
+};
 
 export const CheckInMethodsTab = ({
   officeCheckinMethods,
@@ -88,12 +95,19 @@ export const CheckInMethodsTab = ({
                   onCheckedChange={() => toggleMethod(workType, method.id)}
                   className="mt-0.5"
                 />
-                <label
-                  htmlFor={`${workType}-${method.id}`}
-                  className="text-sm cursor-pointer"
-                >
-                  {method.label}
-                </label>
+                <div>
+                  <label
+                    htmlFor={`${workType}-${method.id}`}
+                    className="text-sm cursor-pointer"
+                  >
+                    {method.label}
+                  </label>
+                  {METHOD_DESCRIPTIONS[method.id] && (
+                    <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                      {METHOD_DESCRIPTIONS[method.id]}
+                    </p>
+                  )}
+                </div>
               </div>
               {isLocationMethod && isChecked && (
                 <div className="ml-7 mt-1.5 flex items-center gap-2">
