@@ -181,7 +181,6 @@ export const AttendanceNotCheckedInTab = ({
         .select(`
           id,
           position,
-          checkin_exempt,
           office_id,
           profiles:profiles!inner(full_name, avatar_url),
           employee_schedules!inner(
@@ -195,8 +194,21 @@ export const AttendanceNotCheckedInTab = ({
           )
         `)
         .eq('organization_id', currentOrg.id)
-        .eq('status', 'active')
-        .eq('checkin_exempt', false);
+        .eq('status', 'active');
+
+      if (empError) {
+        console.error('Error fetching employees with schedules:', empError);
+        setLoading(false);
+        return;
+      }
+
+      // Get exempt employee IDs from office_attendance_exemptions
+      const { data: exemptions } = await supabase
+        .from('office_attendance_exemptions')
+        .select('employee_id')
+        .eq('organization_id', currentOrg.id);
+
+      const exemptIds = new Set(exemptions?.map(e => e.employee_id) || []);
 
       if (empError) {
         console.error('Error fetching employees with schedules:', empError);
@@ -243,6 +255,7 @@ export const AttendanceNotCheckedInTab = ({
 
       // Filter employees whose start time has passed IN THEIR OWN TIMEZONE
       const filtered = (employeesWithSchedule || []).filter(emp => {
+        if (exemptIds.has(emp.id)) return false;
         if (checkedInIds.has(emp.id)) return false;
 
         // Employee's office is on holiday today - exclude

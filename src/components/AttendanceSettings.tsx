@@ -6,35 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Clock, Save, Loader2, Users, LogOut, UserX, X, Search } from "lucide-react";
+import { Clock, Save, Loader2, Users, LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface AttendanceSettingsProps {
   embedded?: boolean;
-}
-
-interface ExemptEmployee {
-  id: string;
-  user_id: string;
-  position: string;
-  profiles: {
-    full_name: string | null;
-    avatar_url: string | null;
-  } | null;
-}
-
-interface EmployeeOption {
-  id: string;
-  user_id: string;
-  position: string;
-  full_name: string | null;
-  avatar_url: string | null;
 }
 
 export const AttendanceSettings = ({ embedded = false }: AttendanceSettingsProps) => {
@@ -54,12 +33,6 @@ export const AttendanceSettings = ({ embedded = false }: AttendanceSettingsProps
   
   // Early checkout settings
   const [earlyCheckoutReasonRequired, setEarlyCheckoutReasonRequired] = useState(true);
-  
-  // Check-in exemption settings
-  const [exemptEmployees, setExemptEmployees] = useState<ExemptEmployee[]>([]);
-  const [allEmployees, setAllEmployees] = useState<EmployeeOption[]>([]);
-  const [exemptSearchOpen, setExemptSearchOpen] = useState(false);
-  const [exemptLoading, setExemptLoading] = useState(false);
 
   useEffect(() => {
     if (currentOrg) {
@@ -87,100 +60,8 @@ export const AttendanceSettings = ({ embedded = false }: AttendanceSettingsProps
       setEarlyCheckoutReasonRequired(data.early_checkout_reason_required ?? true);
     }
 
-    // Load exempt employees
-    const { data: exemptData } = await supabase
-      .from("employees")
-      .select("id, user_id, position, profiles(full_name, avatar_url)")
-      .eq("organization_id", currentOrg.id)
-      .eq("checkin_exempt", true)
-      .eq("status", "active");
-
-    if (exemptData) {
-      setExemptEmployees(exemptData as ExemptEmployee[]);
-    }
-
-    // Load all active employees for the dropdown
-    const { data: allData } = await supabase
-      .from("employees")
-      .select("id, user_id, position, profiles(full_name, avatar_url)")
-      .eq("organization_id", currentOrg.id)
-      .eq("status", "active")
-      .order("position");
-
-    if (allData) {
-      setAllEmployees(allData.map(emp => ({
-        id: emp.id,
-        user_id: emp.user_id,
-        position: emp.position,
-        full_name: (emp.profiles as any)?.full_name || null,
-        avatar_url: (emp.profiles as any)?.avatar_url || null,
-      })));
-    }
-
     setLoading(false);
   };
-
-  const handleAddExemption = async (employeeId: string) => {
-    if (!currentOrg) return;
-    setExemptLoading(true);
-
-    try {
-      const { error } = await supabase
-        .from("employees")
-        .update({ checkin_exempt: true })
-        .eq("id", employeeId)
-        .eq("organization_id", currentOrg.id);
-
-      if (error) throw error;
-
-      // Update local state
-      const employee = allEmployees.find(e => e.id === employeeId);
-      if (employee) {
-        setExemptEmployees(prev => [...prev, {
-          id: employee.id,
-          user_id: employee.user_id,
-          position: employee.position,
-          profiles: {
-            full_name: employee.full_name,
-            avatar_url: employee.avatar_url,
-          }
-        }]);
-      }
-
-      toast.success("Employee exempted from check-in");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to add exemption");
-    } finally {
-      setExemptLoading(false);
-      setExemptSearchOpen(false);
-    }
-  };
-
-  const handleRemoveExemption = async (employeeId: string) => {
-    if (!currentOrg) return;
-    setExemptLoading(true);
-
-    try {
-      const { error } = await supabase
-        .from("employees")
-        .update({ checkin_exempt: false })
-        .eq("id", employeeId)
-        .eq("organization_id", currentOrg.id);
-
-      if (error) throw error;
-
-      setExemptEmployees(prev => prev.filter(e => e.id !== employeeId));
-      toast.success("Employee removed from exemptions");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to remove exemption");
-    } finally {
-      setExemptLoading(false);
-    }
-  };
-
-  const nonExemptEmployees = allEmployees.filter(
-    emp => !exemptEmployees.some(ex => ex.id === emp.id)
-  );
 
   const handleSave = async () => {
     if (!currentOrg) return;
@@ -413,96 +294,6 @@ export const AttendanceSettings = ({ embedded = false }: AttendanceSettingsProps
         </div>
 
         <Separator className="my-6" />
-
-        {/* Check-in Exemptions */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <UserX className="h-4 w-4 text-muted-foreground" />
-            <h3 className="font-medium">Check-in Exemptions</h3>
-          </div>
-          
-          <p className="text-sm text-muted-foreground">
-            Employees exempt from check-in won't appear in "Not Checked In" cards and won't receive check-in reminders.
-          </p>
-
-          {/* Exempt Employees List */}
-          {exemptEmployees.length > 0 && (
-            <div className="rounded-lg border divide-y">
-              {exemptEmployees.map((emp) => (
-                <div key={emp.id} className="flex items-center justify-between p-3">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={emp.profiles?.avatar_url || undefined} />
-                      <AvatarFallback>
-                        {emp.profiles?.full_name?.charAt(0) || "?"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-medium">{emp.profiles?.full_name || "Unknown"}</p>
-                      <p className="text-xs text-muted-foreground">{emp.position}</p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleRemoveExemption(emp.id)}
-                    disabled={exemptLoading}
-                    className="text-muted-foreground hover:text-destructive"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Add Exempt Employee */}
-          <Popover open={exemptSearchOpen} onOpenChange={setExemptSearchOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="w-full justify-start gap-2">
-                <Search className="h-4 w-4" />
-                Add exempt employee...
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="p-0 w-[300px]" align="start">
-              <Command>
-                <CommandInput placeholder="Search employees..." />
-                <CommandList>
-                  <CommandEmpty>No employees found.</CommandEmpty>
-                  <CommandGroup>
-                    {nonExemptEmployees.map((emp) => (
-                      <CommandItem
-                        key={emp.id}
-                        value={`${emp.full_name} ${emp.position}`}
-                        onSelect={() => handleAddExemption(emp.id)}
-                        className="cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage src={emp.avatar_url || undefined} />
-                            <AvatarFallback className="text-xs">
-                              {emp.full_name?.charAt(0) || "?"}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="text-sm">{emp.full_name || "Unknown"}</p>
-                            <p className="text-xs text-muted-foreground">{emp.position}</p>
-                          </div>
-                        </div>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-
-          {exemptEmployees.length === 0 && (
-            <p className="text-sm text-muted-foreground italic">
-              No employees are currently exempt from check-in requirements.
-            </p>
-          )}
-        </div>
 
         <div className="pt-6">
           <Button onClick={handleSave} disabled={saving} className="gap-2">
