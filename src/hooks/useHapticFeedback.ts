@@ -3,7 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 
 // Web fallback patterns (vibration duration in ms)
-const webPatterns = {
+const webPatterns: Record<string, number[]> = {
   incomingCall: [300, 100, 300, 100, 300, 200],
   outgoingPulse: [100, 200, 100],
   callConnected: [50, 100, 50],
@@ -12,7 +12,7 @@ const webPatterns = {
   error: [100, 50, 100, 50, 100],
   success: [50, 50, 50],
   tap: [30],
-} as const;
+};
 
 type HapticPattern = keyof typeof webPatterns;
 
