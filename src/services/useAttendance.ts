@@ -10,6 +10,7 @@ import { useCurrentEmployee } from './useCurrentEmployee';
 import { toast } from 'sonner';
 import { getErrorMessage } from '@/lib/errorUtils';
 import { format } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import type { 
   AttendanceRecord, 
   AttendanceRecordWithEmployee,
@@ -19,8 +20,9 @@ import type {
 // Fetch today's attendance for current employee
 export const useTodayAttendance = () => {
   const { data: currentEmployee } = useCurrentEmployee();
-  // Use UTC date to match database storage (which uses CURRENT_DATE in UTC)
-  const today = new Date().toISOString().split('T')[0];
+  const { currentOrg } = useOrganization();
+  // Use org timezone to match database storage
+  const today = formatInTimeZone(new Date(), currentOrg?.timezone || 'UTC', 'yyyy-MM-dd');
 
   return useQuery({
     queryKey: ['today-attendance', currentEmployee?.id, today],
@@ -257,8 +259,9 @@ export const useManualAttendance = () => {
 // Get active check-in status
 export const useCheckInStatus = () => {
   const { data: currentEmployee } = useCurrentEmployee();
-  // Use UTC date to match database storage (which uses CURRENT_DATE in UTC)
-  const today = new Date().toISOString().split('T')[0];
+  const { currentOrg } = useOrganization();
+  // Use org timezone to match database storage
+  const today = formatInTimeZone(new Date(), currentOrg?.timezone || 'UTC', 'yyyy-MM-dd');
 
   return useQuery({
     queryKey: ['check-in-status', currentEmployee?.id, today],
