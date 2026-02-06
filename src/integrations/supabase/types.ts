@@ -14411,8 +14411,8 @@ export type Database = {
           _action: string
           _early_checkout_reason?: string
           _location_name?: string
-          _user_latitude: number
-          _user_longitude: number
+          _user_latitude?: number
+          _user_longitude?: number
         }
         Returns: Json
       }

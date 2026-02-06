@@ -17,6 +17,8 @@ import {
 import { Home, MapPin, Loader2, CheckCircle2, XCircle, AlertTriangle, Clock, WifiOff, TimerOff } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRemoteAttendance } from "@/services/useWfh";
+import { useMyOfficeAttendanceSettings } from "@/hooks/useMyOfficeAttendanceSettings";
+import { useEmployeeWorkLocation } from "@/services/useWfh";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { getLocation, getLocationErrorTitle, getLocationErrorInstructions, type LocationErrorType } from "@/utils/geolocation";
@@ -26,15 +28,18 @@ interface RemoteCheckInDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type LocationStatus = "pending" | "granted" | "denied" | "unavailable" | "timeout";
+type LocationStatus = "pending" | "granted" | "denied" | "unavailable" | "timeout" | "not_required";
 
 export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogProps) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { data: officeSettings } = useMyOfficeAttendanceSettings();
+  const [employeeId, setEmployeeId] = useState<string | null>(null);
+  const { data: workLocation } = useEmployeeWorkLocation(employeeId || undefined);
+
   const [loading, setLoading] = useState(true);
   const [currentAction, setCurrentAction] = useState<"check_in" | "check_out">("check_in");
   const [sessionCount, setSessionCount] = useState(0);
-  const [maxSessions, setMaxSessions] = useState(3);
   const [locationStatus, setLocationStatus] = useState<LocationStatus>("pending");
   const [locationErrorType, setLocationErrorType] = useState<LocationErrorType | null>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -43,20 +48,37 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
   const [employeeSchedule, setEmployeeSchedule] = useState<{ work_end_time: string } | null>(null);
   const [showEarlyCheckoutWarning, setShowEarlyCheckoutWarning] = useState(false);
   const [earlyCheckoutReason, setEarlyCheckoutReason] = useState("");
-  const [earlyCheckoutReasonRequired, setEarlyCheckoutReasonRequired] = useState(true);
   const [retryingLocation, setRetryingLocation] = useState(false);
 
   const remoteAttendanceMutation = useRemoteAttendance();
 
-  // Request location using the improved utility
+  // Determine if location is required based on office settings + work type
+  const requiresLocation = (() => {
+    if (!officeSettings || !workLocation) return true; // Default: require location until settings loaded
+    const methods = workLocation === 'hybrid'
+      ? officeSettings.hybrid_checkin_methods
+      : officeSettings.remote_checkin_methods;
+    return methods.includes('remote_location');
+  })();
+
+  const maxSessions = officeSettings?.max_sessions_per_day ?? 3;
+  const earlyCheckoutReasonRequired = officeSettings?.early_checkout_reason_required ?? true;
+
+  // Request location
   useEffect(() => {
     if (!open) return;
 
-    setLocationStatus("pending");
     setUserLocation(null);
     setLocationName("");
     setResult(null);
     setLocationErrorType(null);
+
+    if (!requiresLocation) {
+      setLocationStatus("not_required");
+      return;
+    }
+
+    setLocationStatus("pending");
 
     const requestLocation = async () => {
       const locationResult = await getLocation();
@@ -65,7 +87,6 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
         setUserLocation(locationResult.coords);
         setLocationStatus("granted");
 
-        // Get location name
         try {
           const response = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${locationResult.coords.latitude}&lon=${locationResult.coords.longitude}`
@@ -80,7 +101,6 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
           setLocationName("Location detected");
         }
       } else {
-        // Map error type to status
         setLocationErrorType(locationResult.error || null);
         if (locationResult.error === 'permission_denied') {
           setLocationStatus("denied");
@@ -93,9 +113,9 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
     };
 
     requestLocation();
-  }, [open]);
+  }, [open, requiresLocation]);
 
-  // Get current attendance status and fetch schedule + org settings
+  // Get current attendance status and fetch schedule
   useEffect(() => {
     const fetchStatus = async () => {
       if (!open || !user?.id) return;
@@ -113,17 +133,7 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
           return;
         }
 
-        // Fetch organization settings
-        const { data: orgSettings } = await supabase
-          .from("organizations")
-          .select("max_sessions_per_day, early_checkout_reason_required")
-          .eq("id", employee.organization_id)
-          .single();
-
-        if (orgSettings) {
-          setMaxSessions(orgSettings.max_sessions_per_day ?? 3);
-          setEarlyCheckoutReasonRequired(orgSettings.early_checkout_reason_required ?? true);
-        }
+        setEmployeeId(employee.id);
 
         // Fetch employee schedule
         const { data: schedule } = await supabase
@@ -159,10 +169,9 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
     fetchStatus();
   }, [open, user?.id]);
 
-  // Reset on close and invalidate queries if successful
+  // Reset on close
   useEffect(() => {
     if (!open) {
-      // If we had a successful result, invalidate check-in status queries
       if (result?.success) {
         queryClient.invalidateQueries({ queryKey: ['check-in-status'] });
         queryClient.invalidateQueries({ queryKey: ['today-attendance'] });
@@ -186,9 +195,8 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
   };
 
   const handleCheckInOut = async () => {
-    if (!userLocation) return;
+    if (requiresLocation && !userLocation) return;
 
-    // Check for early checkout
     if (currentAction === "check_out" && checkIsEarlyCheckout()) {
       setShowEarlyCheckoutWarning(true);
       return;
@@ -198,13 +206,11 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
   };
 
   const processCheckout = async (reason?: string) => {
-    if (!userLocation) return;
-
     try {
       await remoteAttendanceMutation.mutateAsync({
         action: currentAction,
-        latitude: userLocation.latitude,
-        longitude: userLocation.longitude,
+        latitude: userLocation?.latitude,
+        longitude: userLocation?.longitude,
         locationName: locationName || undefined,
         earlyCheckoutReason: reason,
       });
@@ -240,7 +246,6 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
       setUserLocation(locationResult.coords);
       setLocationStatus("granted");
 
-      // Get location name
       try {
         const response = await fetch(
           `https://nominatim.openstreetmap.org/reverse?format=json&lat=${locationResult.coords.latitude}&lon=${locationResult.coords.longitude}`
@@ -281,7 +286,8 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
     }
   };
 
-  const showLocationError = locationStatus === "denied" || locationStatus === "unavailable" || locationStatus === "timeout";
+  const showLocationError = requiresLocation && (locationStatus === "denied" || locationStatus === "unavailable" || locationStatus === "timeout");
+  const isReady = !loading && (locationStatus === "granted" || locationStatus === "not_required");
 
   return (
     <>
@@ -307,7 +313,7 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
               </div>
             )}
 
-            {!loading && locationStatus === "pending" && (
+            {!loading && requiresLocation && locationStatus === "pending" && (
               <div className="flex flex-col items-center justify-center py-8 gap-4">
                 <MapPin className="h-12 w-12 text-primary animate-pulse" />
                 <p className="text-muted-foreground text-center">
@@ -350,20 +356,31 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
               </div>
             )}
 
-            {!loading && locationStatus === "granted" && !result && (
+            {isReady && !result && (
               <div className="space-y-4">
-                {/* Location Info */}
-                <div className="flex items-center justify-center gap-2 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                  <MapPin className="h-5 w-5 text-green-600 dark:text-green-400" />
-                  <div className="text-center">
-                    <p className="text-sm font-medium text-green-700 dark:text-green-300">
-                      Location Detected
-                    </p>
-                    {locationName && (
-                      <p className="text-xs text-green-600 dark:text-green-400">{locationName}</p>
-                    )}
+                {/* Location Info or No-Location Info */}
+                {locationStatus === "granted" && userLocation && (
+                  <div className="flex items-center justify-center gap-2 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                    <MapPin className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-green-700 dark:text-green-300">
+                        Location Detected
+                      </p>
+                      {locationName && (
+                        <p className="text-xs text-green-600 dark:text-green-400">{locationName}</p>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {locationStatus === "not_required" && (
+                  <div className="flex flex-col items-center justify-center gap-2 p-4 bg-muted/50 rounded-lg border border-border">
+                    <Home className="h-8 w-8 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">
+                      You're checking in remotely
+                    </p>
+                  </div>
+                )}
 
                 {/* Check In/Out Button */}
                 <Button

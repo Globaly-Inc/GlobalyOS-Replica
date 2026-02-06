@@ -5,6 +5,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { useNotificationPreferences } from "@/hooks/useNotificationPreferences";
 import { useEmployeeWorkLocation, useHasApprovedWfhToday } from "@/services/useWfh";
+import { useMyOfficeAttendanceSettings } from "@/hooks/useMyOfficeAttendanceSettings";
 
 export interface UserProfile {
   fullName: string;
@@ -31,10 +32,26 @@ export const useLayoutState = () => {
   // Work location and WFH hooks for smart check-in
   const { data: workLocation } = useEmployeeWorkLocation(userProfile?.employeeId || undefined);
   const { data: hasApprovedWfhToday } = useHasApprovedWfhToday(userProfile?.employeeId || undefined);
+  const { data: officeSettings } = useMyOfficeAttendanceSettings();
 
-  // Determine if user should use remote check-in (no QR scan)
-  const shouldUseRemoteCheckIn = workLocation === 'hybrid' || workLocation === 'remote' || 
-    (workLocation === 'office' && hasApprovedWfhToday);
+  // Determine if user should use remote check-in based on office settings
+  const shouldUseRemoteCheckIn = (() => {
+    const isRemoteWorker = workLocation === 'remote' || 
+      (workLocation === 'office' && hasApprovedWfhToday);
+    const isHybrid = workLocation === 'hybrid';
+
+    if (isRemoteWorker) return true;
+    if (isHybrid) {
+      // For hybrid, check if office settings have remote methods available
+      const methods = officeSettings?.hybrid_checkin_methods || ['qr', 'remote'];
+      const hasRemote = methods.includes('remote') || methods.includes('remote_location');
+      const hasOffice = methods.includes('qr') || methods.includes('location');
+      // If only remote methods available, use remote; otherwise default to remote for hybrid
+      return hasRemote || !hasOffice;
+    }
+    // Office workers: use QR/location by default
+    return false;
+  })();
 
   // Send push notification when a new notification is created
   const sendPushNotification = useCallback(async (notification: any) => {
