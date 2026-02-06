@@ -11,6 +11,7 @@ import { RemoteCheckInDialog } from "@/components/dialogs/RemoteCheckInDialog";
 import { QRScannerDialog } from "@/components/dialogs/QRScannerDialog";
 import { CheckInMethodChooser } from "@/components/dialogs/CheckInMethodChooser";
 import { useCheckInMethod } from "@/hooks/useCheckInMethod";
+import { useIsEmployeeExempt } from "@/hooks/useIsEmployeeExempt";
 import { format, differenceInMinutes } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { getTimezoneAbbreviation } from "@/utils/timezone";
@@ -36,6 +37,8 @@ export const SelfCheckInCard = () => {
   const { data: checkInStatus, isLoading: statusLoading } = useCheckInStatus();
   
   const [loading, setLoading] = useState(true);
+  const [localEmployeeId, setLocalEmployeeId] = useState<string | null>(null);
+  const { data: isExempt, isLoading: exemptLoading } = useIsEmployeeExempt(localEmployeeId || undefined);
   const [schedule, setSchedule] = useState<EmployeeSchedule | null>(null);
   const [isOnLeave, setIsOnLeave] = useState(false);
   const [halfDayType, setHalfDayType] = useState<HalfDayType>(null);
@@ -106,7 +109,6 @@ export const SelfCheckInCard = () => {
           .from("employees")
           .select(`
             id,
-            checkin_exempt,
             employee_schedules(
               work_start_time,
               work_end_time,
@@ -127,13 +129,8 @@ export const SelfCheckInCard = () => {
           return;
         }
 
-        // If employee is exempt from check-in, don't show the card
-        if (employee.checkin_exempt) {
-          setLoading(false);
-          return;
-        }
-
         setEmployeeId(employee.id);
+        setLocalEmployeeId(employee.id);
 
         const scheduleData = employee.employee_schedules;
         const empSchedule = Array.isArray(scheduleData) ? scheduleData[0] : scheduleData;
@@ -188,12 +185,12 @@ export const SelfCheckInCard = () => {
     loadData();
   }, [user?.id, currentOrg?.id]);
 
-  // Don't show if loading, no schedule, on full-day leave, or already checked in
-  if (loading || statusLoading) {
+  // Don't show if loading, no schedule, on full-day leave, exempt, or already checked in
+  if (loading || statusLoading || exemptLoading) {
     return null;
   }
 
-  if (!schedule || isOnLeave || checkInStatus?.isCheckedIn || !scheduleStarted) {
+  if (!schedule || isOnLeave || isExempt || checkInStatus?.isCheckedIn || !scheduleStarted) {
     return null;
   }
 

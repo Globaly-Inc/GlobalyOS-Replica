@@ -112,7 +112,6 @@ export const NotCheckedInCard = () => {
         .select(`
           id,
           position,
-          checkin_exempt,
           office_id,
           profiles:profiles!inner(full_name, avatar_url),
           employee_schedules!inner(
@@ -126,8 +125,21 @@ export const NotCheckedInCard = () => {
           )
         `)
         .eq('organization_id', currentOrg.id)
-        .eq('status', 'active')
-        .eq('checkin_exempt', false);
+        .eq('status', 'active');
+
+      if (empError) {
+        console.error('Error fetching employees with schedules:', empError);
+        setLoading(false);
+        return;
+      }
+
+      // Get exempt employee IDs from office_attendance_exemptions
+      const { data: exemptions } = await supabase
+        .from('office_attendance_exemptions')
+        .select('employee_id')
+        .eq('organization_id', currentOrg.id);
+
+      const exemptIds = new Set(exemptions?.map(e => e.employee_id) || []);
 
       if (empError) {
         console.error('Error fetching employees with schedules:', empError);
@@ -177,6 +189,11 @@ export const NotCheckedInCard = () => {
 
       // Filter to find not-checked-in employees whose start time has passed IN THEIR TIMEZONE
       const filtered = (employeesWithSchedule || []).filter(emp => {
+        // Exempt from check-in - exclude
+        if (exemptIds.has(emp.id)) {
+          return false;
+        }
+
         // Already checked in - exclude
         if (checkedInIds.has(emp.id)) {
           return false;
