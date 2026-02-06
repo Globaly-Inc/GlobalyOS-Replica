@@ -6,7 +6,7 @@
      <div className="space-y-6">
        <PageHeader
          title="Offices & Structure"
-         subtitle="Manage your organization's offices, departments, and positions"
+         subtitle="Manage your organization's offices (attendance & leaves), departments, and positions"
        />
        <OfficesStructureSettings />
      </div>
