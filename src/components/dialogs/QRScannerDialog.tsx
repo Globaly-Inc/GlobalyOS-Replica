@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { formatInTimeZone } from "date-fns-tz";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -115,7 +116,7 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
           setEmployeeSchedule(schedule);
         }
 
-        const today = new Date().toISOString().split('T')[0];
+        const today = formatInTimeZone(new Date(), currentOrg?.timezone || 'UTC', 'yyyy-MM-dd');
         
         const { data: todaySessions } = await supabase
           .from("attendance_records")

@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { formatInTimeZone } from "date-fns-tz";
 import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
@@ -20,6 +21,7 @@ import { useRemoteAttendance } from "@/services/useWfh";
 import { useMyOfficeAttendanceSettings } from "@/hooks/useMyOfficeAttendanceSettings";
 import { useEmployeeWorkLocation } from "@/services/useWfh";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrganization } from "@/hooks/useOrganization";
 import { useQueryClient } from "@tanstack/react-query";
 import { getLocation, getLocationErrorTitle, getLocationErrorInstructions, type LocationErrorType } from "@/utils/geolocation";
 import { reverseGeocode } from "@/utils/reverseGeocode";
@@ -33,6 +35,7 @@ type LocationStatus = "pending" | "granted" | "denied" | "unavailable" | "timeou
 
 export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogProps) => {
   const { user } = useAuth();
+  const { currentOrg } = useOrganization();
   const queryClient = useQueryClient();
   const { data: officeSettings } = useMyOfficeAttendanceSettings();
   const [employeeId, setEmployeeId] = useState<string | null>(null);
@@ -136,7 +139,7 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
           setEmployeeSchedule(schedule);
         }
 
-        const today = new Date().toISOString().split("T")[0];
+        const today = formatInTimeZone(new Date(), currentOrg?.timezone || 'UTC', 'yyyy-MM-dd');
         const { data: sessions } = await supabase
           .from("attendance_records")
           .select("id, check_in_time, check_out_time")

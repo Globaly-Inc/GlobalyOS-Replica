@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { formatInTimeZone } from 'date-fns-tz';
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from "@/hooks/useOrganization";
@@ -182,7 +183,7 @@ export const useLayoutState = () => {
 
     if (!employee) return;
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = formatInTimeZone(new Date(), currentOrg?.timezone || 'UTC', 'yyyy-MM-dd');
     
     const { data: todaySessions } = await supabase
       .from("attendance_records")

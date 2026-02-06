@@ -2,6 +2,7 @@ import { Home, CalendarDays, ScanLine, MessageCircle } from 'lucide-react';
 import { useLocation, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
+import { formatInTimeZone } from 'date-fns-tz';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/hooks/useOrganization';
@@ -74,7 +75,7 @@ export const MobileBottomNav = ({ userProfile, isOnline = false }: MobileBottomN
   useEffect(() => {
     const fetchActiveSession = async () => {
       if (!employeeId) return;
-      const today = new Date().toISOString().split('T')[0];
+      const today = formatInTimeZone(new Date(), currentOrg?.timezone || 'UTC', 'yyyy-MM-dd');
       const { data } = await supabase
         .from('attendance_records')
         .select('check_in_time')
