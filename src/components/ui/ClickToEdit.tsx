@@ -4,7 +4,7 @@
  * Shows subtle hover effect and pencil icon overlay
  */
 
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, forwardRef } from 'react';
 import { Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -17,14 +17,15 @@ interface ClickToEditProps {
   showIcon?: boolean;
 }
 
-export const ClickToEdit = ({
+export const ClickToEdit = forwardRef<HTMLButtonElement, ClickToEditProps>(({
   children,
   canEdit,
   onEdit,
   className,
   iconSize = 'sm',
   showIcon = false,
-}: ClickToEditProps) => {
+  ...props
+}, ref) => {
   const [isHovered, setIsHovered] = useState(false);
 
   if (!canEdit) {
@@ -33,6 +34,7 @@ export const ClickToEdit = ({
 
   return (
     <button
+      ref={ref}
       type="button"
       className={cn(
         'group/edit relative inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 -mx-1.5 -my-0.5 transition-all cursor-pointer',
@@ -45,6 +47,7 @@ export const ClickToEdit = ({
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      {...props}
     >
       {children}
       {showIcon && (
@@ -58,4 +61,6 @@ export const ClickToEdit = ({
       )}
     </button>
   );
-};
+});
+
+ClickToEdit.displayName = 'ClickToEdit';
