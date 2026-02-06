@@ -83,7 +83,7 @@ export const EditableField = ({
                 <X className="h-3 w-3" />
               </button>
             </div>
-          </div> : <p className="font-medium text-foreground text-xl">
+          </div> : <p className="font-medium text-foreground text-sm">
             {value || <span className="text-muted-foreground italic">{placeholder}</span>}
           </p>}
       </div>
