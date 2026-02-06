@@ -65,7 +65,7 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
   const maxSessions = officeSettings?.max_sessions_per_day ?? 3;
   const earlyCheckoutReasonRequired = officeSettings?.early_checkout_reason_required ?? true;
 
-  // Request location
+  // Request location on open (for both check-in and check-out when remote_location is enabled)
   useEffect(() => {
     if (!open) return;
 

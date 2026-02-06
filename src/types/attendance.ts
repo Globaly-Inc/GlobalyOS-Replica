@@ -12,6 +12,12 @@ export interface AttendanceRecord {
   work_hours: number | null;
   status: AttendanceStatus;
   notes: string | null;
+  check_in_latitude: number | null;
+  check_in_longitude: number | null;
+  check_in_location_name: string | null;
+  check_out_latitude: number | null;
+  check_out_longitude: number | null;
+  check_out_location_name: string | null;
   created_at: string;
   updated_at: string;
 }
