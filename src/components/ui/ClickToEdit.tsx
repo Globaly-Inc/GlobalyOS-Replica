@@ -40,8 +40,7 @@ export const ClickToEdit = ({
         'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-1',
         className
       )}
-      onClick={(e) => {
-        e.stopPropagation();
+      onClick={() => {
         onEdit();
       }}
       onMouseEnter={() => setIsHovered(true)}
