@@ -27,7 +27,7 @@ interface QRScannerDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type LocationStatus = "pending" | "granted" | "denied" | "unavailable" | "timeout";
+type LocationStatus = "pending" | "granted" | "denied" | "unavailable" | "timeout" | "skipped";
 
 export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) => {
   const { user } = useAuth();
@@ -52,10 +52,17 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
 
   const maxSessions = officeSettings?.max_sessions_per_day ?? 3;
   const earlyCheckoutReasonRequired = officeSettings?.early_checkout_reason_required ?? true;
+  // Determine if office requires location verification for QR check-in
+  const requiresLocationForQr = officeSettings?.office_checkin_methods?.includes('location') ?? false;
 
-  // Request location permission using the improved utility
+  // Request location permission only if office settings require it
   useEffect(() => {
     if (!open) return;
+
+    if (!requiresLocationForQr) {
+      setLocationStatus("skipped");
+      return;
+    }
 
     const requestLocation = async () => {
       const locationResult = await getLocation();
@@ -77,7 +84,7 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
     };
 
     requestLocation();
-  }, [open]);
+  }, [open, requiresLocationForQr]);
 
   // Determine current action based on today's attendance and fetch schedule
   useEffect(() => {
@@ -137,9 +144,9 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
     fetchAttendanceStatus();
   }, [open, user?.id]);
 
-  // Auto-start scanner when dialog opens and location is ready
+  // Auto-start scanner when dialog opens and location is ready (or skipped)
   useEffect(() => {
-    if (open && !loading && !result && (locationStatus === "granted" || locationStatus === "unavailable" || locationStatus === "timeout")) {
+    if (open && !loading && !result && (locationStatus === "granted" || locationStatus === "unavailable" || locationStatus === "timeout" || locationStatus === "skipped")) {
       startScanner();
     }
   }, [open, loading, currentAction, locationStatus]);
@@ -349,7 +356,7 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
   };
 
   const showLocationError = locationStatus === "denied";
-  const canProceedWithScanner = locationStatus === "granted" || locationStatus === "unavailable" || locationStatus === "timeout";
+  const canProceedWithScanner = locationStatus === "granted" || locationStatus === "unavailable" || locationStatus === "timeout" || locationStatus === "skipped";
 
   return (
     <>

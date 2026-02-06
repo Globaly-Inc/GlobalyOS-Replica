@@ -8,10 +8,10 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { QRScannerDialog } from './dialogs/QRScannerDialog';
 import { RemoteCheckInDialog } from './dialogs/RemoteCheckInDialog';
+import { CheckInMethodChooser } from './dialogs/CheckInMethodChooser';
 import { MobileMoreMenu } from './MobileMoreMenu';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { useEmployeeWorkLocation, useHasApprovedWfhToday } from '@/services/useWfh';
-import { useMyOfficeAttendanceSettings } from '@/hooks/useMyOfficeAttendanceSettings';
+import { useCheckInMethod } from '@/hooks/useCheckInMethod';
 import { useTotalUnreadCount } from '@/services/useChat';
 
 interface NavItem {
@@ -48,30 +48,13 @@ export const MobileBottomNav = ({ userProfile, isOnline = false }: MobileBottomN
   const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
   const [remoteCheckInOpen, setRemoteCheckInOpen] = useState(false);
+  const [methodChooserOpen, setMethodChooserOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [checkInTime, setCheckInTime] = useState<Date | null>(null);
   const { data: totalUnread = 0 } = useTotalUnreadCount();
 
-  // Work location and WFH hooks for smart check-in
-  const { data: workLocation } = useEmployeeWorkLocation(employeeId || undefined);
-  const { data: hasApprovedWfhToday } = useHasApprovedWfhToday(employeeId || undefined);
-  const { data: officeSettings } = useMyOfficeAttendanceSettings();
-
-  // Determine if user should use remote check-in based on office settings
-  const shouldUseRemoteCheckIn = (() => {
-    const isRemoteWorker = workLocation === 'remote' || 
-      (workLocation === 'office' && hasApprovedWfhToday);
-    const isHybrid = workLocation === 'hybrid';
-
-    if (isRemoteWorker) return true;
-    if (isHybrid) {
-      const methods = officeSettings?.hybrid_checkin_methods || ['qr', 'remote'];
-      const hasRemote = methods.includes('remote') || methods.includes('remote_location');
-      const hasOffice = methods.includes('qr') || methods.includes('location');
-      return hasRemote || !hasOffice;
-    }
-    return false;
-  })();
+  // Smart check-in method
+  const checkInMethod = useCheckInMethod(employeeId);
 
   useEffect(() => {
     const loadEmployee = async () => {
@@ -116,7 +99,9 @@ export const MobileBottomNav = ({ userProfile, isOnline = false }: MobileBottomN
         navigateOrg('/leave');
       }
     } else if (item.action === 'scan') {
-      if (shouldUseRemoteCheckIn) {
+      if (checkInMethod === 'choose') {
+        setMethodChooserOpen(true);
+      } else if (checkInMethod === 'remote') {
         setRemoteCheckInOpen(true);
       } else {
         setQrScannerOpen(true);
@@ -211,21 +196,17 @@ export const MobileBottomNav = ({ userProfile, isOnline = false }: MobileBottomN
         </div>
       </nav>
 
-      <QRScannerDialog
-        open={qrScannerOpen}
-        onOpenChange={setQrScannerOpen}
+      <QRScannerDialog open={qrScannerOpen} onOpenChange={setQrScannerOpen} />
+      <RemoteCheckInDialog open={remoteCheckInOpen} onOpenChange={setRemoteCheckInOpen} />
+      <CheckInMethodChooser
+        open={methodChooserOpen}
+        onOpenChange={setMethodChooserOpen}
+        onChoose={(method) => {
+          if (method === 'remote') setRemoteCheckInOpen(true);
+          else setQrScannerOpen(true);
+        }}
       />
-
-      <RemoteCheckInDialog
-        open={remoteCheckInOpen}
-        onOpenChange={setRemoteCheckInOpen}
-      />
-      
-      <MobileMoreMenu
-        open={moreMenuOpen}
-        onOpenChange={setMoreMenuOpen}
-        userProfile={userProfile}
-      />
+      <MobileMoreMenu open={moreMenuOpen} onOpenChange={setMoreMenuOpen} userProfile={userProfile} />
     </>
   );
 };

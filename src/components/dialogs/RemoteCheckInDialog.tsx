@@ -22,6 +22,7 @@ import { useEmployeeWorkLocation } from "@/services/useWfh";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { getLocation, getLocationErrorTitle, getLocationErrorInstructions, type LocationErrorType } from "@/utils/geolocation";
+import { reverseGeocode } from "@/utils/reverseGeocode";
 
 interface RemoteCheckInDialogProps {
   open: boolean;
@@ -54,7 +55,7 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
 
   // Determine if location is required based on office settings + work type
   const requiresLocation = (() => {
-    if (!officeSettings || !workLocation) return true; // Default: require location until settings loaded
+    if (!officeSettings || !workLocation) return false; // Default: no location until settings loaded
     const methods = workLocation === 'hybrid'
       ? officeSettings.hybrid_checkin_methods
       : officeSettings.remote_checkin_methods;
@@ -87,19 +88,8 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
         setUserLocation(locationResult.coords);
         setLocationStatus("granted");
 
-        try {
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${locationResult.coords.latitude}&lon=${locationResult.coords.longitude}`
-          );
-          if (response.ok) {
-            const data = await response.json();
-            const city = data.address?.city || data.address?.town || data.address?.village || "";
-            const state = data.address?.state || "";
-            setLocationName([city, state].filter(Boolean).join(", ") || "Location detected");
-          }
-        } catch {
-          setLocationName("Location detected");
-        }
+        const name = await reverseGeocode(locationResult.coords.latitude, locationResult.coords.longitude);
+        setLocationName(name);
       } else {
         setLocationErrorType(locationResult.error || null);
         if (locationResult.error === 'permission_denied') {
@@ -246,19 +236,8 @@ export const RemoteCheckInDialog = ({ open, onOpenChange }: RemoteCheckInDialogP
       setUserLocation(locationResult.coords);
       setLocationStatus("granted");
 
-      try {
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${locationResult.coords.latitude}&lon=${locationResult.coords.longitude}`
-        );
-        if (response.ok) {
-          const data = await response.json();
-          const city = data.address?.city || data.address?.town || data.address?.village || "";
-          const state = data.address?.state || "";
-          setLocationName([city, state].filter(Boolean).join(", ") || "Location detected");
-        }
-      } catch {
-        setLocationName("Location detected");
-      }
+      const name = await reverseGeocode(locationResult.coords.latitude, locationResult.coords.longitude);
+      setLocationName(name);
     } else {
       setLocationErrorType(locationResult.error || null);
       if (locationResult.error === 'permission_denied') {
