@@ -7,6 +7,7 @@ import { GetHelpButton } from "@/components/GetHelpButton";
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import type { UserProfile } from '@/hooks/useLayoutState';
+import type { CheckInMethod } from '@/hooks/useCheckInMethod';
 
 interface DesktopQuickActionsProps {
   userProfile: UserProfile | null;
@@ -14,7 +15,7 @@ interface DesktopQuickActionsProps {
   unreadCount: number;
   isOnline: boolean;
   currentOrgId: string | undefined;
-  shouldUseRemoteCheckIn: boolean;
+  checkInMethod: CheckInMethod;
   onCheckIn: () => void;
   onLeaveRequest: () => void;
   onSearch: () => void;
@@ -32,7 +33,7 @@ export const DesktopQuickActions = ({
   unreadCount,
   isOnline,
   currentOrgId,
-  shouldUseRemoteCheckIn,
+  checkInMethod,
   onCheckIn,
   onLeaveRequest,
   onSearch,
@@ -74,7 +75,7 @@ export const DesktopQuickActions = ({
           </Button>
         </TooltipTrigger>
         <TooltipContent>
-          <p>{shouldUseRemoteCheckIn ? 'Remote Check-In' : 'Quick Check-In'}</p>
+          <p>{checkInMethod === 'remote' ? 'Remote Check-In' : 'Quick Check-In'}</p>
         </TooltipContent>
       </Tooltip>
       <Tooltip>

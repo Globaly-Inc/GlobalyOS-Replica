@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { CheckInMethodChooser } from './dialogs/CheckInMethodChooser';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import globalyosLogo from "@/assets/globalyos-icon.png";
 import { OrganizationSwitcher } from "./OrganizationSwitcher";
@@ -40,7 +41,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     unreadCount,
     elapsedTime,
     isOnline,
-    shouldUseRemoteCheckIn,
+    checkInMethod,
     fetchTodayAttendance,
   } = useLayoutState();
 
@@ -49,6 +50,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const [postDialogOpen, setPostDialogOpen] = useState(false);
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
   const [remoteCheckInOpen, setRemoteCheckInOpen] = useState(false);
+  const [methodChooserOpen, setMethodChooserOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [getHelpDialogOpen, setGetHelpDialogOpen] = useState(false);
@@ -65,7 +67,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const { pullDistance, isRefreshing, isPastThreshold } = usePullToRefresh();
 
   const handleCheckIn = () => {
-    if (shouldUseRemoteCheckIn) {
+    if (checkInMethod === 'choose') {
+      setMethodChooserOpen(true);
+    } else if (checkInMethod === 'remote') {
       setRemoteCheckInOpen(true);
     } else {
       setQrScannerOpen(true);
@@ -127,7 +131,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             unreadCount={unreadCount}
             isOnline={isOnline}
             currentOrgId={currentOrg?.id}
-            shouldUseRemoteCheckIn={shouldUseRemoteCheckIn}
+            checkInMethod={checkInMethod}
             onCheckIn={handleCheckIn}
             onLeaveRequest={() => setLeaveDialogOpen(true)}
             onSearch={() => setGlobalSearchOpen(true)}
@@ -178,7 +182,14 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
         mobileSearchOpen={mobileSearchOpen}
         setMobileSearchOpen={setMobileSearchOpen}
       />
-
+      <CheckInMethodChooser
+        open={methodChooserOpen}
+        onOpenChange={setMethodChooserOpen}
+        onChoose={(method) => {
+          if (method === 'remote') setRemoteCheckInOpen(true);
+          else setQrScannerOpen(true);
+        }}
+      />
       {/* KPI Generation Progress Indicator */}
       <KpiGenerationProgress organizationId={currentOrg?.id} />
     </div>

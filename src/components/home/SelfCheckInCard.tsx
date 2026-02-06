@@ -9,8 +9,8 @@ import { useCheckInStatus } from "@/services/useAttendance";
 import { useAttendanceRealtime } from "@/services/useAttendanceRealtime";
 import { RemoteCheckInDialog } from "@/components/dialogs/RemoteCheckInDialog";
 import { QRScannerDialog } from "@/components/dialogs/QRScannerDialog";
-import { useEmployeeWorkLocation, useHasApprovedWfhToday } from "@/services/useWfh";
-import { useMyOfficeAttendanceSettings } from "@/hooks/useMyOfficeAttendanceSettings";
+import { CheckInMethodChooser } from "@/components/dialogs/CheckInMethodChooser";
+import { useCheckInMethod } from "@/hooks/useCheckInMethod";
 import { format, differenceInMinutes } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { getTimezoneAbbreviation } from "@/utils/timezone";
@@ -41,30 +41,13 @@ export const SelfCheckInCard = () => {
   const [halfDayType, setHalfDayType] = useState<HalfDayType>(null);
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
+  const [showMethodChooser, setShowMethodChooser] = useState(false);
   const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [scheduleStarted, setScheduleStarted] = useState(false);
   const [orgTimezone, setOrgTimezone] = useState<string>('Asia/Kathmandu');
 
-  // Work location hooks for smart check-in
-  const { data: workLocation } = useEmployeeWorkLocation(employeeId || undefined);
-  const { data: hasApprovedWfhToday } = useHasApprovedWfhToday(employeeId || undefined);
-  const { data: officeSettings } = useMyOfficeAttendanceSettings();
-
-  // Determine which check-in method to use based on office settings
-  const shouldUseRemoteCheckIn = (() => {
-    const isRemoteWorker = workLocation === 'remote' || 
-      (workLocation === 'office' && hasApprovedWfhToday);
-    const isHybrid = workLocation === 'hybrid';
-
-    if (isRemoteWorker) return true;
-    if (isHybrid) {
-      const methods = officeSettings?.hybrid_checkin_methods || ['qr', 'remote'];
-      const hasRemote = methods.includes('remote') || methods.includes('remote_location');
-      const hasOffice = methods.includes('qr') || methods.includes('location');
-      return hasRemote || !hasOffice;
-    }
-    return false;
-  })();
+  // Smart check-in method
+  const checkInMethod = useCheckInMethod(employeeId);
 
   // Check if schedule has started based on work days and half-day leave
   useEffect(() => {
@@ -288,7 +271,9 @@ export const SelfCheckInCard = () => {
               </div>
               <Button
                 onClick={() => {
-                  if (shouldUseRemoteCheckIn) {
+                  if (checkInMethod === 'choose') {
+                    setShowMethodChooser(true);
+                  } else if (checkInMethod === 'remote') {
                     setShowCheckInDialog(true);
                   } else {
                     setShowQRScanner(true);
@@ -312,6 +297,15 @@ export const SelfCheckInCard = () => {
       <QRScannerDialog
         open={showQRScanner}
         onOpenChange={setShowQRScanner}
+      />
+
+      <CheckInMethodChooser
+        open={showMethodChooser}
+        onOpenChange={setShowMethodChooser}
+        onChoose={(method) => {
+          if (method === 'remote') setShowCheckInDialog(true);
+          else setShowQRScanner(true);
+        }}
       />
     </>
   );
