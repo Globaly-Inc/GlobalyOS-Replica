@@ -6,7 +6,7 @@
 import { useEmployeeWorkLocation, useHasApprovedWfhToday } from '@/services/useWfh';
 import { useMyOfficeAttendanceSettings } from '@/hooks/useMyOfficeAttendanceSettings';
 
-export type CheckInMethod = 'remote' | 'qr' | 'choose';
+export type CheckInMethod = 'remote' | 'qr' | 'choose' | 'disabled';
 
 export const useCheckInMethod = (employeeId?: string | null): CheckInMethod => {
   const { data: workLocation } = useEmployeeWorkLocation(employeeId || undefined);
@@ -14,6 +14,9 @@ export const useCheckInMethod = (employeeId?: string | null): CheckInMethod => {
   const { data: officeSettings } = useMyOfficeAttendanceSettings();
 
   if (!employeeId) return 'qr';
+
+  // If attendance is disabled for this office, don't offer check-in
+  if (officeSettings?.attendance_enabled === false) return 'disabled';
 
   const isRemoteWorker = workLocation === 'remote' ||
     (workLocation === 'office' && hasApprovedWfhToday);

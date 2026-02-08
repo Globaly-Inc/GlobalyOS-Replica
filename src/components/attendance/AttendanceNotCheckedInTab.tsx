@@ -210,6 +210,14 @@ export const AttendanceNotCheckedInTab = ({
 
       const exemptIds = new Set(exemptions?.map(e => e.employee_id) || []);
 
+      // Get offices with attendance disabled
+      const { data: disabledOffices } = await supabase
+        .from('office_attendance_settings')
+        .select('office_id')
+        .eq('attendance_enabled', false);
+
+      const disabledOfficeIds = new Set(disabledOffices?.map(o => o.office_id) || []);
+
       if (empError) {
         console.error('Error fetching employees with schedules:', empError);
         setLoading(false);
@@ -257,6 +265,11 @@ export const AttendanceNotCheckedInTab = ({
       const filtered = (employeesWithSchedule || []).filter(emp => {
         if (exemptIds.has(emp.id)) return false;
         if (checkedInIds.has(emp.id)) return false;
+
+        // Employee's office has attendance disabled - exclude
+        if (emp.office_id && disabledOfficeIds.has(emp.office_id)) {
+          return false;
+        }
 
         // Employee's office is on holiday today - exclude
         if (emp.office_id && holidayOfficeIds.has(emp.office_id)) {
