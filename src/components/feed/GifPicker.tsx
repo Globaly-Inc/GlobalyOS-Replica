@@ -107,7 +107,6 @@ export const GifPicker = ({ onSelect, triggerClassName }: GifPickerProps) => {
           className={cn("h-9 gap-2", triggerClassName)}
         >
           <Smile className="h-4 w-4 text-yellow-500" />
-          <span className="hidden sm:inline">GIF</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="start">
