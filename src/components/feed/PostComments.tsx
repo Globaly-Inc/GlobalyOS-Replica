@@ -3,7 +3,7 @@
  * Displays and manages comments with mentions and reactions
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePostComments, useCreateComment, useDeleteComment } from '@/services/useSocialFeed';
 import { useCurrentEmployee } from '@/services/useCurrentEmployee';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -24,6 +24,15 @@ import { CommentReactions } from './CommentReactions';
 import { cn } from '@/lib/utils';
 import MentionAutocomplete from '@/components/chat/MentionAutocomplete';
 import { useMentionInput } from '@/hooks/useMentionInput';
+import { useOrganization } from '@/hooks/useOrganization';
+import { supabase } from '@/integrations/supabase/client';
+
+interface TeamMember {
+  id: string;
+  name: string;
+  position: string | null;
+  avatar_url: string | null;
+}
 
 interface PostCommentsProps {
   postId: string;
@@ -32,13 +41,48 @@ interface PostCommentsProps {
 export const PostComments = ({ postId }: PostCommentsProps) => {
   const { data: currentEmployee } = useCurrentEmployee();
   const { isOwner, isAdmin, isHR } = useUserRole();
+  const { currentOrg } = useOrganization();
   const [newComment, setNewComment] = useState('');
   const [mentionIds, setMentionIds] = useState<string[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
 
   // Use centralized hooks
   const { data: comments = [], isLoading } = usePostComments(postId);
   const createComment = useCreateComment();
   const deleteComment = useDeleteComment();
+
+  // Fetch team members for mentions
+  const hasFetchedRef = useRef(false);
+  useEffect(() => {
+    const fetchTeamMembers = async () => {
+      if (!currentOrg || hasFetchedRef.current) return;
+      hasFetchedRef.current = true;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: employees } = await supabase
+        .from('employees')
+        .select(`
+          id,
+          profiles!employees_user_id_fkey (full_name, avatar_url),
+          position
+        `)
+        .eq('organization_id', currentOrg.id)
+        .eq('status', 'active');
+
+      if (employees) {
+        setTeamMembers(employees.map((emp: any) => ({
+          id: emp.id,
+          name: emp.profiles?.full_name || 'Unknown',
+          position: emp.position || null,
+          avatar_url: emp.profiles?.avatar_url || null,
+        })));
+      }
+    };
+
+    fetchTeamMembers();
+  }, [currentOrg?.id]);
 
   // Mention input hook
   const {
@@ -96,6 +140,8 @@ export const PostComments = ({ postId }: PostCommentsProps) => {
               searchText={mentionState.searchText}
               onSelect={handleMentionSelect}
               onClose={closeMention}
+              anchorRef={inputRef as React.RefObject<HTMLElement>}
+              members={teamMembers}
             />
           </div>
           <GifPicker
