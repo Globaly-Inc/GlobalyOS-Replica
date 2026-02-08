@@ -67,12 +67,12 @@ export const EditableField = ({
           {icon}
         </div>}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
+        {label && <div className="flex items-center gap-2">
           <p className="text-sm text-muted-foreground">{label}</p>
           {canEdit && !isEditing && isHovered && <button onClick={() => setIsEditing(true)} className="hidden sm:block p-1 rounded hover:bg-muted transition-colors">
               <Pencil className="h-3 w-3 text-muted-foreground" />
             </button>}
-        </div>
+        </div>}
         {isEditing ? <div className="flex items-start gap-2 mt-1">
             {type === "textarea" ? <Textarea ref={inputRef as React.RefObject<HTMLTextAreaElement>} value={editValue} onChange={e => setEditValue(e.target.value)} onKeyDown={handleKeyDown} className="min-h-[80px] text-sm" placeholder={placeholder} /> : <Input ref={inputRef as React.RefObject<HTMLInputElement>} value={editValue} onChange={e => setEditValue(e.target.value)} onKeyDown={handleKeyDown} className="h-8 text-sm" placeholder={placeholder} />}
             <div className="flex gap-1 flex-shrink-0">
@@ -83,9 +83,14 @@ export const EditableField = ({
                 <X className="h-3 w-3" />
               </button>
             </div>
-          </div> : <p className="font-medium text-foreground text-sm">
-            {value || <span className="text-muted-foreground italic">{placeholder}</span>}
-          </p>}
+          </div> : <div className="flex items-center gap-2">
+            <p className="font-medium text-foreground text-sm">
+              {value || <span className="text-muted-foreground italic">{placeholder}</span>}
+            </p>
+            {!label && canEdit && !isEditing && isHovered && <button onClick={() => setIsEditing(true)} className="hidden sm:block p-1 rounded hover:bg-muted transition-colors">
+              <Pencil className="h-3 w-3 text-muted-foreground" />
+            </button>}
+          </div>}
       </div>
     </div>;
 };
