@@ -1,47 +1,65 @@
 
 
-# Fix: Email Click-to-Edit Not Opening Dialog
+# Enforce the `attendance_enabled` Toggle
 
-## Root Cause
+## Summary
 
-In `TeamMemberProfile.tsx` (line 813-822), the email field is wrapped like this:
+The `attendance_enabled` flag already exists in the `office_attendance_settings` table and has a toggle in the admin UI, but it is never enforced. When disabled for an office, employees should not be required to check in and should not appear in "Not Checked In" reports.
 
-```
-EditEmailDialog
-  -> DialogTrigger (asChild)
-    -> ClickToEdit (renders a <button>)
-      -> <span>kavita@globalyos.com</span>
-```
+## Changes
 
-The `ClickToEdit` component calls `e.stopPropagation()` on click (line 44 of `ClickToEdit.tsx`), which **prevents the click event from bubbling up** to the `DialogTrigger`. Meanwhile, `onEdit` is set to `() => {}` — an empty function that does nothing.
+### 1. Expose `attendance_enabled` in `useMyOfficeAttendanceSettings`
 
-Result: clicking the email swallows the event and the dialog never opens.
+**File:** `src/hooks/useMyOfficeAttendanceSettings.ts`
 
-This same bug affects **all fields** using this pattern (Email, User Role, Manager, Department, Position, Projects) on the profile page.
+- Add `attendance_enabled: boolean` to the `MyOfficeAttendanceSettings` interface (default: `true`)
+- Include it in the returned object when office settings are fetched
+- Set it to `true` in fallback/default scenarios (no office assigned, no settings row)
 
-## Fix
+### 2. Hide `SelfCheckInCard` when attendance is disabled
 
-**In `ClickToEdit.tsx`**: Remove `e.stopPropagation()` from the click handler. The `stopPropagation` was originally added to prevent parent click handlers from firing, but it breaks the `DialogTrigger asChild` pattern where the dialog relies on the click event reaching its wrapper. The `onEdit` callback alone is sufficient for cases that need custom handling.
+**File:** `src/components/home/SelfCheckInCard.tsx`
 
-Change:
-```typescript
-onClick={(e) => {
-  e.stopPropagation();
-  onEdit();
-}}
-```
+- Import `useMyOfficeAttendanceSettings`
+- Read `attendance_enabled` from the settings
+- Add to the early-return condition at line 193: if `attendance_enabled === false`, return `null` (don't show the check-in card)
 
-To:
-```typescript
-onClick={() => {
-  onEdit();
-}}
-```
+### 3. Exclude disabled-office employees from "Not Checked In" report
 
-This is a one-line change in a single file (`src/components/ui/ClickToEdit.tsx`, line 43-46) that fixes the email dialog and all other click-to-edit fields on the profile page.
+**File:** `src/components/attendance/AttendanceNotCheckedInTab.tsx`
 
-## Risk Assessment
+- In `loadTodayNotCheckedIn`, fetch `office_attendance_settings` rows where `attendance_enabled = false` for the current org
+- Build a set of `disabled_office_ids`
+- In the employee filter (line 257), skip employees whose `office_id` is in `disabled_office_ids`
 
-- **Low risk**: `ClickToEdit` is used only on the Team Member Profile page for fields that all use the same `DialogTrigger asChild` pattern.
-- Removing `stopPropagation` allows parent click handlers to also fire, but the profile page layout has no competing click handlers on parent elements that would cause issues.
+### 4. Block check-in dialogs when attendance is disabled
+
+**Files:** `src/components/dialogs/QRScannerDialog.tsx`, `src/components/dialogs/RemoteCheckInDialog.tsx`
+
+- Both already import `useMyOfficeAttendanceSettings`
+- Add a guard: if `attendance_enabled === false`, show a message like "Attendance tracking is not enabled for your office" instead of processing the check-in
+
+### 5. Disable check-in method resolution when attendance is off
+
+**File:** `src/hooks/useCheckInMethod.ts`
+
+- Read `attendance_enabled` from the office settings (already imports the hook)
+- If `false`, return `null` or a new `'disabled'` value so the nav icon and SelfCheckInCard know not to offer check-in
+
+## What this does NOT change
+
+- The admin toggle in `OfficeAttendanceSettings.tsx` already works and saves correctly -- no changes needed there
+- The edge function `send-checkin-reminder` will naturally stop flagging employees from disabled offices because the "Not Checked In" list won't include them
+- Historical attendance records are unaffected
+
+## Technical Details
+
+| File | Change |
+|------|--------|
+| `src/hooks/useMyOfficeAttendanceSettings.ts` | Add `attendance_enabled` to interface and query return |
+| `src/components/home/SelfCheckInCard.tsx` | Early-return when `attendance_enabled` is `false` |
+| `src/components/attendance/AttendanceNotCheckedInTab.tsx` | Filter out employees from disabled offices |
+| `src/components/dialogs/QRScannerDialog.tsx` | Guard against check-in when disabled |
+| `src/components/dialogs/RemoteCheckInDialog.tsx` | Guard against check-in when disabled |
+| `src/hooks/useCheckInMethod.ts` | Return disabled state when attendance is off |
 
