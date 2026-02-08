@@ -383,7 +383,16 @@ export const QRScannerDialog = ({ open, onOpenChange }: QRScannerDialogProps) =>
           </DialogHeader>
 
           <div className="space-y-4">
-            {loading && (
+            {!loading && officeSettings?.attendance_enabled === false && (
+              <div className="flex flex-col items-center justify-center py-8 gap-4">
+                <AlertTriangle className="h-12 w-12 text-muted-foreground" />
+                <p className="text-center font-medium">Attendance tracking is not enabled for your office</p>
+                <p className="text-xs text-muted-foreground text-center">Contact your administrator if you believe this is an error.</p>
+                <Button variant="outline" onClick={handleCancel} className="w-full">Close</Button>
+              </div>
+            )}
+
+            {loading && officeSettings?.attendance_enabled !== false && (
               <div className="flex flex-col items-center justify-center py-8 gap-4">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
                 <p className="text-muted-foreground">Checking status...</p>

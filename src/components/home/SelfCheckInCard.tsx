@@ -12,6 +12,7 @@ import { QRScannerDialog } from "@/components/dialogs/QRScannerDialog";
 import { CheckInMethodChooser } from "@/components/dialogs/CheckInMethodChooser";
 import { useCheckInMethod } from "@/hooks/useCheckInMethod";
 import { useIsEmployeeExempt } from "@/hooks/useIsEmployeeExempt";
+import { useMyOfficeAttendanceSettings } from "@/hooks/useMyOfficeAttendanceSettings";
 import { format, differenceInMinutes } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { getTimezoneAbbreviation } from "@/utils/timezone";
@@ -51,6 +52,7 @@ export const SelfCheckInCard = () => {
 
   // Smart check-in method
   const checkInMethod = useCheckInMethod(employeeId);
+  const { data: officeSettings } = useMyOfficeAttendanceSettings();
 
   // Check if schedule has started based on work days and half-day leave
   useEffect(() => {
@@ -190,7 +192,7 @@ export const SelfCheckInCard = () => {
     return null;
   }
 
-  if (!schedule || isOnLeave || isExempt || checkInStatus?.isCheckedIn || !scheduleStarted) {
+  if (!schedule || isOnLeave || isExempt || checkInStatus?.isCheckedIn || !scheduleStarted || officeSettings?.attendance_enabled === false || checkInMethod === 'disabled') {
     return null;
   }
 

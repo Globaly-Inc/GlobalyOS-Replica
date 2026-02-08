@@ -9,6 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/hooks/useOrganization';
 
 export interface MyOfficeAttendanceSettings {
+  attendance_enabled: boolean;
   multi_session_enabled: boolean;
   max_sessions_per_day: number;
   early_checkout_reason_required: boolean;
@@ -21,6 +22,7 @@ export interface MyOfficeAttendanceSettings {
 }
 
 const DEFAULTS: MyOfficeAttendanceSettings = {
+  attendance_enabled: true,
   multi_session_enabled: true,
   max_sessions_per_day: 3,
   early_checkout_reason_required: true,
@@ -89,6 +91,7 @@ export const useMyOfficeAttendanceSettings = () => {
       }
 
       return {
+        attendance_enabled: settings.attendance_enabled ?? true,
         multi_session_enabled: settings.multi_session_enabled,
         max_sessions_per_day: settings.max_sessions_per_day,
         early_checkout_reason_required: settings.early_checkout_reason_required,

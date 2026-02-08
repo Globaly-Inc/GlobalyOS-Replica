@@ -26,6 +26,7 @@ describe('useCheckInMethod', () => {
     mockWfh.mockReturnValue({ data: false });
     mockSettings.mockReturnValue({
       data: {
+        attendance_enabled: true,
         office_checkin_methods: ['qr'],
         hybrid_checkin_methods: ['qr', 'remote'],
         remote_checkin_methods: ['remote'],
@@ -94,5 +95,18 @@ describe('useCheckInMethod', () => {
     const { result } = renderHook(() => useCheckInMethod('emp-1'));
     // Falls back to default ['qr', 'remote'] which has both -> choose
     expect(result.current).toBe('choose');
+  });
+
+  it('returns disabled when attendance_enabled is false', () => {
+    mockSettings.mockReturnValue({
+      data: {
+        attendance_enabled: false,
+        office_checkin_methods: ['qr'],
+        hybrid_checkin_methods: ['qr', 'remote'],
+        remote_checkin_methods: ['remote'],
+      },
+    });
+    const { result } = renderHook(() => useCheckInMethod('emp-1'));
+    expect(result.current).toBe('disabled');
   });
 });
