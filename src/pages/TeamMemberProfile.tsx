@@ -116,6 +116,7 @@ const TeamMemberProfile = () => {
   const [showAddPositionDialog, setShowAddPositionDialog] = useState(false);
   const [editingCurrentPosition, setEditingCurrentPosition] = useState(false);
   const [resignationDialogOpen, setResignationDialogOpen] = useState(false);
+  const [editingResignation, setEditingResignation] = useState(false);
   const [showOffboardDialog, setShowOffboardDialog] = useState(false);
 
   // Get current position from position history (source of truth)
@@ -689,7 +690,7 @@ const TeamMemberProfile = () => {
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => setResignationDialogOpen(true)}
+                onClick={() => { setEditingResignation(false); setResignationDialogOpen(true); }}
                 className="text-destructive hover:text-destructive hover:bg-destructive/10"
               >
                 <UserX className="h-4 w-4 sm:mr-1" />
@@ -758,10 +759,14 @@ const TeamMemberProfile = () => {
                       <Palmtree className="h-3 w-3" />
                       On {currentLeave.leave_type}
                     </Badge>}
-                  {employee.last_working_day && isAdminOrHR && <Badge variant="outline" className="text-xs bg-orange-500/10 text-orange-600 border-orange-500/20 flex items-center gap-1">
-                      <UserX className="h-3 w-3" />
-                      Last day: {format(new Date(employee.last_working_day), "dd MMM yyyy")}
-                    </Badge>}
+                  {employee.last_working_day && isAdminOrHR && (
+                    <ClickToEdit canEdit={isAdminOrHR} onEdit={() => { setEditingResignation(true); setResignationDialogOpen(true); }}>
+                      <Badge variant="outline" className="text-xs bg-orange-500/10 text-orange-600 border-orange-500/20 flex items-center gap-1">
+                        <UserX className="h-3 w-3" />
+                        Last day: {format(new Date(employee.last_working_day), "dd MMM yyyy")}
+                      </Badge>
+                    </ClickToEdit>
+                  )}
                 </div>
                 
                 {/* Position, Department and Projects */}
@@ -1430,7 +1435,7 @@ const TeamMemberProfile = () => {
 
       {isAdminOrHR && employee?.organization_id && <EditScheduleDialog open={editScheduleOpen} onOpenChange={setEditScheduleOpen} employeeId={id!} organizationId={employee.organization_id} currentSchedule={employeeSchedule} onSuccess={loadEmployeeSchedule} />}
 
-      {isAdminOrHR && <SetResignationDialog open={resignationDialogOpen} onOpenChange={setResignationDialogOpen} employeeId={id!} employeeName={employee.profiles.full_name} onSuccess={loadEmployee} />}
+      {isAdminOrHR && <SetResignationDialog open={resignationDialogOpen} onOpenChange={setResignationDialogOpen} employeeId={id!} employeeName={employee.profiles.full_name} currentLastWorkingDay={editingResignation ? employee.last_working_day : undefined} onSuccess={loadEmployee} />}
 
       {isAdminOrHR && (
         <TeamMemberOffboardTransferDialog

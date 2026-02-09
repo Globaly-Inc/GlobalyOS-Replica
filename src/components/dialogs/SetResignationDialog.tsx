@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +24,7 @@ interface SetResignationDialogProps {
   onOpenChange: (open: boolean) => void;
   employeeId: string;
   employeeName: string;
+  currentLastWorkingDay?: string | null;
   onSuccess?: () => void;
 }
 
@@ -32,11 +33,14 @@ export function SetResignationDialog({
   onOpenChange,
   employeeId,
   employeeName,
+  currentLastWorkingDay,
   onSuccess,
 }: SetResignationDialogProps) {
   const { toast } = useToast();
-  const [lastWorkingDay, setLastWorkingDay] = useState<string>("");
+  const [lastWorkingDay, setLastWorkingDay] = useState<string>(currentLastWorkingDay || "");
   const [loading, setLoading] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const isEditing = !!currentLastWorkingDay;
 
   // Get proration preview
   const { data: prorationPreview, isLoading: previewLoading } = useProrationPreview(
@@ -45,6 +49,40 @@ export function SetResignationDialog({
   );
 
   const hasExceededLeave = prorationPreview?.some((p) => p.exceeded);
+
+  // Reset state when dialog opens
+  useEffect(() => {
+    if (open) {
+      setLastWorkingDay(currentLastWorkingDay || "");
+    }
+  }, [open, currentLastWorkingDay]);
+
+  const handleRemove = async () => {
+    setRemoving(true);
+    try {
+      const { error } = await supabase
+        .from("employees")
+        .update({ last_working_day: null })
+        .eq("id", employeeId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Resignation date removed",
+        description: `Last working day has been removed for ${employeeName}. Leave balances have been restored.`,
+      });
+      onSuccess?.();
+      onOpenChange(false);
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to remove resignation date",
+        variant: "destructive",
+      });
+    } finally {
+      setRemoving(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!lastWorkingDay) {
@@ -100,12 +138,12 @@ export function SetResignationDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+        <DialogTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Set Resignation Date
+            {isEditing ? "Edit Resignation Date" : "Set Resignation Date"}
           </DialogTitle>
           <DialogDescription>
-            Set the last working day for {employeeName}. This will:
+            {isEditing ? "Edit" : "Set"} the last working day for {employeeName}. This will:
             <ul className="mt-2 space-y-1 text-sm">
               <li>• Prorate leave balances based on months worked</li>
               <li>• Create an offboarding workflow with tasks</li>
@@ -197,17 +235,31 @@ export function SetResignationDialog({
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={loading || !lastWorkingDay || hasExceededLeave}
-          >
-            {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Set Resignation Date
-          </Button>
+        <DialogFooter className="flex-row justify-between sm:justify-between">
+          <div>
+            {isEditing && (
+              <Button
+                variant="destructive"
+                onClick={handleRemove}
+                disabled={removing || loading}
+              >
+                {removing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Remove Resignation
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={loading || !lastWorkingDay || hasExceededLeave}
+            >
+              {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {isEditing ? "Update Date" : "Set Resignation Date"}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
