@@ -1,35 +1,20 @@
 
 
-# Add Text Size Option to Rich Text Editor Toolbar
+# Add Application Close Date to Job Edit Page
 
-## What Changes
+## Problem
+The "Application Close Date" field exists on the New Vacancy (JobCreate) screen but is missing from the Edit Vacancy (JobEdit) screen. The "Target Start Date" field currently sits alone.
 
-Add a font size control to the simple rich text editor toolbar (used in job editing and other forms), matching the pattern already used in the Wiki editor toolbar.
+## Changes
 
-## Implementation
+### File: `src/pages/hiring/JobEdit.tsx`
 
-### File: `src/components/ui/rich-text-editor.tsx`
+1. **Add `application_close_date` to the form state** (initial value `''`, populated from `job.application_close_date` when loading)
+2. **Include `application_close_date` in the save payload** sent to the update mutation
+3. **Include `application_close_date` in the preview props**
+4. **Wrap both date fields in a 2-column grid row** (`grid gap-4 md:grid-cols-2`), matching the layout from JobCreate:
+   - Left: Application Close Date (date picker)
+   - Right: Target Start Date (existing, moved into the grid)
 
-1. **Import** `Type` icon from `lucide-react` and `Input` from `@/components/ui/input`
-2. **Add state** for text size tracking:
-   - `textSizeInput` (string state for the input field, default `"14"`)
-3. **Add `applyFontSize` function** that wraps the current selection in a `<span>` with inline `font-size` style using `document.execCommand('fontSize', ...)` workaround (since `fontSize` command uses fixed 1-7 scale, we use `insertHTML` with a styled span instead)
-4. **Add text size UI** after the Underline button and before the list divider:
-   - A `Type` icon label
-   - A small numeric `Input` (width ~48px) showing the current size
-   - On blur or Enter key, apply the font size to the current selection
-5. **Update `sanitizeHtml`** to allow the `style` attribute on `span` tags (restricted to `font-size` only) so the size styling is preserved
-
-### Visual placement
-
-```text
-[B] [I] [U] | [T 14] | [List] [Ordered] ...  [Improve with AI]
-                ^new
-```
-
-### Technical Details
-
-- Use `document.execCommand('fontSize', false, '7')` then find the generated `<font>` tag and replace it with a `<span style="font-size: Xpx">` for modern HTML compliance
-- Size range: 8-72px, validated on blur
-- The wiki editor's approach (in `EditorToolbar.tsx`) will be followed for consistency
+The date picker markup will mirror the existing pattern from `JobCreate.tsx` exactly.
 
