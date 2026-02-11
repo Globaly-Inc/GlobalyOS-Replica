@@ -10,6 +10,7 @@ import { useJob, useJobStages, useApplications } from '@/services/useHiring';
 import { useHiringApplications } from '@/services';
 import { useUpdateJob, useApproveJob } from '@/services/useHiringMutations';
 import { getJobStatusLabel, getJobStatusColor, APPLICATION_STAGE_LABELS } from '@/types/hiring';
+import { countryToFlag } from '@/utils/countryFlag';
 import { HiringKanbanBoard } from '@/components/hiring/pipeline/HiringKanbanBoard';
 import { 
   ArrowLeft, 
@@ -93,22 +94,40 @@ export default function JobDetail() {
               </Badge>
             </div>
             <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-muted-foreground">
+              {(() => {
+                const office = typeof job.department === 'object' ? null : null;
+                const city = job.location || (job as any).office?.city;
+                const country = (job as any).office?.country;
+                const locationText = [city, country].filter(Boolean).join(', ');
+                const flag = countryToFlag(country);
+                if (!locationText) return null;
+                return (
+                  <span className="flex items-center gap-1">
+                    {flag ? <span className="text-base">{flag}</span> : <MapPin className="h-4 w-4" />}
+                    {locationText}
+                  </span>
+                );
+              })()}
               {departmentName && (
                 <span className="flex items-center gap-1">
                   <Building className="h-4 w-4" />
                   {departmentName}
                 </span>
               )}
-              {job.location && (
-                <span className="flex items-center gap-1">
-                  <MapPin className="h-4 w-4" />
-                  {job.location}
-                </span>
-              )}
+              <span className="flex items-center gap-1">
+                <Building className="h-4 w-4" />
+                {job.work_model ? job.work_model.charAt(0).toUpperCase() + job.work_model.slice(1) : 'On-site'}
+              </span>
               <span className="flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
-                Created {format(new Date(job.created_at), 'MMM d, yyyy')}
+                {job.employment_type ? job.employment_type.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Full-time'}
               </span>
+              {(job as any).application_close_date && (
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-4 w-4" />
+                  Apply by {new Date((job as any).application_close_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </span>
+              )}
               <span className="flex items-center gap-1">
                 <Users className="h-4 w-4" />
                 {applications?.length || 0} candidates
