@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
     const { data: org, error: orgError } = await supabase
       .from('organizations')
       .select('id, name')
-      .eq('code', orgCode)
+      .eq('slug', orgCode)
       .single();
 
     if (orgError || !org) {
