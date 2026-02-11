@@ -37,6 +37,8 @@ import {
 import { toast } from 'sonner';
 import { HelmetProvider, Helmet } from 'react-helmet-async';
 import DOMPurify from 'dompurify';
+import { PhoneInput } from '@/components/ui/phone-input';
+import { getDefaultCountryCode, getPhoneCountry, validatePhoneNumber } from '@/lib/phoneCountries';
 
 export default function JobDetailPublic() {
   const { orgCode, jobSlug } = useParams<{ orgCode: string; jobSlug: string }>();
@@ -142,6 +144,7 @@ export default function JobDetailPublic() {
     linkedin_url: '',
     consent: false,
   });
+  const [phoneCountryCode, setPhoneCountryCode] = useState(() => getDefaultCountryCode());
   const [resumeFile, setResumeFile] = useState<File | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -163,6 +166,17 @@ export default function JobDetailPublic() {
       return;
     }
 
+    if (!formData.phone.trim()) {
+      toast.error('Phone number is required');
+      return;
+    }
+
+    if (!validatePhoneNumber(formData.phone, phoneCountryCode)) {
+      const country = getPhoneCountry(phoneCountryCode);
+      toast.error(`Please enter a valid phone number (${country?.minDigits}-${country?.maxDigits} digits)`);
+      return;
+    }
+
     if (!resumeFile) {
       toast.error('Please upload your resume');
       return;
@@ -177,7 +191,7 @@ export default function JobDetailPublic() {
         candidate: {
           name: formData.name,
           email: formData.email,
-          phone: formData.phone || undefined,
+          phone: `${getPhoneCountry(phoneCountryCode)?.dialCode || ''} ${formData.phone.replace(/\D/g, '')}`.trim(),
           linkedin_url: formData.linkedin_url || undefined,
         },
         resume: resumeFile,
@@ -419,12 +433,13 @@ export default function JobDetailPublic() {
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="phone">Phone</Label>
-                          <Input
-                            id="phone"
-                            type="tel"
-                            value={formData.phone}
-                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                          <Label htmlFor="phone">Phone Number *</Label>
+                          <PhoneInput
+                            countryCode={phoneCountryCode}
+                            onCountryChange={setPhoneCountryCode}
+                            phone={formData.phone}
+                            onPhoneChange={(val) => setFormData({ ...formData, phone: val })}
+                            required
                           />
                         </div>
 
