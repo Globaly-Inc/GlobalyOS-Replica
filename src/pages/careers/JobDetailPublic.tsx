@@ -254,7 +254,7 @@ export default function JobDetailPublic() {
                       </CardHeader>
                       <CardContent>
                         <div 
-                          className="prose prose-sm max-w-none dark:prose-invert"
+                          className="prose prose-sm max-w-none dark:prose-invert [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5"
                           dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(job.description) }}
                         />
                       </CardContent>
@@ -268,7 +268,7 @@ export default function JobDetailPublic() {
                       </CardHeader>
                       <CardContent>
                         <div 
-                          className="prose prose-sm max-w-none dark:prose-invert"
+                          className="prose prose-sm max-w-none dark:prose-invert [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5"
                           dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(job.requirements) }}
                         />
                       </CardContent>
@@ -282,7 +282,7 @@ export default function JobDetailPublic() {
                       </CardHeader>
                       <CardContent>
                         <div 
-                          className="prose prose-sm max-w-none dark:prose-invert"
+                          className="prose prose-sm max-w-none dark:prose-invert [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5"
                           dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(job.benefits) }}
                         />
                       </CardContent>
