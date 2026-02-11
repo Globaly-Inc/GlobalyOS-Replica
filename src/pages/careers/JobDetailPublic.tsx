@@ -44,9 +44,14 @@ import { HelmetProvider, Helmet } from 'react-helmet-async';
 import DOMPurify from 'dompurify';
 import { countryToFlag } from '@/utils/countryFlag';
 
-/** Strip all inline styles from stored HTML to let prose handle styling cleanly */
+/** Clean stored HTML: strip inline styles and unwrap spurious outer h2 wrapper */
 function cleanHtml(html: string): string {
-  const cleaned = html.replace(/\s*style="[^"]*"/g, '');
+  // Strip all inline styles
+  let cleaned = html.replace(/\s*style="[^"]*"/g, '');
+  // Strip class attributes too (e.g. class="p1")
+  cleaned = cleaned.replace(/\s*class="[^"]*"/g, '');
+  // Unwrap outer <h2> that wraps the entire content (editor artifact)
+  cleaned = cleaned.replace(/^<h2[^>]*>([\s\S]*)<\/h2>$/i, '$1');
   return DOMPurify.sanitize(cleaned);
 }
 
