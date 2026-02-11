@@ -44,16 +44,10 @@ import { HelmetProvider, Helmet } from 'react-helmet-async';
 import DOMPurify from 'dompurify';
 import { countryToFlag } from '@/utils/countryFlag';
 
-/** Strip Tailwind CSS variable noise from inline styles while preserving meaningful styles */
+/** Strip all inline styles from stored HTML to let prose handle styling cleanly */
 function cleanHtml(html: string): string {
-  const cleaned = html.replace(/style="[^"]*"/g, (match) => {
-    // Remove --tw-* CSS variables from style attributes
-    const withoutTwVars = match
-      .replace(/--tw-[^:]+:[^;]+;?\s*/g, '')
-      .replace(/style="\s*"/, '');
-    return withoutTwVars || '';
-  });
-  return DOMPurify.sanitize(cleaned, { ADD_ATTR: ['style'] });
+  const cleaned = html.replace(/\s*style="[^"]*"/g, '');
+  return DOMPurify.sanitize(cleaned);
 }
 
 export default function JobDetailPublic() {
