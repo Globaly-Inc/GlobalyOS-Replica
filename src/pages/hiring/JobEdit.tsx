@@ -255,11 +255,41 @@ export default function JobEdit() {
             <ArrowLeft className="h-4 w-4" />
           </OrgLink>
         </Button>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold tracking-tight">Edit Job Vacancy</h1>
           <p className="text-muted-foreground">
             Update job details and requirements
           </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" asChild>
+            <OrgLink to={`/hiring/jobs/${job.slug}`}>Cancel</OrgLink>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleSave}
+            disabled={updateJob.isPending}
+          >
+            {updateJob.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4 mr-2" />
+            )}
+            Save Changes
+          </Button>
+          {canPublish && (
+            <Button
+              onClick={handlePublish}
+              disabled={publishJob.isPending}
+            >
+              {publishJob.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Globe className="h-4 w-4 mr-2" />
+              )}
+              Publish
+            </Button>
+          )}
         </div>
       </div>
 
@@ -518,42 +548,10 @@ export default function JobEdit() {
               </div>
             </CardContent>
           </Card>
-
-
-
-
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pb-8">
-            <Button variant="outline" asChild>
-              <OrgLink to={`/hiring/jobs/${job.slug}`}>Cancel</OrgLink>
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleSave}
-              disabled={updateJob.isPending}
-            >
-              {updateJob.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4 mr-2" />
-              )}
-              Save Changes
-            </Button>
-            {canPublish && (
-              <Button
-                onClick={handlePublish}
-                disabled={publishJob.isPending}
-              >
-                {publishJob.isPending ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Globe className="h-4 w-4 mr-2" />
-                )}
-                Publish
-              </Button>
-            )}
-          </div>
         </div>
+
+
+
 
         {/* Right Column - Publishing + Preview (1/3) */}
         <div className="hidden lg:block space-y-6">
