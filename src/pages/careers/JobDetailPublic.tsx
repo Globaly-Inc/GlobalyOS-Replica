@@ -78,6 +78,7 @@ export default function JobDetailPublic() {
         linkedin_url?: string;
       };
       resume: File;
+      additionalFiles?: File[];
     }) => {
       const formPayload = new FormData();
       formPayload.append('org_code', data.orgCode);
@@ -87,6 +88,11 @@ export default function JobDetailPublic() {
       if (data.candidate.phone) formPayload.append('candidate_phone', data.candidate.phone);
       if (data.candidate.linkedin_url) formPayload.append('candidate_linkedin_url', data.candidate.linkedin_url);
       formPayload.append('resume', data.resume);
+      if (data.additionalFiles) {
+        data.additionalFiles.forEach((file) => {
+          formPayload.append('additional_files', file);
+        });
+      }
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -145,17 +151,25 @@ export default function JobDetailPublic() {
     consent: false,
   });
   const [phoneCountryCode, setPhoneCountryCode] = useState(() => getDefaultCountryCode());
-  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [resumeFiles, setResumeFiles] = useState<File[]>([]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      toast.error(`File size exceeds ${MAX_FILE_SIZE_MB}MB limit`);
-      e.target.value = '';
-      return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    const valid: File[] = [];
+    for (const file of files) {
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        toast.error(`"${file.name}" exceeds ${MAX_FILE_SIZE_MB}MB limit`);
+        continue;
+      }
+      valid.push(file);
     }
-    setResumeFile(file);
+    setResumeFiles((prev) => [...prev, ...valid]);
+    e.target.value = '';
+  };
+
+  const removeFile = (index: number) => {
+    setResumeFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -177,8 +191,8 @@ export default function JobDetailPublic() {
       return;
     }
 
-    if (!resumeFile) {
-      toast.error('Please upload your resume');
+    if (resumeFiles.length === 0) {
+      toast.error('Please upload at least one file (resume)');
       return;
     }
 
@@ -194,7 +208,8 @@ export default function JobDetailPublic() {
           phone: `${getPhoneCountry(phoneCountryCode)?.dialCode || ''} ${formData.phone.replace(/\D/g, '')}`.trim(),
           linkedin_url: formData.linkedin_url || undefined,
         },
-        resume: resumeFile,
+        resume: resumeFiles[0],
+        additionalFiles: resumeFiles.slice(1),
       });
       
       // Applied state is set in onSuccess
@@ -455,38 +470,42 @@ export default function JobDetailPublic() {
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="resume">Upload Resume *</Label>
-                          {resumeFile ? (
-                            <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
-                              <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                              <span className="text-sm truncate flex-1">{resumeFile.name}</span>
-                              <button
-                                type="button"
-                                onClick={() => setResumeFile(null)}
-                                className="text-muted-foreground hover:text-foreground"
-                              >
-                                <X className="h-4 w-4" />
-                              </button>
+                          <Label htmlFor="resume">Upload Resume & Portfolios *</Label>
+                          {resumeFiles.length > 0 && (
+                            <div className="space-y-2">
+                              {resumeFiles.map((file, index) => (
+                                <div key={index} className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
+                                  <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                                  <span className="text-sm truncate flex-1">{file.name}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeFile(index)}
+                                    className="text-muted-foreground hover:text-foreground"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              ))}
                             </div>
-                          ) : (
-                            <label
-                              htmlFor="resume"
-                              className="flex flex-col items-center gap-2 p-4 border-2 border-dashed rounded-md cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
-                            >
-                              <Upload className="h-6 w-6 text-muted-foreground" />
-                              <span className="text-sm text-muted-foreground text-center">
-                                Click to upload (PDF, DOC, DOCX, JPEG, PNG)
-                              </span>
-                              <span className="text-xs text-muted-foreground">Max {MAX_FILE_SIZE_MB}MB</span>
-                              <input
-                                id="resume"
-                                type="file"
-                                accept={ACCEPTED_FILE_TYPES}
-                                onChange={handleFileChange}
-                                className="sr-only"
-                              />
-                            </label>
                           )}
+                          <label
+                            htmlFor="resume"
+                            className="flex flex-col items-center gap-2 p-4 border-2 border-dashed rounded-md cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
+                          >
+                            <Upload className="h-6 w-6 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground text-center">
+                              {resumeFiles.length > 0 ? 'Add more files' : 'Click to upload'} (PDF, DOC, DOCX, JPEG, PNG)
+                            </span>
+                            <span className="text-xs text-muted-foreground">Max {MAX_FILE_SIZE_MB}MB per file</span>
+                            <input
+                              id="resume"
+                              type="file"
+                              accept={ACCEPTED_FILE_TYPES}
+                              onChange={handleFileChange}
+                              multiple
+                              className="sr-only"
+                            />
+                          </label>
                         </div>
 
                         <div className="flex items-start gap-2">
