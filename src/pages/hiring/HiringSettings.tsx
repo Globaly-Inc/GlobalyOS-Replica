@@ -20,7 +20,6 @@ import {
   useUpdateEmailTemplate,
   useCreateAssignmentTemplate,
   useUpdateAssignmentTemplate,
-  useSeedDefaultEmailTemplates,
 } from '@/services/useHiringMutations';
 import {
   Dialog,
@@ -113,188 +112,6 @@ export default function HiringSettings() {
 }
 
 // ============================================
-// DEFAULT EMAIL TEMPLATES
-// ============================================
-
-const DEFAULT_EMAIL_TEMPLATES = [
-  {
-    name: 'Application Received',
-    trigger_type: 'application_received',
-    subject: 'We received your application for {{job_title}}',
-    body_template: `Dear {{candidate_name}},
-
-Thank you for applying for the {{job_title}} position at {{company_name}}. We appreciate your interest in joining our team.
-
-We have received your application and our hiring team is currently reviewing it. We carefully evaluate every candidate, so please allow us some time to go through all submissions.
-
-Here's what you can expect next:
-• Our team will review your application within the next few business days
-• If your profile matches our requirements, we'll reach out to schedule an initial conversation
-• You'll receive an update on your application status either way
-
-In the meantime, feel free to learn more about us and our culture on our website.
-
-Thank you again for your interest in {{company_name}}. We look forward to learning more about you.
-
-Best regards,
-The {{company_name}} Hiring Team`,
-    is_active: true,
-  },
-  {
-    name: 'Application Rejected',
-    trigger_type: 'application_rejected',
-    subject: 'Update on your application for {{job_title}}',
-    body_template: `Dear {{candidate_name}},
-
-Thank you for your interest in the {{job_title}} position at {{company_name}} and for taking the time to apply.
-
-After careful consideration, we have decided to move forward with other candidates whose experience more closely aligns with our current needs. This was not an easy decision, as we received many strong applications.
-
-Please know that this does not reflect on your abilities or potential. We encourage you to apply for future openings that match your skills and experience.
-
-We truly appreciate the time and effort you invested in your application, and we wish you the very best in your career journey.
-
-Warm regards,
-The {{company_name}} Hiring Team`,
-    is_active: true,
-  },
-  {
-    name: 'Interview Scheduled',
-    trigger_type: 'interview_scheduled',
-    subject: 'Interview scheduled: {{job_title}} at {{company_name}}',
-    body_template: `Dear {{candidate_name}},
-
-Great news! We'd like to invite you to an interview for the {{job_title}} position at {{company_name}}.
-
-Interview Details:
-• Date: {{interview_date}}
-• Time: {{interview_time}}
-• Format: {{interview_type}}
-
-Please confirm your availability by replying to this email. If the proposed time doesn't work for you, let us know and we'll find an alternative.
-
-To help you prepare:
-• Review the job description and think about relevant experiences
-• Prepare questions you'd like to ask about the role and our team
-• Ensure you have a stable internet connection if the interview is virtual
-
-We're excited to learn more about you and discuss how you could contribute to our team.
-
-Best regards,
-The {{company_name}} Hiring Team`,
-    is_active: true,
-  },
-  {
-    name: 'Interview Reminder',
-    trigger_type: 'interview_reminder',
-    subject: 'Reminder: Your interview for {{job_title}} is coming up',
-    body_template: `Hi {{candidate_name}},
-
-This is a friendly reminder that your interview for the {{job_title}} position at {{company_name}} is coming up soon.
-
-Interview Details:
-• Date: {{interview_date}}
-• Time: {{interview_time}}
-• Format: {{interview_type}}
-
-A few tips to help you prepare:
-• Test your technology setup ahead of time if it's a virtual interview
-• Have a copy of your resume handy
-• Prepare a few questions about the role and our team
-
-If you need to reschedule or have any questions, please don't hesitate to reach out.
-
-We look forward to speaking with you!
-
-Best regards,
-The {{company_name}} Hiring Team`,
-    is_active: true,
-  },
-  {
-    name: 'Assignment Sent',
-    trigger_type: 'assignment_sent',
-    subject: 'Assessment task for {{job_title}} at {{company_name}}',
-    body_template: `Dear {{candidate_name}},
-
-As part of the hiring process for the {{job_title}} position, we'd like you to complete a short assessment task.
-
-You'll find all the details and instructions at the link provided. Please review the requirements carefully before getting started.
-
-Key information:
-• Deadline: Please submit your work by the date indicated in the assignment
-• Estimated effort: The task is designed to be completed within a reasonable timeframe
-• If you have any questions about the assignment, feel free to reach out
-
-We value your time and effort, and this assessment helps us understand how you approach real-world challenges.
-
-Good luck!
-
-Best regards,
-The {{company_name}} Hiring Team`,
-    is_active: true,
-  },
-  {
-    name: 'Assignment Reminder',
-    trigger_type: 'assignment_reminder',
-    subject: 'Reminder: Your assessment for {{job_title}} is due soon',
-    body_template: `Hi {{candidate_name}},
-
-Just a friendly reminder that the assessment task for the {{job_title}} position at {{company_name}} is due soon.
-
-If you've already submitted your work, thank you! Please disregard this message.
-
-If you haven't started yet or are still working on it, please make sure to submit before the deadline. If you need additional time or have any questions, don't hesitate to let us know.
-
-We look forward to reviewing your submission!
-
-Best regards,
-The {{company_name}} Hiring Team`,
-    is_active: true,
-  },
-  {
-    name: 'Offer Sent',
-    trigger_type: 'offer_sent',
-    subject: 'Congratulations! Job offer for {{job_title}} at {{company_name}}',
-    body_template: `Dear {{candidate_name}},
-
-We are thrilled to extend an offer for the {{job_title}} position at {{company_name}}!
-
-After a thorough evaluation process, we were impressed by your skills, experience, and the enthusiasm you showed throughout our conversations. We believe you would be a fantastic addition to our team.
-
-Please review the offer details carefully. If you have any questions or would like to discuss any aspect of the offer, we're happy to set up a call.
-
-We'd appreciate your response within the timeframe indicated in the offer letter.
-
-We truly hope you'll join us, and we're excited about the possibility of working together!
-
-Warm regards,
-The {{company_name}} Hiring Team`,
-    is_active: true,
-  },
-  {
-    name: 'Offer Accepted',
-    trigger_type: 'offer_accepted',
-    subject: 'Welcome to {{company_name}}, {{candidate_name}}! 🎉',
-    body_template: `Dear {{candidate_name}},
-
-We are absolutely delighted that you've accepted our offer for the {{job_title}} position at {{company_name}}! Welcome to the team!
-
-Here's what happens next:
-• Our HR team will be in touch with onboarding details and paperwork
-• You'll receive information about your start date, team introductions, and first-week schedule
-• Feel free to reach out if you have any questions before your start date
-
-We're excited to have you on board and can't wait for you to get started. The team is looking forward to welcoming you!
-
-Congratulations once again, and welcome to {{company_name}}!
-
-Best regards,
-The {{company_name}} Hiring Team`,
-    is_active: true,
-  },
-];
-
-// ============================================
 // EMAIL TEMPLATES SECTION
 // ============================================
 
@@ -302,24 +119,24 @@ function EmailTemplatesSection() {
   const { data: templates, isLoading } = useHiringEmailTemplates();
   const createTemplate = useCreateEmailTemplate();
   const updateTemplate = useUpdateEmailTemplate();
-  const seedTemplates = useSeedDefaultEmailTemplates();
+  
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
   const [showDialog, setShowDialog] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
-    trigger_type: '' as string,
+    template_type: '' as string,
     subject: '',
-    body_template: '',
+    body: '',
     is_active: true,
   });
 
   const handleEdit = (template: any) => {
     setFormData({
       name: template.name,
-      trigger_type: template.trigger_type,
+      template_type: template.template_type,
       subject: template.subject,
-      body_template: template.body_template,
+      body: template.body,
       is_active: template.is_active,
     });
     setEditingTemplate(template);
@@ -329,9 +146,9 @@ function EmailTemplatesSection() {
   const handleCreate = () => {
     setFormData({
       name: '',
-      trigger_type: '',
+      template_type: '',
       subject: '',
-      body_template: '',
+      body: '',
       is_active: true,
     });
     setEditingTemplate(null);
@@ -339,7 +156,7 @@ function EmailTemplatesSection() {
   };
 
   const handleSave = async () => {
-    if (!formData.name || !formData.trigger_type || !formData.subject) {
+    if (!formData.name || !formData.template_type || !formData.subject) {
       toast.error('Please fill all required fields');
       return;
     }
@@ -359,9 +176,6 @@ function EmailTemplatesSection() {
     }
   };
 
-  const handleSeedDefaults = () => {
-    seedTemplates.mutate(DEFAULT_EMAIL_TEMPLATES);
-  };
 
   if (isLoading) {
     return <Skeleton className="h-96" />;
@@ -406,8 +220,8 @@ function EmailTemplatesSection() {
                 <div className="space-y-2">
                   <Label>Trigger *</Label>
                   <Select
-                    value={formData.trigger_type}
-                    onValueChange={(v) => setFormData({ ...formData, trigger_type: v })}
+                    value={formData.template_type}
+                    onValueChange={(v) => setFormData({ ...formData, template_type: v })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select trigger..." />
@@ -436,8 +250,8 @@ function EmailTemplatesSection() {
               <div className="space-y-2">
                 <Label>Body</Label>
                 <Textarea
-                  value={formData.body_template}
-                  onChange={(e) => setFormData({ ...formData, body_template: e.target.value })}
+                  value={formData.body}
+                  onChange={(e) => setFormData({ ...formData, body: e.target.value })}
                   rows={10}
                   placeholder="Dear {{candidate_name}},&#10;&#10;Thank you for applying..."
                 />
@@ -484,7 +298,7 @@ function EmailTemplatesSection() {
                   <TableCell className="font-medium">{template.name}</TableCell>
                   <TableCell>
                     <Badge variant="outline">
-                      {EMAIL_TRIGGER_LABELS[(template as any).trigger_type as keyof typeof EMAIL_TRIGGER_LABELS] || (template as any).trigger_type}
+                      {EMAIL_TRIGGER_LABELS[(template as any).template_type as keyof typeof EMAIL_TRIGGER_LABELS] || (template as any).template_type}
                     </Badge>
                   </TableCell>
                   <TableCell className="max-w-[200px] truncate">
@@ -513,16 +327,12 @@ function EmailTemplatesSection() {
             <Mail className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">No email templates yet</h3>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              Get started quickly with professionally written templates for every stage of your hiring process, or create your own from scratch.
+              Create custom email templates for your hiring process, or they'll be auto-generated when your organization is set up.
             </p>
-            <div className="flex items-center justify-center gap-3">
-              <Button onClick={handleSeedDefaults} disabled={seedTemplates.isPending}>
-                {seedTemplates.isPending ? 'Generating...' : 'Generate Default Templates'}
-              </Button>
-              <Button variant="outline" onClick={handleCreate}>
-                Create from scratch
-              </Button>
-            </div>
+            <Button variant="outline" onClick={handleCreate}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Template
+            </Button>
           </div>
         )}
       </CardContent>

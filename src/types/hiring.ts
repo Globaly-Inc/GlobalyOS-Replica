@@ -361,7 +361,7 @@ export interface HiringEmailTemplate {
   id: string;
   organization_id: string;
   name: string;
-  template_type: 'application_received' | 'interview_invite' | 'assignment_invite' | 'reminder' | 'rejection' | 'offer' | 'custom';
+  template_type: EmailTrigger;
   subject: string;
   body: string;
   variables: string[];
