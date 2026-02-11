@@ -47,7 +47,12 @@ export const RichTextEditor = ({
   // Sync editor content when value prop changes externally (e.g., from AI generation)
   useEffect(() => {
     if (editorRef.current) {
-      const sanitizedValue = sanitizeHtml(value);
+      let htmlValue = value;
+      // Convert markdown to HTML if the value looks like markdown
+      if (isMarkdown(value)) {
+        htmlValue = marked.parse(value, { async: false, breaks: true, gfm: true }) as string;
+      }
+      const sanitizedValue = sanitizeHtml(htmlValue);
       // Only update if the content actually differs to avoid cursor issues
       if (editorRef.current.innerHTML !== sanitizedValue) {
         editorRef.current.innerHTML = sanitizedValue;
@@ -292,10 +297,14 @@ export const extractMentionIds = (html: string): string[] => {
 // Detect if content looks like markdown (not HTML)
 const isMarkdown = (text: string): boolean => {
   if (!text) return false;
-  // If it already contains HTML tags, treat as HTML
-  if (/<[a-z][\s\S]*>/i.test(text)) return false;
-  // Check for common markdown patterns
-  return /^#{1,6}\s|^\*\s|^-\s|^\d+\.\s|\*\*|__|\[.*\]\(.*\)/m.test(text);
+  // Strip HTML tags to check inner text for markdown patterns
+  const stripped = text.replace(/<[^>]*>/g, ' ').trim();
+  if (!stripped) return false;
+  // If content has rich HTML structure (multiple different tags), treat as HTML
+  const htmlTags = text.match(/<(strong|em|ul|ol|li|h[1-6]|a|blockquote)\b/gi);
+  if (htmlTags && htmlTags.length > 2) return false;
+  // Check for common markdown patterns in the text
+  return /^#{1,6}\s|^\*\s|^-\s|^\d+\.\s|\*\*[^*]+\*\*|__[^_]+__|\[.*\]\(.*\)/m.test(stripped);
 };
 
 // Component to render rich text content safely
