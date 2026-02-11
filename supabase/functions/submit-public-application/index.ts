@@ -59,6 +59,7 @@ Deno.serve(async (req) => {
     let coverLetter: string | null = null;
     let sourceOfApplication: string | null = null;
     let resumeFile: File | null = null;
+    let additionalFiles: File[] = [];
 
     if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
@@ -73,6 +74,11 @@ Deno.serve(async (req) => {
       coverLetter = formData.get('cover_letter') as string || null;
       sourceOfApplication = formData.get('source_of_application') as string || null;
       resumeFile = formData.get('resume') as File | null;
+      // Collect additional files
+      const allAdditional = formData.getAll('additional_files');
+      for (const f of allAdditional) {
+        if (f instanceof File) additionalFiles.push(f);
+      }
     } else {
       // Fallback to JSON for backwards compatibility
       const input = await req.json();
@@ -105,17 +111,18 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Validate resume file if provided
-    if (resumeFile) {
-      if (!ALLOWED_MIME_TYPES.includes(resumeFile.type)) {
+    // Validate all files (resume + additional)
+    const allFiles = resumeFile ? [resumeFile, ...additionalFiles] : [...additionalFiles];
+    for (const file of allFiles) {
+      if (!ALLOWED_MIME_TYPES.includes(file.type)) {
         return new Response(
-          JSON.stringify({ error: 'Invalid file type. Allowed: PDF, DOC, DOCX, JPEG, PNG' }),
+          JSON.stringify({ error: `Invalid file type for "${file.name}". Allowed: PDF, DOC, DOCX, JPEG, PNG` }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      if (resumeFile.size > MAX_FILE_SIZE) {
+      if (file.size > MAX_FILE_SIZE) {
         return new Response(
-          JSON.stringify({ error: 'File size exceeds 25MB limit' }),
+          JSON.stringify({ error: `"${file.name}" exceeds 25MB limit` }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -233,27 +240,32 @@ Deno.serve(async (req) => {
       console.log(`Created new candidate: ${candidateId}`);
     }
 
-    // Step 4: Upload resume file if provided
+    // Step 4: Upload all files (resume + additional)
     let cvFilePath: string | null = null;
-    if (resumeFile) {
-      const fileExt = resumeFile.name.split('.').pop() || 'pdf';
-      const fileName = `resume-${Date.now()}.${fileExt}`;
+    const uploadedFilePaths: string[] = [];
+
+    const filesToUpload = resumeFile ? [resumeFile, ...additionalFiles] : [...additionalFiles];
+    for (let i = 0; i < filesToUpload.length; i++) {
+      const file = filesToUpload[i];
+      const fileExt = file.name.split('.').pop() || 'pdf';
+      const prefix = i === 0 ? 'resume' : `portfolio-${i}`;
+      const fileName = `${prefix}-${Date.now()}.${fileExt}`;
       const filePath = `${org.id}/${candidateId}/${fileName}`;
 
-      const fileBuffer = await resumeFile.arrayBuffer();
+      const fileBuffer = await file.arrayBuffer();
       const { error: uploadError } = await supabase.storage
         .from('hiring-documents')
         .upload(filePath, fileBuffer, {
-          contentType: resumeFile.type,
+          contentType: file.type,
           upsert: false,
         });
 
       if (uploadError) {
-        console.error('Error uploading resume:', uploadError);
-        // Don't fail the whole application if upload fails
+        console.error(`Error uploading ${file.name}:`, uploadError);
       } else {
-        cvFilePath = filePath;
-        console.log(`Uploaded resume: ${filePath}`);
+        uploadedFilePaths.push(filePath);
+        if (i === 0) cvFilePath = filePath;
+        console.log(`Uploaded file: ${filePath}`);
       }
     }
 
@@ -268,6 +280,9 @@ Deno.serve(async (req) => {
         status: 'active',
         cover_letter: sanitizedCoverLetter,
         cv_file_path: cvFilePath,
+        custom_fields: uploadedFilePaths.length > 1
+          ? { additional_files: uploadedFilePaths.slice(1) }
+          : null,
         source_of_application: sourceOfApplication || 'careers_site',
       })
       .select('id')
