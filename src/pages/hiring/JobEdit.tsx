@@ -681,6 +681,7 @@ export default function JobEdit() {
               salary_currency: formData.salary_currency,
               salary_visible: formData.salary_visible,
               target_start_date: formData.target_start_date,
+              application_close_date: formData.application_close_date,
               description: formData.description,
             }}
             departments={departments}
