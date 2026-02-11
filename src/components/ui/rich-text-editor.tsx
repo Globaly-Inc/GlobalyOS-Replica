@@ -306,7 +306,7 @@ export const RichTextEditor = ({
             "[&_strong]:font-semibold",
             "text-foreground"
           )}
-          style={{ minHeight }}
+          style={{ height: '800px', overflow: 'auto' }}
           onInput={handleInput}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
