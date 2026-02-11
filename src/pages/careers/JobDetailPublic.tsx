@@ -524,7 +524,14 @@ export default function JobDetailPublic() {
                         <Button 
                           type="submit" 
                           className="w-full"
-                          disabled={submitApplication.isPending}
+                          disabled={
+                            submitApplication.isPending ||
+                            !formData.name.trim() ||
+                            !formData.email.trim() ||
+                            !formData.phone.trim() ||
+                            resumeFiles.length === 0 ||
+                            !formData.consent
+                          }
                         >
                           {submitApplication.isPending ? 'Submitting...' : 'Submit Application'}
                         </Button>
