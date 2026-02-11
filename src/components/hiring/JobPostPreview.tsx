@@ -27,6 +27,7 @@ interface JobFormData {
   salary_visible: boolean;
   target_start_date: string;
   description: string;
+  application_close_date?: string;
 }
 
 interface Department {
@@ -174,10 +175,10 @@ export function JobPostPreview({
               <span>{salaryRange}</span>
             </div>
           )}
-          {formData.target_start_date && (
+          {formData.application_close_date && (
             <div className="flex items-center gap-2 text-muted-foreground">
               <Calendar className="h-4 w-4 shrink-0" />
-              <span>Start: {new Date(formData.target_start_date).toLocaleDateString()}</span>
+              <span>Apply by: {new Date(formData.application_close_date).toLocaleDateString()}</span>
             </div>
           )}
         </div>
