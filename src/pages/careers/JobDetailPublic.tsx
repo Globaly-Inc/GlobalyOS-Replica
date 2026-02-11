@@ -44,17 +44,62 @@ import { HelmetProvider, Helmet } from 'react-helmet-async';
 import DOMPurify from 'dompurify';
 import { countryToFlag } from '@/utils/countryFlag';
 
-/** Clean stored HTML: strip inline styles, classes, and unwrap editor artifacts */
+/** Clean stored HTML: strip styles/classes, unwrap editor artifacts, fix heading misuse */
 function cleanHtml(html: string): string {
   // Strip all inline styles and class attributes
   let cleaned = html.replace(/\s*style="[^"]*"/g, '').replace(/\s*class="[^"]*"/g, '');
-  // Parse and clean via DOM to handle nested h2 wrappers reliably
+
   const div = document.createElement('div');
   div.innerHTML = cleaned;
-  // If the entire content is wrapped in a single h2, unwrap it
+
+  // Unwrap if entire content is inside a single h2
   if (div.children.length === 1 && div.children[0].tagName === 'H2') {
     div.innerHTML = div.children[0].innerHTML;
   }
+
+  // The editor creates duplicate content: each section has an <h3> with the full
+  // paragraph text followed by the same text in proper <p>/<ul> tags.
+  // Strategy: remove <h3> elements whose text content is duplicated in the next sibling(s),
+  // or convert long <h3> tags (>80 chars) to <p> since they're clearly not headings.
+  const headings = Array.from(div.querySelectorAll('h2, h3'));
+  for (const h of headings) {
+    const text = (h.textContent || '').trim();
+    // If a heading's text is very long, it's paragraph content mistagged as heading
+    if (text.length > 80) {
+      // Check if the next siblings contain the same text (duplication)
+      let nextEl = h.nextElementSibling;
+      let isDuplicate = false;
+      // Check next few siblings for matching text
+      for (let i = 0; i < 5 && nextEl; i++) {
+        if (nextEl.textContent?.trim().includes(text.substring(0, 50))) {
+          isDuplicate = true;
+          break;
+        }
+        nextEl = nextEl.nextElementSibling;
+      }
+      if (isDuplicate) {
+        // Remove the duplicate heading entirely
+        h.remove();
+      } else {
+        // Convert to <p> to remove bold
+        const p = document.createElement('p');
+        p.innerHTML = h.innerHTML;
+        h.replaceWith(p);
+      }
+    }
+  }
+
+  // Remove empty <p> and <h3> tags (just <br> or whitespace)
+  const empties = Array.from(div.querySelectorAll('p, h2, h3'));
+  for (const el of empties) {
+    const content = el.innerHTML.replace(/<br\s*\/?>/g, '').trim();
+    if (!content) {
+      // Keep one <br> for spacing instead of empty block elements
+      const br = document.createElement('br');
+      el.replaceWith(br);
+    }
+  }
+
   return DOMPurify.sanitize(div.innerHTML);
 }
 
