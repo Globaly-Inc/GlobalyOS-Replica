@@ -5,7 +5,7 @@
 
 import { useParams, Link } from 'react-router-dom';
 import { countryToFlag } from '@/utils/countryFlag';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { usePublicJob } from '@/services/useHiring';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,14 +17,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { 
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import { 
   MapPin, 
   Briefcase, 
@@ -47,8 +39,8 @@ import DOMPurify from 'dompurify';
 
 export default function JobDetailPublic() {
   const { orgCode, jobSlug } = useParams<{ orgCode: string; jobSlug: string }>();
-  const [showApplyDialog, setShowApplyDialog] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [hasApplied, setHasApplied] = useState(false);
+  const [appliedAt, setAppliedAt] = useState<string | null>(null);
   
   const { data: job, isLoading, error } = usePublicJob(orgCode, jobSlug);
 
@@ -94,6 +86,12 @@ export default function JobDetailPublic() {
       return response;
     },
     onSuccess: () => {
+      const now = new Date().toISOString();
+      if (job && orgCode) {
+        localStorage.setItem(`applied-${orgCode}-${job.id}`, JSON.stringify({ jobId: job.id, appliedAt: now }));
+      }
+      setAppliedAt(now);
+      setHasApplied(true);
       toast.success('Application submitted successfully!');
     },
     onError: (error: Error) => {
@@ -105,6 +103,20 @@ export default function JobDetailPublic() {
       }
     },
   });
+
+  // Check localStorage for existing application
+  useEffect(() => {
+    if (job && orgCode) {
+      const stored = localStorage.getItem(`applied-${orgCode}-${job.id}`);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setHasApplied(true);
+          setAppliedAt(parsed.appliedAt);
+        } catch {}
+      }
+    }
+  }, [job, orgCode]);
 
   // Application form state
   const [formData, setFormData] = useState({
@@ -139,8 +151,7 @@ export default function JobDetailPublic() {
         cover_letter: formData.cover_letter || undefined,
       });
       
-      setShowApplyDialog(false);
-      setShowSuccess(true);
+      // Applied state is set in onSuccess
     } catch (error) {
       // Error handled by mutation
     }
@@ -164,25 +175,6 @@ export default function JobDetailPublic() {
     );
   }
 
-  if (showSuccess) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="max-w-md w-full">
-          <CardContent className="pt-6 text-center">
-            <CheckCircle2 className="h-16 w-16 mx-auto text-green-500 mb-4" />
-            <h2 className="text-2xl font-semibold mb-2">Application Submitted!</h2>
-            <p className="text-muted-foreground mb-6">
-              Thank you for applying to <strong>{job?.title}</strong>. 
-              We'll review your application and get back to you soon.
-            </p>
-            <Button asChild>
-              <Link to={`/careers/${orgCode}`}>View More Jobs</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <HelmetProvider>
@@ -332,23 +324,47 @@ export default function JobDetailPublic() {
 
             {/* Sidebar */}
             <div className="space-y-6">
-              <Card className="sticky top-4">
+              <Card className="sticky top-[116px]">
                 <CardContent className="py-6">
-                  <Dialog open={showApplyDialog} onOpenChange={setShowApplyDialog}>
-                    <DialogTrigger asChild>
-                      <Button className="w-full" size="lg">
-                        Apply Now
+                  {/* Job metadata */}
+                  <div className="space-y-4 mb-6">
+                    {job?.salary_visible && job?.salary_min && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Salary Range</span>
+                        <span className="font-medium">
+                          {job.salary_currency} {job.salary_min.toLocaleString()}
+                          {job.salary_max && ` - ${job.salary_max.toLocaleString()}`}
+                        </span>
+                      </div>
+                    )}
+
+                    {job?.headcount && job.headcount > 1 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Positions</span>
+                        <span className="font-medium">{job.headcount} openings</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {hasApplied ? (
+                    <div className="text-center space-y-3">
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                        <CheckCircle2 className="h-10 w-10 mx-auto text-green-500 mb-3" />
+                        <h3 className="text-lg font-semibold text-green-800">Application Submitted</h3>
+                        {appliedAt && (
+                          <p className="text-sm text-green-600 mt-1">
+                            Applied on {new Date(appliedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} at {new Date(appliedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        )}
+                      </div>
+                      <Button asChild variant="outline" className="w-full">
+                        <Link to={`/careers/${orgCode}`}>View More Jobs</Link>
                       </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-                      <DialogHeader>
-                        <DialogTitle>Apply for {job?.title}</DialogTitle>
-                        <DialogDescription>
-                          Fill in your details below to submit your application.
-                        </DialogDescription>
-                      </DialogHeader>
-                      
-                      <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+                    </div>
+                  ) : (
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4">Apply for this position</h3>
+                      <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="space-y-2">
                           <Label htmlFor="name">Full Name *</Label>
                           <Input
@@ -423,27 +439,8 @@ export default function JobDetailPublic() {
                           {submitApplication.isPending ? 'Submitting...' : 'Submit Application'}
                         </Button>
                       </form>
-                    </DialogContent>
-                  </Dialog>
-
-                  <div className="mt-6 space-y-4">
-                    {job?.salary_visible && job?.salary_min && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Salary Range</span>
-                        <span className="font-medium">
-                          {job.salary_currency} {job.salary_min.toLocaleString()}
-                          {job.salary_max && ` - ${job.salary_max.toLocaleString()}`}
-                        </span>
-                      </div>
-                    )}
-
-                    {job?.headcount && job.headcount > 1 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Positions</span>
-                        <span className="font-medium">{job.headcount} openings</span>
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
