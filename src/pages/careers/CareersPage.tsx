@@ -28,6 +28,7 @@ import {
   EMPLOYMENT_TYPE_LABELS 
 } from '@/types/hiring';
 import { HelmetProvider, Helmet } from 'react-helmet-async';
+import { countryToFlag } from '@/utils/countryFlag';
 
 export default function CareersPage() {
   const { orgCode } = useParams<{ orgCode: string }>();
@@ -168,12 +169,19 @@ export default function CareersPage() {
                           </h3>
                           
                           <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-muted-foreground">
-                            {job.work_model === 'onsite' && (job.location || (job as any).office?.city || (job as any).office?.country) && (
-                              <span className="flex items-center gap-1">
-                                <MapPin className="h-4 w-4" />
-                                {job.location || [(job as any).office?.city, (job as any).office?.country].filter(Boolean).join(', ')}
-                              </span>
-                            )}
+                            {job.work_model === 'onsite' && (() => {
+                              const city = job.location || (job as any).office?.city;
+                              const country = (job as any).office?.country;
+                              const locationText = [city, country].filter(Boolean).join(', ');
+                              const flag = countryToFlag(country);
+                              if (!locationText) return null;
+                              return (
+                                <span className="flex items-center gap-1">
+                                  {flag ? <span className="text-base">{flag}</span> : <MapPin className="h-4 w-4" />}
+                                  {locationText}
+                                </span>
+                              );
+                            })()}
                             <span className="flex items-center gap-1">
                               <Building2 className="h-4 w-4" />
                               {WORK_MODEL_LABELS[job.work_model]}
