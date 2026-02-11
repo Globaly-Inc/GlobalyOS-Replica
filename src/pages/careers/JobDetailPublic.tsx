@@ -44,18 +44,15 @@ import { HelmetProvider, Helmet } from 'react-helmet-async';
 import DOMPurify from 'dompurify';
 import { countryToFlag } from '@/utils/countryFlag';
 
-/** Clean stored HTML: strip inline styles, classes, and unwrap editor artifacts */
+/** Clean stored HTML: strip inline styles and unwrap spurious outer h2 wrapper */
 function cleanHtml(html: string): string {
-  // Strip all inline styles and class attributes
-  let cleaned = html.replace(/\s*style="[^"]*"/g, '').replace(/\s*class="[^"]*"/g, '');
-  // Parse and clean via DOM to handle nested h2 wrappers reliably
-  const div = document.createElement('div');
-  div.innerHTML = cleaned;
-  // If the entire content is wrapped in a single h2, unwrap it
-  if (div.children.length === 1 && div.children[0].tagName === 'H2') {
-    div.innerHTML = div.children[0].innerHTML;
-  }
-  return DOMPurify.sanitize(div.innerHTML);
+  // Strip all inline styles
+  let cleaned = html.replace(/\s*style="[^"]*"/g, '');
+  // Strip class attributes too (e.g. class="p1")
+  cleaned = cleaned.replace(/\s*class="[^"]*"/g, '');
+  // Unwrap outer <h2> that wraps the entire content (editor artifact)
+  cleaned = cleaned.replace(/^<h2[^>]*>([\s\S]*)<\/h2>$/i, '$1');
+  return DOMPurify.sanitize(cleaned);
 }
 
 export default function JobDetailPublic() {
