@@ -1,20 +1,22 @@
 
-# Show Office Location (City, Country) as Fallback on Job Cards
 
-## What Changes
-When an on-site job has no `location` override, the card will display the office's city and country instead. Only city and country are shown (not full address).
+## Move Logo Left, Add "Go to Website" Button Right
 
-## Technical Details
+### Changes to `src/pages/careers/CareersPage.tsx`
 
-### 1. Update the office join in `usePublicJobs` (`src/services/useHiring.ts`)
-- Add `country` to the office select: `office:offices(id, name, city, country)`
+**1. Update the org query (line 42)**
+- Add `website` to the select: `'name, logo_url, website'`
 
-### 2. Update the location display logic in `CareersPage.tsx` (lines 171-176)
-- Change from only showing `job.location` to a fallback chain:
-  1. If `job.location` exists, show it (the override).
-  2. Otherwise, if `job.office?.city` or `job.office?.country` exists, show "City, Country" (or whichever is available).
-- The condition stays `job.work_model === 'onsite'` -- location is only shown for on-site jobs.
+**2. Restyle the header (lines 82-90)**
+- Change from `justify-center` to `justify-between` with horizontal padding
+- Move the logo/org name to the left side
+- Add a "Go to Website" button on the right side that links to `org.website`
+- The button opens in a new tab (`target="_blank"`, `rel="noopener noreferrer"`)
+- Only show the button when `org.website` is available
 
-### Files to Edit
-- `src/services/useHiring.ts` -- add `country` to office join
-- `src/pages/careers/CareersPage.tsx` -- update location rendering with office fallback
+### Layout
+
+```text
+|  [Logo/Name]              [Go to Website ->]  |
+```
+
