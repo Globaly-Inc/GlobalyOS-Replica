@@ -106,11 +106,17 @@ export function JobPostPreview({
         </p>
       );
     }
-    const html = marked.parse(formData.description, { async: false }) as string;
-    const sanitized = DOMPurify.sanitize(html);
+
+    const content = formData.description.trim();
+    // If content already contains HTML tags, render directly; otherwise parse as markdown
+    const isHtml = /<[a-z][\s\S]*>/i.test(content);
+    const html = isHtml ? content : (marked.parse(content, { async: false }) as string);
+    const sanitized = DOMPurify.sanitize(html, { 
+      ALLOWED_ATTR: ['style', 'class', 'href', 'target', 'rel', 'src', 'alt'],
+    });
     return (
       <div 
-        className="prose prose-sm dark:prose-invert max-w-none"
+        className="prose prose-sm dark:prose-invert max-w-none [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5"
         dangerouslySetInnerHTML={{ __html: sanitized }}
       />
     );
