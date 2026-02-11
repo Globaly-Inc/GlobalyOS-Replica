@@ -503,27 +503,8 @@ export default function JobEdit() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="requirements">Requirements</Label>
-                <Textarea
-                  id="requirements"
-                  placeholder="List the skills, experience, and qualifications needed..."
-                  value={formData.requirements}
-                  onChange={(e) => handleChange('requirements', e.target.value)}
-                  className="min-h-[150px]"
-                />
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="benefits">Benefits</Label>
-                <Textarea
-                  id="benefits"
-                  placeholder="Describe the benefits and perks of the role..."
-                  value={formData.benefits}
-                  onChange={(e) => handleChange('benefits', e.target.value)}
-                  className="min-h-[100px]"
-                />
-              </div>
+
 
               <div className="space-y-2">
                 <Label htmlFor="justification">Business Justification (Internal)</Label>
