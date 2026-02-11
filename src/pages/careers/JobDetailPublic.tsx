@@ -5,7 +5,7 @@
 
 import { useParams, Link } from 'react-router-dom';
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { usePublicJob } from '@/services/useHiring';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -61,6 +61,20 @@ export default function JobDetailPublic() {
   const [showSuccess, setShowSuccess] = useState(false);
   
   const { data: job, isLoading, error } = usePublicJob(orgCode, jobSlug);
+
+  const { data: org } = useQuery({
+    queryKey: ['public-org', orgCode],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('organizations')
+        .select('name, logo_url')
+        .eq('slug', orgCode!)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!orgCode,
+  });
 
   // Create mutation using the edge function
   const submitApplication = useMutation({
@@ -187,6 +201,17 @@ export default function JobDetailPublic() {
       </Helmet>
       
       <div className="min-h-screen bg-background">
+        {/* Top Menu Bar */}
+        <header className="sticky top-0 z-50 w-full h-[100px] bg-white border-b flex items-center justify-center">
+          {org?.logo_url ? (
+            <img src={org.logo_url} alt={org.name ?? 'Organization'} className="max-h-16 object-contain" />
+          ) : org?.name ? (
+            <span className="text-2xl font-bold text-foreground">{org.name}</span>
+          ) : (
+            <Building2 className="h-8 w-8 text-muted-foreground" />
+          )}
+        </header>
+
         {/* Header */}
         <div className="bg-primary text-primary-foreground py-8">
           <div className="container mx-auto px-4">
