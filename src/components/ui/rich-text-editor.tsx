@@ -1,8 +1,9 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Button } from "./button";
 import { Bold, Italic, Underline, List, ListOrdered } from "lucide-react";
 import { cn } from "@/lib/utils";
 import DOMPurify from "dompurify";
+import { marked } from "marked";
 
 // Configure DOMPurify with allowed tags and no attributes
 const sanitizeHtml = (html: string) => {
@@ -288,6 +289,15 @@ export const extractMentionIds = (html: string): string[] => {
   return mentionIds;
 };
 
+// Detect if content looks like markdown (not HTML)
+const isMarkdown = (text: string): boolean => {
+  if (!text) return false;
+  // If it already contains HTML tags, treat as HTML
+  if (/<[a-z][\s\S]*>/i.test(text)) return false;
+  // Check for common markdown patterns
+  return /^#{1,6}\s|^\*\s|^-\s|^\d+\.\s|\*\*|__|\[.*\]\(.*\)/m.test(text);
+};
+
 // Component to render rich text content safely
 export const RichTextContent = ({ 
   content, 
@@ -296,11 +306,21 @@ export const RichTextContent = ({
   content: string; 
   className?: string;
 }) => {
+  const htmlContent = useMemo(() => {
+    if (!content) return '';
+    if (isMarkdown(content)) {
+      const rawHtml = marked.parse(content, { async: false, breaks: true, gfm: true }) as string;
+      return sanitizeHtml(rawHtml);
+    }
+    return sanitizeHtml(content);
+  }, [content]);
+
   return (
     <div 
       className={cn(
         "prose prose-sm max-w-none leading-normal",
         "prose-headings:font-semibold prose-headings:text-foreground prose-headings:mt-4 prose-headings:mb-2",
+        "prose-h2:text-lg prose-h2:mt-6 prose-h2:mb-3",
         "prose-h3:text-base prose-h3:mt-4 prose-h3:mb-2",
         "prose-p:mb-2 prose-p:mt-0 prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5",
         "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
@@ -311,7 +331,7 @@ export const RichTextContent = ({
         "text-foreground/80",
         className
       )}
-      dangerouslySetInnerHTML={{ __html: sanitizeHtml(content) }}
+      dangerouslySetInnerHTML={{ __html: htmlContent }}
     />
   );
 };
