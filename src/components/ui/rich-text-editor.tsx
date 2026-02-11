@@ -236,30 +236,6 @@ export const RichTextEditor = ({
           <Underline className="h-4 w-4" />
         </Button>
         <div className="w-px h-5 bg-border mx-1" />
-        {/* Text Size */}
-        <div className="flex items-center gap-1">
-          <Type className="h-4 w-4 text-muted-foreground" />
-          <Input
-            type="text"
-            value={textSizeInput}
-            onChange={(e) => {
-              const val = e.target.value;
-              if (val === '' || /^\d+$/.test(val)) {
-                setTextSizeInput(val);
-              }
-            }}
-            onBlur={applyFontSize}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                applyFontSize();
-              }
-            }}
-            className="h-7 w-12 text-xs text-center px-1"
-            title="Font size (8-72px)"
-          />
-        </div>
-        <div className="w-px h-5 bg-border mx-1" />
         <Button
           type="button"
           variant="ghost"
