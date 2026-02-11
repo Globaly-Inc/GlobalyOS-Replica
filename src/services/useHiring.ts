@@ -673,7 +673,7 @@ export function usePublicJobs(orgSlug: string | undefined) {
           salary_min, salary_max, salary_currency, salary_visible,
           description, requirements, benefits, published_at,
           department:departments(id, name),
-          office:offices(id, name, city)
+          office:offices(id, name, city, country)
         `)
         .eq('organization_id', org.id)
         .eq('status', 'open')

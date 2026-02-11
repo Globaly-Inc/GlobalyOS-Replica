@@ -168,10 +168,10 @@ export default function CareersPage() {
                           </h3>
                           
                           <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-muted-foreground">
-                            {job.work_model === 'onsite' && job.location && (
+                            {job.work_model === 'onsite' && (job.location || (job as any).office?.city || (job as any).office?.country) && (
                               <span className="flex items-center gap-1">
                                 <MapPin className="h-4 w-4" />
-                                {job.location}
+                                {job.location || [(job as any).office?.city, (job as any).office?.country].filter(Boolean).join(', ')}
                               </span>
                             )}
                             <span className="flex items-center gap-1">
