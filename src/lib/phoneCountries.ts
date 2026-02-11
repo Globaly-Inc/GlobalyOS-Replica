@@ -113,14 +113,63 @@ export const getPhoneCountry = (code: string): PhoneCountry | undefined =>
 /**
  * Auto-detect country code from browser locale
  */
+// Map IANA timezones to country codes for reliable geo-detection
+const TIMEZONE_TO_COUNTRY: Record<string, string> = {
+  'Australia/Sydney': 'AU', 'Australia/Melbourne': 'AU', 'Australia/Brisbane': 'AU',
+  'Australia/Perth': 'AU', 'Australia/Adelaide': 'AU', 'Australia/Hobart': 'AU',
+  'Australia/Darwin': 'AU', 'Australia/Lord_Howe': 'AU', 'Australia/Lindeman': 'AU',
+  'America/New_York': 'US', 'America/Chicago': 'US', 'America/Denver': 'US',
+  'America/Los_Angeles': 'US', 'America/Anchorage': 'US', 'Pacific/Honolulu': 'US',
+  'America/Phoenix': 'US', 'America/Indianapolis': 'US', 'America/Detroit': 'US',
+  'Europe/London': 'GB', 'Europe/Paris': 'FR', 'Europe/Berlin': 'DE',
+  'Europe/Rome': 'IT', 'Europe/Madrid': 'ES', 'Europe/Amsterdam': 'NL',
+  'Europe/Brussels': 'BE', 'Europe/Zurich': 'CH', 'Europe/Vienna': 'AT',
+  'Europe/Stockholm': 'SE', 'Europe/Oslo': 'NO', 'Europe/Copenhagen': 'DK',
+  'Europe/Helsinki': 'FI', 'Europe/Warsaw': 'PL', 'Europe/Prague': 'CZ',
+  'Europe/Budapest': 'HU', 'Europe/Bucharest': 'RO', 'Europe/Sofia': 'BG',
+  'Europe/Athens': 'GR', 'Europe/Istanbul': 'TR', 'Europe/Moscow': 'RU',
+  'Europe/Dublin': 'IE', 'Europe/Lisbon': 'PT', 'Europe/Belgrade': 'RS',
+  'Europe/Zagreb': 'HR', 'Europe/Bratislava': 'SK', 'Europe/Ljubljana': 'SI',
+  'Europe/Tallinn': 'EE', 'Europe/Riga': 'LV', 'Europe/Vilnius': 'LT',
+  'Europe/Luxembourg': 'LU', 'Europe/Malta': 'MT', 'Europe/Nicosia': 'CY',
+  'Europe/Reykjavik': 'IS', 'Europe/Minsk': 'BY', 'Europe/Kiev': 'UA',
+  'Asia/Tokyo': 'JP', 'Asia/Shanghai': 'CN', 'Asia/Hong_Kong': 'HK',
+  'Asia/Singapore': 'SG', 'Asia/Seoul': 'KR', 'Asia/Taipei': 'TW',
+  'Asia/Kolkata': 'IN', 'Asia/Calcutta': 'IN', 'Asia/Karachi': 'PK',
+  'Asia/Dhaka': 'BD', 'Asia/Colombo': 'LK', 'Asia/Kathmandu': 'NP',
+  'Asia/Bangkok': 'TH', 'Asia/Jakarta': 'ID', 'Asia/Kuala_Lumpur': 'MY',
+  'Asia/Manila': 'PH', 'Asia/Ho_Chi_Minh': 'VN', 'Asia/Dubai': 'AE',
+  'Asia/Riyadh': 'SA', 'Asia/Qatar': 'QA', 'Asia/Bahrain': 'BH',
+  'Asia/Kuwait': 'KW', 'Asia/Muscat': 'OM', 'Asia/Baghdad': 'IQ',
+  'Asia/Tehran': 'IR', 'Asia/Jerusalem': 'IL', 'Asia/Amman': 'JO',
+  'Asia/Beirut': 'LB', 'Asia/Tbilisi': 'GE', 'Asia/Yerevan': 'AM',
+  'Asia/Baku': 'AZ', 'Asia/Almaty': 'KZ', 'Asia/Tashkent': 'UZ',
+  'Africa/Cairo': 'EG', 'Africa/Lagos': 'NG', 'Africa/Nairobi': 'KE',
+  'Africa/Johannesburg': 'ZA', 'Africa/Casablanca': 'MA', 'Africa/Accra': 'GH',
+  'America/Toronto': 'CA', 'America/Vancouver': 'CA', 'America/Edmonton': 'CA',
+  'America/Winnipeg': 'CA', 'America/Halifax': 'CA', 'America/St_Johns': 'CA',
+  'America/Sao_Paulo': 'BR', 'America/Argentina/Buenos_Aires': 'AR',
+  'America/Santiago': 'CL', 'America/Bogota': 'CO', 'America/Lima': 'PE',
+  'America/Mexico_City': 'MX', 'America/Caracas': 'VE', 'America/Montevideo': 'UY',
+  'America/Panama': 'PA', 'Pacific/Auckland': 'NZ',
+};
+
 export const getDefaultCountryCode = (): string => {
+  // 1. Try timezone first (most reliable for geographic location)
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const tzCountry = TIMEZONE_TO_COUNTRY[tz];
+    if (tzCountry && getPhoneCountry(tzCountry)) return tzCountry;
+  } catch {}
+
+  // 2. Fall back to navigator.language region subtag
   try {
     const lang = navigator.language || (navigator as any).userLanguage || '';
-    // e.g. "en-US" -> "US", "en-GB" -> "GB", "fr" -> "FR"
     const parts = lang.split('-');
     const region = parts.length > 1 ? parts[1].toUpperCase() : parts[0].toUpperCase();
     if (getPhoneCountry(region)) return region;
   } catch {}
+
   return 'US';
 };
 
