@@ -14,7 +14,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { 
@@ -27,7 +26,9 @@ import {
   DollarSign,
   Users,
   CheckCircle2,
-  FileText
+  FileText,
+  Upload,
+  X
 } from 'lucide-react';
 import { 
   WORK_MODEL_LABELS, 
@@ -59,6 +60,10 @@ export default function JobDetailPublic() {
     enabled: !!orgCode,
   });
 
+  const ACCEPTED_FILE_TYPES = '.pdf,.png,.jpeg,.jpg,.doc,.docx';
+  const MAX_FILE_SIZE_MB = 25;
+  const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
   // Create mutation using the edge function
   const submitApplication = useMutation({
     mutationFn: async (data: {
@@ -70,19 +75,30 @@ export default function JobDetailPublic() {
         phone?: string;
         linkedin_url?: string;
       };
-      cover_letter?: string;
+      resume: File;
     }) => {
-      const { data: response, error } = await supabase.functions.invoke('submit-public-application', {
-        body: {
-          org_code: data.orgCode,
-          job_id: data.jobId,
-          candidate: data.candidate,
-          cover_letter: data.cover_letter,
+      const formPayload = new FormData();
+      formPayload.append('org_code', data.orgCode);
+      formPayload.append('job_id', data.jobId);
+      formPayload.append('candidate_name', data.candidate.name);
+      formPayload.append('candidate_email', data.candidate.email);
+      if (data.candidate.phone) formPayload.append('candidate_phone', data.candidate.phone);
+      if (data.candidate.linkedin_url) formPayload.append('candidate_linkedin_url', data.candidate.linkedin_url);
+      formPayload.append('resume', data.resume);
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+      const res = await fetch(`${supabaseUrl}/functions/v1/submit-public-application`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
         },
+        body: formPayload,
       });
 
-      if (error) throw error;
-      if (response?.error) throw new Error(response.error);
+      const response = await res.json();
+      if (!res.ok || response?.error) throw new Error(response.error || 'Failed to submit');
       return response;
     },
     onSuccess: () => {
@@ -124,15 +140,31 @@ export default function JobDetailPublic() {
     email: '',
     phone: '',
     linkedin_url: '',
-    cover_letter: '',
     consent: false,
   });
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      toast.error(`File size exceeds ${MAX_FILE_SIZE_MB}MB limit`);
+      e.target.value = '';
+      return;
+    }
+    setResumeFile(file);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.consent) {
       toast.error('Please accept the privacy policy to continue');
+      return;
+    }
+
+    if (!resumeFile) {
+      toast.error('Please upload your resume');
       return;
     }
 
@@ -148,7 +180,7 @@ export default function JobDetailPublic() {
           phone: formData.phone || undefined,
           linkedin_url: formData.linkedin_url || undefined,
         },
-        cover_letter: formData.cover_letter || undefined,
+        resume: resumeFile,
       });
       
       // Applied state is set in onSuccess
@@ -408,14 +440,38 @@ export default function JobDetailPublic() {
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="cover_letter">Cover Letter</Label>
-                          <Textarea
-                            id="cover_letter"
-                            rows={4}
-                            placeholder="Tell us why you're interested in this role..."
-                            value={formData.cover_letter}
-                            onChange={(e) => setFormData({ ...formData, cover_letter: e.target.value })}
-                          />
+                          <Label htmlFor="resume">Upload Resume *</Label>
+                          {resumeFile ? (
+                            <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
+                              <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <span className="text-sm truncate flex-1">{resumeFile.name}</span>
+                              <button
+                                type="button"
+                                onClick={() => setResumeFile(null)}
+                                className="text-muted-foreground hover:text-foreground"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <label
+                              htmlFor="resume"
+                              className="flex flex-col items-center gap-2 p-4 border-2 border-dashed rounded-md cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
+                            >
+                              <Upload className="h-6 w-6 text-muted-foreground" />
+                              <span className="text-sm text-muted-foreground text-center">
+                                Click to upload (PDF, DOC, DOCX, JPEG, PNG)
+                              </span>
+                              <span className="text-xs text-muted-foreground">Max {MAX_FILE_SIZE_MB}MB</span>
+                              <input
+                                id="resume"
+                                type="file"
+                                accept={ACCEPTED_FILE_TYPES}
+                                onChange={handleFileChange}
+                                className="sr-only"
+                              />
+                            </label>
+                          )}
                         </div>
 
                         <div className="flex items-start gap-2">

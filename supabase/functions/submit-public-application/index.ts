@@ -2,6 +2,7 @@
  * Submit Public Application Edge Function
  * Handles job applications from anonymous users on the public careers site
  * Uses service role to bypass RLS policies
+ * Accepts multipart/form-data with optional resume file upload
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -11,20 +12,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface ApplicationInput {
-  org_code: string;
-  job_id: string;
-  candidate: {
-    name: string;
-    email: string;
-    phone?: string;
-    linkedin_url?: string;
-    portfolio_url?: string;
-    location?: string;
-  };
-  cover_letter?: string;
-  source_of_application?: string;
-}
+const ALLOWED_MIME_TYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'image/jpeg',
+  'image/png',
+];
+
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
@@ -50,48 +46,104 @@ Deno.serve(async (req) => {
     // Create admin client with service role (bypasses RLS)
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const input: ApplicationInput = await req.json();
+    const contentType = req.headers.get('content-type') || '';
+    
+    let orgCode: string;
+    let jobId: string;
+    let candidateName: string;
+    let candidateEmail: string;
+    let candidatePhone: string | null = null;
+    let candidateLinkedin: string | null = null;
+    let candidatePortfolio: string | null = null;
+    let candidateLocation: string | null = null;
+    let coverLetter: string | null = null;
+    let sourceOfApplication: string | null = null;
+    let resumeFile: File | null = null;
+
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await req.formData();
+      orgCode = formData.get('org_code') as string;
+      jobId = formData.get('job_id') as string;
+      candidateName = formData.get('candidate_name') as string;
+      candidateEmail = formData.get('candidate_email') as string;
+      candidatePhone = formData.get('candidate_phone') as string || null;
+      candidateLinkedin = formData.get('candidate_linkedin_url') as string || null;
+      candidatePortfolio = formData.get('candidate_portfolio_url') as string || null;
+      candidateLocation = formData.get('candidate_location') as string || null;
+      coverLetter = formData.get('cover_letter') as string || null;
+      sourceOfApplication = formData.get('source_of_application') as string || null;
+      resumeFile = formData.get('resume') as File | null;
+    } else {
+      // Fallback to JSON for backwards compatibility
+      const input = await req.json();
+      orgCode = input.org_code;
+      jobId = input.job_id;
+      candidateName = input.candidate?.name;
+      candidateEmail = input.candidate?.email;
+      candidatePhone = input.candidate?.phone || null;
+      candidateLinkedin = input.candidate?.linkedin_url || null;
+      candidatePortfolio = input.candidate?.portfolio_url || null;
+      candidateLocation = input.candidate?.location || null;
+      coverLetter = input.cover_letter || null;
+      sourceOfApplication = input.source_of_application || null;
+    }
 
     // Validate required fields
-    if (!input.org_code || !input.job_id || !input.candidate?.name || !input.candidate?.email) {
+    if (!orgCode || !jobId || !candidateName || !candidateEmail) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: org_code, job_id, candidate.name, candidate.email' }),
+        JSON.stringify({ error: 'Missing required fields: org_code, job_id, candidate name, candidate email' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(input.candidate.email)) {
+    if (!emailRegex.test(candidateEmail)) {
       return new Response(
         JSON.stringify({ error: 'Invalid email address' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Sanitize input - trim strings and limit lengths
+    // Validate resume file if provided
+    if (resumeFile) {
+      if (!ALLOWED_MIME_TYPES.includes(resumeFile.type)) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid file type. Allowed: PDF, DOC, DOCX, JPEG, PNG' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (resumeFile.size > MAX_FILE_SIZE) {
+        return new Response(
+          JSON.stringify({ error: 'File size exceeds 25MB limit' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Sanitize input
     const sanitizedCandidate = {
-      name: input.candidate.name.trim().slice(0, 200),
-      email: input.candidate.email.trim().toLowerCase().slice(0, 255),
-      phone: input.candidate.phone?.trim().slice(0, 50) || null,
-      linkedin_url: input.candidate.linkedin_url?.trim().slice(0, 500) || null,
-      portfolio_url: input.candidate.portfolio_url?.trim().slice(0, 500) || null,
-      location: input.candidate.location?.trim().slice(0, 200) || null,
+      name: candidateName.trim().slice(0, 200),
+      email: candidateEmail.trim().toLowerCase().slice(0, 255),
+      phone: candidatePhone?.trim().slice(0, 50) || null,
+      linkedin_url: candidateLinkedin?.trim().slice(0, 500) || null,
+      portfolio_url: candidatePortfolio?.trim().slice(0, 500) || null,
+      location: candidateLocation?.trim().slice(0, 200) || null,
     };
 
-    const sanitizedCoverLetter = input.cover_letter?.trim().slice(0, 10000) || null;
+    const sanitizedCoverLetter = coverLetter?.trim().slice(0, 10000) || null;
 
-    console.log(`Processing application for org: ${input.org_code}, job: ${input.job_id}, email: ${sanitizedCandidate.email}`);
+    console.log(`Processing application for org: ${orgCode}, job: ${jobId}, email: ${sanitizedCandidate.email}`);
 
     // Step 1: Get organization by code
     const { data: org, error: orgError } = await supabase
       .from('organizations')
       .select('id, name')
-      .eq('code', input.org_code)
+      .eq('code', orgCode)
       .single();
 
     if (orgError || !org) {
-      console.error('Organization not found:', input.org_code);
+      console.error('Organization not found:', orgCode);
       return new Response(
         JSON.stringify({ error: 'Organization not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -102,12 +154,12 @@ Deno.serve(async (req) => {
     const { data: job, error: jobError } = await supabase
       .from('jobs')
       .select('id, title, status, is_public_visible')
-      .eq('id', input.job_id)
+      .eq('id', jobId)
       .eq('organization_id', org.id)
       .single();
 
     if (jobError || !job) {
-      console.error('Job not found:', input.job_id);
+      console.error('Job not found:', jobId);
       return new Response(
         JSON.stringify({ error: 'Job not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -146,7 +198,7 @@ Deno.serve(async (req) => {
         .from('candidate_applications')
         .select('id')
         .eq('candidate_id', candidateId)
-        .eq('job_id', input.job_id)
+        .eq('job_id', jobId)
         .maybeSingle();
 
       if (existingApp) {
@@ -181,17 +233,42 @@ Deno.serve(async (req) => {
       console.log(`Created new candidate: ${candidateId}`);
     }
 
-    // Step 4: Create the application
+    // Step 4: Upload resume file if provided
+    let cvFilePath: string | null = null;
+    if (resumeFile) {
+      const fileExt = resumeFile.name.split('.').pop() || 'pdf';
+      const fileName = `resume-${Date.now()}.${fileExt}`;
+      const filePath = `${org.id}/${candidateId}/${fileName}`;
+
+      const fileBuffer = await resumeFile.arrayBuffer();
+      const { error: uploadError } = await supabase.storage
+        .from('hiring-documents')
+        .upload(filePath, fileBuffer, {
+          contentType: resumeFile.type,
+          upsert: false,
+        });
+
+      if (uploadError) {
+        console.error('Error uploading resume:', uploadError);
+        // Don't fail the whole application if upload fails
+      } else {
+        cvFilePath = filePath;
+        console.log(`Uploaded resume: ${filePath}`);
+      }
+    }
+
+    // Step 5: Create the application
     const { data: application, error: appError } = await supabase
       .from('candidate_applications')
       .insert({
         organization_id: org.id,
         candidate_id: candidateId,
-        job_id: input.job_id,
+        job_id: jobId,
         stage: 'applied',
         status: 'active',
         cover_letter: sanitizedCoverLetter,
-        source_of_application: input.source_of_application || 'careers_site',
+        cv_file_path: cvFilePath,
+        source_of_application: sourceOfApplication || 'careers_site',
       })
       .select('id')
       .single();
@@ -203,7 +280,7 @@ Deno.serve(async (req) => {
 
     console.log(`Created application: ${application.id}`);
 
-    // Step 5: Log activity
+    // Step 6: Log activity
     await supabase
       .from('hiring_activity_logs')
       .insert({
