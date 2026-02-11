@@ -26,7 +26,7 @@ import { useDepartments, useOffices } from '@/hooks/useOrganizationData';
 import { useOrganization } from '@/hooks/useOrganization';
 import type { WorkModel, HiringEmploymentType } from '@/types/hiring';
 import { OrgLink } from '@/components/OrgLink';
-import { ArrowLeft, Loader2, Save, Globe, Sparkles, Wand2, CalendarIcon, Info } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, Globe, EyeOff, Sparkles, Wand2, CalendarIcon, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useFormattedDate } from '@/hooks/useFormattedDate';
 import { toast } from 'sonner';
@@ -210,6 +210,19 @@ export default function JobEdit() {
     }
   };
 
+  const handleUnpublish = async () => {
+    if (!job?.id) return;
+    try {
+      await updateJob.mutateAsync({
+        jobId: job.id,
+        input: { status: 'paused' },
+      });
+      toast.success('Job unpublished');
+    } catch (error) {
+      toast.error('Failed to unpublish job');
+    }
+  };
+
   // Check if description has meaningful content
   const hasDescriptionContent = formData.description.trim().length > 50;
 
@@ -291,6 +304,7 @@ export default function JobEdit() {
     );
   }
 
+  const isOpen = job.status === 'open';
   const canPublish = job.status === 'approved' || job.status === 'open' || job.status === 'draft';
 
   return (
@@ -325,17 +339,32 @@ export default function JobEdit() {
             Save Changes
           </Button>
           {canPublish && (
-            <Button
-              onClick={handlePublish}
-              disabled={publishJob.isPending}
-            >
-              {publishJob.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Globe className="h-4 w-4 mr-2" />
-              )}
-              Publish
-            </Button>
+            isOpen ? (
+              <Button
+                variant="destructive"
+                onClick={handleUnpublish}
+                disabled={updateJob.isPending}
+              >
+                {updateJob.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <EyeOff className="h-4 w-4 mr-2" />
+                )}
+                Unpublish
+              </Button>
+            ) : (
+              <Button
+                onClick={handlePublish}
+                disabled={publishJob.isPending}
+              >
+                {publishJob.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Globe className="h-4 w-4 mr-2" />
+                )}
+                Publish
+              </Button>
+            )
           )}
         </div>
       </div>
