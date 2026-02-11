@@ -31,6 +31,7 @@ import {
   Clock, 
   Building2,
   ArrowLeft,
+  ArrowRight,
   DollarSign,
   Users,
   CheckCircle2,
@@ -176,6 +177,28 @@ export default function JobDetailPublic() {
       </Helmet>
       
       <div className="min-h-screen bg-background">
+        {/* Top Menu Bar */}
+        <header className="sticky top-0 z-50 w-full h-[100px] bg-white border-b">
+          <div className="container mx-auto px-4 h-full flex items-center justify-between">
+            <Link to={`/careers/${orgCode}`} className="flex items-center gap-3">
+              {(job as any)?.organization?.logo_url ? (
+                <img src={(job as any).organization.logo_url} alt={(job as any).organization.name ?? 'Organization'} className="max-h-16 object-contain" />
+              ) : (job as any)?.organization?.name ? (
+                <span className="text-2xl font-bold text-foreground">{(job as any).organization.name}</span>
+              ) : (
+                <Building2 className="h-8 w-8 text-muted-foreground" />
+              )}
+            </Link>
+            {(job as any)?.organization?.website && (
+              <Button asChild variant="outline">
+                <a href={(job as any).organization.website} target="_blank" rel="noopener noreferrer">
+                  Go to Website <ArrowRight className="h-4 w-4" />
+                </a>
+              </Button>
+            )}
+          </div>
+        </header>
+
         {/* Header */}
         <div className="bg-primary text-primary-foreground py-8">
           <div className="container mx-auto px-4">

@@ -696,7 +696,7 @@ export function usePublicJob(orgSlug: string | undefined, jobSlug: string | unde
       // First get org by slug
       const { data: org, error: orgError } = await supabase
         .from('organizations')
-        .select('id, name, slug')
+        .select('id, name, slug, logo_url, website')
         .eq('slug', orgSlug)
         .single();
 
@@ -719,7 +719,7 @@ export function usePublicJob(orgSlug: string | undefined, jobSlug: string | unde
         if (error.code === 'PGRST116') return null;
         throw error;
       }
-      return data as unknown as Job;
+      return { ...data, organization: { name: org.name, slug: org.slug, logo_url: (org as any).logo_url, website: (org as any).website } } as unknown as Job;
     },
     enabled: !!orgSlug && !!jobSlug,
   });
