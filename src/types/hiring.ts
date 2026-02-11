@@ -393,6 +393,7 @@ export interface CreateJobInput {
   requirements?: string | null;
   benefits?: string | null;
   target_start_date?: string | null;
+  application_close_date?: string | null;
   justification?: string | null;
 }
 

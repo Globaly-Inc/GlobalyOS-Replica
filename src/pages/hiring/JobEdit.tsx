@@ -73,6 +73,7 @@ export default function JobEdit() {
     salary_max: '',
     salary_currency: 'USD',
     salary_visible: false,
+    application_close_date: '',
     target_start_date: '',
     justification: '',
     description: '',
@@ -98,6 +99,7 @@ export default function JobEdit() {
         salary_currency: job.salary_currency || 'USD',
         salary_visible: job.salary_visible || false,
         target_start_date: job.target_start_date?.split('T')[0] || '',
+        application_close_date: (job as any).application_close_date?.split('T')[0] || '',
         justification: job.justification || '',
         description: job.description || '',
         requirements: job.requirements || '',
@@ -134,6 +136,7 @@ export default function JobEdit() {
           salary_currency: formData.salary_currency,
           salary_visible: formData.salary_visible,
           target_start_date: formData.target_start_date || null,
+          application_close_date: formData.application_close_date || null,
           justification: formData.justification || null,
           description: formData.description || null,
           requirements: formData.requirements || null,
@@ -413,35 +416,67 @@ export default function JobEdit() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label>Target Start Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full max-w-xs justify-start text-left font-normal",
-                        !formData.target_start_date && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formData.target_start_date ? (
-                        format(new Date(formData.target_start_date), "PPP")
-                      ) : (
-                        <span>Pick a date</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={formData.target_start_date ? new Date(formData.target_start_date) : undefined}
-                      onSelect={(date) => handleChange('target_start_date', date ? format(date, 'yyyy-MM-dd') : '')}
-                      initialFocus
-                      className={cn("p-3 pointer-events-auto")}
-                    />
-                  </PopoverContent>
-                </Popover>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Application Close Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !formData.application_close_date && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.application_close_date ? (
+                          format(new Date(formData.application_close_date), "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={formData.application_close_date ? new Date(formData.application_close_date) : undefined}
+                        onSelect={(date) => handleChange('application_close_date', date ? format(date, 'yyyy-MM-dd') : '')}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-2">
+                  <Label>Target Start Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !formData.target_start_date && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.target_start_date ? (
+                          format(new Date(formData.target_start_date), "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={formData.target_start_date ? new Date(formData.target_start_date) : undefined}
+                        onSelect={(date) => handleChange('target_start_date', date ? format(date, 'yyyy-MM-dd') : '')}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
             </CardContent>
           </Card>
