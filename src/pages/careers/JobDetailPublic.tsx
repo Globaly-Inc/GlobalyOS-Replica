@@ -5,7 +5,7 @@
 
 import { useParams, Link } from 'react-router-dom';
 import { useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { usePublicJob } from '@/services/useHiring';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,18 +42,6 @@ import {
 import { toast } from 'sonner';
 import { HelmetProvider, Helmet } from 'react-helmet-async';
 import DOMPurify from 'dompurify';
-import { countryToFlag } from '@/utils/countryFlag';
-
-/** Clean stored HTML: strip inline styles and unwrap spurious outer h2 wrapper */
-function cleanHtml(html: string): string {
-  // Strip all inline styles
-  let cleaned = html.replace(/\s*style="[^"]*"/g, '');
-  // Strip class attributes too (e.g. class="p1")
-  cleaned = cleaned.replace(/\s*class="[^"]*"/g, '');
-  // Unwrap outer <h2> that wraps the entire content (editor artifact)
-  cleaned = cleaned.replace(/^<h2[^>]*>([\s\S]*)<\/h2>$/i, '$1');
-  return DOMPurify.sanitize(cleaned);
-}
 
 export default function JobDetailPublic() {
   const { orgCode, jobSlug } = useParams<{ orgCode: string; jobSlug: string }>();
@@ -61,20 +49,6 @@ export default function JobDetailPublic() {
   const [showSuccess, setShowSuccess] = useState(false);
   
   const { data: job, isLoading, error } = usePublicJob(orgCode, jobSlug);
-
-  const { data: org } = useQuery({
-    queryKey: ['public-org', orgCode],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('organizations')
-        .select('name, logo_url')
-        .eq('slug', orgCode!)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!orgCode,
-  });
 
   // Create mutation using the edge function
   const submitApplication = useMutation({
@@ -201,17 +175,6 @@ export default function JobDetailPublic() {
       </Helmet>
       
       <div className="min-h-screen bg-background">
-        {/* Top Menu Bar */}
-        <header className="sticky top-0 z-50 w-full h-[100px] bg-white border-b flex items-center justify-center">
-          {org?.logo_url ? (
-            <img src={org.logo_url} alt={org.name ?? 'Organization'} className="max-h-16 object-contain" />
-          ) : org?.name ? (
-            <span className="text-2xl font-bold text-foreground">{org.name}</span>
-          ) : (
-            <Building2 className="h-8 w-8 text-muted-foreground" />
-          )}
-        </header>
-
         {/* Header */}
         <div className="bg-primary text-primary-foreground py-8">
           <div className="container mx-auto px-4">
@@ -232,19 +195,12 @@ export default function JobDetailPublic() {
               <>
                 <h1 className="text-3xl md:text-4xl font-bold mb-2">{job?.title}</h1>
                 <div className="flex flex-wrap items-center gap-4 text-sm opacity-90">
-                  {job?.work_model === 'onsite' && (() => {
-                    const city = job?.location || (job as any)?.office?.city;
-                    const country = (job as any)?.office?.country;
-                    const locationText = [city, country].filter(Boolean).join(', ');
-                    const flag = countryToFlag(country);
-                    if (!locationText) return null;
-                    return (
-                      <span className="flex items-center gap-1">
-                        {flag ? <span className="text-base">{flag}</span> : <MapPin className="h-4 w-4" />}
-                        {locationText}
-                      </span>
-                    );
-                  })()}
+                  {job?.location && (
+                    <span className="flex items-center gap-1">
+                      <MapPin className="h-4 w-4" />
+                      {job.location}
+                    </span>
+                  )}
                   <span className="flex items-center gap-1">
                     <Building2 className="h-4 w-4" />
                     {WORK_MODEL_LABELS[job?.work_model || 'onsite']}
@@ -253,12 +209,6 @@ export default function JobDetailPublic() {
                     <Clock className="h-4 w-4" />
                     {EMPLOYMENT_TYPE_LABELS[job?.employment_type || 'full_time']}
                   </span>
-                  {job?.application_close_date && (
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-4 w-4" />
-                      Apply by {new Date(job.application_close_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </span>
-                  )}
                 </div>
               </>
             )}
@@ -291,7 +241,7 @@ export default function JobDetailPublic() {
                       <CardContent>
                         <div 
                           className="prose prose-sm max-w-none dark:prose-invert"
-                          dangerouslySetInnerHTML={{ __html: cleanHtml(job.description) }}
+                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(job.description) }}
                         />
                       </CardContent>
                     </Card>
@@ -305,7 +255,7 @@ export default function JobDetailPublic() {
                       <CardContent>
                         <div 
                           className="prose prose-sm max-w-none dark:prose-invert"
-                          dangerouslySetInnerHTML={{ __html: cleanHtml(job.requirements) }}
+                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(job.requirements) }}
                         />
                       </CardContent>
                     </Card>
@@ -319,7 +269,7 @@ export default function JobDetailPublic() {
                       <CardContent>
                         <div 
                           className="prose prose-sm max-w-none dark:prose-invert"
-                          dangerouslySetInnerHTML={{ __html: cleanHtml(job.benefits) }}
+                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(job.benefits) }}
                         />
                       </CardContent>
                     </Card>
