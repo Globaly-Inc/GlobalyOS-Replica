@@ -4,6 +4,7 @@
  */
 
 import { useParams, Link } from 'react-router-dom';
+import { countryToFlag } from '@/utils/countryFlag';
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { usePublicJob } from '@/services/useHiring';
@@ -195,12 +196,19 @@ export default function JobDetailPublic() {
               <>
                 <h1 className="text-3xl md:text-4xl font-bold mb-2">{job?.title}</h1>
                 <div className="flex flex-wrap items-center gap-4 text-sm opacity-90">
-                  {job?.location && (
-                    <span className="flex items-center gap-1">
-                      <MapPin className="h-4 w-4" />
-                      {job.location}
-                    </span>
-                  )}
+                  {(() => {
+                    const city = job?.location || (job as any)?.office?.city;
+                    const country = (job as any)?.office?.country;
+                    const locationText = [city, country].filter(Boolean).join(', ');
+                    const flag = countryToFlag(country);
+                    if (!locationText) return null;
+                    return (
+                      <span className="flex items-center gap-1">
+                        {flag ? <span className="text-base">{flag}</span> : <MapPin className="h-4 w-4" />}
+                        {locationText}
+                      </span>
+                    );
+                  })()}
                   <span className="flex items-center gap-1">
                     <Building2 className="h-4 w-4" />
                     {WORK_MODEL_LABELS[job?.work_model || 'onsite']}
@@ -209,6 +217,12 @@ export default function JobDetailPublic() {
                     <Clock className="h-4 w-4" />
                     {EMPLOYMENT_TYPE_LABELS[job?.employment_type || 'full_time']}
                   </span>
+                  {(job as any)?.application_close_date && (
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-4 w-4" />
+                      Apply by {new Date((job as any).application_close_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </span>
+                  )}
                 </div>
               </>
             )}
