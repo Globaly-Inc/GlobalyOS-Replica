@@ -1,22 +1,27 @@
 
 
-## Move Logo Left, Add "Go to Website" Button Right
+## Fix Bullet Points in Public Job Detail Page
 
-### Changes to `src/pages/careers/CareersPage.tsx`
+### Problem
+The job description rendered in `src/pages/careers/JobDetailPublic.tsx` (line 257) uses `prose prose-sm` but is missing explicit list styling classes. The Tailwind `prose` plugin sometimes doesn't apply `list-disc` by default depending on CSS resets, causing bullet points to be invisible.
 
-**1. Update the org query (line 42)**
-- Add `website` to the select: `'name, logo_url, website'`
+### Solution
+Add the same list styling classes already used in `JobPostPreview.tsx` to the description `div` on line 257.
 
-**2. Restyle the header (lines 82-90)**
-- Change from `justify-center` to `justify-between` with horizontal padding
-- Move the logo/org name to the left side
-- Add a "Go to Website" button on the right side that links to `org.website`
-- The button opens in a new tab (`target="_blank"`, `rel="noopener noreferrer"`)
-- Only show the button when `org.website` is available
+### Change (single file)
 
-### Layout
+**`src/pages/careers/JobDetailPublic.tsx` -- line 257**
 
-```text
-|  [Logo/Name]              [Go to Website ->]  |
+Change:
 ```
+className="prose prose-sm max-w-none dark:prose-invert"
+```
+To:
+```
+className="prose prose-sm max-w-none dark:prose-invert [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5"
+```
+
+Apply the same fix to the `requirements` div (line 271) and `benefits` div (if similarly styled) so all rich-text sections render bullet points consistently.
+
+No other formatting or layout changes.
 
