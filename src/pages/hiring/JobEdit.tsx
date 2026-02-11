@@ -26,7 +26,9 @@ import { useDepartments, useOffices } from '@/hooks/useOrganizationData';
 import { useOrganization } from '@/hooks/useOrganization';
 import type { WorkModel, HiringEmploymentType } from '@/types/hiring';
 import { OrgLink } from '@/components/OrgLink';
-import { ArrowLeft, Loader2, Save, Globe, Sparkles, Wand2, CalendarIcon } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, Globe, Sparkles, Wand2, CalendarIcon, Info } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { useFormattedDate } from '@/hooks/useFormattedDate';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
@@ -49,6 +51,48 @@ const WORK_MODELS = [
   { value: 'remote', label: 'Remote' },
   { value: 'hybrid', label: 'Hybrid' },
 ];
+
+const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+  draft: { label: 'Draft', className: 'bg-amber-100 text-amber-800 border-amber-200' },
+  submitted: { label: 'Submitted', className: 'bg-blue-100 text-blue-800 border-blue-200' },
+  approved: { label: 'Approved', className: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
+  open: { label: 'Open', className: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+  paused: { label: 'Paused', className: 'bg-orange-100 text-orange-800 border-orange-200' },
+  closed: { label: 'Closed', className: 'bg-muted text-muted-foreground border-border' },
+};
+
+function QuickInfoCard({ job }: { job: import('@/types/hiring').JobWithRelations | null | undefined }) {
+  const { formatDateTime } = useFormattedDate();
+
+  if (!job) return null;
+
+  const statusCfg = STATUS_CONFIG[job.status] ?? STATUS_CONFIG.draft;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Info className="h-4 w-4 text-muted-foreground" />
+          Quick Info
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3 text-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground">Status</span>
+          <Badge className={statusCfg.className}>{statusCfg.label}</Badge>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground">Created</span>
+          <span className="font-medium">{formatDateTime(job.created_at)}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground">Created By</span>
+          <span className="font-medium">{job.creator?.profiles?.full_name ?? '—'}</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function JobEdit() {
   const { jobSlug } = useParams<{ jobSlug: string }>();
@@ -590,6 +634,9 @@ export default function JobEdit() {
 
         {/* Right Column - Publishing + Preview (1/3) */}
         <div className="hidden lg:block space-y-6">
+          {/* Quick Info */}
+          <QuickInfoCard job={job} />
+
           {/* Publishing Options */}
           <Card>
             <CardHeader>
