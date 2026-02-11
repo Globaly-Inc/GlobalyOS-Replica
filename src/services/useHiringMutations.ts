@@ -1179,3 +1179,45 @@ export function useUpdateAssignmentTemplate() {
     },
   });
 }
+
+// ============================================
+// SEED DEFAULT EMAIL TEMPLATES
+// ============================================
+
+export function useSeedDefaultEmailTemplates() {
+  const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+
+  return useMutation({
+    mutationFn: async (templates: Array<{
+      name: string;
+      trigger_type: string;
+      subject: string;
+      body_template: string;
+      is_active: boolean;
+    }>) => {
+      if (!currentOrg?.id) throw new Error('No organization selected');
+
+      const rows = templates.map((t) => ({
+        organization_id: currentOrg.id,
+        ...t,
+      }));
+
+      const { data, error } = await (supabase
+        .from('hiring_email_templates') as any)
+        .insert(rows)
+        .select();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hiring', 'email-templates'] });
+      toast.success('Default email templates created');
+    },
+    onError: (error) => {
+      console.error('Error seeding email templates:', error);
+      toast.error('Failed to create default templates');
+    },
+  });
+}
