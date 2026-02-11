@@ -336,7 +336,22 @@ export default function JobEdit() {
             ) : (
               <Save className="h-4 w-4 mr-2" />
             )}
-            Save Changes
+            Save
+          </Button>
+          <Button
+            variant="outline"
+            onClick={async () => {
+              await handleSave();
+              navigateOrg('/hiring?tab=jobs');
+            }}
+            disabled={updateJob.isPending}
+          >
+            {updateJob.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4 mr-2" />
+            )}
+            Save & Close
           </Button>
           {canPublish && (
             isOpen ? (
