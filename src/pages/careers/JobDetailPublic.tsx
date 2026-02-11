@@ -473,7 +473,7 @@ export default function JobDetailPublic() {
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="linkedin">LinkedIn URL</Label>
+                          <Label htmlFor="linkedin">LinkedIn or Personal URL</Label>
                           <Input
                             id="linkedin"
                             type="url"
