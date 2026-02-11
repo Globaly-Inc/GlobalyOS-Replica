@@ -707,7 +707,7 @@ export function usePublicJob(orgSlug: string | undefined, jobSlug: string | unde
         .select(`
           *,
           department:departments(id, name),
-          office:offices(id, name, city)
+          office:offices(id, name, city, country)
         `)
         .eq('organization_id', org.id)
         .eq('slug', jobSlug)
