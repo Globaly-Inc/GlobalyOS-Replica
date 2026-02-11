@@ -168,7 +168,7 @@ export default function CareersPage() {
                           </h3>
                           
                           <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-muted-foreground">
-                            {job.location && (
+                            {job.work_model === 'onsite' && job.location && (
                               <span className="flex items-center gap-1">
                                 <MapPin className="h-4 w-4" />
                                 {job.location}
@@ -182,6 +182,12 @@ export default function CareersPage() {
                               <Clock className="h-4 w-4" />
                               {EMPLOYMENT_TYPE_LABELS[job.employment_type]}
                             </span>
+                            {job.application_close_date && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-4 w-4" />
+                                Apply by {new Date(job.application_close_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </span>
+                            )}
                           </div>
 
                           <div className="flex flex-wrap gap-2 mt-3">
