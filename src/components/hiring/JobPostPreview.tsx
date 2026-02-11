@@ -169,16 +169,16 @@ export function JobPostPreview({
               <span>{department.name}</span>
             </div>
           )}
-          {formData.salary_visible && salaryRange && (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <DollarSign className="h-4 w-4 shrink-0" />
-              <span>{salaryRange}</span>
-            </div>
-          )}
           {formData.application_close_date && (
             <div className="flex items-center gap-2 text-muted-foreground">
               <Calendar className="h-4 w-4 shrink-0" />
               <span>Apply by: {new Date(formData.application_close_date).toLocaleDateString()}</span>
+            </div>
+          )}
+          {formData.salary_visible && salaryRange && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <DollarSign className="h-4 w-4 shrink-0" />
+              <span>{salaryRange}</span>
             </div>
           )}
         </div>
