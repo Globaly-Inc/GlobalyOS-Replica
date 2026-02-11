@@ -138,7 +138,7 @@ export function JobPostPreview({
           )}
         </div>
       </CardHeader>
-      <CardContent className="p-4 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+      <CardContent className="p-4 space-y-4">
         {/* Quick Info Badges */}
         <div className="flex flex-wrap gap-2">
           <Badge variant="secondary" className="gap-1">
@@ -184,14 +184,13 @@ export function JobPostPreview({
         </div>
 
         <Separator />
+      </CardContent>
 
-        {/* Description */}
-        <div className="space-y-2">
-          <h3 className="font-semibold text-sm">About the Role</h3>
-          {renderDescription()}
-        </div>
+      {/* Scrollable Description */}
+      <div className="px-4 pb-4 space-y-2 max-h-[calc(100vh-420px)] overflow-y-auto">
+        <h3 className="font-semibold text-sm">About the Role</h3>
+        {renderDescription()}
 
-        {/* Empty state hints */}
         {!formData.description && (
           <div className="rounded-lg border border-dashed p-4 text-center">
             <p className="text-xs text-muted-foreground">
@@ -199,7 +198,7 @@ export function JobPostPreview({
             </p>
           </div>
         )}
-      </CardContent>
+      </div>
     </Card>
   );
 }
