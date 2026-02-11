@@ -172,7 +172,7 @@ export function JobPostPreview({
           {formData.application_close_date && (
             <div className="flex items-center gap-2 text-muted-foreground">
               <Calendar className="h-4 w-4 shrink-0" />
-              <span>Apply by: {new Date(formData.application_close_date).toLocaleDateString()}</span>
+              <span>Apply by: {new Date(formData.application_close_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
             </div>
           )}
           {formData.salary_visible && salaryRange && (
