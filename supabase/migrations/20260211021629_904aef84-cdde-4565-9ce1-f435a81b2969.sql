@@ -1,0 +1,1 @@
+ALTER TABLE public.jobs ADD COLUMN application_close_date date;
