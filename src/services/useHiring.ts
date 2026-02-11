@@ -669,6 +669,9 @@ export function usePublicJobs(orgSlug: string | undefined) {
           id, slug, title, location, work_model, employment_type,
           salary_min, salary_max, salary_currency, salary_visible,
           description, requirements, benefits, published_at,
+          application_close_date,
+          salary_min, salary_max, salary_currency, salary_visible,
+          description, requirements, benefits, published_at,
           department:departments(id, name),
           office:offices(id, name, city)
         `)

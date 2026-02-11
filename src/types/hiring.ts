@@ -89,6 +89,7 @@ export interface Job {
   requirements: string | null;
   benefits: string | null;
   target_start_date: string | null;
+  application_close_date: string | null;
   justification: string | null;
   status: JobStatus;
   is_internal_visible: boolean;
