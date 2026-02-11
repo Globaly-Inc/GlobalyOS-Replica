@@ -43,6 +43,18 @@ import { toast } from 'sonner';
 import { HelmetProvider, Helmet } from 'react-helmet-async';
 import DOMPurify from 'dompurify';
 
+/** Strip Tailwind CSS variable noise from inline styles while preserving meaningful styles */
+function cleanHtml(html: string): string {
+  const cleaned = html.replace(/style="[^"]*"/g, (match) => {
+    // Remove --tw-* CSS variables from style attributes
+    const withoutTwVars = match
+      .replace(/--tw-[^:]+:[^;]+;?\s*/g, '')
+      .replace(/style="\s*"/, '');
+    return withoutTwVars || '';
+  });
+  return DOMPurify.sanitize(cleaned, { ADD_ATTR: ['style'] });
+}
+
 export default function JobDetailPublic() {
   const { orgCode, jobSlug } = useParams<{ orgCode: string; jobSlug: string }>();
   const [showApplyDialog, setShowApplyDialog] = useState(false);
@@ -241,7 +253,7 @@ export default function JobDetailPublic() {
                       <CardContent>
                         <div 
                           className="prose prose-sm max-w-none dark:prose-invert"
-                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(job.description) }}
+                          dangerouslySetInnerHTML={{ __html: cleanHtml(job.description) }}
                         />
                       </CardContent>
                     </Card>
@@ -255,7 +267,7 @@ export default function JobDetailPublic() {
                       <CardContent>
                         <div 
                           className="prose prose-sm max-w-none dark:prose-invert"
-                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(job.requirements) }}
+                          dangerouslySetInnerHTML={{ __html: cleanHtml(job.requirements) }}
                         />
                       </CardContent>
                     </Card>
@@ -269,7 +281,7 @@ export default function JobDetailPublic() {
                       <CardContent>
                         <div 
                           className="prose prose-sm max-w-none dark:prose-invert"
-                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(job.benefits) }}
+                          dangerouslySetInnerHTML={{ __html: cleanHtml(job.benefits) }}
                         />
                       </CardContent>
                     </Card>
