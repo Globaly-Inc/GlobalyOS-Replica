@@ -5,6 +5,8 @@
 
 import { useParams } from 'react-router-dom';
 import { usePublicJobs } from '@/services/useHiring';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -31,6 +33,20 @@ export default function CareersPage() {
   const { orgCode } = useParams<{ orgCode: string }>();
   const [search, setSearch] = useState('');
   
+  const { data: org } = useQuery({
+    queryKey: ['public-org', orgCode],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('organizations')
+        .select('name, logo_url')
+        .eq('slug', orgCode!)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!orgCode,
+  });
+
   const { data: jobs, isLoading, error } = usePublicJobs(orgCode);
 
   const filteredJobs = jobs?.filter(job => 
@@ -61,6 +77,17 @@ export default function CareersPage() {
       </Helmet>
       
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+        {/* Top Menu Bar */}
+        <header className="sticky top-0 z-50 w-full h-[100px] bg-background border-b flex items-center justify-center">
+          {org?.logo_url ? (
+            <img src={org.logo_url} alt={org.name ?? 'Organization'} className="max-h-16 object-contain" />
+          ) : org?.name ? (
+            <span className="text-2xl font-bold text-foreground">{org.name}</span>
+          ) : (
+            <Building2 className="h-8 w-8 text-muted-foreground" />
+          )}
+        </header>
+
         {/* Hero Section */}
         <div className="bg-primary text-primary-foreground py-16">
           <div className="container mx-auto px-4 text-center">
