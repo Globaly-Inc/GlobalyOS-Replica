@@ -78,7 +78,7 @@ export default function CareersPage() {
       
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
         {/* Top Menu Bar */}
-        <header className="sticky top-0 z-50 w-full h-[100px] bg-background border-b flex items-center justify-center">
+        <header className="sticky top-0 z-50 w-full h-[100px] bg-white border-b flex items-center justify-center">
           {org?.logo_url ? (
             <img src={org.logo_url} alt={org.name ?? 'Organization'} className="max-h-16 object-contain" />
           ) : org?.name ? (
