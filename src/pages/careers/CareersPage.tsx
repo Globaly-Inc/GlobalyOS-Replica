@@ -200,7 +200,7 @@ export default function CareersPage() {
                           </div>
                         </div>
 
-                        <Button variant="ghost" size="icon" className="flex-shrink-0">
+                        <Button variant="ghost" size="icon" className="flex-shrink-0 self-center">
                           <ArrowRight className="h-5 w-5" />
                         </Button>
                       </div>
