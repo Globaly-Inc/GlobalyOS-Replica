@@ -79,23 +79,25 @@ export default function CareersPage() {
       
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
         {/* Top Menu Bar */}
-        <header className="sticky top-0 z-50 w-full h-[100px] bg-white border-b flex items-center justify-between px-8">
-          <div className="flex items-center gap-3">
-            {org?.logo_url ? (
-              <img src={org.logo_url} alt={org.name ?? 'Organization'} className="max-h-16 object-contain" />
-            ) : org?.name ? (
-              <span className="text-2xl font-bold text-foreground">{org.name}</span>
-            ) : (
-              <Building2 className="h-8 w-8 text-muted-foreground" />
+        <header className="sticky top-0 z-50 w-full h-[100px] bg-white border-b">
+          <div className="container mx-auto px-4 h-full flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {org?.logo_url ? (
+                <img src={org.logo_url} alt={org.name ?? 'Organization'} className="max-h-16 object-contain" />
+              ) : org?.name ? (
+                <span className="text-2xl font-bold text-foreground">{org.name}</span>
+              ) : (
+                <Building2 className="h-8 w-8 text-muted-foreground" />
+              )}
+            </div>
+            {(org as any)?.website && (
+              <Button asChild variant="outline">
+                <a href={(org as any).website} target="_blank" rel="noopener noreferrer">
+                  Go to Website <ArrowRight className="h-4 w-4" />
+                </a>
+              </Button>
             )}
           </div>
-          {org?.website && (
-            <Button asChild variant="outline">
-              <a href={org.website} target="_blank" rel="noopener noreferrer">
-                Go to Website <ArrowRight className="h-4 w-4" />
-              </a>
-            </Button>
-          )}
         </header>
 
         {/* Hero Section */}
