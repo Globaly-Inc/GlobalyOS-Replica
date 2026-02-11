@@ -1,38 +1,20 @@
 
-
-# Add Top Menu Bar with Organization Logo to Careers Page
+# Show Office Location (City, Country) as Fallback on Job Cards
 
 ## What Changes
-A sticky top menu bar (100px height) will be added to the public Careers page (`/careers/:orgCode`), displaying the organization's logo centered in the middle. If no logo is set, the organization name will be shown as a fallback.
+When an on-site job has no `location` override, the card will display the office's city and country instead. Only city and country are shown (not full address).
 
-## Technical Approach
+## Technical Details
 
-### File: `src/pages/careers/CareersPage.tsx`
+### 1. Update the office join in `usePublicJobs` (`src/services/useHiring.ts`)
+- Add `country` to the office select: `office:offices(id, name, city, country)`
 
-1. **Add a query to fetch org details** -- A small `useQuery` call will fetch `name` and `logo_url` from the `organizations` table using the `orgCode` (slug) param. This reuses the same public access pattern already used by `usePublicJobs`.
+### 2. Update the location display logic in `CareersPage.tsx` (lines 171-176)
+- Change from only showing `job.location` to a fallback chain:
+  1. If `job.location` exists, show it (the override).
+  2. Otherwise, if `job.office?.city` or `job.office?.country` exists, show "City, Country" (or whichever is available).
+- The condition stays `job.work_model === 'onsite'` -- location is only shown for on-site jobs.
 
-2. **Add the menu bar** -- Insert a sticky `<header>` element before the Hero Section:
-   - Height: `h-[100px]`
-   - Sticky positioning: `sticky top-0 z-50`
-   - White background with bottom border: `bg-white border-b`
-   - Logo centered: `flex items-center justify-center`
-   - Logo image constrained to `max-h-16 object-contain`
-   - Fallback: Organization name in bold text if no logo URL exists
-   - Further fallback: `Building2` icon if org data is still loading
-
-3. **Layout structure after change:**
-   ```text
-   div (min-h-screen)
-   +-- header (sticky, top-0, z-50, h-[100px], bg-white, border-b)
-   |   +-- Logo image (centered) OR org name fallback
-   +-- Hero Section (existing)
-   +-- Search bar (existing)
-   +-- Jobs list (existing)
-   +-- Footer (existing)
-   ```
-
-4. **Imports needed:** Add `useQuery` from `@tanstack/react-query` and `supabase` client import.
-
-### No database changes required
-The `organizations` table already has `logo_url` and `name` columns, and the existing RLS policies allow public reads by slug (same pattern used by `usePublicJobs`).
-
+### Files to Edit
+- `src/services/useHiring.ts` -- add `country` to office join
+- `src/pages/careers/CareersPage.tsx` -- update location rendering with office fallback
