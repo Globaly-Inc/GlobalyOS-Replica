@@ -79,7 +79,7 @@ export default function JobEdit() {
     requirements: '',
     benefits: '',
     is_internal_visible: true,
-    is_public_visible: false,
+    is_public_visible: true,
   });
 
   // Populate form when job loads
@@ -519,35 +519,8 @@ export default function JobEdit() {
             </CardContent>
           </Card>
 
-          {/* Publishing */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Publishing Options</CardTitle>
-              <CardDescription>Control where this job is visible</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-3">
-                <Switch
-                  id="is_internal_visible"
-                  checked={formData.is_internal_visible}
-                  onCheckedChange={(checked) => handleChange('is_internal_visible', checked)}
-                />
-                <Label htmlFor="is_internal_visible" className="cursor-pointer">
-                  Show on internal job board (visible to employees)
-                </Label>
-              </div>
-              <div className="flex items-center gap-3">
-                <Switch
-                  id="is_public_visible"
-                  checked={formData.is_public_visible}
-                  onCheckedChange={(checked) => handleChange('is_public_visible', checked)}
-                />
-                <Label htmlFor="is_public_visible" className="cursor-pointer">
-                  Show on public careers site
-                </Label>
-              </div>
-            </CardContent>
-          </Card>
+
+
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-3 pb-8">
@@ -582,8 +555,38 @@ export default function JobEdit() {
           </div>
         </div>
 
-        {/* Right Column - Preview (1/3) */}
-        <div className="hidden lg:block">
+        {/* Right Column - Publishing + Preview (1/3) */}
+        <div className="hidden lg:block space-y-6">
+          {/* Publishing Options */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Publishing Options</CardTitle>
+              <CardDescription>Control where this job is visible</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Switch
+                  id="is_internal_visible"
+                  checked={formData.is_internal_visible}
+                  onCheckedChange={(checked) => handleChange('is_internal_visible', checked)}
+                />
+                <Label htmlFor="is_internal_visible" className="cursor-pointer">
+                  Show on internal job board (visible to employees)
+                </Label>
+              </div>
+              <div className="flex items-center gap-3">
+                <Switch
+                  id="is_public_visible"
+                  checked={formData.is_public_visible}
+                  onCheckedChange={(checked) => handleChange('is_public_visible', checked)}
+                />
+                <Label htmlFor="is_public_visible" className="cursor-pointer">
+                  Show on public careers site
+                </Label>
+              </div>
+            </CardContent>
+          </Card>
+
           <JobPostPreview
             formData={{
               title: formData.title,

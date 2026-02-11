@@ -94,7 +94,7 @@ export default function JobCreate() {
     justification: '',
     description: '',
     is_internal_visible: true,
-    is_public_visible: false,
+    is_public_visible: true,
   });
 
   const [isGeneratingJD, setIsGeneratingJD] = useState(false);
@@ -509,7 +509,34 @@ export default function JobCreate() {
             </CardContent>
           </Card>
 
-          {/* Publishing */}
+
+
+
+          {/* Actions */}
+          <div className="flex items-center justify-end gap-3 pb-8">
+            <Button variant="outline" asChild>
+              <OrgLink to="/hiring?tab=jobs">Cancel</OrgLink>
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleSubmit(false)}
+              disabled={createJob.isPending}
+            >
+              Save as Draft
+            </Button>
+            <Button
+              onClick={() => handleSubmit(true)}
+              disabled={createJob.isPending}
+            >
+              {createJob.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Submit for Approval
+            </Button>
+          </div>
+        </div>
+
+        {/* Right Column - Publishing + Preview (1/3) */}
+        <div className="hidden lg:block space-y-6">
+          {/* Publishing Options */}
           <Card>
             <CardHeader>
               <CardTitle>Publishing Options</CardTitle>
@@ -539,30 +566,6 @@ export default function JobCreate() {
             </CardContent>
           </Card>
 
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pb-8">
-            <Button variant="outline" asChild>
-              <OrgLink to="/hiring?tab=jobs">Cancel</OrgLink>
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => handleSubmit(false)}
-              disabled={createJob.isPending}
-            >
-              Save as Draft
-            </Button>
-            <Button
-              onClick={() => handleSubmit(true)}
-              disabled={createJob.isPending}
-            >
-              {createJob.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Submit for Approval
-            </Button>
-          </div>
-        </div>
-
-        {/* Right Column - Preview (1/3) */}
-        <div className="hidden lg:block">
           <JobPostPreview
             formData={formData}
             departments={departments}
