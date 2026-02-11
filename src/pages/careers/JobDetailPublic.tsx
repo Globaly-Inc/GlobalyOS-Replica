@@ -152,6 +152,15 @@ export default function JobDetailPublic() {
   });
   const [phoneCountryCode, setPhoneCountryCode] = useState(() => getDefaultCountryCode());
   const [resumeFiles, setResumeFiles] = useState<File[]>([]);
+  const [emailTouched, setEmailTouched] = useState(false);
+
+  const emailError = (() => {
+    const email = formData.email.trim();
+    if (!email) return 'Email is required';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Please enter a valid email address';
+    return '';
+  })();
+  const hasEmailError = emailTouched && !!emailError;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -443,8 +452,13 @@ export default function JobDetailPublic() {
                             type="email"
                             value={formData.email}
                             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                            onBlur={() => setEmailTouched(true)}
+                            className={hasEmailError ? 'border-destructive focus-visible:ring-destructive' : ''}
                             required
                           />
+                          {hasEmailError && (
+                            <p className="text-sm text-destructive">{emailError}</p>
+                          )}
                         </div>
 
                         <div className="space-y-2">
@@ -528,6 +542,7 @@ export default function JobDetailPublic() {
                             submitApplication.isPending ||
                             !formData.name.trim() ||
                             !formData.email.trim() ||
+                            !!emailError ||
                             !formData.phone.trim() ||
                             resumeFiles.length === 0 ||
                             !formData.consent
