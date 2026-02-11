@@ -34,6 +34,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { JobPostPreview } from '@/components/hiring/JobPostPreview';
 import { CurrencyCombobox } from '@/components/hiring/CurrencyCombobox';
+import { PositionCombobox } from '@/components/hiring/PositionCombobox';
+import { formatPositionAsRichText } from '@/utils/formatPositionAsRichText';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -398,11 +400,16 @@ export default function JobEdit() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="title">Job Title *</Label>
-                  <Input
-                    id="title"
-                    placeholder="e.g. Senior Software Engineer"
+                  <PositionCombobox
                     value={formData.title}
-                    onChange={(e) => handleChange('title', e.target.value)}
+                    onChange={(title, description, responsibilities) => {
+                      handleChange('title', title);
+                      if ((description || responsibilities?.length) && !formData.description) {
+                        const formattedHtml = formatPositionAsRichText(description, responsibilities);
+                        handleChange('description', formattedHtml);
+                      }
+                    }}
+                    departmentId={formData.department_id}
                   />
                 </div>
                 <div className="space-y-2">

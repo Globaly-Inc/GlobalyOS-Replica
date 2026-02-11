@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formatPositionAsRichText } from '@/utils/formatPositionAsRichText';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,31 +30,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
-
-// Helper function to format position data as rich text HTML
-const formatPositionAsRichText = (
-  description: string | null | undefined,
-  responsibilities: string[] | null | undefined
-): string => {
-  let html = '';
-
-  if (description) {
-    html += `<p>${description}</p>`;
-  }
-
-  if (responsibilities && responsibilities.length > 0) {
-    if (description) {
-      html += '<p><strong>Key Responsibilities:</strong></p>';
-    }
-    html += '<ul>';
-    responsibilities.forEach((r) => {
-      html += `<li>${r}</li>`;
-    });
-    html += '</ul>';
-  }
-
-  return html;
-};
 
 const EMPLOYMENT_TYPES = [
   { value: 'full_time', label: 'Full-time' },
