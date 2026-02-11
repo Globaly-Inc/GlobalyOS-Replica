@@ -5066,6 +5066,7 @@ export type Database = {
       }
       jobs: {
         Row: {
+          application_close_date: string | null
           approved_at: string | null
           approved_by: string | null
           benefits: string | null
@@ -5103,6 +5104,7 @@ export type Database = {
           work_model: Database["public"]["Enums"]["work_model"] | null
         }
         Insert: {
+          application_close_date?: string | null
           approved_at?: string | null
           approved_by?: string | null
           benefits?: string | null
@@ -5140,6 +5142,7 @@ export type Database = {
           work_model?: Database["public"]["Enums"]["work_model"] | null
         }
         Update: {
+          application_close_date?: string | null
           approved_at?: string | null
           approved_by?: string | null
           benefits?: string | null
