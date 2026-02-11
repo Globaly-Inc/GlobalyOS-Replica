@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Button } from "./button";
-import { Bold, Italic, Underline, List, ListOrdered } from "lucide-react";
+import { Bold, Italic, Underline, List, ListOrdered, Type } from "lucide-react";
+import { Input } from "./input";
 import { cn } from "@/lib/utils";
 import DOMPurify from "dompurify";
 import { marked } from "marked";
@@ -8,8 +9,8 @@ import { marked } from "marked";
 // Configure DOMPurify with allowed tags and no attributes
 const sanitizeHtml = (html: string) => {
   return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ['b', 'strong', 'i', 'em', 'u', 'ul', 'ol', 'li', 'p', 'br', 'div', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
-    ALLOWED_ATTR: ['class', 'data-mention-id'],
+    ALLOWED_TAGS: ['b', 'strong', 'i', 'em', 'u', 'ul', 'ol', 'li', 'p', 'br', 'div', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'font'],
+    ALLOWED_ATTR: ['class', 'data-mention-id', 'style'],
     KEEP_CONTENT: true
   });
 };
@@ -42,6 +43,7 @@ export const RichTextEditor = ({
 }: RichTextEditorProps) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const [isFocused, setIsFocused] = useState(false);
+  const [textSizeInput, setTextSizeInput] = useState("14");
   const mentionStartRef = useRef<number>(-1);
 
   // Sync editor content when value prop changes externally (e.g., from AI generation)
@@ -161,6 +163,25 @@ export const RichTextEditor = ({
     handleInput();
   };
 
+  const applyFontSize = useCallback(() => {
+    const size = parseInt(textSizeInput, 10);
+    if (isNaN(size) || size < 8 || size > 72) {
+      setTextSizeInput("14");
+      return;
+    }
+    editorRef.current?.focus();
+    document.execCommand('fontSize', false, '7');
+    // Replace generated <font size="7"> with styled <span>
+    const fontElements = editorRef.current?.querySelectorAll('font[size="7"]');
+    fontElements?.forEach((el) => {
+      const span = document.createElement('span');
+      span.style.fontSize = `${size}px`;
+      span.innerHTML = el.innerHTML;
+      el.parentNode?.replaceChild(span, el);
+    });
+    handleInput();
+  }, [textSizeInput, handleInput]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "b" && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
@@ -214,6 +235,30 @@ export const RichTextEditor = ({
         >
           <Underline className="h-4 w-4" />
         </Button>
+        <div className="w-px h-5 bg-border mx-1" />
+        {/* Text Size */}
+        <div className="flex items-center gap-1">
+          <Type className="h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            value={textSizeInput}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === '' || /^\d+$/.test(val)) {
+                setTextSizeInput(val);
+              }
+            }}
+            onBlur={applyFontSize}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                applyFontSize();
+              }
+            }}
+            className="h-7 w-12 text-xs text-center px-1"
+            title="Font size (8-72px)"
+          />
+        </div>
         <div className="w-px h-5 bg-border mx-1" />
         <Button
           type="button"
