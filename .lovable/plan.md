@@ -1,20 +1,25 @@
 
 
-# Add Application Close Date to Job Edit Page
+# Fix: Add Missing `application_close_date` Column to Database
 
-## Problem
-The "Application Close Date" field exists on the New Vacancy (JobCreate) screen but is missing from the Edit Vacancy (JobEdit) screen. The "Target Start Date" field currently sits alone.
+## Root Cause
 
-## Changes
+The previous change added `application_close_date` to the form state and save payload in `JobEdit.tsx`, but the corresponding database column was never created in the `jobs` table. When saving, the update query fails because the column doesn't exist.
 
-### File: `src/pages/hiring/JobEdit.tsx`
+## Fix
 
-1. **Add `application_close_date` to the form state** (initial value `''`, populated from `job.application_close_date` when loading)
-2. **Include `application_close_date` in the save payload** sent to the update mutation
-3. **Include `application_close_date` in the preview props**
-4. **Wrap both date fields in a 2-column grid row** (`grid gap-4 md:grid-cols-2`), matching the layout from JobCreate:
-   - Left: Application Close Date (date picker)
-   - Right: Target Start Date (existing, moved into the grid)
+### 1. Database Migration
 
-The date picker markup will mirror the existing pattern from `JobCreate.tsx` exactly.
+Add the missing column to the `jobs` table:
+
+```sql
+ALTER TABLE public.jobs
+ADD COLUMN application_close_date date;
+```
+
+No RLS changes needed -- existing policies already cover the `jobs` table. No default value required since it's an optional field.
+
+### 2. No Code Changes Needed
+
+The frontend code (`JobEdit.tsx`, `JobCreate.tsx`, types) already references `application_close_date` correctly. Once the column exists, saving will work.
 
