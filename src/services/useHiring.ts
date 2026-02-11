@@ -116,6 +116,10 @@ export function useJob(jobIdOrSlug: string | undefined) {
           recruiter:employees!jobs_recruiter_id_fkey(
             id, user_id,
             profiles:profiles(full_name, avatar_url)
+          ),
+          creator:employees!jobs_created_by_fkey(
+            id, user_id,
+            profiles:profiles(full_name)
           )
         `)
         .eq('organization_id', currentOrg.id);

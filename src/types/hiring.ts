@@ -108,6 +108,7 @@ export interface JobWithRelations extends Job {
   office?: { id: string; name: string; city: string | null } | null;
   hiring_manager?: { id: string; user_id: string; profiles: { full_name: string; avatar_url: string | null } } | null;
   recruiter?: { id: string; user_id: string; profiles: { full_name: string; avatar_url: string | null } } | null;
+  creator?: { id: string; user_id: string; profiles: { full_name: string } } | null;
   _count?: {
     candidate_applications: number;
   };
