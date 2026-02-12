@@ -98,7 +98,7 @@ export default function JobsList({
   };
 
   const handleDeleteClick = (job: { id: string; title: string; status: string; _count?: { candidate_applications?: number } }) => {
-    if (job.status !== 'draft' && (job._count?.candidate_applications || 0) > 0) {
+    if (job.status !== 'draft' && ((job as any).candidate_applications?.[0]?.count || 0) > 0) {
       toast.error('Remove all candidates before deleting this vacancy');
       return;
     }
@@ -215,7 +215,7 @@ export default function JobsList({
                         )}
                         <Badge variant="secondary" className="flex items-center gap-1">
                           <Users className="h-3 w-3" />
-                          {job._count?.candidate_applications || 0} candidates
+                          {(job as any).candidate_applications?.[0]?.count || 0} candidates
                         </Badge>
                       </div>
                     </div>
