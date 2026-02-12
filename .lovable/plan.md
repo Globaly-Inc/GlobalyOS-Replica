@@ -1,25 +1,89 @@
 
-## Replace Job Title Input with PositionCombobox on Job Edit Page
 
-The Job Edit page currently uses a plain text `Input` for the Job Title field. This should use the same `PositionCombobox` component already used on the Create Job Vacancy page, allowing selection from existing organization positions with the ability to create new ones inline.
+## Comprehensive Vacancy Status Actions and UX Overhaul
+
+### Overview
+
+Add status-aware action menus to the **Job Detail** and **Job Edit** pages, fix the "Unpublish" naming to "Pause", block editing of closed vacancies, guard deletes based on candidate count, and hide the pipeline tab for drafts.
+
+### Status-Based Rules
+
+```text
++----------+----------------------------------------------------+
+| Status   | Allowed Actions                                    |
++----------+----------------------------------------------------+
+| Draft    | Edit, Publish, Delete (always allowed)              |
+| Open     | Edit, Pause, Close, Delete (only if 0 candidates)  |
+| Paused   | Edit, Resume, Close, Delete (only if 0 candidates)  |
+| Closed   | View only -- NO edit, Delete (only if 0 candidates) |
++----------+----------------------------------------------------+
+```
+
+- Pipeline tab is hidden for `draft` status (no pipeline until published)
+- Closed vacancies are **read-only** -- the Edit button is removed/disabled and the edit page redirects back to detail
+
+---
 
 ### Changes
 
-**File: `src/pages/hiring/JobEdit.tsx`**
+**1. Job Detail Page (`src/pages/hiring/JobDetail.tsx`)**
 
-1. **Add imports**:
-   - Import `PositionCombobox` from `@/components/hiring/PositionCombobox`
-   - Copy the `formatPositionAsRichText` helper from `JobCreate.tsx` (or extract it to a shared util)
+- **Add a three-dot DropdownMenu** next to the existing action buttons in the header, containing:
+  - Pause Vacancy (when `open`)
+  - Resume Vacancy (when `paused`)
+  - Close Vacancy (when `open` or `paused`)
+  - Separator
+  - Delete Vacancy (destructive; blocked with toast if `applications.length > 0`)
+- **Remove the Edit button when status is `closed`** -- closed vacancies cannot be edited
+- **Hide the Pipeline tab when status is `draft`**; default the active tab to `description` for drafts
+- Add `handleStatusChange` and `handleDelete` functions (same pattern as `JobsList.tsx`)
+- Add `AlertDialog` for delete confirmation
+- New imports: `DropdownMenu`, `MoreHorizontal`, `Pause`, `Play`, `Archive`, `Trash2`, `AlertDialog`
 
-2. **Replace the Job Title field** (around line 401):
-   - Swap the `<Input>` for `<PositionCombobox>`
-   - Wire it identically to `JobCreate.tsx`:
-     - `value={formData.title}`
-     - `onChange` updates the title, and optionally auto-fills description if the position has one and the current description is empty
-     - `departmentId` linked to `formData.department_id`
+**2. Job Edit Page (`src/pages/hiring/JobEdit.tsx`)**
 
-3. **Remove unused `Input` import** if no longer needed elsewhere in the file (it likely is still used for other fields, so this is conditional)
+- **Redirect closed vacancies**: if `job.status === 'closed'`, immediately redirect to the detail page with a toast "Closed vacancies cannot be edited"
+- **Rename "Unpublish" to "Pause Vacancy"** and update toast from "Job unpublished" to "Vacancy paused"; rename `handleUnpublish` to `handlePause`
+- **Replace the standalone Unpublish/Publish buttons with a DropdownMenu** (three-dot) next to Save/Save & Close:
+  - Publish (when `draft` or `approved`)
+  - Pause Vacancy (when `open`)
+  - Resume Vacancy (when `paused`)
+  - Close Vacancy (when `open` or `paused`)
+  - Separator
+  - Delete Vacancy (destructive; blocked if candidates exist)
+- Fetch applications count using `useApplications` to guard the delete action
+- Add `AlertDialog` for delete confirmation
 
-### What stays the same
-- The `PositionCombobox` component itself is unchanged -- it already supports searching, selecting, and creating new positions with department assignment
-- Role-based access for creating positions is handled by the existing RLS policies on the `positions` table
+**3. JobsList.tsx -- Delete guard improvement**
+
+- Implement the actual delete: call `supabase.from('jobs').delete().eq('id', jobId)` with candidate count check
+- Before deleting, query applications count and block with toast if > 0 for non-draft statuses
+- Use `AlertDialog` instead of `window.confirm` for a polished UX
+
+---
+
+### Technical Details
+
+**Delete guard logic (shared across all 3 pages):**
+```
+1. If status is draft -> allow delete (no pipeline exists)
+2. If status is open/paused/closed -> check applications count
+   - If > 0 -> toast.error("Remove all candidates before deleting")
+   - If 0 -> show confirmation dialog, then delete
+3. On successful delete -> navigate to /hiring?tab=jobs
+```
+
+**Closed vacancy redirect in JobEdit:**
+```
+useEffect(() => {
+  if (job && job.status === 'closed') {
+    toast.error('Closed vacancies cannot be edited');
+    navigateOrg(`/hiring/jobs/${job.slug}`);
+  }
+}, [job]);
+```
+
+**Pipeline tab visibility in JobDetail:**
+- Default `activeTab` to `job.status === 'draft' ? 'description' : 'pipeline'`
+- Only render the Pipeline `TabsTrigger` when `job.status !== 'draft'`
+
