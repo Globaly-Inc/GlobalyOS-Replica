@@ -224,7 +224,7 @@ export default function JobsList({
                       <Button variant="outline" size="sm" asChild>
                         <OrgLink to={`/hiring/jobs/${job.slug}`}>
                           <Eye className="h-4 w-4 mr-1" />
-                          View Pipeline
+                          {job.status === 'draft' ? 'View Details' : 'View Pipeline'}
                         </OrgLink>
                       </Button>
                       <DropdownMenu>
