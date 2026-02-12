@@ -5069,6 +5069,7 @@ export type Database = {
           application_close_date: string | null
           approved_at: string | null
           approved_by: string | null
+          auto_close_on_deadline: boolean | null
           benefits: string | null
           closed_at: string | null
           closed_reason: string | null
@@ -5107,6 +5108,7 @@ export type Database = {
           application_close_date?: string | null
           approved_at?: string | null
           approved_by?: string | null
+          auto_close_on_deadline?: boolean | null
           benefits?: string | null
           closed_at?: string | null
           closed_reason?: string | null
@@ -5145,6 +5147,7 @@ export type Database = {
           application_close_date?: string | null
           approved_at?: string | null
           approved_by?: string | null
+          auto_close_on_deadline?: boolean | null
           benefits?: string | null
           closed_at?: string | null
           closed_reason?: string | null

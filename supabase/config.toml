@@ -311,3 +311,6 @@ verify_jwt = false
 
 [functions.convert-candidate-to-employee]
 verify_jwt = false
+
+[functions.auto-close-expired-jobs]
+verify_jwt = false

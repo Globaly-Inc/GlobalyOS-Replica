@@ -51,6 +51,7 @@ import {
   Archive,
   Trash2,
   Globe,
+  Clock,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -198,6 +199,12 @@ export default function JobDetail() {
                 <span className="flex items-center gap-1">
                   <Calendar className="h-4 w-4" />
                   Apply by {new Date((job as any).application_close_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {(job as any).auto_close_on_deadline && (
+                    <Badge variant="outline" className="ml-1 text-xs gap-1 py-0">
+                      <Clock className="h-3 w-3" />
+                      Auto-close
+                    </Badge>
+                  )}
                 </span>
               )}
               <span className="flex items-center gap-1">

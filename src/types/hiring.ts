@@ -401,6 +401,7 @@ export interface UpdateJobInput extends Partial<CreateJobInput> {
   status?: JobStatus;
   is_internal_visible?: boolean;
   is_public_visible?: boolean;
+  auto_close_on_deadline?: boolean;
 }
 
 export interface CreateCandidateInput {

@@ -1,0 +1,1 @@
+ALTER TABLE public.jobs ADD COLUMN IF NOT EXISTS auto_close_on_deadline BOOLEAN DEFAULT false;

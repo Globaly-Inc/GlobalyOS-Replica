@@ -19,6 +19,7 @@ import { useDepartments, useOffices } from '@/hooks/useOrganizationData';
 import { useOrganization } from '@/hooks/useOrganization';
 import { generateJobSlug } from '@/types/hiring';
 import { ArrowLeft, Loader2, Save, Sparkles, Wand2, CalendarIcon, Globe } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { OrgLink } from '@/components/OrgLink';
 import { supabase } from '@/integrations/supabase/client';
@@ -66,6 +67,7 @@ export default function JobCreate() {
     salary_currency: 'USD',
     salary_visible: false,
     application_close_date: '',
+    auto_close_on_deadline: false,
     target_start_date: '',
     justification: '',
     description: '',
@@ -76,7 +78,14 @@ export default function JobCreate() {
   const [isGeneratingJD, setIsGeneratingJD] = useState(false);
 
   const handleChange = (field: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      const next = { ...prev, [field]: value };
+      // Reset auto_close flag when close date is cleared
+      if (field === 'application_close_date' && !value) {
+        next.auto_close_on_deadline = false;
+      }
+      return next;
+    });
   };
 
   const handleSubmit = async (publish: boolean = false) => {
@@ -380,6 +389,20 @@ export default function JobCreate() {
                       />
                     </PopoverContent>
                   </Popover>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <Checkbox
+                      id="auto_close_on_deadline"
+                      checked={formData.auto_close_on_deadline}
+                      onCheckedChange={(checked) => handleChange('auto_close_on_deadline', !!checked)}
+                      disabled={!formData.application_close_date}
+                    />
+                    <label
+                      htmlFor="auto_close_on_deadline"
+                      className="text-sm text-muted-foreground cursor-pointer select-none"
+                    >
+                      Auto close after this date
+                    </label>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Target Start Date</Label>
