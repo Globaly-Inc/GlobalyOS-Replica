@@ -54,7 +54,8 @@ export function useJobs(filters?: JobFilters) {
           recruiter:employees!jobs_recruiter_id_fkey(
             id, user_id,
             profiles:profiles(full_name, avatar_url)
-          )
+          ),
+          candidate_applications(count)
         `)
         .eq('organization_id', currentOrg.id)
         .order('created_at', { ascending: false });
