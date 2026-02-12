@@ -1,41 +1,46 @@
 
 
-## Remove Approval Process from Job Vacancies and Add Direct Publish
+## Auto-Close Vacancy at Application Close Date
 
 ### Summary
-
-Remove the "submitted" and "approved" statuses from the vacancy workflow. Vacancies will go directly from **Draft** to **Open** (published). The "Submit for Approval" button on the Create page becomes "Publish Vacancy", and all references to the approval flow are cleaned up.
+Add an `auto_close_on_deadline` boolean flag to the `jobs` table and UI, plus a scheduled backend function that automatically closes expired vacancies daily.
 
 ### Changes
 
-#### 1. Update JobStatus type and labels (`src/types/hiring.ts`)
-- Change `JobStatus` from `'draft' | 'submitted' | 'approved' | 'open' | 'paused' | 'closed'` to `'draft' | 'open' | 'paused' | 'closed'`
-- Remove `submitted` and `approved` entries from `JOB_STATUS_LABELS` and `JOB_STATUS_COLORS`
-- Remove `job_submitted` and `job_approved` from `HiringActivityAction` (keep `job_published`)
+#### 1. Database Migration
+- Add column `auto_close_on_deadline BOOLEAN DEFAULT false` to the `jobs` table.
 
-#### 2. Update Create page (`src/pages/hiring/JobCreate.tsx`)
-- Replace the "Submit for Approval" button with a "Publish Vacancy" button
-- When clicked, save the job and immediately set its status to `'open'` instead of going through a submitted/approval flow
-- Update the success toast to say "Job vacancy published"
+#### 2. Frontend -- Create Page (`src/pages/hiring/JobCreate.tsx`)
+- Add `auto_close_on_deadline: false` to `formData` state.
+- Below the Application Close Date picker, add a checkbox with label "Auto close after this date".
+- The checkbox is only enabled when `application_close_date` is set; clearing the date resets it to `false`.
+- Include `auto_close_on_deadline` in the create mutation payload.
 
-#### 3. Update Detail page (`src/pages/hiring/JobDetail.tsx`)
-- Remove the "Approve & Open" button block that shows when `status === 'submitted'`
-- Remove the `useApproveJob` import and usage
-- Keep the existing "Publish" button for drafts (already present)
+#### 3. Frontend -- Edit Page (`src/pages/hiring/JobEdit.tsx`)
+- Same checkbox below the close date picker, populated from the existing job data.
+- Include `auto_close_on_deadline` in the update mutation payload.
+- Same conditional enable/disable logic tied to `application_close_date`.
 
-#### 4. Update Edit page (`src/pages/hiring/JobEdit.tsx`)
-- Remove `submitted` and `approved` entries from the `STATUS_CONFIG` map
+#### 4. Frontend -- Detail Page (`src/pages/hiring/JobDetail.tsx`)
+- If `auto_close_on_deadline` is true, show a small info badge or note near the close date (e.g., "Will auto-close on [date]").
 
-#### 5. Update filter dropdowns
-- **`src/pages/hiring/JobsList.tsx`** -- Remove `<SelectItem value="submitted">` and `<SelectItem value="approved">` from the status filter
-- **`src/pages/hiring/HiringDashboard.tsx`** -- Same removal from the inline status filter
+#### 5. Frontend -- Jobs List (`src/pages/hiring/JobsList.tsx`)
+- If a vacancy has `auto_close_on_deadline` enabled, show a subtle indicator (e.g., a small clock icon or tooltip on the close date badge).
 
-#### 6. Clean up mutations (`src/services/useHiringMutations.ts`)
-- The `useApproveJob` hook can be removed (or left as dead code for now); it is no longer needed
+#### 6. Backend -- Edge Function (`supabase/functions/auto-close-expired-jobs/index.ts`)
+- New edge function that:
+  1. Queries all jobs where `status = 'open'`, `auto_close_on_deadline = true`, and `application_close_date < today (UTC)`.
+  2. Updates their status to `'closed'`.
+  3. Logs an activity entry (`job_closed`) for each affected vacancy.
+- Register in `supabase/config.toml` with `verify_jwt = false`.
+
+#### 7. Cron Job (SQL)
+- Schedule a daily `pg_cron` + `pg_net` job (runs at midnight UTC) that invokes the `auto-close-expired-jobs` edge function.
 
 ### Technical Details
-
-- The `JobStatus` type change may cause TypeScript errors in places that reference `'submitted'` or `'approved'` -- each will be addressed in the files above
-- Existing DB records with `submitted` or `approved` status will still render but won't have a matching label; they can be treated as equivalent to `open`. A simple fallback in `getJobStatusLabel` will handle this gracefully
-- The `OfferStatus` type retains its own `pending_approval` / `approved` values -- those are unrelated to vacancy status and remain unchanged
+- The checkbox uses the existing `@radix-ui/react-checkbox` component for consistent styling.
+- The checkbox text "Auto close after this date" sits directly below the date picker button, using `mt-1.5` spacing and `text-sm text-muted-foreground` styling.
+- When `application_close_date` is cleared, `auto_close_on_deadline` is automatically reset to `false` to prevent orphaned flags.
+- The edge function uses the Supabase service role key (`SUPABASE_SERVICE_ROLE_KEY`) to bypass RLS, scoping updates by iterating matched rows per organization.
+- The cron job uses `pg_net` to call the function URL with the anon key, matching existing patterns (e.g., `process-trial-expirations`).
 
