@@ -149,51 +149,7 @@ export function useUpdateJob() {
   });
 }
 
-export function useApproveJob() {
-  const queryClient = useQueryClient();
-  const { currentOrg } = useOrganization();
-  const { data: currentEmployee } = useCurrentEmployee();
-
-  return useMutation({
-    mutationFn: async (jobId: string) => {
-      if (!currentOrg?.id) throw new Error('No organization selected');
-
-      const { data, error } = await supabase
-        .from('jobs')
-        .update({
-          status: 'approved' as JobStatus,
-          approved_by: currentEmployee?.id,
-          approved_at: new Date().toISOString(),
-        })
-        .eq('id', jobId)
-        .eq('organization_id', currentOrg.id)
-        .eq('status', 'submitted')
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      await logHiringActivity(
-        currentOrg.id,
-        'job',
-        data.id,
-        'job_approved',
-        currentEmployee?.id || null,
-        { title: data.title }
-      );
-
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['hiring', 'jobs'] });
-      toast.success('Job vacancy approved successfully');
-    },
-    onError: (error) => {
-      console.error('Error approving job:', error);
-      toast.error('Failed to approve vacancy');
-    },
-  });
-}
+// useApproveJob removed — approval process no longer used
 
 export function usePublishJob() {
   const queryClient = useQueryClient();

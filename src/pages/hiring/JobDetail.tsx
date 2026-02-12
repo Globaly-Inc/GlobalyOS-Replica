@@ -25,7 +25,7 @@ import {
 import { OrgLink } from '@/components/OrgLink';
 import { useJob, useJobStages, useApplications } from '@/services/useHiring';
 import { useHiringApplications } from '@/services';
-import { useUpdateJob, useApproveJob } from '@/services/useHiringMutations';
+import { useUpdateJob } from '@/services/useHiringMutations';
 import type { JobStatus } from '@/types/hiring';
 import { getJobStatusLabel, getJobStatusColor, APPLICATION_STAGE_LABELS } from '@/types/hiring';
 import { countryToFlag } from '@/utils/countryFlag';
@@ -68,7 +68,7 @@ export default function JobDetail() {
   const { data: stages } = useJobStages(job?.id || '');
   const { data: applications, isLoading: applicationsLoading } = useJobApplications(job?.id);
   const updateJob = useUpdateJob();
-  const approveJob = useApproveJob();
+  
 
   const isDraft = job?.status === 'draft';
   const [activeTab, setActiveTab] = useState<string | undefined>(undefined);
@@ -77,15 +77,6 @@ export default function JobDetail() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleApprove = async () => {
-    if (!job) return;
-    try {
-      await approveJob.mutateAsync(job.id);
-      toast.success('Job vacancy approved and opened');
-    } catch (error) {
-      toast.error('Failed to approve job');
-    }
-  };
 
   const handleStatusChange = async (newStatus: JobStatus) => {
     if (!job) return;
@@ -217,16 +208,6 @@ export default function JobDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {job.status === 'submitted' && (
-            <Button onClick={handleApprove} disabled={approveJob.isPending}>
-              {approveJob.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <CheckCircle className="h-4 w-4 mr-2" />
-              )}
-              Approve & Open
-            </Button>
-          )}
           {isDraft && (
             <Button onClick={() => handleStatusChange('open')}>
               <Globe className="h-4 w-4 mr-2" />

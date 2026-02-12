@@ -18,7 +18,7 @@ import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { useDepartments, useOffices } from '@/hooks/useOrganizationData';
 import { useOrganization } from '@/hooks/useOrganization';
 import { generateJobSlug } from '@/types/hiring';
-import { ArrowLeft, Loader2, Save, Sparkles, Wand2, CalendarIcon } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, Sparkles, Wand2, CalendarIcon, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 import { OrgLink } from '@/components/OrgLink';
 import { supabase } from '@/integrations/supabase/client';
@@ -79,7 +79,7 @@ export default function JobCreate() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = async (submitForApproval: boolean = false) => {
+  const handleSubmit = async (publish: boolean = false) => {
     if (!formData.title.trim()) {
       toast.error('Please enter a job title');
       return;
@@ -106,11 +106,16 @@ export default function JobCreate() {
         description: formData.description || null,
       });
 
-      toast.success(
-        submitForApproval
-          ? 'Job submitted for approval'
-          : 'Job saved as draft'
-      );
+      if (publish) {
+        // Immediately set status to open
+        await supabase
+          .from('jobs')
+          .update({ status: 'open', published_at: new Date().toISOString() })
+          .eq('id', job.id);
+        toast.success('Job vacancy published');
+      } else {
+        toast.success('Job saved as draft');
+      }
       navigateOrg(`/hiring/jobs/${job.slug}`);
     } catch (error) {
       toast.error('Failed to create job');
@@ -208,8 +213,12 @@ export default function JobCreate() {
             onClick={() => handleSubmit(true)}
             disabled={createJob.isPending}
           >
-            {createJob.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Submit for Approval
+            {createJob.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Globe className="h-4 w-4 mr-2" />
+            )}
+            Publish Vacancy
           </Button>
         </div>
       </div>
