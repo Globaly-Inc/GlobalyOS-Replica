@@ -44,6 +44,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { ArrowLeft, Loader2, Save, Globe, Sparkles, Wand2, CalendarIcon, Info, MoreHorizontal, Pause, Play, Archive, Trash2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { useFormattedDate } from '@/hooks/useFormattedDate';
 import { toast } from 'sonner';
@@ -141,6 +142,7 @@ export default function JobEdit() {
     salary_currency: 'USD',
     salary_visible: false,
     application_close_date: '',
+    auto_close_on_deadline: false,
     target_start_date: '',
     justification: '',
     description: '',
@@ -167,6 +169,7 @@ export default function JobEdit() {
         salary_visible: job.salary_visible || false,
         target_start_date: job.target_start_date?.split('T')[0] || '',
         application_close_date: (job as any).application_close_date?.split('T')[0] || '',
+        auto_close_on_deadline: (job as any).auto_close_on_deadline ?? false,
         justification: job.justification || '',
         description: job.description || '',
         requirements: job.requirements || '',
@@ -186,7 +189,13 @@ export default function JobEdit() {
   }, [job?.status]);
 
   const handleChange = (field: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      const next = { ...prev, [field]: value };
+      if (field === 'application_close_date' && !value) {
+        next.auto_close_on_deadline = false;
+      }
+      return next;
+    });
   };
 
   const handleSave = async () => {
@@ -212,6 +221,7 @@ export default function JobEdit() {
           salary_visible: formData.salary_visible,
           target_start_date: formData.target_start_date || null,
           application_close_date: formData.application_close_date || null,
+          auto_close_on_deadline: formData.auto_close_on_deadline,
           justification: formData.justification || null,
           description: formData.description || null,
           requirements: formData.requirements || null,
@@ -651,6 +661,20 @@ export default function JobEdit() {
                       />
                     </PopoverContent>
                   </Popover>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <Checkbox
+                      id="auto_close_on_deadline_edit"
+                      checked={formData.auto_close_on_deadline}
+                      onCheckedChange={(checked) => handleChange('auto_close_on_deadline', !!checked)}
+                      disabled={!formData.application_close_date}
+                    />
+                    <label
+                      htmlFor="auto_close_on_deadline_edit"
+                      className="text-sm text-muted-foreground cursor-pointer select-none"
+                    >
+                      Auto close after this date
+                    </label>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Target Start Date</Label>

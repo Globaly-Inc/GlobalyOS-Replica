@@ -48,6 +48,7 @@ import {
   Play,
   Archive,
   Loader2,
+  Clock,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -207,6 +208,19 @@ export default function JobsList({
                               <Users className="h-3 w-3" />
                               {(job as any).candidate_applications?.[0]?.count || 0} candidates
                             </Badge>
+                            {(job as any).auto_close_on_deadline && (job as any).application_close_date && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                                    <Clock className="h-3 w-3" />
+                                    Auto-close
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  Will auto-close on {new Date((job as any).application_close_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
                           </div>
                         </div>
                       </div>
