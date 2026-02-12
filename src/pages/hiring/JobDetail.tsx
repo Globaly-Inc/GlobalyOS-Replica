@@ -5,13 +5,35 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { OrgLink } from '@/components/OrgLink';
 import { useJob, useJobStages, useApplications } from '@/services/useHiring';
 import { useHiringApplications } from '@/services';
 import { useUpdateJob, useApproveJob } from '@/services/useHiringMutations';
+import type { JobStatus } from '@/types/hiring';
 import { getJobStatusLabel, getJobStatusColor, APPLICATION_STAGE_LABELS } from '@/types/hiring';
 import { countryToFlag } from '@/utils/countryFlag';
 import { HiringKanbanBoard } from '@/components/hiring/pipeline/HiringKanbanBoard';
+import { useOrgNavigation } from '@/hooks/useOrgNavigation';
+import { supabase } from '@/integrations/supabase/client';
+import { useOrganization } from '@/hooks/useOrganization';
+import { useQueryClient } from '@tanstack/react-query';
 import { 
   ArrowLeft, 
   Pencil, 
@@ -22,25 +44,38 @@ import {
   Users,
   DollarSign,
   CheckCircle,
-  Loader2
+  Loader2,
+  MoreHorizontal,
+  Pause,
+  Play,
+  Archive,
+  Trash2,
+  Globe,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
-// Create a local hook to fetch applications for a job
 function useJobApplications(jobId: string | undefined) {
   return useApplications(jobId ? { job_id: jobId } : undefined);
 }
 
 export default function JobDetail() {
   const { jobSlug } = useParams<{ jobSlug: string }>();
+  const { navigateOrg } = useOrgNavigation();
+  const { currentOrg } = useOrganization();
+  const queryClient = useQueryClient();
   const { data: job, isLoading: jobLoading } = useJob(jobSlug || '');
   const { data: stages } = useJobStages(job?.id || '');
   const { data: applications, isLoading: applicationsLoading } = useJobApplications(job?.id);
   const updateJob = useUpdateJob();
   const approveJob = useApproveJob();
 
-  const [activeTab, setActiveTab] = useState('pipeline');
+  const isDraft = job?.status === 'draft';
+  const [activeTab, setActiveTab] = useState<string | undefined>(undefined);
+  const resolvedTab = activeTab ?? (isDraft ? 'description' : 'pipeline');
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleApprove = async () => {
     if (!job) return;
@@ -49,6 +84,51 @@ export default function JobDetail() {
       toast.success('Job vacancy approved and opened');
     } catch (error) {
       toast.error('Failed to approve job');
+    }
+  };
+
+  const handleStatusChange = async (newStatus: JobStatus) => {
+    if (!job) return;
+    try {
+      await updateJob.mutateAsync({ jobId: job.id, input: { status: newStatus } });
+      const labels: Record<string, string> = {
+        paused: 'Vacancy paused',
+        open: 'Vacancy resumed',
+        closed: 'Vacancy closed',
+      };
+      toast.success(labels[newStatus] || 'Status updated');
+    } catch (error) {
+      toast.error('Failed to update status');
+    }
+  };
+
+  const handleDeleteClick = () => {
+    if (!job) return;
+    if (job.status !== 'draft' && (applications?.length || 0) > 0) {
+      toast.error('Remove all candidates before deleting this vacancy');
+      return;
+    }
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!job || !currentOrg?.id) return;
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('jobs')
+        .delete()
+        .eq('id', job.id)
+        .eq('organization_id', currentOrg.id);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['hiring', 'jobs'] });
+      toast.success('Vacancy deleted');
+      navigateOrg('/hiring?tab=jobs');
+    } catch (error) {
+      toast.error('Failed to delete vacancy');
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
     }
   };
 
@@ -75,6 +155,8 @@ export default function JobDetail() {
   }
 
   const departmentName = typeof job.department === 'object' ? job.department?.name : null;
+  const isClosed = job.status === 'closed';
+  const candidateCount = applications?.length || 0;
 
   return (
     <div className="space-y-6">
@@ -95,7 +177,6 @@ export default function JobDetail() {
             </div>
             <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-muted-foreground">
               {(() => {
-                const office = typeof job.department === 'object' ? null : null;
                 const city = job.location || (job as any).office?.city;
                 const country = (job as any).office?.country;
                 const locationText = [city, country].filter(Boolean).join(', ');
@@ -130,7 +211,7 @@ export default function JobDetail() {
               )}
               <span className="flex items-center gap-1">
                 <Users className="h-4 w-4" />
-                {applications?.length || 0} candidates
+                {candidateCount} candidates
               </span>
             </div>
           </div>
@@ -146,6 +227,12 @@ export default function JobDetail() {
               Approve & Open
             </Button>
           )}
+          {isDraft && (
+            <Button onClick={() => handleStatusChange('open')}>
+              <Globe className="h-4 w-4 mr-2" />
+              Publish
+            </Button>
+          )}
           {job.is_public_visible && (
             <Button variant="outline" asChild>
               <a
@@ -158,12 +245,51 @@ export default function JobDetail() {
               </a>
             </Button>
           )}
-          <Button variant="outline" asChild>
-            <OrgLink to={`/hiring/jobs/${job.slug}/edit`}>
-              <Pencil className="h-4 w-4 mr-2" />
-              Edit
-            </OrgLink>
-          </Button>
+          {!isClosed && (
+            <Button variant="outline" asChild>
+              <OrgLink to={`/hiring/jobs/${job.slug}/edit`}>
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit
+              </OrgLink>
+            </Button>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {job.status === 'open' && (
+                <DropdownMenuItem onClick={() => handleStatusChange('paused')}>
+                  <Pause className="h-4 w-4 mr-2" />
+                  Pause Vacancy
+                </DropdownMenuItem>
+              )}
+              {job.status === 'paused' && (
+                <DropdownMenuItem onClick={() => handleStatusChange('open')}>
+                  <Play className="h-4 w-4 mr-2" />
+                  Resume Vacancy
+                </DropdownMenuItem>
+              )}
+              {(job.status === 'open' || job.status === 'paused') && (
+                <DropdownMenuItem onClick={() => handleStatusChange('closed')}>
+                  <Archive className="h-4 w-4 mr-2" />
+                  Close Vacancy
+                </DropdownMenuItem>
+              )}
+              {(job.status === 'open' || job.status === 'paused' || job.status === 'draft') && (
+                <DropdownMenuSeparator />
+              )}
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={handleDeleteClick}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Vacancy
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -200,26 +326,28 @@ export default function JobDetail() {
       </Card>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={resolvedTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
+          {!isDraft && <TabsTrigger value="pipeline">Pipeline</TabsTrigger>}
           <TabsTrigger value="description">Description</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="pipeline" className="mt-6">
-          {applicationsLoading ? (
-            <div className="space-y-4">
-              <Skeleton className="h-[400px] w-full" />
-            </div>
-          ) : (
-            <HiringKanbanBoard
-              jobId={job.id}
-              applications={applications || []}
-              stages={stages || []}
-            />
-          )}
-        </TabsContent>
+        {!isDraft && (
+          <TabsContent value="pipeline" className="mt-6">
+            {applicationsLoading ? (
+              <div className="space-y-4">
+                <Skeleton className="h-[400px] w-full" />
+              </div>
+            ) : (
+              <HiringKanbanBoard
+                jobId={job.id}
+                applications={applications || []}
+                stages={stages || []}
+              />
+            )}
+          </TabsContent>
+        )}
 
         <TabsContent value="description" className="mt-6">
           <Card>
@@ -252,6 +380,29 @@ export default function JobDetail() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Vacancy</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{job.title}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
