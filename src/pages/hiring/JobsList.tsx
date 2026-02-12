@@ -198,25 +198,24 @@ export default function JobsList({
                             <span className="flex items-center gap-1">
                               <Calendar className="h-3.5 w-3.5" />
                               {format(new Date(job.created_at), 'MMM d, yyyy')}
-                            </span>
+                          </span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 mt-2">
+                            <Badge className={getJobStatusColor(job.status)}>
+                              {getJobStatusLabel(job.status)}
+                            </Badge>
+                            {job.employment_type && (
+                              <Badge variant="outline">{job.employment_type}</Badge>
+                            )}
+                            {job.work_model && (
+                              <Badge variant="outline">{job.work_model}</Badge>
+                            )}
+                            <Badge variant="secondary" className="flex items-center gap-1">
+                              <Users className="h-3 w-3" />
+                              {(job as any).candidate_applications?.[0]?.count || 0} candidates
+                            </Badge>
                           </div>
                         </div>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2 mt-4">
-                        <Badge className={getJobStatusColor(job.status)}>
-                          {getJobStatusLabel(job.status)}
-                        </Badge>
-                        {job.employment_type && (
-                          <Badge variant="outline">{job.employment_type}</Badge>
-                        )}
-                        {job.work_model && (
-                          <Badge variant="outline">{job.work_model}</Badge>
-                        )}
-                        <Badge variant="secondary" className="flex items-center gap-1">
-                          <Users className="h-3 w-3" />
-                          {(job as any).candidate_applications?.[0]?.count || 0} candidates
-                        </Badge>
                       </div>
                     </div>
 
