@@ -18,7 +18,7 @@ import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { useDepartments, useOffices } from '@/hooks/useOrganizationData';
 import { useOrganization } from '@/hooks/useOrganization';
 import { generateJobSlug } from '@/types/hiring';
-import { ArrowLeft, Loader2, Sparkles, Wand2, CalendarIcon } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, Sparkles, Wand2, CalendarIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { OrgLink } from '@/components/OrgLink';
 import { supabase } from '@/integrations/supabase/client';
@@ -186,11 +186,31 @@ export default function JobCreate() {
             <ArrowLeft className="h-4 w-4" />
           </OrgLink>
         </Button>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold tracking-tight">Create Job Vacancy</h1>
           <p className="text-muted-foreground">
             Define the role and requirements
           </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" asChild>
+            <OrgLink to="/hiring?tab=jobs">Cancel</OrgLink>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => handleSubmit(false)}
+            disabled={createJob.isPending}
+          >
+            <Save className="h-4 w-4 mr-2" />
+            Save as Draft
+          </Button>
+          <Button
+            onClick={() => handleSubmit(true)}
+            disabled={createJob.isPending}
+          >
+            {createJob.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Submit for Approval
+          </Button>
         </div>
       </div>
 
@@ -486,28 +506,6 @@ export default function JobCreate() {
           </Card>
 
 
-
-
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pb-8">
-            <Button variant="outline" asChild>
-              <OrgLink to="/hiring?tab=jobs">Cancel</OrgLink>
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => handleSubmit(false)}
-              disabled={createJob.isPending}
-            >
-              Save as Draft
-            </Button>
-            <Button
-              onClick={() => handleSubmit(true)}
-              disabled={createJob.isPending}
-            >
-              {createJob.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Submit for Approval
-            </Button>
-          </div>
         </div>
 
         {/* Right Column - Publishing + Preview (1/3) */}
