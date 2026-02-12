@@ -221,12 +221,19 @@ export default function JobsList({
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" asChild>
-                        <OrgLink to={`/hiring/jobs/${job.slug}`}>
-                          <Eye className="h-4 w-4 mr-1" />
-                          {job.status === 'draft' ? 'View Details' : 'View Pipeline'}
-                        </OrgLink>
-                      </Button>
+                      {job.status === 'draft' ? (
+                        <Button size="sm" onClick={() => handleStatusChange(job.id, 'open' as JobStatus)}>
+                          <Play className="h-4 w-4 mr-1" />
+                          Publish Vacancy
+                        </Button>
+                      ) : (
+                        <Button variant="outline" size="sm" asChild>
+                          <OrgLink to={`/hiring/jobs/${job.slug}`}>
+                            <Eye className="h-4 w-4 mr-1" />
+                            View Pipeline
+                          </OrgLink>
+                        </Button>
+                      )}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon">
