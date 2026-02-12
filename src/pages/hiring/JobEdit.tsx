@@ -26,11 +26,30 @@ import { useDepartments, useOffices } from '@/hooks/useOrganizationData';
 import { useOrganization } from '@/hooks/useOrganization';
 import type { WorkModel, HiringEmploymentType } from '@/types/hiring';
 import { OrgLink } from '@/components/OrgLink';
-import { ArrowLeft, Loader2, Save, Globe, EyeOff, Sparkles, Wand2, CalendarIcon, Info } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { ArrowLeft, Loader2, Save, Globe, Sparkles, Wand2, CalendarIcon, Info, MoreHorizontal, Pause, Play, Archive, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useFormattedDate } from '@/hooks/useFormattedDate';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useApplications } from '@/services/useHiring';
+import { useQueryClient } from '@tanstack/react-query';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { JobPostPreview } from '@/components/hiring/JobPostPreview';
 import { CurrencyCombobox } from '@/components/hiring/CurrencyCombobox';
@@ -100,12 +119,16 @@ export default function JobEdit() {
   const { jobSlug } = useParams<{ jobSlug: string }>();
   const { navigateOrg } = useOrgNavigation();
   const { currentOrg } = useOrganization();
+  const queryClient = useQueryClient();
   const { data: job, isLoading } = useJob(jobSlug);
   const updateJob = useUpdateJob();
   const publishJob = usePublishJob();
   const { data: departments = [] } = useDepartments();
   const { data: offices = [] } = useOffices();
+  const { data: jobApplications } = useApplications(job?.id ? { job_id: job.id } : undefined);
   const [isGeneratingJD, setIsGeneratingJD] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -155,6 +178,14 @@ export default function JobEdit() {
       });
     }
   }, [job]);
+
+  // Redirect closed vacancies — they cannot be edited
+  useEffect(() => {
+    if (job && job.status === 'closed') {
+      toast.error('Closed vacancies cannot be edited');
+      navigateOrg(`/hiring/jobs/${job.slug}`);
+    }
+  }, [job?.status]);
 
   const handleChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -212,16 +243,73 @@ export default function JobEdit() {
     }
   };
 
-  const handleUnpublish = async () => {
+  const handlePause = async () => {
     if (!job?.id) return;
     try {
       await updateJob.mutateAsync({
         jobId: job.id,
         input: { status: 'paused' },
       });
-      toast.success('Job unpublished');
+      toast.success('Vacancy paused');
     } catch (error) {
-      toast.error('Failed to unpublish job');
+      toast.error('Failed to pause vacancy');
+    }
+  };
+
+  const handleResume = async () => {
+    if (!job?.id) return;
+    try {
+      await updateJob.mutateAsync({
+        jobId: job.id,
+        input: { status: 'open' },
+      });
+      toast.success('Vacancy resumed');
+    } catch (error) {
+      toast.error('Failed to resume vacancy');
+    }
+  };
+
+  const handleClose = async () => {
+    if (!job?.id) return;
+    try {
+      await updateJob.mutateAsync({
+        jobId: job.id,
+        input: { status: 'closed' },
+      });
+      toast.success('Vacancy closed');
+      navigateOrg(`/hiring/jobs/${job.slug}`);
+    } catch (error) {
+      toast.error('Failed to close vacancy');
+    }
+  };
+
+  const handleDeleteClick = () => {
+    if (!job) return;
+    if (job.status !== 'draft' && (jobApplications?.length || 0) > 0) {
+      toast.error('Remove all candidates before deleting this vacancy');
+      return;
+    }
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!job || !currentOrg?.id) return;
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('jobs')
+        .delete()
+        .eq('id', job.id)
+        .eq('organization_id', currentOrg.id);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['hiring', 'jobs'] });
+      toast.success('Vacancy deleted');
+      navigateOrg('/hiring?tab=jobs');
+    } catch (error) {
+      toast.error('Failed to delete vacancy');
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
     }
   };
 
@@ -306,10 +394,12 @@ export default function JobEdit() {
     );
   }
 
-  const isOpen = job.status === 'open';
-  const canPublish = job.status === 'approved' || job.status === 'open' || job.status === 'draft';
+  const canPublish = job.status === 'draft' || job.status === 'approved';
+  const candidateCount = jobApplications?.length || 0;
+
 
   return (
+    <>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
@@ -356,33 +446,55 @@ export default function JobEdit() {
             Save & Close
           </Button>
           {canPublish && (
-            isOpen ? (
-              <Button
-                variant="destructive"
-                onClick={handleUnpublish}
-                disabled={updateJob.isPending}
-              >
-                {updateJob.isPending ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <EyeOff className="h-4 w-4 mr-2" />
-                )}
-                Unpublish
-              </Button>
-            ) : (
-              <Button
-                onClick={handlePublish}
-                disabled={publishJob.isPending}
-              >
-                {publishJob.isPending ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Globe className="h-4 w-4 mr-2" />
-                )}
-                Publish
-              </Button>
-            )
+            <Button
+              onClick={handlePublish}
+              disabled={publishJob.isPending}
+            >
+              {publishJob.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Globe className="h-4 w-4 mr-2" />
+              )}
+              Publish
+            </Button>
           )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {job.status === 'open' && (
+                <DropdownMenuItem onClick={handlePause}>
+                  <Pause className="h-4 w-4 mr-2" />
+                  Pause Vacancy
+                </DropdownMenuItem>
+              )}
+              {job.status === 'paused' && (
+                <DropdownMenuItem onClick={handleResume}>
+                  <Play className="h-4 w-4 mr-2" />
+                  Resume Vacancy
+                </DropdownMenuItem>
+              )}
+              {(job.status === 'open' || job.status === 'paused') && (
+                <DropdownMenuItem onClick={handleClose}>
+                  <Archive className="h-4 w-4 mr-2" />
+                  Close Vacancy
+                </DropdownMenuItem>
+              )}
+              {(job.status === 'open' || job.status === 'paused' || job.status === 'draft') && (
+                <DropdownMenuSeparator />
+              )}
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={handleDeleteClick}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Vacancy
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -742,5 +854,29 @@ export default function JobEdit() {
         </div>
       </div>
     </div>
+
+    {/* Delete Confirmation Dialog */}
+    <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Vacancy</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete &quot;{job.title}&quot;? This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleDeleteConfirm}
+            disabled={isDeleting}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {isDeleting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

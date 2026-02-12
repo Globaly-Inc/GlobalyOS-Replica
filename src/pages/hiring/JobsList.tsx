@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,8 +19,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useJobs } from '@/services/useHiring';
+import { useJobs, useApplications } from '@/services/useHiring';
 import { useUpdateJob } from '@/services/useHiringMutations';
+import { useOrgNavigation } from '@/hooks/useOrgNavigation';
+import { useOrganization } from '@/hooks/useOrganization';
+import { useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { JobStatus, getJobStatusLabel, getJobStatusColor } from '@/types/hiring';
 import { 
   Plus, 
@@ -34,7 +49,8 @@ import {
   Trash2,
   Pause,
   Play,
-  Archive
+  Archive,
+  Loader2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -52,10 +68,16 @@ export default function JobsList({
   statusFilter = 'all',
   onStatusFilterChange,
 }: JobsListProps) {
+  const { navigateOrg } = useOrgNavigation();
+  const { currentOrg } = useOrganization();
+  const queryClient = useQueryClient();
   const { data: jobs, isLoading } = useJobs(
     statusFilter === 'all' ? undefined : { status: statusFilter }
   );
   const updateJob = useUpdateJob();
+
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string; status: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const filteredJobs = jobs?.filter((job) => {
     const departmentName = typeof job.department === 'object' ? job.department?.name : job.department;
@@ -75,15 +97,36 @@ export default function JobsList({
     }
   };
 
-  const handleDeleteJob = async (jobId: string) => {
-    if (!confirm('Are you sure you want to delete this job? This action cannot be undone.')) {
+  const handleDeleteClick = (job: { id: string; title: string; status: string; _count?: { candidate_applications?: number } }) => {
+    if (job.status !== 'draft' && (job._count?.candidate_applications || 0) > 0) {
+      toast.error('Remove all candidates before deleting this vacancy');
       return;
     }
-    // Note: Delete functionality would need to be implemented in mutations
-    toast.error('Delete functionality not yet implemented');
+    setDeleteTarget({ id: job.id, title: job.title, status: job.status });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget || !currentOrg?.id) return;
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('jobs')
+        .delete()
+        .eq('id', deleteTarget.id)
+        .eq('organization_id', currentOrg.id);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['hiring', 'jobs'] });
+      toast.success('Vacancy deleted');
+    } catch (error) {
+      toast.error('Failed to delete vacancy');
+    } finally {
+      setIsDeleting(false);
+      setDeleteTarget(null);
+    }
   };
 
   return (
+    <>
     <div className="space-y-6">
       {/* Mobile Filters */}
       <div className="flex flex-col gap-3 md:hidden">
@@ -218,8 +261,8 @@ export default function JobsList({
                           )}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={() => handleDeleteJob(job.id)}
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => handleDeleteClick(job)}
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete Vacancy
@@ -257,5 +300,28 @@ export default function JobsList({
         </Card>
       )}
     </div>
+
+    <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Vacancy</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to delete &quot;{deleteTarget?.title}&quot;? This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleDeleteConfirm}
+            disabled={isDeleting}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {isDeleting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
