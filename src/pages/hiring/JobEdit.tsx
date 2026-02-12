@@ -46,6 +46,7 @@ import {
 import { ArrowLeft, Loader2, Save, Globe, Sparkles, Wand2, CalendarIcon, Info, MoreHorizontal, Pause, Play, Archive, Trash2 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFormattedDate } from '@/hooks/useFormattedDate';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -422,87 +423,111 @@ export default function JobEdit() {
             Update job details and requirements
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" asChild>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" asChild>
             <OrgLink to={`/hiring/jobs/${job.slug}`}>Cancel</OrgLink>
           </Button>
-          <Button
-            variant="outline"
-            onClick={handleSave}
-            disabled={updateJob.isPending}
-          >
-            {updateJob.isPending ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-2" />
-            )}
-            Save
-          </Button>
-          <Button
-            variant="outline"
-            onClick={async () => {
-              await handleSave();
-              navigateOrg('/hiring?tab=jobs');
-            }}
-            disabled={updateJob.isPending}
-          >
-            {updateJob.isPending ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-2" />
-            )}
-            Save & Close
-          </Button>
-          {canPublish && (
-            <Button
-              onClick={handlePublish}
-              disabled={publishJob.isPending}
-            >
-              {publishJob.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Globe className="h-4 w-4 mr-2" />
-              )}
-              Publish
-            </Button>
-          )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <MoreHorizontal className="h-4 w-4" />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 w-9 p-0"
+                onClick={handleSave}
+                disabled={updateJob.isPending}
+              >
+                {updateJob.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {job.status === 'open' && (
-                <DropdownMenuItem onClick={handlePause}>
-                  <Pause className="h-4 w-4 mr-2" />
-                  Pause Vacancy
-                </DropdownMenuItem>
-              )}
-              {job.status === 'paused' && (
-                <DropdownMenuItem onClick={handleResume}>
-                  <Play className="h-4 w-4 mr-2" />
-                  Resume Vacancy
-                </DropdownMenuItem>
-              )}
-              {(job.status === 'open' || job.status === 'paused') && (
-                <DropdownMenuItem onClick={handleClose}>
-                  <Archive className="h-4 w-4 mr-2" />
-                  Close Vacancy
-                </DropdownMenuItem>
-              )}
-              {(job.status === 'open' || job.status === 'paused' || job.status === 'draft') && (
-                <DropdownMenuSeparator />
-              )}
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
+            </TooltipTrigger>
+            <TooltipContent>Save</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 w-9 p-0"
+                onClick={async () => {
+                  await handleSave();
+                  navigateOrg('/hiring?tab=jobs');
+                }}
+                disabled={updateJob.isPending}
+              >
+                {updateJob.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ArrowLeft className="h-4 w-4" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Save & Close</TooltipContent>
+          </Tooltip>
+          {canPublish && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  className="h-9 w-9 p-0"
+                  onClick={handlePublish}
+                  disabled={publishJob.isPending}
+                >
+                  {publishJob.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Globe className="h-4 w-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Publish</TooltipContent>
+            </Tooltip>
+          )}
+          {job.status === 'open' && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9 w-9 p-0" onClick={handlePause}>
+                  <Pause className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Pause Vacancy</TooltipContent>
+            </Tooltip>
+          )}
+          {job.status === 'paused' && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9 w-9 p-0" onClick={handleResume}>
+                  <Play className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Resume Vacancy</TooltipContent>
+            </Tooltip>
+          )}
+          {(job.status === 'open' || job.status === 'paused') && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9 w-9 p-0" onClick={handleClose}>
+                  <Archive className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Close Vacancy</TooltipContent>
+            </Tooltip>
+          )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 w-9 p-0 text-destructive hover:text-destructive"
                 onClick={handleDeleteClick}
               >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete Vacancy
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Delete Vacancy</TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
