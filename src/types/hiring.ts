@@ -7,7 +7,7 @@
 // ENUMS
 // ============================================
 
-export type JobStatus = 'draft' | 'submitted' | 'approved' | 'open' | 'paused' | 'closed';
+export type JobStatus = 'draft' | 'open' | 'paused' | 'closed';
 
 export type WorkModel = 'onsite' | 'hybrid' | 'remote';
 
@@ -40,8 +40,6 @@ export type OfferStatus = 'draft' | 'pending_approval' | 'approved' | 'sent' | '
 
 export type HiringActivityAction = 
   | 'job_created'
-  | 'job_submitted'
-  | 'job_approved'
   | 'job_published'
   | 'job_paused'
   | 'job_closed'
@@ -540,8 +538,6 @@ export interface PipelineFunnel {
 
 export const JOB_STATUS_LABELS: Record<JobStatus, string> = {
   draft: 'Draft',
-  submitted: 'Pending Approval',
-  approved: 'Approved',
   open: 'Open',
   paused: 'Paused',
   closed: 'Closed',
@@ -549,8 +545,6 @@ export const JOB_STATUS_LABELS: Record<JobStatus, string> = {
 
 export const JOB_STATUS_COLORS: Record<JobStatus, string> = {
   draft: 'bg-muted text-muted-foreground',
-  submitted: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
-  approved: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
   open: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
   paused: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
   closed: 'bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-400',

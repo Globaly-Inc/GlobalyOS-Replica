@@ -75,8 +75,6 @@ const WORK_MODELS = [
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   draft: { label: 'Draft', className: 'bg-amber-100 text-amber-800 border-amber-200' },
-  submitted: { label: 'Submitted', className: 'bg-blue-100 text-blue-800 border-blue-200' },
-  approved: { label: 'Approved', className: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
   open: { label: 'Open', className: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
   paused: { label: 'Paused', className: 'bg-orange-100 text-orange-800 border-orange-200' },
   closed: { label: 'Closed', className: 'bg-muted text-muted-foreground border-border' },
@@ -394,7 +392,7 @@ export default function JobEdit() {
     );
   }
 
-  const canPublish = job.status === 'draft' || job.status === 'approved';
+  const canPublish = job.status === 'draft';
   const candidateCount = jobApplications?.length || 0;
 
 
