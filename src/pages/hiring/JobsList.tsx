@@ -13,12 +13,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useJobs, useApplications } from '@/services/useHiring';
 import { useUpdateJob } from '@/services/useHiringMutations';
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
@@ -39,7 +37,6 @@ import { JobStatus, getJobStatusLabel, getJobStatusColor } from '@/types/hiring'
 import { 
   Plus, 
   Search, 
-  MoreHorizontal,
   MapPin,
   Building,
   Users,
@@ -233,48 +230,54 @@ export default function JobsList({
                           </OrgLink>
                         </Button>
                       )}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem asChild>
-                            <OrgLink to={`/hiring/jobs/${job.slug}/edit`} className="flex items-center">
-                              <Pencil className="h-4 w-4 mr-2" />
-                              Edit Vacancy
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="outline" size="sm" className="h-9 w-9 p-0" asChild>
+                            <OrgLink to={`/hiring/jobs/${job.slug}/edit`}>
+                              <Pencil className="h-4 w-4" />
                             </OrgLink>
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          {job.status === 'open' && (
-                            <DropdownMenuItem onClick={() => handleStatusChange(job.id, 'paused')}>
-                              <Pause className="h-4 w-4 mr-2" />
-                              Pause Vacancy
-                            </DropdownMenuItem>
-                          )}
-                          {job.status === 'paused' && (
-                            <DropdownMenuItem onClick={() => handleStatusChange(job.id, 'open')}>
-                              <Play className="h-4 w-4 mr-2" />
-                              Resume Vacancy
-                            </DropdownMenuItem>
-                          )}
-                          {(job.status === 'open' || job.status === 'paused') && (
-                            <DropdownMenuItem onClick={() => handleStatusChange(job.id, 'closed')}>
-                              <Archive className="h-4 w-4 mr-2" />
-                              Close Vacancy
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => handleDeleteClick(job)}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete Vacancy
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Edit Vacancy</TooltipContent>
+                      </Tooltip>
+                      {job.status === 'open' && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-9 w-9 p-0" onClick={() => handleStatusChange(job.id, 'paused')}>
+                              <Pause className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Pause Vacancy</TooltipContent>
+                        </Tooltip>
+                      )}
+                      {job.status === 'paused' && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-9 w-9 p-0" onClick={() => handleStatusChange(job.id, 'open')}>
+                              <Play className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Resume Vacancy</TooltipContent>
+                        </Tooltip>
+                      )}
+                      {(job.status === 'open' || job.status === 'paused') && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-9 w-9 p-0" onClick={() => handleStatusChange(job.id, 'closed')}>
+                              <Archive className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Close Vacancy</TooltipContent>
+                        </Tooltip>
+                      )}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="outline" size="sm" className="h-9 w-9 p-0 text-destructive hover:text-destructive" onClick={() => handleDeleteClick(job)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Delete Vacancy</TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
                 </CardContent>
