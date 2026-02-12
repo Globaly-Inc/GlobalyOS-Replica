@@ -196,8 +196,6 @@ export default function JobsList({
                               <Calendar className="h-3.5 w-3.5" />
                               {format(new Date(job.created_at), 'MMM d, yyyy')}
                           </span>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2 mt-2">
                             <Badge className={getJobStatusColor(job.status)}>
                               {getJobStatusLabel(job.status)}
                             </Badge>
