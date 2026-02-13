@@ -111,6 +111,8 @@
     "workbox-precaching": "^7.4.0",
     "workbox-routing": "^7.4.0",
     "workbox-strategies": "^7.4.0",
+    "y-protocols": "^1.0.7",
+    "yjs": "^13.6.29",
     "zod": "^3.25.76"
   },
   "devDependencies": {
