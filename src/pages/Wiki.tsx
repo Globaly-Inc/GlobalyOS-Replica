@@ -706,6 +706,9 @@ const Wiki = () => {
               sharedMembers={sharedAccess.members}
               sharedGroups={sharedAccess.groups}
               onShareClick={() => selectedPageId && handleOpenShare('page', selectedPageId)}
+              currentEmployeeId={currentEmployeeId}
+              currentEmployeeFullName={currentEmployee?.profiles?.full_name || 'Anonymous'}
+              currentEmployeeAvatar={currentEmployee?.profiles?.avatar_url || null}
             />
           )}
         </div>
@@ -787,6 +790,9 @@ const Wiki = () => {
                 sharedMembers={sharedAccess.members}
                 sharedGroups={sharedAccess.groups}
                 onShareClick={() => selectedPageId && handleOpenShare('page', selectedPageId)}
+                currentEmployeeId={currentEmployeeId}
+                currentEmployeeFullName={currentEmployee?.profiles?.full_name || 'Anonymous'}
+                currentEmployeeAvatar={currentEmployee?.profiles?.avatar_url || null}
               />
             ) : (
               <WikiFolderView

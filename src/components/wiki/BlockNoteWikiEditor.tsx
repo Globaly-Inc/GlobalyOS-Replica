@@ -6,7 +6,11 @@ import {
   SuggestionMenuController,
   getDefaultReactSlashMenuItems,
   getFormattingToolbarItems,
+  FloatingComposerController,
+  FloatingThreadController,
+  ThreadsSidebar,
 } from "@blocknote/react";
+import { AddCommentButton } from "@blocknote/react";
 import { PartialBlock } from "@blocknote/core";
 import { en } from "@blocknote/core/locales";
 import {
@@ -19,12 +23,18 @@ import { en as aiEn } from "@blocknote/xl-ai/locales";
 import "@blocknote/xl-ai/style.css";
 import { DefaultChatTransport } from "ai";
 import * as Y from "yjs";
+import {
+  CommentsExtension,
+  DefaultThreadStoreAuth,
+  YjsThreadStore,
+} from "@blocknote/core/comments";
 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import "./blocknote-styles.css";
 import { isBlockNoteJson } from "./wikiContentUtils";
 import { SupabaseYjsProvider } from "./collaboration/SupabaseYjsProvider";
+import { useResolveUsers } from "./collaboration/useResolveUsers";
 
 // Re-export for backward compatibility
 export { isBlockNoteJson };
@@ -39,6 +49,10 @@ interface BlockNoteWikiEditorProps {
   pageId?: string;
   userName?: string;
   userColor?: string;
+  // Comments props
+  userId?: string; // employee ID for comment authoring
+  canComment?: boolean;
+  showCommentsSidebar?: boolean;
 }
 
 export const BlockNoteWikiEditor = ({
@@ -50,6 +64,9 @@ export const BlockNoteWikiEditor = ({
   pageId,
   userName,
   userColor,
+  userId,
+  canComment = false,
+  showCommentsSidebar = false,
 }: BlockNoteWikiEditorProps) => {
   const hasLoadedHtml = useRef(false);
   const onChangeRef = useRef(onChange);
@@ -58,6 +75,10 @@ export const BlockNoteWikiEditor = ({
 
   // Collaboration mode is active when pageId and userName are provided
   const isCollaborative = !!(pageId && userName);
+  // Comments require collaboration (Yjs doc) and a userId
+  const commentsEnabled = isCollaborative && canComment && !!userId;
+
+  const resolveUsers = useResolveUsers(organizationId);
 
   // Create Yjs doc and provider for collaborative editing
   const { doc, provider } = useMemo(() => {
@@ -144,16 +165,16 @@ export const BlockNoteWikiEditor = ({
     };
   }, [isCollaborative, doc, provider, userName, userColor]);
 
-  const editor = useCreateBlockNote({
-    ...(isCollaborative
-      ? { collaboration: collaborationConfig! }
-      : { initialContent: parsedInitialContent }),
-    uploadFile,
-    dictionary: {
-      ...en,
-      ai: aiEn,
-    },
-    extensions: [
+  // Create thread store for comments (backed by Yjs)
+  const threadStore = useMemo(() => {
+    if (!commentsEnabled || !doc || !userId) return undefined;
+    const auth = new DefaultThreadStoreAuth(userId, "editor");
+    return new YjsThreadStore(userId, doc.getMap("threads"), auth);
+  }, [commentsEnabled, doc, userId]);
+
+  // Build extensions array
+  const extensions = useMemo(() => {
+    const exts: any[] = [
       AIExtension({
         transport: new DefaultChatTransport({
           api: aiProxyUrl,
@@ -171,7 +192,30 @@ export const BlockNoteWikiEditor = ({
           color: "#8bc6ff",
         },
       }),
-    ],
+    ];
+
+    if (commentsEnabled && threadStore) {
+      exts.push(
+        CommentsExtension({
+          threadStore,
+          resolveUsers,
+        }),
+      );
+    }
+
+    return exts;
+  }, [aiProxyUrl, commentsEnabled, threadStore, resolveUsers]);
+
+  const editor = useCreateBlockNote({
+    ...(isCollaborative
+      ? { collaboration: collaborationConfig! }
+      : { initialContent: parsedInitialContent }),
+    uploadFile,
+    dictionary: {
+      ...en,
+      ai: aiEn,
+    },
+    extensions,
   });
 
   // If collaborative, load initial content into Yjs doc when first user joins
@@ -230,40 +274,58 @@ export const BlockNoteWikiEditor = ({
   }, [editor]);
 
   return (
-    <div style={{ minHeight }}>
-      <BlockNoteView
-        editor={editor}
-        onChange={handleChange}
-        theme="light"
-        formattingToolbar={false}
-        slashMenu={false}
-        data-theming-css-variables-demo
-      >
-        {/* Custom formatting toolbar with AI button */}
-        <FormattingToolbarController
-          formattingToolbar={() => (
-            <div className="bn-toolbar bn-formatting-toolbar" role="toolbar">
-              {getFormattingToolbarItems()}
-              <AIToolbarButton />
-            </div>
+    <div className={`${showCommentsSidebar && commentsEnabled ? 'flex gap-4' : ''}`} style={{ minHeight }}>
+      <div className={showCommentsSidebar && commentsEnabled ? 'flex-1 min-w-0' : ''}>
+        <BlockNoteView
+          editor={editor}
+          onChange={handleChange}
+          theme="light"
+          formattingToolbar={false}
+          slashMenu={false}
+          data-theming-css-variables-demo
+        >
+          {/* Custom formatting toolbar with AI + Comment buttons */}
+          <FormattingToolbarController
+            formattingToolbar={() => (
+              <div className="bn-toolbar bn-formatting-toolbar" role="toolbar">
+                {getFormattingToolbarItems()}
+                <AIToolbarButton />
+                {commentsEnabled && <AddCommentButton />}
+              </div>
+            )}
+          />
+
+          {/* Slash menu with AI items merged */}
+          <SuggestionMenuController
+            triggerCharacter="/"
+            getItems={async (query) => {
+              const defaultItems = getDefaultReactSlashMenuItems(editor);
+              const aiItems = getAISlashMenuItems(editor);
+              return [...aiItems, ...defaultItems].filter((item) =>
+                item.title.toLowerCase().includes(query.toLowerCase()),
+              );
+            }}
+          />
+
+          {/* AI menu controller for the AI interaction panel */}
+          <AIMenuController />
+
+          {/* Comment floating controllers */}
+          {commentsEnabled && (
+            <>
+              <FloatingComposerController />
+              <FloatingThreadController />
+            </>
           )}
-        />
+        </BlockNoteView>
+      </div>
 
-        {/* Slash menu with AI items merged */}
-        <SuggestionMenuController
-          triggerCharacter="/"
-          getItems={async (query) => {
-            const defaultItems = getDefaultReactSlashMenuItems(editor);
-            const aiItems = getAISlashMenuItems(editor);
-            return [...aiItems, ...defaultItems].filter((item) =>
-              item.title.toLowerCase().includes(query.toLowerCase()),
-            );
-          }}
-        />
-
-        {/* AI menu controller for the AI interaction panel */}
-        <AIMenuController />
-      </BlockNoteView>
+      {/* Comments sidebar panel */}
+      {showCommentsSidebar && commentsEnabled && (
+        <div className="w-80 flex-shrink-0 border-l bg-card overflow-y-auto">
+          <ThreadsSidebar />
+        </div>
+      )}
     </div>
   );
 };

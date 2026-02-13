@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
-import { Save, X, Loader2, Check, Cloud } from "lucide-react";
+import { Save, X, Loader2, Check, Cloud, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,6 +45,7 @@ const WikiEditPage = () => {
   const [hasInitialized, setHasInitialized] = useState(false);
   const [draftSaveStatus, setDraftSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [showSavedIndicator, setShowSavedIndicator] = useState(false);
+  const [showCommentsSidebar, setShowCommentsSidebar] = useState(false);
   const autosaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const draftSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const providerRef = useRef<SupabaseYjsProvider | null>(null);
@@ -363,6 +364,15 @@ const WikiEditPage = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-2 ml-4">
+            {/* Comments toggle */}
+            <Button
+              variant={showCommentsSidebar ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowCommentsSidebar((v) => !v)}
+              title={showCommentsSidebar ? "Hide comments" : "Show comments"}
+            >
+              <MessageSquare className="h-4 w-4" />
+            </Button>
             <Button 
               variant="outline" 
               size="sm" 
@@ -405,6 +415,9 @@ const WikiEditPage = () => {
             pageId={pageId}
             userName={userName}
             userColor={collaborationColor}
+            userId={currentEmployee?.id}
+            canComment={true}
+            showCommentsSidebar={showCommentsSidebar}
           />
         </div>
       </div>
