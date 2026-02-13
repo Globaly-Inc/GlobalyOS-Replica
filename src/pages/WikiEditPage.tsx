@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
-import { Save, X, Loader2, Check, Cloud, MessageSquare } from "lucide-react";
+import { X, Loader2, Check, Cloud, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,19 +16,6 @@ import { WikiActiveEditors } from "@/components/wiki/collaboration/WikiActiveEdi
 import { SupabaseYjsProvider } from "@/components/wiki/collaboration/SupabaseYjsProvider";
 
 import { toast } from "sonner";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-
-// Local storage key for drafts
-const getDraftKey = (pageId: string) => `wiki-draft-${pageId}`;
 
 const WikiEditPage = () => {
   const { pageId } = useParams<{ pageId: string }>();
@@ -40,15 +27,13 @@ const WikiEditPage = () => {
   
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
-  const [showExitDialog, setShowExitDialog] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
-  const [draftSaveStatus, setDraftSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
-  const [showSavedIndicator, setShowSavedIndicator] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [showCommentsSidebar, setShowCommentsSidebar] = useState(false);
   const autosaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const draftSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const providerRef = useRef<SupabaseYjsProvider | null>(null);
+  // Track the last saved values to detect real changes
+  const lastSavedRef = useRef<{ title: string; content: string }>({ title: "", content: "" });
 
   // Collaboration hooks
   const { data: currentEmployee } = useCurrentEmployee();
@@ -95,108 +80,27 @@ const WikiEditPage = () => {
     enabled: !!pageId,
   });
 
-  // Initialize form values when page loads, check for draft
+  // Initialize form values when page loads
   useEffect(() => {
-    if (page && !hasInitialized && pageId) {
-      const draftKey = getDraftKey(pageId);
-      const savedDraft = localStorage.getItem(draftKey);
-      
-      if (savedDraft) {
-        try {
-          const draft = JSON.parse(savedDraft);
-          const draftTime = new Date(draft.savedAt).getTime();
-          const pageTime = new Date(page.updated_at).getTime();
-          
-          if (draftTime > pageTime) {
-            setEditTitle(draft.title || page.title);
-            setEditContent(draft.content || page.content || "");
-            toast.info("Draft restored", { description: "Your unsaved changes were recovered" });
-          } else {
-            setEditTitle(page.title);
-            setEditContent(page.content || "");
-            localStorage.removeItem(draftKey);
-          }
-        } catch {
-          setEditTitle(page.title);
-          setEditContent(page.content || "");
-        }
-      } else {
-        setEditTitle(page.title);
-        setEditContent(page.content || "");
-      }
+    if (page && !hasInitialized) {
+      setEditTitle(page.title);
+      setEditContent(page.content || "");
+      lastSavedRef.current = { title: page.title, content: page.content || "" };
       setHasInitialized(true);
     }
-  }, [page, hasInitialized, pageId]);
+  }, [page, hasInitialized]);
 
-  // Check for unsaved changes
-  const hasUnsavedChanges = hasInitialized && page && (
-    editTitle !== page.title || editContent !== (page.content || "")
-  );
+  // Auto-save to database with debounce
+  const saveToDatabase = useCallback(async (title: string, content: string) => {
+    if (!pageId || !currentEmployee?.id || !currentOrg?.id) return;
+    if (!title.trim()) return;
 
-  // Autosave to localStorage with debounce
-  useEffect(() => {
-    if (!hasInitialized || !pageId || !hasUnsavedChanges) return;
+    // Skip if nothing actually changed
+    if (title === lastSavedRef.current.title && content === lastSavedRef.current.content) return;
 
-    if (draftSaveTimeoutRef.current) {
-      clearTimeout(draftSaveTimeoutRef.current);
-    }
+    setSaveStatus("saving");
 
-    setDraftSaveStatus("saving");
-
-    draftSaveTimeoutRef.current = setTimeout(() => {
-      const draftKey = getDraftKey(pageId);
-      const draft = {
-        title: editTitle,
-        content: editContent,
-        savedAt: new Date().toISOString(),
-      };
-      localStorage.setItem(draftKey, JSON.stringify(draft));
-      setDraftSaveStatus("saved");
-      
-      setTimeout(() => setDraftSaveStatus("idle"), 3000);
-    }, 2000);
-
-    return () => {
-      if (draftSaveTimeoutRef.current) {
-        clearTimeout(draftSaveTimeoutRef.current);
-      }
-    };
-  }, [editTitle, editContent, hasInitialized, pageId, hasUnsavedChanges]);
-
-  // Handle browser beforeunload event
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges) {
-        e.preventDefault();
-        e.returnValue = '';
-        return '';
-      }
-    };
-
-    if (hasUnsavedChanges) {
-      window.addEventListener('beforeunload', handleBeforeUnload);
-    }
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, [hasUnsavedChanges]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
-      if (draftSaveTimeoutRef.current) clearTimeout(draftSaveTimeoutRef.current);
-    };
-  }, []);
-
-  // Save mutation
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      if (!pageId || !currentEmployee?.id || !currentOrg?.id) {
-        throw new Error("Not authenticated");
-      }
-
+    try {
       // Save current version to history
       const { data: currentPage } = await supabase
         .from("wiki_pages")
@@ -218,67 +122,69 @@ const WikiEditPage = () => {
       const { error } = await supabase
         .from("wiki_pages")
         .update({ 
-          title: editTitle.trim(), 
-          content: editContent, 
+          title: title.trim(), 
+          content, 
           updated_by: currentEmployee.id 
         })
         .eq("id", pageId);
       
       if (error) throw error;
-    },
-    onSuccess: () => {
-      if (pageId) {
-        localStorage.removeItem(getDraftKey(pageId));
-      }
+
+      lastSavedRef.current = { title, content };
+      setSaveStatus("saved");
       queryClient.invalidateQueries({ queryKey: ["wiki-page"] });
       queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
       queryClient.invalidateQueries({ queryKey: ["wiki-page-versions"] });
-      toast.success("Page saved");
-      setShowSavedIndicator(true);
-      setTimeout(() => setShowSavedIndicator(false), 2000);
-    },
-    onError: () => {
-      toast.error("Failed to save page");
-    },
-  });
 
-  const handleSave = async () => {
-    if (!editTitle.trim()) {
-      toast.error("Page title is required");
-      return;
+      setTimeout(() => setSaveStatus("idle"), 2000);
+    } catch (err) {
+      console.error("Auto-save failed:", err);
+      setSaveStatus("error");
+      toast.error("Auto-save failed. Your changes may not be saved.");
+      setTimeout(() => setSaveStatus("idle"), 4000);
     }
-    setIsSaving(true);
-    try {
-      await saveMutation.mutateAsync();
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  }, [pageId, currentEmployee?.id, currentOrg?.id, queryClient]);
 
-  const handleSaveAndClose = async () => {
-    if (!editTitle.trim()) {
-      toast.error("Page title is required");
-      return;
+  // Debounced auto-save trigger
+  useEffect(() => {
+    if (!hasInitialized) return;
+
+    // Clear previous timeout
+    if (autosaveTimeoutRef.current) {
+      clearTimeout(autosaveTimeoutRef.current);
     }
-    setIsSaving(true);
-    try {
-      await saveMutation.mutateAsync();
-      navigateOrg("/wiki");
-    } finally {
-      setIsSaving(false);
-    }
-  };
+
+    // Skip if nothing changed from last saved state
+    if (editTitle === lastSavedRef.current.title && editContent === lastSavedRef.current.content) return;
+
+    autosaveTimeoutRef.current = setTimeout(() => {
+      saveToDatabase(editTitle, editContent);
+    }, 1500);
+
+    return () => {
+      if (autosaveTimeoutRef.current) {
+        clearTimeout(autosaveTimeoutRef.current);
+      }
+    };
+  }, [editTitle, editContent, hasInitialized, saveToDatabase]);
+
+  // Save immediately on unmount if there are pending changes
+  useEffect(() => {
+    return () => {
+      if (autosaveTimeoutRef.current) {
+        clearTimeout(autosaveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleClose = () => {
-    if (hasUnsavedChanges) {
-      setShowExitDialog(true);
-    } else {
-      navigateOrg("/wiki");
+    // Flush any pending auto-save immediately
+    if (autosaveTimeoutRef.current) {
+      clearTimeout(autosaveTimeoutRef.current);
     }
-  };
-
-  const handleDiscardAndClose = () => {
-    setShowExitDialog(false);
+    if (editTitle !== lastSavedRef.current.title || editContent !== lastSavedRef.current.content) {
+      saveToDatabase(editTitle, editContent);
+    }
     navigateOrg("/wiki");
   };
 
@@ -331,32 +237,30 @@ const WikiEditPage = () => {
             />
           </div>
 
-          {/* Active editors + Draft status */}
+          {/* Active editors + Save status */}
           <div className="flex items-center gap-3">
-            {/* Active editors avatar stack */}
             <WikiActiveEditors
               provider={providerRef.current}
               currentClientId={undefined}
             />
 
-            {/* Draft status indicator */}
+            {/* Auto-save status indicator */}
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              {draftSaveStatus === "saving" && (
+              {saveStatus === "saving" && (
                 <span className="flex items-center gap-1">
                   <Cloud className="h-3.5 w-3.5 animate-pulse" />
-                  Saving draft...
+                  Saving...
                 </span>
               )}
-              {draftSaveStatus === "saved" && (
+              {saveStatus === "saved" && (
                 <span className="flex items-center gap-1 text-primary">
                   <Check className="h-3.5 w-3.5" />
-                  Draft saved
+                  Saved
                 </span>
               )}
-              {showSavedIndicator && (
-                <span className="flex items-center gap-1 text-primary font-medium">
-                  <Check className="h-3.5 w-3.5" />
-                  Saved!
+              {saveStatus === "error" && (
+                <span className="flex items-center gap-1 text-destructive">
+                  Save failed
                 </span>
               )}
             </div>
@@ -377,27 +281,9 @@ const WikiEditPage = () => {
               variant="outline" 
               size="sm" 
               onClick={handleClose}
-              disabled={isSaving}
             >
               <X className="h-4 w-4 mr-1.5" />
               Close
-            </Button>
-            <Button 
-              size="sm" 
-              onClick={handleSaveAndClose}
-              disabled={isSaving || !editTitle.trim()}
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4 mr-1.5" />
-                  Save & Close
-                </>
-              )}
             </Button>
           </div>
         </div>
@@ -421,29 +307,6 @@ const WikiEditPage = () => {
           />
         </div>
       </div>
-
-      {/* Unsaved Changes Dialog */}
-      <AlertDialog open={showExitDialog} onOpenChange={setShowExitDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
-            <AlertDialogDescription>
-              You have unsaved changes. Would you like to save them before closing?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2 sm:gap-0">
-            <AlertDialogCancel onClick={() => setShowExitDialog(false)}>
-              Cancel
-            </AlertDialogCancel>
-            <Button variant="outline" onClick={handleDiscardAndClose}>
-              Discard
-            </Button>
-            <AlertDialogAction onClick={handleSaveAndClose} disabled={isSaving}>
-              {isSaving ? "Saving..." : "Save & Close"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };
