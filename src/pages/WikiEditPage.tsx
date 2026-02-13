@@ -10,6 +10,10 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/hooks/useAuth";
 import { BlockNoteWikiEditor } from "@/components/wiki/BlockNoteWikiEditor";
+import { useCurrentEmployee } from "@/services/useCurrentEmployee";
+import { useCollaborationColor } from "@/components/wiki/collaboration/useCollaborationColor";
+import { WikiActiveEditors } from "@/components/wiki/collaboration/WikiActiveEditors";
+import { SupabaseYjsProvider } from "@/components/wiki/collaboration/SupabaseYjsProvider";
 
 import { toast } from "sonner";
 import {
@@ -43,6 +47,12 @@ const WikiEditPage = () => {
   const [showSavedIndicator, setShowSavedIndicator] = useState(false);
   const autosaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const draftSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const providerRef = useRef<SupabaseYjsProvider | null>(null);
+
+  // Collaboration hooks
+  const { data: currentEmployee } = useCurrentEmployee();
+  const collaborationColor = useCollaborationColor(currentEmployee?.id);
+  const userName = currentEmployee?.profiles?.full_name || "Anonymous";
 
   // Check page-level edit permission using can_edit_wiki_item RPC
   const { data: canEditPage, isLoading: permissionLoading } = useQuery({
@@ -84,21 +94,6 @@ const WikiEditPage = () => {
     enabled: !!pageId,
   });
 
-  // Get current employee
-  const { data: currentEmployee } = useQuery({
-    queryKey: ["current-employee"],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-      const { data } = await supabase
-        .from("employees")
-        .select("id")
-        .eq("user_id", user.id)
-        .single();
-      return data;
-    },
-  });
-
   // Initialize form values when page loads, check for draft
   useEffect(() => {
     if (page && !hasInitialized && pageId) {
@@ -111,7 +106,6 @@ const WikiEditPage = () => {
           const draftTime = new Date(draft.savedAt).getTime();
           const pageTime = new Date(page.updated_at).getTime();
           
-          // Use draft if it's newer than the server version
           if (draftTime > pageTime) {
             setEditTitle(draft.title || page.title);
             setEditContent(draft.content || page.content || "");
@@ -119,7 +113,6 @@ const WikiEditPage = () => {
           } else {
             setEditTitle(page.title);
             setEditContent(page.content || "");
-            // Clear outdated draft
             localStorage.removeItem(draftKey);
           }
         } catch {
@@ -143,14 +136,12 @@ const WikiEditPage = () => {
   useEffect(() => {
     if (!hasInitialized || !pageId || !hasUnsavedChanges) return;
 
-    // Clear previous timeout
     if (draftSaveTimeoutRef.current) {
       clearTimeout(draftSaveTimeoutRef.current);
     }
 
     setDraftSaveStatus("saving");
 
-    // Save draft after 2 seconds of inactivity
     draftSaveTimeoutRef.current = setTimeout(() => {
       const draftKey = getDraftKey(pageId);
       const draft = {
@@ -161,7 +152,6 @@ const WikiEditPage = () => {
       localStorage.setItem(draftKey, JSON.stringify(draft));
       setDraftSaveStatus("saved");
       
-      // Reset status after 3 seconds
       setTimeout(() => setDraftSaveStatus("idle"), 3000);
     }, 2000);
 
@@ -236,7 +226,6 @@ const WikiEditPage = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      // Clear draft on successful save
       if (pageId) {
         localStorage.removeItem(getDraftKey(pageId));
       }
@@ -244,7 +233,6 @@ const WikiEditPage = () => {
       queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
       queryClient.invalidateQueries({ queryKey: ["wiki-page-versions"] });
       toast.success("Page saved");
-      // Show saved indicator
       setShowSavedIndicator(true);
       setTimeout(() => setShowSavedIndicator(false), 2000);
     },
@@ -297,7 +285,12 @@ const WikiEditPage = () => {
     setEditContent(value);
   }, []);
 
-  // Redirect if user can't edit (only after all permission checks have loaded)
+  // Callback to capture provider from editor
+  const handleProviderReady = useCallback((p: SupabaseYjsProvider | null) => {
+    providerRef.current = p;
+  }, []);
+
+  // Redirect if user can't edit
   useEffect(() => {
     if (!isLoading && !roleLoading && !permissionLoading && !canEdit) {
       toast.error("You don't have permission to edit this page");
@@ -337,26 +330,35 @@ const WikiEditPage = () => {
             />
           </div>
 
-          {/* Draft status indicator */}
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            {draftSaveStatus === "saving" && (
-              <span className="flex items-center gap-1">
-                <Cloud className="h-3.5 w-3.5 animate-pulse" />
-                Saving draft...
-              </span>
-            )}
-            {draftSaveStatus === "saved" && (
-              <span className="flex items-center gap-1 text-primary">
-                <Check className="h-3.5 w-3.5" />
-                Draft saved
-              </span>
-            )}
-            {showSavedIndicator && (
-              <span className="flex items-center gap-1 text-primary font-medium">
-                <Check className="h-3.5 w-3.5" />
-                Saved!
-              </span>
-            )}
+          {/* Active editors + Draft status */}
+          <div className="flex items-center gap-3">
+            {/* Active editors avatar stack */}
+            <WikiActiveEditors
+              provider={providerRef.current}
+              currentClientId={undefined}
+            />
+
+            {/* Draft status indicator */}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              {draftSaveStatus === "saving" && (
+                <span className="flex items-center gap-1">
+                  <Cloud className="h-3.5 w-3.5 animate-pulse" />
+                  Saving draft...
+                </span>
+              )}
+              {draftSaveStatus === "saved" && (
+                <span className="flex items-center gap-1 text-primary">
+                  <Check className="h-3.5 w-3.5" />
+                  Draft saved
+                </span>
+              )}
+              {showSavedIndicator && (
+                <span className="flex items-center gap-1 text-primary font-medium">
+                  <Check className="h-3.5 w-3.5" />
+                  Saved!
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Actions */}
@@ -400,6 +402,9 @@ const WikiEditPage = () => {
             organizationId={currentOrg?.id}
             placeholder="Start writing or press '/' for commands..."
             minHeight="calc(100vh - 200px)"
+            pageId={pageId}
+            userName={userName}
+            userColor={collaborationColor}
           />
         </div>
       </div>

@@ -133,3 +133,36 @@
   font-size: 0.75rem;
   padding: 0.125rem 0.375rem;
 }
+
+/* Collaboration cursor styling */
+.collaboration-cursor__caret {
+  border-left: 2px solid;
+  position: relative;
+}
+
+.collaboration-cursor__label {
+  position: absolute;
+  top: -1.4em;
+  left: -1px;
+  font-size: 0.675rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem 0.25rem 0.25rem 0;
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+  color: white;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+/* Fade label after idle */
+.collaboration-cursor__label[data-idle="true"] {
+  opacity: 0;
+}
+
+/* Remote selection highlight */
+.ProseMirror .collaboration-cursor__selection {
+  opacity: 0.2;
+}
