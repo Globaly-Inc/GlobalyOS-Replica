@@ -274,58 +274,60 @@ export const BlockNoteWikiEditor = ({
   }, [editor]);
 
   return (
-    <div className={`${showCommentsSidebar && commentsEnabled ? 'flex gap-4' : ''}`} style={{ minHeight }}>
-      <div className={showCommentsSidebar && commentsEnabled ? 'flex-1 min-w-0' : ''}>
-        <BlockNoteView
-          editor={editor}
-          onChange={handleChange}
-          theme="light"
-          formattingToolbar={false}
-          slashMenu={false}
-          data-theming-css-variables-demo
-        >
-          {/* Custom formatting toolbar with AI + Comment buttons */}
-          <FormattingToolbarController
-            formattingToolbar={() => (
-              <div className="bn-toolbar bn-formatting-toolbar" role="toolbar">
-                {getFormattingToolbarItems()}
-                <AIToolbarButton />
-                {commentsEnabled && <AddCommentButton />}
-              </div>
+    <div style={{ minHeight }}>
+      <BlockNoteView
+        editor={editor}
+        onChange={handleChange}
+        theme="light"
+        formattingToolbar={false}
+        slashMenu={false}
+        data-theming-css-variables-demo
+      >
+        <div className={showCommentsSidebar && commentsEnabled ? 'flex gap-4' : ''}>
+          <div className={showCommentsSidebar && commentsEnabled ? 'flex-1 min-w-0' : ''}>
+            {/* Custom formatting toolbar with AI + Comment buttons */}
+            <FormattingToolbarController
+              formattingToolbar={() => (
+                <div className="bn-toolbar bn-formatting-toolbar" role="toolbar">
+                  {getFormattingToolbarItems()}
+                  <AIToolbarButton />
+                  {commentsEnabled && <AddCommentButton />}
+                </div>
+              )}
+            />
+
+            {/* Slash menu with AI items merged */}
+            <SuggestionMenuController
+              triggerCharacter="/"
+              getItems={async (query) => {
+                const defaultItems = getDefaultReactSlashMenuItems(editor);
+                const aiItems = getAISlashMenuItems(editor);
+                return [...aiItems, ...defaultItems].filter((item) =>
+                  item.title.toLowerCase().includes(query.toLowerCase()),
+                );
+              }}
+            />
+
+            {/* AI menu controller for the AI interaction panel */}
+            <AIMenuController />
+
+            {/* Comment floating controllers */}
+            {commentsEnabled && (
+              <>
+                <FloatingComposerController />
+                <FloatingThreadController />
+              </>
             )}
-          />
+          </div>
 
-          {/* Slash menu with AI items merged */}
-          <SuggestionMenuController
-            triggerCharacter="/"
-            getItems={async (query) => {
-              const defaultItems = getDefaultReactSlashMenuItems(editor);
-              const aiItems = getAISlashMenuItems(editor);
-              return [...aiItems, ...defaultItems].filter((item) =>
-                item.title.toLowerCase().includes(query.toLowerCase()),
-              );
-            }}
-          />
-
-          {/* AI menu controller for the AI interaction panel */}
-          <AIMenuController />
-
-          {/* Comment floating controllers */}
-          {commentsEnabled && (
-            <>
-              <FloatingComposerController />
-              <FloatingThreadController />
-            </>
+          {/* Comments sidebar panel - inside BlockNoteView for context access */}
+          {showCommentsSidebar && commentsEnabled && (
+            <div className="w-80 flex-shrink-0 border-l bg-card overflow-y-auto">
+              <ThreadsSidebar />
+            </div>
           )}
-        </BlockNoteView>
-      </div>
-
-      {/* Comments sidebar panel */}
-      {showCommentsSidebar && commentsEnabled && (
-        <div className="w-80 flex-shrink-0 border-l bg-card overflow-y-auto">
-          <ThreadsSidebar />
         </div>
-      )}
+      </BlockNoteView>
     </div>
   );
 };
