@@ -276,8 +276,8 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
                 <WikiMarkdownRenderer content={page.content} />
               )}
             </div>
-            {/* Table of Contents with toggle - only show on larger screens and non-BlockNote content */}
-            {!isBlockNoteJson(page.content) && (
+            {/* Table of Contents with toggle - show on larger screens for all content types */}
+            {(
               <div className={`hidden lg:block flex-shrink-0 transition-all duration-300 ${showToc ? 'w-64' : 'w-8'}`}>
                 <div className="sticky top-6 flex max-h-[calc(100vh-12rem)] overflow-y-auto">
                   <Button

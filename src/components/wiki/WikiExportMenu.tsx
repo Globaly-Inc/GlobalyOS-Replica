@@ -165,15 +165,74 @@ export const WikiExportMenu = ({
     toast.success("Exported as Markdown");
   };
 
+  // Convert BlockNote JSON to HTML for export
+  const blocksToHtml = (jsonContent: string): string => {
+    try {
+      const blocks = JSON.parse(jsonContent);
+      const convertBlock = (block: any): string => {
+        const inlineToHtml = (content: any[]): string => {
+          if (!Array.isArray(content)) return '';
+          return content.map((inline: any) => {
+            let t = typeof inline === 'string' ? inline : inline.text || '';
+            // Escape HTML
+            t = t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            if (inline.styles?.bold) t = `<strong>${t}</strong>`;
+            if (inline.styles?.italic) t = `<em>${t}</em>`;
+            if (inline.styles?.underline) t = `<u>${t}</u>`;
+            if (inline.styles?.strikethrough) t = `<s>${t}</s>`;
+            if (inline.styles?.code) t = `<code>${t}</code>`;
+            if (inline.type === 'link' && inline.href) {
+              t = `<a href="${inline.href}">${t}</a>`;
+            }
+            return t;
+          }).join('');
+        };
+        const text = block.content ? inlineToHtml(Array.isArray(block.content) ? block.content : []) : '';
+        const childrenHtml = block.children?.length
+          ? block.children.map(convertBlock).join('\n')
+          : '';
+        switch (block.type) {
+          case 'heading': {
+            const lvl = block.props?.level || 1;
+            return `<h${lvl}>${text}</h${lvl}>`;
+          }
+          case 'bulletListItem':
+            return `<ul><li>${text}${childrenHtml ? '\n' + childrenHtml : ''}</li></ul>`;
+          case 'numberedListItem':
+            return `<ol><li>${text}${childrenHtml ? '\n' + childrenHtml : ''}</li></ol>`;
+          case 'checkListItem':
+            return `<ul><li>${block.props?.checked ? '☑' : '☐'} ${text}</li></ul>`;
+          case 'codeBlock':
+            return `<pre><code>${text}</code></pre>`;
+          case 'image':
+            return `<figure><img src="${block.props?.url || ''}" alt="${block.props?.caption || ''}" style="max-width:100%"/>${block.props?.caption ? `<figcaption>${block.props.caption}</figcaption>` : ''}</figure>`;
+          case 'table': {
+            if (!block.content?.rows) return '';
+            const rows = block.content.rows.map((row: any, i: number) => {
+              const tag = i === 0 ? 'th' : 'td';
+              const cells = row.cells.map((cell: any) => `<${tag}>${Array.isArray(cell) ? cell.map((c: any) => c.text || '').join('') : ''}</${tag}>`).join('');
+              return `<tr>${cells}</tr>`;
+            }).join('');
+            return `<table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%">${rows}</table>`;
+          }
+          default:
+            return text ? `<p>${text}</p>` : (childrenHtml || '');
+        }
+      };
+      return blocks.map(convertBlock).filter(Boolean).join('\n');
+    } catch {
+      return `<pre>${jsonContent}</pre>`;
+    }
+  };
+
   // Export as HTML
   const handleExportHTML = () => {
     if (!pageContent) {
       toast.error("No content to export");
       return;
     }
-    // For BlockNote JSON, convert to plain text for HTML export
     const bodyContent = isBlockNoteJson(pageContent)
-      ? `<pre>${blocksToPlainText(pageContent)}</pre>`
+      ? blocksToHtml(pageContent)
       : pageContent;
     const html = `<!DOCTYPE html>
 <html lang="en">
@@ -231,7 +290,7 @@ export const WikiExportMenu = ({
         </head>
         <body>
           <h1>${pageTitle}</h1>
-          ${pageContent}
+          ${isBlockNoteJson(pageContent) ? blocksToHtml(pageContent) : pageContent}
         </body>
         </html>
       `);

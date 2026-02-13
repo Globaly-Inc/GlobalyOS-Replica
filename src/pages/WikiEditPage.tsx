@@ -10,6 +10,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/hooks/useAuth";
 import { BlockNoteWikiEditor } from "@/components/wiki/BlockNoteWikiEditor";
+import { WikiAIWritingAssist } from "@/components/wiki/WikiAIWritingAssist";
 
 import { toast } from "sonner";
 import {
@@ -297,7 +298,33 @@ const WikiEditPage = () => {
     setEditContent(value);
   }, []);
 
+  // Extract plain text from BlockNote JSON for AI assist
+  const getPlainTextForAI = useCallback((): string => {
+    if (!editContent) return '';
+    try {
+      const blocks = JSON.parse(editContent);
+      const extract = (block: any): string => {
+        let text = '';
+        if (Array.isArray(block.content)) {
+          text += block.content.map((i: any) => (typeof i === 'string' ? i : i.text || '')).join('');
+        }
+        if (block.children?.length) {
+          text += '\n' + block.children.map(extract).join('\n');
+        }
+        return text;
+      };
+      return blocks.map(extract).join('\n');
+    } catch {
+      return editContent;
+    }
+  }, [editContent]);
 
+  const handleAITextGenerated = useCallback((text: string) => {
+    // AI returns plain text/markdown - append it to the content as a new paragraph
+    // The user can then edit it in the BlockNote editor
+    toast.info("AI text generated. Paste it into the editor to use it.", { duration: 5000 });
+    navigator.clipboard.writeText(text);
+  }, []);
   // Redirect if user can't edit (only after all permission checks have loaded)
   useEffect(() => {
     if (!isLoading && !roleLoading && !permissionLoading && !canEdit) {
@@ -362,6 +389,12 @@ const WikiEditPage = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-2 ml-4">
+            <WikiAIWritingAssist
+              currentText={getPlainTextForAI()}
+              onTextGenerated={handleAITextGenerated}
+              context={`Wiki page titled: ${editTitle}`}
+              disabled={isSaving}
+            />
             <Button 
               variant="outline" 
               size="sm" 
