@@ -1,106 +1,116 @@
 
 
-## Real-time Collaboration for Wiki Editor
+## 1. Comments/Threads Support for Wiki Editor
 
-### Summary
-Add multiplayer editing to the Wiki so team members can see each other's cursors and edits in real-time, like Google Docs. When multiple people open the same wiki page for editing, they will see colored cursors with names and live text changes from their teammates.
+### What It Does
+Adds inline commenting directly on wiki page content. Team members can highlight text, leave comments, reply in threads, add emoji reactions, and resolve threads -- all using BlockNote's built-in `CommentsExtension`.
 
 ### How It Works
 
-The collaboration uses Yjs (an industry-standard CRDT library) synced through the existing backend real-time infrastructure. No external services are needed.
+Comments are stored inside the Yjs document itself using `YjsThreadStore`. This means:
+- Comments sync in real-time between all editors via the existing Supabase Realtime provider
+- Comments persist as part of the Yjs state (synced to peers and loaded on reconnect)
+- No new database tables are needed -- comment data lives in the Yjs document
 
+User resolution (names/avatars) queries the existing `employees` + `profiles` tables.
+
+### Changes
+
+**`src/components/wiki/BlockNoteWikiEditor.tsx`**
+- Import `CommentsExtension`, `YjsThreadStore`, `DefaultThreadStoreAuth` from `@blocknote/core/comments`
+- Import `FloatingComposerController`, `FloatingThreadController`, `ThreadsSidebar`, `AddCommentButton` from `@blocknote/react`
+- Create a `YjsThreadStore` backed by the same Yjs doc used for collaboration
+- Create a `resolveUsers` function that fetches employee profiles from the database
+- Add `CommentsExtension` to the editor's `extensions` array
+- Add `FloatingComposerController` and `FloatingThreadController` inside `BlockNoteView`
+- Add `AddCommentButton` to the formatting toolbar
+- Accept a new `userId` prop (the employee ID used as the comment author)
+- Accept a new `canComment` prop to control whether commenting is enabled
+- Optionally show a `ThreadsSidebar` toggled by a prop
+
+**`src/pages/WikiEditPage.tsx`**
+- Pass `userId` (employee ID) and `canComment={true}` to the editor
+- Add a toggle button in the header to show/hide the comments sidebar
+- Pass the sidebar visibility state to the editor
+
+---
+
+## 2. "Who Is Viewing" Presence Indicator on Wiki Read View
+
+### What It Does
+Shows small avatar bubbles on the wiki page read view (not edit) indicating which team members are currently viewing the same page. Uses Supabase Realtime Presence -- lightweight, no database writes.
+
+### How It Works
+
+When a user opens a wiki page in read mode, the component joins a Supabase Realtime Presence channel scoped to that page (`wiki-viewers-{pageId}`). It tracks who is viewing and shows their avatars in the page header. When the user navigates away or the component unmounts, they leave the channel.
+
+### Changes
+
+**New file: `src/components/wiki/collaboration/WikiPageViewers.tsx`**
+- A component that joins a Supabase Realtime Presence channel for the current page
+- Tracks other viewers and displays their avatars as an overlapping stack
+- Shows tooltip with names on hover
+- Excludes the current user from the display
+- Cleans up the channel on unmount
+
+**New file: `src/hooks/useWikiPagePresence.ts`**
+- A hook that manages the Supabase Realtime Presence channel for a wiki page
+- Accepts `pageId`, `userName`, `userAvatar`, `employeeId`
+- Returns a list of current viewers (excluding self)
+- Handles join/leave/sync events
+
+**`src/components/wiki/WikiContent.tsx`**
+- Import and render `WikiPageViewers` in the header area next to the Edit button
+- Pass the current page ID and user info
+- Add `currentEmployeeId` and user name/avatar from props or hooks
+
+**`src/pages/Wiki.tsx`**
+- Pass `currentEmployeeId` (already available) and employee profile info down to `WikiContent`
+
+---
+
+## Technical Details
+
+### Comments Architecture
 ```text
-User A editing page            User B editing page
-       |                              |
-  BlockNote Editor              BlockNote Editor
-  (Yjs Y.Doc)                  (Yjs Y.Doc)
-       |                              |
-       +--- Supabase Realtime --------+
-            Broadcast Channel
-            (wiki-collab-{pageId})
+BlockNote Editor
+  |-- CommentsExtension
+  |     |-- YjsThreadStore (stores threads in Yjs doc)
+  |     |-- resolveUsers (fetches from employees/profiles table)
+  |     |-- DefaultThreadStoreAuth (role-based: editor vs commenter)
+  |
+  |-- UI Components
+        |-- AddCommentButton (in formatting toolbar)
+        |-- FloatingComposerController (new comment popup)
+        |-- FloatingThreadController (thread view popup)
+        |-- ThreadsSidebar (optional sidebar panel)
 ```
 
-When a user types, the Yjs CRDT generates a small binary update, which is broadcast to all other users on the same page channel. Each user's editor applies the update locally -- conflict-free, no save needed for sync.
+### Presence Architecture
+```text
+Wiki Read View
+  |-- useWikiPagePresence hook
+  |     |-- supabase.channel(`wiki-viewers-{pageId}`)
+  |     |-- .on('presence', { event: 'sync' })
+  |     |-- .track({ employeeId, name, avatar })
+  |
+  |-- WikiPageViewers component
+        |-- Avatar stack showing current viewers
+        |-- Auto-cleanup on unmount
+```
 
-### What Users Will See
+### Files Summary
 
-- Colored cursors with teammate names when multiple editors are on the same page
-- Real-time text appearing as others type
-- An avatar stack in the header showing who is currently editing
-- Cursor labels that appear on activity and fade after idle
+| Action | File |
+|--------|------|
+| Modify | `src/components/wiki/BlockNoteWikiEditor.tsx` -- add CommentsExtension + UI |
+| Modify | `src/pages/WikiEditPage.tsx` -- pass userId, sidebar toggle |
+| Create | `src/components/wiki/collaboration/WikiPageViewers.tsx` -- viewer avatars |
+| Create | `src/hooks/useWikiPagePresence.ts` -- presence hook for read view |
+| Modify | `src/components/wiki/WikiContent.tsx` -- add WikiPageViewers |
+| Modify | `src/pages/Wiki.tsx` -- pass employee info to WikiContent |
+| Modify | `src/components/wiki/blocknote-styles.css` -- comment thread styling |
 
-### Implementation Steps
-
-#### 1. Install Dependencies
-- `yjs` -- the core CRDT library
-- `y-protocols` -- standard Yjs sync/awareness protocols (used internally)
-
-#### 2. Create Custom Supabase Yjs Provider
-Build a lightweight provider (`src/components/wiki/collaboration/SupabaseYjsProvider.ts`) that:
-- Creates a Supabase Realtime Broadcast channel per wiki page
-- Sends Yjs document updates as broadcast messages
-- Receives updates from other users and applies them to the local Y.Doc
-- Manages "awareness" (cursor positions, user name/color) via Supabase Realtime Presence
-- Handles initial document sync: the first editor to join loads content from the database into the Yjs doc; latecomers sync from peers via Yjs state vector exchange
-- Cleans up the channel on disconnect
-
-#### 3. Update `BlockNoteWikiEditor.tsx`
-- Accept new props: `pageId`, `userName`, `userColor`
-- Create a `Y.Doc` and the custom Supabase provider
-- Pass the `collaboration` option to `useCreateBlockNote` instead of `initialContent`:
-  ```text
-  collaboration: {
-    provider,
-    fragment: doc.getXmlFragment("document-store"),
-    user: { name, color },
-    showCursorLabels: "activity",
-  }
-  ```
-- When collaboration is active, `initialContent` is not used (Yjs doc is the source of truth)
-- On save, serialize the Yjs doc back to BlockNote JSON and persist to the database as before
-
-#### 4. Update `WikiEditPage.tsx`
-- Use `useCurrentEmployee` to get the current user's name and avatar
-- Generate a consistent user color from the employee ID (deterministic hash)
-- Pass `pageId`, `userName`, `userColor` to the editor
-- Add an "Active Editors" avatar stack in the header showing who else is editing
-- Track connected users via the provider's awareness state
-
-#### 5. Create Active Editors Component
-A small component (`WikiActiveEditors.tsx`) that:
-- Subscribes to the Yjs awareness state
-- Displays overlapping avatar circles for each connected user
-- Shows a tooltip with names on hover
-- Excludes the current user from the display
-
-#### 6. Handle Edge Cases
-- **Single user**: Works identically to current behavior (no sync overhead, Yjs doc is local-only until a peer joins)
-- **First user loads content**: When no peers are present, the provider loads existing content from the `initialContent` prop into the Yjs doc
-- **Save behavior**: Save button continues to work -- it reads the current Yjs doc state, serializes to JSON, and writes to the database
-- **Reconnection**: If a user loses connection, the provider reconnects and resyncs via state vector exchange
-- **Legacy HTML content**: Still handled via the existing HTML-to-blocks migration path before Yjs takes over
-
-### Files to Create
-
-| File | Purpose |
-|------|---------|
-| `src/components/wiki/collaboration/SupabaseYjsProvider.ts` | Custom Yjs provider using Supabase Realtime Broadcast + Presence |
-| `src/components/wiki/collaboration/useCollaborationColor.ts` | Hook to generate deterministic user colors from employee IDs |
-| `src/components/wiki/collaboration/WikiActiveEditors.tsx` | Avatar stack showing who is currently editing |
-
-### Files to Modify
-
-| File | Change |
-|------|--------|
-| `src/components/wiki/BlockNoteWikiEditor.tsx` | Add collaboration option with Yjs provider, handle initial content loading into Yjs doc |
-| `src/pages/WikiEditPage.tsx` | Pass user info and pageId to editor, add active editors display in header |
-| `src/components/wiki/blocknote-styles.css` | Style collaboration cursors and active editors |
-| `package.json` | Add `yjs` dependency |
-
-### Security Considerations
-
-- The Supabase Realtime channel is scoped per page ID; only authenticated users with edit permission can join
-- No document content is persisted through the realtime channel -- it is ephemeral broadcast only
-- The save-to-database flow remains unchanged and uses the existing RLS policies
-- Awareness data (cursor position, user name) is ephemeral and not stored
+### Dependencies
+No new packages needed. `CommentsExtension` and `YjsThreadStore` are already available in the installed `@blocknote/core` v0.46.2. `FloatingComposerController`, `FloatingThreadController`, `ThreadsSidebar` are in `@blocknote/react` v0.46.2. Supabase Realtime Presence is already used by the collaboration provider.
 
