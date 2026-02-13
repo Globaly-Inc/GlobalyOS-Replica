@@ -18,6 +18,7 @@ import { WikiEmptyState } from "./WikiEmptyState";
 import { WikiLoadingSkeleton } from "./WikiLoadingSkeleton";
 import { WikiExportMenu } from "./WikiExportMenu";
 import { WikiSharedAvatars, SharedMember, SharedGroup } from "./WikiSharedAvatars";
+import { WikiPageViewers } from "./collaboration/WikiPageViewers";
 
 
 interface WikiPage {
@@ -83,6 +84,9 @@ interface WikiContentProps {
   sharedMembers?: SharedMember[];
   sharedGroups?: SharedGroup[];
   onShareClick?: () => void;
+  // Presence props
+  currentEmployeeFullName?: string;
+  currentEmployeeAvatar?: string | null;
 }
 
 // Expose methods to parent via ref
@@ -105,6 +109,8 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
   sharedMembers = [],
   sharedGroups = [],
   onShareClick,
+  currentEmployeeFullName = 'Anonymous',
+  currentEmployeeAvatar = null,
 }, ref) => {
   const { navigateOrg } = useOrgNavigation();
   const isMobile = useIsMobile();
@@ -185,6 +191,13 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Who is viewing - presence indicator */}
+            <WikiPageViewers
+              pageId={page?.id}
+              employeeId={currentEmployeeId}
+              userName={currentEmployeeFullName}
+              userAvatar={currentEmployeeAvatar}
+            />
             {/* Shared avatars in header for mobile */}
             {isMobile && (sharedMembers.length > 0 || sharedGroups.length > 0) && (
               <WikiSharedAvatars
