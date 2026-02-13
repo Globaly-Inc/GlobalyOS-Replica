@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/hooks/useAuth";
-import { WikiRichEditor } from "@/components/wiki/WikiRichEditor";
+import { BlockNoteWikiEditor } from "@/components/wiki/BlockNoteWikiEditor";
 
 import { toast } from "sonner";
 import {
@@ -395,11 +395,11 @@ const WikiEditPage = () => {
       {/* Editor Content */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-4 py-6">
-          <WikiRichEditor
-            value={editContent}
+          <BlockNoteWikiEditor
+            initialContent={editContent}
             onChange={handleContentChange}
             organizationId={currentOrg?.id}
-            placeholder="Start writing your content..."
+            placeholder="Start writing or press '/' for commands..."
             minHeight="calc(100vh - 200px)"
           />
         </div>

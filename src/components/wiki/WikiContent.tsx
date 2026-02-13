@@ -8,6 +8,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useFormattedDate } from "@/hooks/useFormattedDate";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { WikiMarkdownRenderer } from "./WikiMarkdownRenderer";
+import { isBlockNoteJson } from "./BlockNoteWikiEditor";
+import { BlockNoteWikiReader } from "./BlockNoteWikiReader";
 import { WikiTableOfContents } from "./WikiTableOfContents";
 import { WikiVersionDiff } from "./WikiVersionDiff";
 import { WikiBreadcrumb } from "./WikiBreadcrumb";
@@ -268,25 +270,31 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
           <div className="flex gap-6 relative">
             {/* Main content */}
             <div className="flex-1 min-w-0 transition-all duration-300">
-              <WikiMarkdownRenderer content={page.content} />
+              {isBlockNoteJson(page.content) ? (
+                <BlockNoteWikiReader content={page.content} />
+              ) : (
+                <WikiMarkdownRenderer content={page.content} />
+              )}
             </div>
-            {/* Table of Contents with toggle - only show on larger screens */}
-            <div className={`hidden lg:block flex-shrink-0 transition-all duration-300 ${showToc ? 'w-64' : 'w-8'}`}>
-              <div className="sticky top-6 flex max-h-[calc(100vh-12rem)] overflow-y-auto">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowToc(!showToc)}
-                  className="h-8 w-8 p-0 flex-shrink-0 hover:bg-muted border-r"
-                  title={showToc ? "Hide Table of Contents" : "Show Table of Contents"}
-                >
-                  {showToc ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
-                </Button>
-                <div className={`transition-all duration-300 overflow-hidden ${showToc ? 'w-56 opacity-100 ml-2' : 'w-0 opacity-0'}`}>
-                  <WikiTableOfContents content={page.content} />
+            {/* Table of Contents with toggle - only show on larger screens and non-BlockNote content */}
+            {!isBlockNoteJson(page.content) && (
+              <div className={`hidden lg:block flex-shrink-0 transition-all duration-300 ${showToc ? 'w-64' : 'w-8'}`}>
+                <div className="sticky top-6 flex max-h-[calc(100vh-12rem)] overflow-y-auto">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowToc(!showToc)}
+                    className="h-8 w-8 p-0 flex-shrink-0 hover:bg-muted border-r"
+                    title={showToc ? "Hide Table of Contents" : "Show Table of Contents"}
+                  >
+                    {showToc ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+                  </Button>
+                  <div className={`transition-all duration-300 overflow-hidden ${showToc ? 'w-56 opacity-100 ml-2' : 'w-0 opacity-0'}`}>
+                    <WikiTableOfContents content={page.content} />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         ) : (
           <p className="text-muted-foreground italic">This page has no content yet.</p>

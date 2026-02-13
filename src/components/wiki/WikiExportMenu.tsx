@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { isBlockNoteJson } from "./BlockNoteWikiEditor";
 
 interface WikiExportMenuProps {
   pageTitle: string;
@@ -19,6 +20,73 @@ export const WikiExportMenu = ({
   pageContent,
   isMobile = false,
 }: WikiExportMenuProps) => {
+  // Convert BlockNote JSON to plain text (fallback export)
+  const blocksToPlainText = (jsonContent: string): string => {
+    try {
+      const blocks = JSON.parse(jsonContent);
+      const extractText = (block: any): string => {
+        let text = '';
+        if (block.content) {
+          if (Array.isArray(block.content)) {
+            text += block.content
+              .map((inline: any) => (typeof inline === 'string' ? inline : inline.text || ''))
+              .join('');
+          } else if (typeof block.content === 'string') {
+            text += block.content;
+          }
+        }
+        if (block.children && Array.isArray(block.children)) {
+          text += '\n' + block.children.map(extractText).join('\n');
+        }
+        return text;
+      };
+      return blocks.map(extractText).join('\n');
+    } catch {
+      return jsonContent;
+    }
+  };
+
+  // Convert BlockNote JSON to basic markdown
+  const blocksToMarkdown = (jsonContent: string): string => {
+    try {
+      const blocks = JSON.parse(jsonContent);
+      const convertBlock = (block: any): string => {
+        const inlineToText = (content: any[]): string => {
+          if (!Array.isArray(content)) return '';
+          return content.map((inline: any) => {
+            const t = typeof inline === 'string' ? inline : inline.text || '';
+            if (inline.styles?.bold) return `**${t}**`;
+            if (inline.styles?.italic) return `*${t}*`;
+            if (inline.styles?.code) return `\`${t}\``;
+            return t;
+          }).join('');
+        };
+        const text = block.content ? inlineToText(Array.isArray(block.content) ? block.content : []) : '';
+        switch (block.type) {
+          case 'heading':
+            return `${'#'.repeat(block.props?.level || 1)} ${text}`;
+          case 'bulletListItem':
+            return `- ${text}`;
+          case 'numberedListItem':
+            return `1. ${text}`;
+          case 'checkListItem':
+            return `- [${block.props?.checked ? 'x' : ' '}] ${text}`;
+          case 'codeBlock':
+            return `\`\`\`${block.props?.language || ''}\n${text}\n\`\`\``;
+          case 'image':
+            return `![${block.props?.caption || ''}](${block.props?.url || ''})`;
+          case 'table':
+            return '[Table]';
+          default:
+            return text;
+        }
+      };
+      return `# ${pageTitle}\n\n` + blocks.map(convertBlock).filter(Boolean).join('\n\n');
+    } catch {
+      return jsonContent;
+    }
+  };
+
   // Convert HTML to plain text
   const htmlToText = (html: string): string => {
     const doc = new DOMParser().parseFromString(html, "text/html");
@@ -89,7 +157,9 @@ export const WikiExportMenu = ({
       toast.error("No content to export");
       return;
     }
-    const markdown = htmlToMarkdown(pageContent);
+    const markdown = isBlockNoteJson(pageContent)
+      ? blocksToMarkdown(pageContent)
+      : htmlToMarkdown(pageContent);
     const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
     downloadFile(blob, `${pageTitle}.md`);
     toast.success("Exported as Markdown");
@@ -101,6 +171,10 @@ export const WikiExportMenu = ({
       toast.error("No content to export");
       return;
     }
+    // For BlockNote JSON, convert to plain text for HTML export
+    const bodyContent = isBlockNoteJson(pageContent)
+      ? `<pre>${blocksToPlainText(pageContent)}</pre>`
+      : pageContent;
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -121,7 +195,7 @@ export const WikiExportMenu = ({
 </head>
 <body>
   <h1>${pageTitle}</h1>
-  ${pageContent}
+  ${bodyContent}
 </body>
 </html>`;
     const blob = new Blob([html], { type: "text/html;charset=utf-8" });
