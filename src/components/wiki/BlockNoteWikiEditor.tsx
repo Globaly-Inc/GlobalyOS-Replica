@@ -1,7 +1,24 @@
 import { useEffect, useMemo, useCallback, useRef } from "react";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
-import { Block, PartialBlock } from "@blocknote/core";
+import {
+  FormattingToolbarController,
+  SuggestionMenuController,
+  getDefaultReactSlashMenuItems,
+  getFormattingToolbarItems,
+} from "@blocknote/react";
+import { PartialBlock } from "@blocknote/core";
+import { en } from "@blocknote/core/locales";
+import {
+  AIExtension,
+  AIMenuController,
+  AIToolbarButton,
+  getAISlashMenuItems,
+} from "@blocknote/xl-ai";
+import { en as aiEn } from "@blocknote/xl-ai/locales";
+import "@blocknote/xl-ai/style.css";
+import { DefaultChatTransport } from "ai";
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import "./blocknote-styles.css";
@@ -58,7 +75,7 @@ export const BlockNoteWikiEditor = ({
 
       return publicUrl;
     },
-    [organizationId]
+    [organizationId],
   );
 
   // Parse initial content
@@ -75,9 +92,35 @@ export const BlockNoteWikiEditor = ({
     return undefined;
   }, [initialContent]);
 
+  // Build the AI proxy URL using the Supabase functions endpoint
+  const aiProxyUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/blocknote-ai-proxy`;
+
   const editor = useCreateBlockNote({
     initialContent: parsedInitialContent,
     uploadFile,
+    dictionary: {
+      ...en,
+      ai: aiEn,
+    },
+    extensions: [
+      AIExtension({
+        transport: new DefaultChatTransport({
+          api: aiProxyUrl,
+          headers: async () => {
+            const { data } = await supabase.auth.getSession();
+            const token = data?.session?.access_token;
+            return {
+              Authorization: token ? `Bearer ${token}` : "",
+              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            };
+          },
+        }),
+        agentCursor: {
+          name: "AI Assistant",
+          color: "#8bc6ff",
+        },
+      }),
+    ],
   });
 
   // If initial content is legacy HTML, convert it after mount
@@ -111,8 +154,35 @@ export const BlockNoteWikiEditor = ({
         editor={editor}
         onChange={handleChange}
         theme="light"
+        formattingToolbar={false}
+        slashMenu={false}
         data-theming-css-variables-demo
-      />
+      >
+        {/* Custom formatting toolbar with AI button */}
+        <FormattingToolbarController
+          formattingToolbar={() => (
+            <div className="bn-toolbar bn-formatting-toolbar" role="toolbar">
+              {getFormattingToolbarItems()}
+              <AIToolbarButton />
+            </div>
+          )}
+        />
+
+        {/* Slash menu with AI items merged */}
+        <SuggestionMenuController
+          triggerCharacter="/"
+          getItems={async (query) => {
+            const defaultItems = getDefaultReactSlashMenuItems(editor);
+            const aiItems = getAISlashMenuItems(editor);
+            return [...aiItems, ...defaultItems].filter((item) =>
+              item.title.toLowerCase().includes(query.toLowerCase()),
+            );
+          }}
+        />
+
+        {/* AI menu controller for the AI interaction panel */}
+        <AIMenuController />
+      </BlockNoteView>
     </div>
   );
 };
