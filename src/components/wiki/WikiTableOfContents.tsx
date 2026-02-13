@@ -16,28 +16,48 @@ interface WikiTableOfContentsProps {
 export const WikiTableOfContents = ({ content, className }: WikiTableOfContentsProps) => {
   const tocItems = useMemo(() => {
     const items: TocItem[] = [];
+    let index = 0;
+
+    // Check if content is BlockNote JSON
+    const trimmed = content.trim();
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        const blocks = JSON.parse(content);
+        const extractHeadings = (blockList: any[]) => {
+          for (const block of blockList) {
+            if (block.type === 'heading') {
+              const level = block.props?.level || 1;
+              const text = Array.isArray(block.content)
+                ? block.content.map((inline: any) => (typeof inline === 'string' ? inline : inline.text || '')).join('')
+                : '';
+              if (text.trim()) {
+                items.push({ id: `heading-${index++}`, text: text.trim(), level });
+              }
+            }
+            if (block.children?.length) {
+              extractHeadings(block.children);
+            }
+          }
+        };
+        extractHeadings(blocks);
+        return items;
+      } catch {
+        // Fall through to HTML/markdown parsing
+      }
+    }
     
     // Match both markdown headings and HTML headings
     const markdownHeadingRegex = /^(#{1,6})\s+(.+)$/gm;
     const htmlHeadingRegex = /<h([1-6])[^>]*>([^<]+)<\/h[1-6]>/gi;
     
     let match;
-    let index = 0;
     
-    // Extract markdown headings
     while ((match = markdownHeadingRegex.exec(content)) !== null) {
-      const level = match[1].length;
-      const text = match[2].trim();
-      const id = `heading-${index++}`;
-      items.push({ id, text, level });
+      items.push({ id: `heading-${index++}`, text: match[2].trim(), level: match[1].length });
     }
     
-    // Extract HTML headings (for imported content)
     while ((match = htmlHeadingRegex.exec(content)) !== null) {
-      const level = parseInt(match[1]);
-      const text = match[2].trim();
-      const id = `heading-${index++}`;
-      items.push({ id, text, level });
+      items.push({ id: `heading-${index++}`, text: match[2].trim(), level: parseInt(match[1]) });
     }
     
     return items;
