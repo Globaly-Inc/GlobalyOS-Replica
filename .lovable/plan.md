@@ -1,111 +1,111 @@
 
 
-## Upgrade Wiki Editor to BlockNote.js (Block-Based Editor)
+## Integrate BlockNote's Native AI Features into GlobalyOS Wiki
 
 ### Summary
-Replace the current custom HTML `contenteditable`-based Wiki editor (2382-line WikiRichEditor.tsx) with **BlockNote.js** -- a modern, block-based rich text editor (the same library used by suitenumerique/docs). This brings slash commands, drag-and-drop blocks, a polished formatting toolbar, image/file blocks, and a foundation for AI writing assist and export features.
+Replace the current "copy to clipboard" AI approach with BlockNote's official `@blocknote/xl-ai` package. This gives users a native, inline AI experience: select text and click an AI button in the formatting toolbar, or type `/ai` in the slash menu to get AI-powered writing, rephrasing, summarizing, translation, and more -- all applied directly into the editor without clipboard workarounds.
 
-### Why BlockNote.js
-- It is the same editor powering suitenumerique/docs (16k GitHub stars)
-- Block-based architecture (like Notion): headings, paragraphs, lists, images, tables, code blocks are all draggable/nestable blocks
-- Built-in slash menu (`/` commands), formatting toolbar, drag handles
-- Clean React API with TypeScript support
-- Supports custom blocks (callouts, PDF embeds, etc.)
-- Built on ProseMirror/TipTap -- battle-tested
-- Future-ready for real-time collaboration (Yjs integration available)
+### What Changes
 
-### Phase 1: Core Editor Replacement (This Implementation)
+**Current state (broken)**:
+- A standalone "Write with AI" button in the header extracts plain text, sends it to an edge function, and copies the AI response to the clipboard
+- Users must manually paste AI output -- not a real integration
 
-#### 1. Install Dependencies
-Add the following npm packages:
-- `@blocknote/core` -- Core editor engine
-- `@blocknote/react` -- React hooks and components
-- `@blocknote/mantine` -- Pre-styled UI components (toolbar, menus, slash menu)
+**New state (native BlockNote AI)**:
+- AI button appears in the formatting toolbar when text is selected
+- `/ai` option appears in the slash menu
+- AI menu opens with pre-built commands (Rephrase, Summarize, Fix typos, Translate, Make shorter/longer)
+- Custom GlobalyOS commands (e.g., "Make Professional", "Simplify Language")
+- AI edits are applied directly into the document with accept/reject controls
+- Streaming responses show the AI writing in real-time with an agent cursor
 
-#### 2. Create New BlockNote Editor Component
-**New file**: `src/components/wiki/BlockNoteWikiEditor.tsx`
-- Wrapper component using `useCreateBlockNote` hook
-- `BlockNoteView` with Mantine theme for consistent UI
-- Props: `initialContent` (BlockNote JSON or HTML string), `onChange` callback, `editable` flag
-- Content storage: Store content as **BlockNote JSON** (array of blocks) in the database for lossless round-tripping. The existing `content` column (text) can hold JSON-stringified block data.
-- HTML conversion: Use BlockNote's built-in `blocksToHTMLLossy` for rendering in read-only views and exports
-- Image uploads: Integrate with existing wiki-attachments storage bucket via BlockNote's `uploadFile` callback
+### Architecture
 
-#### 3. Data Migration Strategy
-- **New pages**: Stored as BlockNote JSON in `wiki_pages.content`
-- **Existing pages**: Contain HTML. BlockNote can parse HTML into blocks via `tryParseHTMLToBlocks`. On first edit, the HTML is converted to blocks. On save, blocks are stored as JSON.
-- **Detection**: A simple heuristic -- if `content` starts with `[` it is JSON (blocks), otherwise it is legacy HTML
-- **Read-only view**: Legacy HTML pages render through the existing `WikiMarkdownRenderer`. New JSON pages render through `BlockNoteReader` (non-editable BlockNote view).
+The `@blocknote/xl-ai` package supports a `ClientSideTransport` with a proxy pattern. This is ideal for GlobalyOS because:
+1. We already have a Lovable AI gateway (OpenAI-compatible API)
+2. We create a lightweight proxy edge function that adds the API key and forwards requests
+3. The BlockNote AI SDK handles all the tool calling, document state, and streaming on the client
 
-#### 4. Update WikiEditPage (`src/pages/WikiEditPage.tsx`)
-- Replace `WikiRichEditor` import with `BlockNoteWikiEditor`
-- Convert initial page content (HTML or JSON) to BlockNote blocks on load
-- On save, serialize blocks to JSON string for storage
-- Keep existing draft save (localStorage), unsaved changes detection, and save/close flow
-- Remove old `WikiRichEditor` component reference
+```text
+User selects text -> BlockNote AI Extension
+    -> ClientSideTransport with fetchViaProxy
+    -> Edge Function (blocknote-ai-proxy)
+    -> Lovable AI Gateway (gemini-3-flash-preview)
+    -> Streaming response back to editor
+    -> AI writes directly into the document
+    -> User accepts or rejects changes
+```
 
-#### 5. Update WikiContent Read-Only View (`src/components/wiki/WikiContent.tsx`)
-- For JSON content: Use `BlockNoteReader` (read-only BlockNote view) instead of `WikiMarkdownRenderer`
-- For legacy HTML content: Continue using `WikiMarkdownRenderer` as fallback
-- Table of Contents: Extract headings from BlockNote blocks instead of parsing markdown/HTML
+### Implementation Steps
 
-#### 6. Built-in Features (come free with BlockNote)
-- **Slash menu** (`/`): Type `/` to see block types (heading, list, image, table, code, quote, etc.)
-- **Drag handles**: Every block has a drag handle for reordering
-- **Formatting toolbar**: Appears on text selection (bold, italic, underline, link, colors)
-- **Block nesting**: Indent/outdent for nested lists and content
-- **Image blocks**: Upload, resize, caption
-- **Table blocks**: Add/remove rows and columns
-- **Code blocks**: Syntax-highlighted code with language selection
+#### 1. Install `@blocknote/xl-ai` package
+- Add `@blocknote/xl-ai` to dependencies
+- Add `ai` and `@ai-sdk/openai-compatible` packages (required by BlockNote AI for transport)
 
-### Phase 2: Export Formats
+#### 2. Create Edge Function: `blocknote-ai-proxy`
+A new edge function that acts as a proxy between BlockNote AI and the Lovable AI Gateway:
+- Receives requests from the BlockNote `fetchViaProxy` transport
+- Authenticates the user (JWT verification)
+- Verifies organization membership
+- Checks AI feature limits (`check_feature_limit` RPC)
+- Forwards the request to the Lovable AI Gateway with `LOVABLE_API_KEY`
+- Streams the response back to the client
+- Logs usage to `ai_usage_logs` table
+- Handles 429/402 errors gracefully
 
-#### 7. Document Export (`src/components/wiki/WikiExportMenu.tsx`)
-Update the existing export menu to support:
-- **PDF**: Use BlockNote's HTML output + existing html2canvas/print approach
-- **DOCX**: Use BlockNote's built-in `blocksToDocx` (or HTML-to-DOCX conversion)
-- **Markdown**: Use BlockNote's `blocksToMarkdownLossy` for markdown export
-- Keep the existing export menu UI pattern
+#### 3. Update `BlockNoteWikiEditor.tsx`
+Major changes to integrate the AI extension:
+- Import `AIExtension`, `AIMenuController`, `AIToolbarButton`, `getAISlashMenuItems`, `ClientSideTransport`, `fetchViaProxy` from `@blocknote/xl-ai`
+- Import locales (`en` from `@blocknote/xl-ai/locales`)
+- Import AI stylesheet (`@blocknote/xl-ai/style.css`)
+- Register the `AIExtension` in `useCreateBlockNote` with:
+  - `ClientSideTransport` using `createOpenAICompatible` provider pointing to the proxy edge function
+  - Agent cursor config (`name: "AI Assistant"`, `color: "#8bc6ff"`)
+- Replace default `BlockNoteView` to disable built-in toolbar/slash menu and add custom ones with AI buttons:
+  - `FormattingToolbarController` with `AIToolbarButton` appended
+  - `SuggestionMenuController` with `getAISlashMenuItems` merged into default items
+  - `AIMenuController` for the AI interaction panel
 
-### Phase 3: AI Writing Assist
+#### 4. Add Custom AI Commands
+Create GlobalyOS-specific AI menu items:
+- "Make Professional" -- formal tone for documentation
+- "Simplify Language" -- plain language for wider audience
+- "Add Structure" -- convert paragraphs into headings/lists
+- "Translate to..." -- with language options
 
-#### 8. AI Block Actions
-- Add a custom formatting toolbar button "AI Assist" that appears on text selection
-- Actions: Rephrase, Summarize, Fix typos, Translate, Make shorter/longer
-- Uses existing Lovable AI (Gemini) integration pattern via edge function
-- Selected text is sent to AI, response replaces or inserts below the selection
-- Reuse the existing `WikiAIWritingAssist` pattern but adapted for BlockNote's API
+These use `editor.getExtension(AIExtension).invokeAI()` with custom prompts.
+
+#### 5. Clean Up Old AI Assist
+- Remove the `WikiAIWritingAssist` component from the `WikiEditPage.tsx` header (no longer needed)
+- Remove the `getPlainTextForAI` and `handleAITextGenerated` functions
+- The `WikiAIWritingAssist` component file itself stays (still used elsewhere)
+
+#### 6. Update Styles
+- Import `@blocknote/xl-ai/style.css` in the editor component
+- Add any custom CSS overrides to `blocknote-styles.css` for the AI menu to match GlobalyOS theme
 
 ### Files to Create
+
 | File | Purpose |
 |------|---------|
-| `src/components/wiki/BlockNoteWikiEditor.tsx` | Main editor component wrapping BlockNote |
-| `src/components/wiki/BlockNoteWikiReader.tsx` | Read-only renderer for JSON content |
-| `src/components/wiki/blocknote-styles.css` | Custom CSS overrides for BlockNote theme to match GlobalyOS |
+| `supabase/functions/blocknote-ai-proxy/index.ts` | Proxy edge function for BlockNote AI requests |
 
 ### Files to Modify
+
 | File | Change |
-|------|--------|
-| `src/pages/WikiEditPage.tsx` | Replace WikiRichEditor with BlockNoteWikiEditor |
-| `src/components/wiki/WikiContent.tsx` | Add JSON content detection, use BlockNoteWikiReader for new content |
-| `src/components/wiki/WikiTableOfContents.tsx` | Support extracting headings from BlockNote JSON |
-| `src/components/wiki/WikiExportMenu.tsx` | Update export logic for BlockNote content |
+|------|---------|
+| `src/components/wiki/BlockNoteWikiEditor.tsx` | Add AIExtension, custom toolbar with AI button, slash menu with AI items, AIMenuController |
+| `src/components/wiki/blocknote-styles.css` | AI menu styling overrides |
+| `src/pages/WikiEditPage.tsx` | Remove WikiAIWritingAssist from header, clean up clipboard logic |
+| `supabase/config.toml` | Add `blocknote-ai-proxy` function config |
 
-### Files to Keep (no changes needed)
-- `src/pages/Wiki.tsx` -- Folder/page management stays the same
-- `src/components/wiki/WikiSidebar.tsx` -- No changes
-- `src/components/wiki/WikiSearch.tsx` -- Search still works on content column
-- All wiki RLS policies and database structure -- No schema changes needed
+### Technical Details
 
-### Files to Deprecate (kept for legacy HTML rendering)
-- `src/components/wiki/WikiRichEditor.tsx` -- No longer used for editing, but kept temporarily
-- `src/components/wiki/editor/EditorToolbar.tsx` -- Part of old editor
+**Licensing**: `@blocknote/xl-ai` is open source under AGPL (copyleft). For closed-source commercial use, a Business subscription from BlockNote is required. This should be noted for production deployment.
 
-### Technical Considerations
-- **Bundle size**: BlockNote adds approximately 200-300KB gzipped. This is acceptable for a SaaS app and can be code-split (lazy loaded on the wiki route).
-- **Content column**: The existing `text` column in `wiki_pages.content` works for both HTML and JSON strings. No schema change needed.
-- **Backward compatibility**: Old HTML pages are still readable. They are converted to blocks on first edit.
-- **Performance**: BlockNote uses ProseMirror under the hood, which is highly optimized for large documents.
-- **Security**: BlockNote sanitizes content internally. No raw HTML injection risk.
-- **Mobile**: BlockNote has responsive support. The formatting toolbar adapts to mobile viewports.
+**Model**: Using `google/gemini-3-flash-preview` (the recommended default) for the best balance of speed and capability for inline editing tasks.
+
+**Security**: The proxy edge function validates JWT, checks organization membership, enforces feature limits, and never exposes the `LOVABLE_API_KEY` to the client. All requests are scoped per organization.
+
+**Usage Tracking**: AI usage is logged to `ai_usage_logs` with `query_type: "wiki_blocknote_ai"` for billing and analytics. Feature limits are checked via `check_feature_limit` RPC before proxying.
 
