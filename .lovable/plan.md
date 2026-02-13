@@ -1,111 +1,106 @@
 
 
-## Integrate BlockNote's Native AI Features into GlobalyOS Wiki
+## Real-time Collaboration for Wiki Editor
 
 ### Summary
-Replace the current "copy to clipboard" AI approach with BlockNote's official `@blocknote/xl-ai` package. This gives users a native, inline AI experience: select text and click an AI button in the formatting toolbar, or type `/ai` in the slash menu to get AI-powered writing, rephrasing, summarizing, translation, and more -- all applied directly into the editor without clipboard workarounds.
+Add multiplayer editing to the Wiki so team members can see each other's cursors and edits in real-time, like Google Docs. When multiple people open the same wiki page for editing, they will see colored cursors with names and live text changes from their teammates.
 
-### What Changes
+### How It Works
 
-**Current state (broken)**:
-- A standalone "Write with AI" button in the header extracts plain text, sends it to an edge function, and copies the AI response to the clipboard
-- Users must manually paste AI output -- not a real integration
-
-**New state (native BlockNote AI)**:
-- AI button appears in the formatting toolbar when text is selected
-- `/ai` option appears in the slash menu
-- AI menu opens with pre-built commands (Rephrase, Summarize, Fix typos, Translate, Make shorter/longer)
-- Custom GlobalyOS commands (e.g., "Make Professional", "Simplify Language")
-- AI edits are applied directly into the document with accept/reject controls
-- Streaming responses show the AI writing in real-time with an agent cursor
-
-### Architecture
-
-The `@blocknote/xl-ai` package supports a `ClientSideTransport` with a proxy pattern. This is ideal for GlobalyOS because:
-1. We already have a Lovable AI gateway (OpenAI-compatible API)
-2. We create a lightweight proxy edge function that adds the API key and forwards requests
-3. The BlockNote AI SDK handles all the tool calling, document state, and streaming on the client
+The collaboration uses Yjs (an industry-standard CRDT library) synced through the existing backend real-time infrastructure. No external services are needed.
 
 ```text
-User selects text -> BlockNote AI Extension
-    -> ClientSideTransport with fetchViaProxy
-    -> Edge Function (blocknote-ai-proxy)
-    -> Lovable AI Gateway (gemini-3-flash-preview)
-    -> Streaming response back to editor
-    -> AI writes directly into the document
-    -> User accepts or rejects changes
+User A editing page            User B editing page
+       |                              |
+  BlockNote Editor              BlockNote Editor
+  (Yjs Y.Doc)                  (Yjs Y.Doc)
+       |                              |
+       +--- Supabase Realtime --------+
+            Broadcast Channel
+            (wiki-collab-{pageId})
 ```
+
+When a user types, the Yjs CRDT generates a small binary update, which is broadcast to all other users on the same page channel. Each user's editor applies the update locally -- conflict-free, no save needed for sync.
+
+### What Users Will See
+
+- Colored cursors with teammate names when multiple editors are on the same page
+- Real-time text appearing as others type
+- An avatar stack in the header showing who is currently editing
+- Cursor labels that appear on activity and fade after idle
 
 ### Implementation Steps
 
-#### 1. Install `@blocknote/xl-ai` package
-- Add `@blocknote/xl-ai` to dependencies
-- Add `ai` and `@ai-sdk/openai-compatible` packages (required by BlockNote AI for transport)
+#### 1. Install Dependencies
+- `yjs` -- the core CRDT library
+- `y-protocols` -- standard Yjs sync/awareness protocols (used internally)
 
-#### 2. Create Edge Function: `blocknote-ai-proxy`
-A new edge function that acts as a proxy between BlockNote AI and the Lovable AI Gateway:
-- Receives requests from the BlockNote `fetchViaProxy` transport
-- Authenticates the user (JWT verification)
-- Verifies organization membership
-- Checks AI feature limits (`check_feature_limit` RPC)
-- Forwards the request to the Lovable AI Gateway with `LOVABLE_API_KEY`
-- Streams the response back to the client
-- Logs usage to `ai_usage_logs` table
-- Handles 429/402 errors gracefully
+#### 2. Create Custom Supabase Yjs Provider
+Build a lightweight provider (`src/components/wiki/collaboration/SupabaseYjsProvider.ts`) that:
+- Creates a Supabase Realtime Broadcast channel per wiki page
+- Sends Yjs document updates as broadcast messages
+- Receives updates from other users and applies them to the local Y.Doc
+- Manages "awareness" (cursor positions, user name/color) via Supabase Realtime Presence
+- Handles initial document sync: the first editor to join loads content from the database into the Yjs doc; latecomers sync from peers via Yjs state vector exchange
+- Cleans up the channel on disconnect
 
 #### 3. Update `BlockNoteWikiEditor.tsx`
-Major changes to integrate the AI extension:
-- Import `AIExtension`, `AIMenuController`, `AIToolbarButton`, `getAISlashMenuItems`, `ClientSideTransport`, `fetchViaProxy` from `@blocknote/xl-ai`
-- Import locales (`en` from `@blocknote/xl-ai/locales`)
-- Import AI stylesheet (`@blocknote/xl-ai/style.css`)
-- Register the `AIExtension` in `useCreateBlockNote` with:
-  - `ClientSideTransport` using `createOpenAICompatible` provider pointing to the proxy edge function
-  - Agent cursor config (`name: "AI Assistant"`, `color: "#8bc6ff"`)
-- Replace default `BlockNoteView` to disable built-in toolbar/slash menu and add custom ones with AI buttons:
-  - `FormattingToolbarController` with `AIToolbarButton` appended
-  - `SuggestionMenuController` with `getAISlashMenuItems` merged into default items
-  - `AIMenuController` for the AI interaction panel
+- Accept new props: `pageId`, `userName`, `userColor`
+- Create a `Y.Doc` and the custom Supabase provider
+- Pass the `collaboration` option to `useCreateBlockNote` instead of `initialContent`:
+  ```text
+  collaboration: {
+    provider,
+    fragment: doc.getXmlFragment("document-store"),
+    user: { name, color },
+    showCursorLabels: "activity",
+  }
+  ```
+- When collaboration is active, `initialContent` is not used (Yjs doc is the source of truth)
+- On save, serialize the Yjs doc back to BlockNote JSON and persist to the database as before
 
-#### 4. Add Custom AI Commands
-Create GlobalyOS-specific AI menu items:
-- "Make Professional" -- formal tone for documentation
-- "Simplify Language" -- plain language for wider audience
-- "Add Structure" -- convert paragraphs into headings/lists
-- "Translate to..." -- with language options
+#### 4. Update `WikiEditPage.tsx`
+- Use `useCurrentEmployee` to get the current user's name and avatar
+- Generate a consistent user color from the employee ID (deterministic hash)
+- Pass `pageId`, `userName`, `userColor` to the editor
+- Add an "Active Editors" avatar stack in the header showing who else is editing
+- Track connected users via the provider's awareness state
 
-These use `editor.getExtension(AIExtension).invokeAI()` with custom prompts.
+#### 5. Create Active Editors Component
+A small component (`WikiActiveEditors.tsx`) that:
+- Subscribes to the Yjs awareness state
+- Displays overlapping avatar circles for each connected user
+- Shows a tooltip with names on hover
+- Excludes the current user from the display
 
-#### 5. Clean Up Old AI Assist
-- Remove the `WikiAIWritingAssist` component from the `WikiEditPage.tsx` header (no longer needed)
-- Remove the `getPlainTextForAI` and `handleAITextGenerated` functions
-- The `WikiAIWritingAssist` component file itself stays (still used elsewhere)
-
-#### 6. Update Styles
-- Import `@blocknote/xl-ai/style.css` in the editor component
-- Add any custom CSS overrides to `blocknote-styles.css` for the AI menu to match GlobalyOS theme
+#### 6. Handle Edge Cases
+- **Single user**: Works identically to current behavior (no sync overhead, Yjs doc is local-only until a peer joins)
+- **First user loads content**: When no peers are present, the provider loads existing content from the `initialContent` prop into the Yjs doc
+- **Save behavior**: Save button continues to work -- it reads the current Yjs doc state, serializes to JSON, and writes to the database
+- **Reconnection**: If a user loses connection, the provider reconnects and resyncs via state vector exchange
+- **Legacy HTML content**: Still handled via the existing HTML-to-blocks migration path before Yjs takes over
 
 ### Files to Create
 
 | File | Purpose |
 |------|---------|
-| `supabase/functions/blocknote-ai-proxy/index.ts` | Proxy edge function for BlockNote AI requests |
+| `src/components/wiki/collaboration/SupabaseYjsProvider.ts` | Custom Yjs provider using Supabase Realtime Broadcast + Presence |
+| `src/components/wiki/collaboration/useCollaborationColor.ts` | Hook to generate deterministic user colors from employee IDs |
+| `src/components/wiki/collaboration/WikiActiveEditors.tsx` | Avatar stack showing who is currently editing |
 
 ### Files to Modify
 
 | File | Change |
-|------|---------|
-| `src/components/wiki/BlockNoteWikiEditor.tsx` | Add AIExtension, custom toolbar with AI button, slash menu with AI items, AIMenuController |
-| `src/components/wiki/blocknote-styles.css` | AI menu styling overrides |
-| `src/pages/WikiEditPage.tsx` | Remove WikiAIWritingAssist from header, clean up clipboard logic |
-| `supabase/config.toml` | Add `blocknote-ai-proxy` function config |
+|------|--------|
+| `src/components/wiki/BlockNoteWikiEditor.tsx` | Add collaboration option with Yjs provider, handle initial content loading into Yjs doc |
+| `src/pages/WikiEditPage.tsx` | Pass user info and pageId to editor, add active editors display in header |
+| `src/components/wiki/blocknote-styles.css` | Style collaboration cursors and active editors |
+| `package.json` | Add `yjs` dependency |
 
-### Technical Details
+### Security Considerations
 
-**Licensing**: `@blocknote/xl-ai` is open source under AGPL (copyleft). For closed-source commercial use, a Business subscription from BlockNote is required. This should be noted for production deployment.
-
-**Model**: Using `google/gemini-3-flash-preview` (the recommended default) for the best balance of speed and capability for inline editing tasks.
-
-**Security**: The proxy edge function validates JWT, checks organization membership, enforces feature limits, and never exposes the `LOVABLE_API_KEY` to the client. All requests are scoped per organization.
-
-**Usage Tracking**: AI usage is logged to `ai_usage_logs` with `query_type: "wiki_blocknote_ai"` for billing and analytics. Feature limits are checked via `check_feature_limit` RPC before proxying.
+- The Supabase Realtime channel is scoped per page ID; only authenticated users with edit permission can join
+- No document content is persisted through the realtime channel -- it is ephemeral broadcast only
+- The save-to-database flow remains unchanged and uses the existing RLS policies
+- Awareness data (cursor position, user name) is ephemeral and not stored
 
