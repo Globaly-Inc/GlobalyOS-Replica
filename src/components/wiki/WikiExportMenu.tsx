@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { isBlockNoteJson } from "./BlockNoteWikiEditor";
+import { isBlockNoteJson } from "./wikiContentUtils";
 
 interface WikiExportMenuProps {
   pageTitle: string;
