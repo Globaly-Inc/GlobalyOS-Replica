@@ -1,4 +1,4 @@
-import { useState, useImperativeHandle, forwardRef } from "react";
+import { useState, useImperativeHandle, forwardRef, lazy, Suspense } from "react";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { Pencil, Clock, User, History, PanelRightClose, PanelRightOpen, ArrowLeft, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,8 +8,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useFormattedDate } from "@/hooks/useFormattedDate";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { WikiMarkdownRenderer } from "./WikiMarkdownRenderer";
-import { isBlockNoteJson } from "./BlockNoteWikiEditor";
-import { BlockNoteWikiReader } from "./BlockNoteWikiReader";
+import { isBlockNoteJson } from "./wikiContentUtils";
+
+const BlockNoteWikiReader = lazy(() => import("./BlockNoteWikiReader").then(m => ({ default: m.BlockNoteWikiReader })));
 import { WikiTableOfContents } from "./WikiTableOfContents";
 import { WikiVersionDiff } from "./WikiVersionDiff";
 import { WikiBreadcrumb } from "./WikiBreadcrumb";
@@ -271,7 +272,9 @@ export const WikiContent = forwardRef<WikiContentHandle, WikiContentProps>(({
             {/* Main content */}
             <div className="flex-1 min-w-0 transition-all duration-300">
               {isBlockNoteJson(page.content) ? (
-                <BlockNoteWikiReader content={page.content} />
+                <Suspense fallback={<div className="animate-pulse h-32 bg-muted rounded" />}>
+                  <BlockNoteWikiReader content={page.content} />
+                </Suspense>
               ) : (
                 <WikiMarkdownRenderer content={page.content} />
               )}
