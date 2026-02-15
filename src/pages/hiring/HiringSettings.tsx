@@ -678,61 +678,6 @@ function ConfigurationSection() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Application Settings</CardTitle>
-          <CardDescription>
-            Configure how candidates apply to your jobs
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Auto-send application confirmation</Label>
-              <p className="text-sm text-muted-foreground">
-                Send an email when a candidate applies
-              </p>
-            </div>
-            <Switch
-              checked={config.auto_send_application_received}
-              onCheckedChange={(checked) => 
-                setConfig({ ...config, auto_send_application_received: checked })
-              }
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Require cover letter</Label>
-              <p className="text-sm text-muted-foreground">
-                Make cover letter mandatory for applications
-              </p>
-            </div>
-            <Switch
-              checked={config.require_cover_letter}
-              onCheckedChange={(checked) => 
-                setConfig({ ...config, require_cover_letter: checked })
-              }
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Allow internal applications</Label>
-              <p className="text-sm text-muted-foreground">
-                Let existing employees apply for open positions
-              </p>
-            </div>
-            <Switch
-              checked={config.allow_internal_applications}
-              onCheckedChange={(checked) => 
-                setConfig({ ...config, allow_internal_applications: checked })
-              }
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
           <CardTitle>Careers Page</CardTitle>
           <CardDescription>
             Customize your public careers page
