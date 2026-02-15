@@ -185,6 +185,9 @@ export default function JobsList({
                             </span>
                           </div>
                           <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-muted-foreground">
+                            <Badge className={getJobStatusColor(job.status)}>
+                              {getJobStatusLabel(job.status)}
+                            </Badge>
                             {departmentName && (
                               <span className="flex items-center gap-1">
                                 <Building className="h-3.5 w-3.5" />
@@ -201,9 +204,6 @@ export default function JobsList({
                               <Calendar className="h-3.5 w-3.5" />
                               {format(new Date(job.created_at), 'MMM d, yyyy')}
                           </span>
-                            <Badge className={getJobStatusColor(job.status)}>
-                              {getJobStatusLabel(job.status)}
-                            </Badge>
                             {job.employment_type && (
                               <Badge variant="outline">{job.employment_type}</Badge>
                             )}
