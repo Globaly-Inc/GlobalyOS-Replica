@@ -44,17 +44,6 @@ export default function AssignmentSubmission() {
   const isOverdue = assignment?.deadline ? isPast(new Date(assignment.deadline)) : false;
   const isSubmitted = assignment?.status === 'submitted' || assignment?.status === 'reviewed';
 
-  const handleTextAnswerChange = (question: string, answer: string) => {
-    setSubmissionData(prev => {
-      const existing = prev.text_answers.findIndex(a => a.question === question);
-      if (existing >= 0) {
-        const updated = [...prev.text_answers];
-        updated[existing] = { question, answer };
-        return { ...prev, text_answers: updated };
-      }
-      return { ...prev, text_answers: [...prev.text_answers, { question, answer }] };
-    });
-  };
 
   const handleUrlChange = (label: string, url: string) => {
     setSubmissionData(prev => {
@@ -192,18 +181,6 @@ export default function AssignmentSubmission() {
                   <CardTitle className="text-lg">Your Submission</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {/* Text Questions */}
-                  {assignment?.expected_deliverables?.text_questions?.map((question, idx) => (
-                    <div key={idx} className="space-y-2">
-                      <Label>{question}</Label>
-                      <Textarea
-                        rows={4}
-                        placeholder="Your answer..."
-                        onChange={(e) => handleTextAnswerChange(question, e.target.value)}
-                      />
-                    </div>
-                  ))}
-
                   {/* URL Fields */}
                   {assignment?.expected_deliverables?.url_fields?.map((label, idx) => (
                     <div key={idx} className="space-y-2">

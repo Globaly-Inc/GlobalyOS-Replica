@@ -366,7 +366,6 @@ function AssignmentTemplatesSection() {
     position_ids: [] as string[],
     expected_deliverables: {
       files: false,
-      text_questions: [] as string[],
       url_fields: [] as string[],
     },
   });
@@ -382,7 +381,6 @@ function AssignmentTemplatesSection() {
       position_ids: template.position_ids || [],
       expected_deliverables: template.expected_deliverables || {
         files: false,
-        text_questions: [],
         url_fields: [],
       },
     });
@@ -401,7 +399,6 @@ function AssignmentTemplatesSection() {
       position_ids: [],
       expected_deliverables: {
         files: false,
-        text_questions: [],
         url_fields: [],
       },
     });
@@ -550,21 +547,6 @@ function AssignmentTemplatesSection() {
                         }
                       })}
                       placeholder="e.g., GitHub Repo, Live Demo"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Text Questions (one per line)</Label>
-                    <Textarea
-                      value={formData.expected_deliverables.text_questions.join('\n')}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        expected_deliverables: {
-                          ...formData.expected_deliverables,
-                          text_questions: e.target.value.split('\n').filter(Boolean)
-                        }
-                      })}
-                      rows={3}
-                      placeholder="What was your approach?&#10;What challenges did you face?"
                     />
                   </div>
                 </div>

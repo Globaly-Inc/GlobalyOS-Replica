@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ClipboardList, Clock, FileUp, Link2, MessageSquare } from 'lucide-react';
+import { ClipboardList, Clock, FileUp, Link2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -23,10 +23,6 @@ const getDeliverablesSummary = (deliverables: any) => {
   const urlFields = deliverables.url_fields;
   if (Array.isArray(urlFields) && urlFields.length > 0) {
     items.push({ icon: Link2, label: urlFields.length > 1 ? `${urlFields.length} URLs` : '1 URL' });
-  }
-  const textQuestions = deliverables.text_questions;
-  if (Array.isArray(textQuestions) && textQuestions.length > 0) {
-    items.push({ icon: MessageSquare, label: textQuestions.length > 1 ? `${textQuestions.length} Questions` : '1 Question' });
   }
   return items;
 };
