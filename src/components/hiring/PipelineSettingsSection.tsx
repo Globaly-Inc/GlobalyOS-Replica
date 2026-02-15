@@ -29,7 +29,6 @@ import {
   APPLICATION_STAGE_COLORS,
   type ApplicationStage,
 } from '@/types/hiring';
-import { useAssignmentTemplates } from '@/services/useHiring';
 import { useOrganization } from '@/hooks/useOrganization';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -98,7 +97,6 @@ export function PipelineSettingsSection() {
   const queryClient = useQueryClient();
 
   const { data: existingRules, isLoading: rulesLoading } = usePipelineStageRules(orgId);
-  const { data: templates } = useAssignmentTemplates();
   const { data: employees } = useOrgEmployees(orgId);
 
   const [stageRules, setStageRules] = useState<Record<string, StageRule>>({});
@@ -247,37 +245,6 @@ export function PipelineSettingsSection() {
 
                     {rule.is_active && (
                       <>
-                        {/* Auto Assignment */}
-                        <div className="space-y-2 pl-6 border-l-2 border-muted ml-2">
-                          <div className="flex items-center gap-2">
-                            <Zap className="h-3.5 w-3.5 text-muted-foreground" />
-                            <Label className="text-sm">Auto-Assign Assignment Template</Label>
-                          </div>
-                          <Select
-                            value={rule.auto_assignment_template_id || 'none'}
-                            onValueChange={(v) =>
-                              updateRule(stage, {
-                                auto_assignment_template_id: v === 'none' ? null : v,
-                              })
-                            }
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="No auto-assignment" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">No auto-assignment</SelectItem>
-                              {templates?.map((t: any) => (
-                                <SelectItem key={t.id} value={t.id}>
-                                  {t.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <p className="text-xs text-muted-foreground">
-                            Automatically send this assignment when a candidate enters this stage
-                          </p>
-                        </div>
-
                         {/* Auto-Reject Rules */}
                         <div className="space-y-3 pl-6 border-l-2 border-muted ml-2">
                           <div className="flex items-center gap-2">
