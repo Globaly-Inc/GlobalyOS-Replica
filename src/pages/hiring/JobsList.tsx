@@ -204,24 +204,20 @@ export default function JobsList({
                               <Calendar className="h-3.5 w-3.5" />
                               {format(new Date(job.created_at), 'MMM d, yyyy')}
                           </span>
+                            {(job as any).application_close_date && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3.5 w-3.5" />
+                                Closes {new Date((job as any).application_close_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                {(job as any).auto_close_on_deadline && (
+                                  <Badge variant="outline" className="ml-1 text-xs py-0 px-1.5">Auto</Badge>
+                                )}
+                              </span>
+                            )}
                             {job.employment_type && (
                               <Badge variant="outline">{job.employment_type}</Badge>
                             )}
                             {job.work_model && (
                               <Badge variant="outline">{job.work_model}</Badge>
-                            )}
-                            {(job as any).auto_close_on_deadline && (job as any).application_close_date && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Badge variant="outline" className="flex items-center gap-1 text-xs">
-                                    <Clock className="h-3 w-3" />
-                                    Auto-close
-                                  </Badge>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  Will auto-close on {new Date((job as any).application_close_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                </TooltipContent>
-                              </Tooltip>
                             )}
                           </div>
                         </div>
