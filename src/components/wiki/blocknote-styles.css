@@ -135,26 +135,40 @@
 }
 
 /* Collaboration cursor styling */
+.bn-collaboration-cursor__base {
+  position: relative;
+  display: inline;
+  overflow: visible !important;
+}
+
 .bn-collaboration-cursor__caret {
   border-left: 3px solid !important;
+  border-color: currentColor;
   position: relative;
+  display: inline;
+  overflow: visible !important;
+  word-break: normal;
+  margin-left: -1px;
+  margin-right: -1px;
 }
 
 .bn-collaboration-cursor__label {
   position: absolute;
-  top: -1.4em;
+  top: -1.6em;
   left: -1px;
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1;
-  padding: 0.125rem 0.5rem;
-  border-radius: 0.25rem 0.25rem 0.25rem 0;
+  padding: 2px 6px;
+  border-radius: 4px 4px 4px 0;
   white-space: nowrap;
   user-select: none;
   pointer-events: none;
   opacity: 1 !important;
-  display: inline !important;
+  display: block !important;
   visibility: visible !important;
+  z-index: 50;
+  overflow: visible !important;
 }
 
 /* Remote selection highlight */
