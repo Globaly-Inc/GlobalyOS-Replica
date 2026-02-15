@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useCallback, useRef } from "react";
+import { X, MessageSquareText } from "lucide-react";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import {
@@ -53,6 +54,7 @@ interface BlockNoteWikiEditorProps {
   userId?: string; // employee ID for comment authoring
   canComment?: boolean;
   showCommentsSidebar?: boolean;
+  onCloseSidebar?: () => void;
 }
 
 export const BlockNoteWikiEditor = ({
@@ -67,6 +69,7 @@ export const BlockNoteWikiEditor = ({
   userId,
   canComment = false,
   showCommentsSidebar = false,
+  onCloseSidebar,
 }: BlockNoteWikiEditorProps) => {
   const hasLoadedHtml = useRef(false);
   const onChangeRef = useRef(onChange);
@@ -330,8 +333,10 @@ export const BlockNoteWikiEditor = ({
     onChangeRef.current(json);
   }, [editor]);
 
+  const sidebarOpen = showCommentsSidebar && commentsEnabled;
+
   return (
-    <div style={{ minHeight }}>
+    <div style={{ minHeight }} className="relative">
       <BlockNoteView
         editor={editor}
         onChange={handleChange}
@@ -341,8 +346,8 @@ export const BlockNoteWikiEditor = ({
         data-theming-css-variables-demo
       >
         <CommentsAlwaysShowActions mentionUsers={mentionUsers}>
-          <div className={showCommentsSidebar && commentsEnabled ? 'flex gap-4' : ''}>
-            <div className={showCommentsSidebar && commentsEnabled ? 'flex-1 min-w-0' : ''}>
+          <div className="flex h-full">
+            <div className="flex-1 min-w-0">
               {/* Custom formatting toolbar with AI + Comment buttons */}
               <FormattingToolbarController
                 floatingUIOptions={{
@@ -373,15 +378,29 @@ export const BlockNoteWikiEditor = ({
 
               {/* AI menu controller for the AI interaction panel */}
               <AIMenuController />
-
             </div>
 
-            {/* Comments sidebar panel - inside BlockNoteView for context access */}
-            {showCommentsSidebar && commentsEnabled && (
-              <div className="w-80 flex-shrink-0 border-l bg-card overflow-y-auto">
-                <ThreadsSidebar />
+            {/* Comments sidebar panel */}
+            <div
+              className={`wiki-comments-sidebar ${sidebarOpen ? 'wiki-comments-sidebar--open' : ''}`}
+            >
+              <div className="wiki-comments-sidebar__header">
+                <div className="flex items-center gap-2">
+                  <MessageSquareText className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-semibold text-sm">Comments</span>
+                </div>
+                <button
+                  onClick={onCloseSidebar}
+                  className="p-1 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                  aria-label="Close comments"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-            )}
+              <div className="wiki-comments-sidebar__body">
+                {sidebarOpen && <ThreadsSidebar />}
+              </div>
+            </div>
           </div>
         </CommentsAlwaysShowActions>
       </BlockNoteView>
