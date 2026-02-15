@@ -1,32 +1,15 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { OrgLink } from '@/components/OrgLink';
 import { useUpdateApplicationStage } from '@/services/useHiringMutations';
 import { 
   ApplicationStage, 
   APPLICATION_STAGE_LABELS,
+  APPLICATION_STAGE_COLORS,
   CandidateApplicationWithRelations,
   JobStage 
 } from '@/types/hiring';
-import { 
-  User, 
-  MoreHorizontal,
-  Mail,
-  FileText,
-  Calendar,
-  GripVertical
-} from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
@@ -47,44 +30,55 @@ const DEFAULT_STAGES: ApplicationStage[] = [
   'hired',
 ];
 
-const STAGE_COLORS: Record<ApplicationStage, string> = {
-  applied: 'bg-slate-100 border-slate-300 dark:bg-slate-900 dark:border-slate-700',
-  screening: 'bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800',
-  assignment: 'bg-purple-50 border-purple-200 dark:bg-purple-950 dark:border-purple-800',
-  interview_1: 'bg-amber-50 border-amber-200 dark:bg-amber-950 dark:border-amber-800',
-  interview_2: 'bg-orange-50 border-orange-200 dark:bg-orange-950 dark:border-orange-800',
-  interview_3: 'bg-pink-50 border-pink-200 dark:bg-pink-950 dark:border-pink-800',
-  offer: 'bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800',
-  hired: 'bg-emerald-50 border-emerald-300 dark:bg-emerald-950 dark:border-emerald-700',
-  rejected: 'bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800',
-};
-
 export function HiringKanbanBoard({ jobId, applications, stages }: HiringKanbanBoardProps) {
   const updateStage = useUpdateApplicationStage();
   const [draggedApp, setDraggedApp] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
 
-  // Use custom stages if defined, otherwise use defaults
   const displayStages = stages.length > 0 
     ? stages.map(s => s.stage_key)
     : DEFAULT_STAGES;
+
+  // Default selected stage: first stage with candidates, or 'applied'
+  const firstWithCandidates = displayStages.find(
+    s => applications.some(a => a.stage === s)
+  );
+  const [selectedStage, setSelectedStage] = useState<ApplicationStage>(
+    (firstWithCandidates as ApplicationStage) || 'applied'
+  );
 
   const applicationsByStage = displayStages.reduce((acc, stage) => {
     acc[stage] = applications.filter(app => app.stage === stage);
     return acc;
   }, {} as Record<string, CandidateApplicationWithRelations[]>);
 
+  const selectedApplications = applicationsByStage[selectedStage] || [];
+
+  // Drag handlers for candidate cards
   const handleDragStart = (e: React.DragEvent, applicationId: string) => {
     setDraggedApp(applicationId);
     e.dataTransfer.effectAllowed = 'move';
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+  const handleDragEnd = () => {
+    setDraggedApp(null);
+    setDropTarget(null);
   };
 
-  const handleDrop = async (e: React.DragEvent, newStage: ApplicationStage) => {
+  // Drop handlers for stage sidebar rows
+  const handleStageDragOver = (e: React.DragEvent, stage: string) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDropTarget(stage);
+  };
+
+  const handleStageDragLeave = () => {
+    setDropTarget(null);
+  };
+
+  const handleStageDrop = async (e: React.DragEvent, newStage: ApplicationStage) => {
+    e.preventDefault();
+    setDropTarget(null);
     if (!draggedApp) return;
 
     const application = applications.find(a => a.id === draggedApp);
@@ -99,160 +93,99 @@ export function HiringKanbanBoard({ jobId, applications, stages }: HiringKanbanB
         stage: newStage,
       });
       toast.success(`Moved to ${APPLICATION_STAGE_LABELS[newStage]}`);
+      setSelectedStage(newStage);
     } catch (error) {
       toast.error('Failed to update stage');
     }
     setDraggedApp(null);
   };
 
-  const handleDragEnd = () => {
-    setDraggedApp(null);
-  };
-
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
   return (
-    <ScrollArea className="w-full whitespace-nowrap">
-      <div className="flex gap-4 pb-4">
-        {displayStages.map((stage) => (
-          <div
-            key={stage}
-            className={`flex-shrink-0 w-72 rounded-lg border-2 ${STAGE_COLORS[stage] || 'bg-muted'}`}
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, stage)}
-          >
-            {/* Column Header */}
-            <div className="p-3 border-b">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-sm">
-                  {APPLICATION_STAGE_LABELS[stage] || stage}
-                </h3>
-                <Badge variant="secondary" className="text-xs">
-                  {applicationsByStage[stage]?.length || 0}
-                </Badge>
-              </div>
+    <div className="flex flex-col md:flex-row gap-4">
+      {/* Left Panel: Stage Sidebar */}
+      <div className="md:w-56 shrink-0 space-y-1">
+        {displayStages.map((stage) => {
+          const count = applicationsByStage[stage]?.length || 0;
+          const isActive = selectedStage === stage;
+          const isDropHover = dropTarget === stage;
+          const borderColor = APPLICATION_STAGE_COLORS[stage] || 'hsl(var(--border))';
+
+          return (
+            <div
+              key={stage}
+              className={`
+                flex items-center justify-between px-3 py-2.5 rounded-md cursor-pointer
+                border-l-[3px] transition-all text-sm
+                ${isActive ? 'bg-muted font-medium' : 'hover:bg-muted/50'}
+                ${isDropHover && draggedApp ? 'ring-2 ring-primary ring-inset bg-primary/5' : ''}
+              `}
+              style={{ borderLeftColor: borderColor }}
+              onClick={() => setSelectedStage(stage as ApplicationStage)}
+              onDragOver={(e) => handleStageDragOver(e, stage)}
+              onDragLeave={handleStageDragLeave}
+              onDrop={(e) => handleStageDrop(e, stage as ApplicationStage)}
+            >
+              <span className="truncate">{APPLICATION_STAGE_LABELS[stage] || stage}</span>
+              <Badge variant="secondary" className="text-xs ml-2 shrink-0">
+                {count}
+              </Badge>
             </div>
-
-            {/* Cards */}
-            <div className="p-2 space-y-2 min-h-[200px]">
-              {applicationsByStage[stage]?.map((app) => {
-                const candidateName = app.candidate?.name || 'Unknown';
-                const candidateEmail = app.candidate?.email || '';
-                const avatarUrl = app.candidate?.avatar_url;
-                
-                return (
-                  <Card
-                    key={app.id}
-                    className={`cursor-grab active:cursor-grabbing transition-all ${
-                      draggedApp === app.id ? 'opacity-50 scale-95' : 'hover:shadow-md'
-                    }`}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, app.id)}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <CardContent className="p-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Avatar className="h-8 w-8 flex-shrink-0">
-                            <AvatarImage src={avatarUrl || undefined} />
-                            <AvatarFallback className="text-xs">
-                              {getInitials(candidateName)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <OrgLink
-                              to={`/hiring/applications/${app.id}`}
-                              className="font-medium text-sm hover:text-primary truncate block"
-                            >
-                              {candidateName}
-                            </OrgLink>
-                            <p className="text-xs text-muted-foreground truncate">
-                              {candidateEmail}
-                            </p>
-                          </div>
-                        </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0">
-                              <MoreHorizontal className="h-3 w-3" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                              <OrgLink to={`/hiring/applications/${app.id}`}>
-                                <User className="h-4 w-4 mr-2" />
-                                View Application
-                              </OrgLink>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Mail className="h-4 w-4 mr-2" />
-                              Send Email
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <FileText className="h-4 w-4 mr-2" />
-                              Assign Task
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Calendar className="h-4 w-4 mr-2" />
-                              Schedule Interview
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              className="text-destructive"
-                              onClick={() => {
-                                updateStage.mutate({
-                                  applicationId: app.id,
-                                  stage: 'rejected',
-                                });
-                              }}
-                            >
-                              Reject Candidate
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-
-                      {/* Badges */}
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {app.is_internal && (
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                            Internal
-                          </Badge>
-                        )}
-                        {app.rating && (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                            ★ {app.rating}
-                          </Badge>
-                        )}
-                      </div>
-
-                      {/* Date */}
-                      <p className="text-[10px] text-muted-foreground mt-2">
-                        Applied {format(new Date(app.created_at), 'MMM d')}
-                      </p>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-
-              {/* Empty state */}
-              {(!applicationsByStage[stage] || applicationsByStage[stage].length === 0) && (
-                <div className="flex items-center justify-center h-24 text-xs text-muted-foreground">
-                  Drop candidates here
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
-      <ScrollBar orientation="horizontal" />
-    </ScrollArea>
+
+      {/* Right Panel: Candidate Grid */}
+      <div className="flex-1 min-w-0">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="font-semibold text-sm text-muted-foreground">
+            {APPLICATION_STAGE_LABELS[selectedStage] || selectedStage} — {selectedApplications.length} candidate{selectedApplications.length !== 1 ? 's' : ''}
+          </h3>
+        </div>
+
+        {selectedApplications.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {selectedApplications.map((app) => {
+              const name = app.candidate?.name || 'Unknown';
+              const email = app.candidate?.email || '';
+              const phone = app.candidate?.phone || '';
+              const contactLine = [email, phone].filter(Boolean).join(' · ');
+
+              return (
+                <Card
+                  key={app.id}
+                  className={`cursor-grab active:cursor-grabbing transition-all ${
+                    draggedApp === app.id ? 'opacity-50 scale-95' : 'hover:shadow-md'
+                  }`}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, app.id)}
+                  onDragEnd={handleDragEnd}
+                >
+                  <CardContent className="p-4 space-y-1">
+                    <OrgLink
+                      to={`/hiring/applications/${app.id}`}
+                      className="font-medium text-sm hover:text-primary block truncate"
+                    >
+                      {name}
+                    </OrgLink>
+                    {contactLine && (
+                      <p className="text-xs text-muted-foreground truncate">
+                        {contactLine}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Applied {format(new Date(app.created_at), 'd MMM yyyy, h:mm a')}
+                    </p>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="flex items-center justify-center h-40 text-sm text-muted-foreground border border-dashed rounded-lg">
+            No candidates in this stage
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
