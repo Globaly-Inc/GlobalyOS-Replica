@@ -180,40 +180,18 @@ export default function JobDetail() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-4">
-          <Button variant="ghost" size="icon" asChild>
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" className="text-muted-foreground gap-1" asChild>
             <OrgLink to="/hiring?tab=jobs">
               <ArrowLeft className="h-4 w-4" />
+              Vacancies
             </OrgLink>
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Position Pipeline</h1>
-          </div>
+          <span className="text-muted-foreground">/</span>
+          <h1 className="text-2xl font-bold tracking-tight">Position Pipeline</h1>
         </div>
         <TooltipProvider>
           <div className="flex items-center gap-1.5">
-            {job.status === 'open' && (
-              <>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" size="sm" onClick={() => setApplyDialogOpen(true)}>
-                      <UserPlus className="h-4 w-4 mr-1.5" />
-                      Apply
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Apply internally</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" size="sm" onClick={() => setShareDialogOpen(true)}>
-                      <Send className="h-4 w-4 mr-1.5" />
-                      Share
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Share or refer a candidate</TooltipContent>
-                </Tooltip>
-              </>
-            )}
 
             {job.is_public_visible && (
               <Tooltip>
