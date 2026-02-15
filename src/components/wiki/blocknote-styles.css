@@ -229,3 +229,18 @@
 .bn-threads-sidebar .bn-thread:hover {
   border-color: hsl(var(--primary) / 0.3);
 }
+
+/* Force all Mantine dropdowns inside the formatting toolbar to open below */
+.bn-formatting-toolbar .mantine-Menu-dropdown,
+.bn-formatting-toolbar .mantine-Popover-dropdown,
+.bn-toolbar .mantine-Menu-dropdown,
+.bn-toolbar .mantine-Popover-dropdown {
+  top: 100% !important;
+  bottom: auto !important;
+}
+
+/* Ensure toolbar sub-menus (text type, color, etc.) open downward */
+.mantine-Portal .mantine-Menu-dropdown,
+.mantine-Portal .mantine-Popover-dropdown {
+  margin-top: 4px;
+}
