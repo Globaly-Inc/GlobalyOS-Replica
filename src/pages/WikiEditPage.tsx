@@ -271,14 +271,6 @@ const WikiEditPage = () => {
               userAvatar={currentEmployee?.profiles?.avatar_url ?? null}
             />
             {/* Comments toggle */}
-            <Button
-              variant={showCommentsSidebar ? "default" : "outline"}
-              size="sm"
-              onClick={() => setShowCommentsSidebar((v) => !v)}
-              title={showCommentsSidebar ? "Hide comments" : "Show comments"}
-            >
-              <MessageSquare className="h-4 w-4" />
-            </Button>
             <Button 
               variant="outline" 
               size="sm" 
