@@ -220,13 +220,14 @@ export default function JobDetail() {
             {job.is_public_visible && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" asChild>
+                  <Button variant="outline" size="sm" asChild>
                     <a
                       href={`/careers/${orgCode}/${job.slug}`}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
                       <ExternalLink className="h-4 w-4" />
+                      Public Page
                     </a>
                   </Button>
                 </TooltipTrigger>
