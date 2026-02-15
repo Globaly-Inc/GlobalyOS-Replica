@@ -50,6 +50,7 @@ interface StageRule {
   id?: string;
   stage_key: string;
   auto_assignment_template_id: string | null;
+  auto_assign_enabled: boolean;
   auto_reject_after_hours: number | null;
   auto_reject_on_deadline: boolean;
   notify_employee_ids: string[];
@@ -113,6 +114,7 @@ export function PipelineSettingsSection() {
             id: existing.id,
             stage_key: stage,
             auto_assignment_template_id: existing.auto_assignment_template_id,
+            auto_assign_enabled: existing.auto_assign_enabled ?? false,
             auto_reject_after_hours: existing.auto_reject_after_hours,
             auto_reject_on_deadline: existing.auto_reject_on_deadline,
             notify_employee_ids: existing.notify_employee_ids || [],
@@ -121,6 +123,7 @@ export function PipelineSettingsSection() {
         : {
             stage_key: stage,
             auto_assignment_template_id: null,
+            auto_assign_enabled: false,
             auto_reject_after_hours: null,
             auto_reject_on_deadline: false,
             notify_employee_ids: [],
@@ -149,6 +152,7 @@ export function PipelineSettingsSection() {
           job_id: null,
           stage_key: r.stage_key,
           auto_assignment_template_id: r.auto_assignment_template_id || null,
+          auto_assign_enabled: r.auto_assign_enabled,
           auto_reject_after_hours: r.auto_reject_after_hours || null,
           auto_reject_on_deadline: r.auto_reject_on_deadline,
           notify_employee_ids: r.notify_employee_ids,
@@ -245,6 +249,25 @@ export function PipelineSettingsSection() {
 
                     {rule.is_active && (
                       <>
+                        {/* Auto-Assign Assignment */}
+                        <div className="flex items-center justify-between pl-6 border-l-2 border-muted ml-2">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <Zap className="h-3.5 w-3.5 text-muted-foreground" />
+                              <Label className="text-sm font-medium">Auto-assign assignment</Label>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5 ml-5.5">
+                              Automatically send the linked assignment when a candidate enters this stage
+                            </p>
+                          </div>
+                          <Switch
+                            checked={rule.auto_assign_enabled}
+                            onCheckedChange={(checked) =>
+                              updateRule(stage, { auto_assign_enabled: checked })
+                            }
+                          />
+                        </div>
+
                         {/* Auto-Reject Rules */}
                         <div className="space-y-3 pl-6 border-l-2 border-muted ml-2">
                           <div className="flex items-center gap-2">
