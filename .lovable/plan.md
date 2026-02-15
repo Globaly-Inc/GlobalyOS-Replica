@@ -1,38 +1,36 @@
 
-## Fix: Force Text Type Dropdown to Open Below the Toolbar
+## Add "Who is Viewing" Presence Stack to Wiki Editor Header
 
-**Problem:**
-The formatting toolbar now correctly appears below the selected text. However, the "Paragraph / Heading" dropdown inside the toolbar still opens **upward** (above the toolbar), which gets clipped by the header area.
-
-**Solution:**
-Add CSS rules in `blocknote-styles.css` that target the Mantine dropdown/popover used by the BlockNote text-type selector and force it to render below the toolbar button instead of above.
+**What changes:**
+Place a styled avatar stack showing all users currently viewing the page (including the current user) in the editor header, positioned before the Comments button. The design will match the reference screenshot -- overlapping circular avatars with a "+N" overflow indicator.
 
 **Technical Details:**
 
-**File: `src/components/wiki/blocknote-styles.css`**
+### 1. Update `useWikiPagePresence` hook to include the current user
 
-Add rules to force BlockNote toolbar dropdowns to open downward:
+Currently the hook filters out the current user from viewers. We need to change it to return **all** viewers (including self), so the UI can show the current user in the stack.
 
-```css
-/* Force all Mantine dropdowns inside the formatting toolbar to open below */
-.bn-formatting-toolbar .mantine-Menu-dropdown,
-.bn-formatting-toolbar .mantine-Popover-dropdown,
-.bn-toolbar .mantine-Menu-dropdown,
-.bn-toolbar .mantine-Popover-dropdown {
-  top: 100% !important;
-  bottom: auto !important;
-}
+**File: `src/hooks/useWikiPagePresence.ts`**
+- Remove the `if (key === employeeId) continue;` filter so all presence entries are returned
+- Add an `isSelf` boolean to the `WikiViewer` interface so the UI can distinguish the current user
+
+### 2. Update `WikiPageViewers` component for the new design
+
+**File: `src/components/wiki/collaboration/WikiPageViewers.tsx`**
+- Render all viewers (including self) as overlapping avatars with a ring/border style matching the reference (circular, slight overlap, border)
+- Show up to 5 avatars, then a "+N" overflow badge
+- Remove the "X viewing" text label -- just show the avatar stack
+- No longer return `null` when empty -- always show at least the current user's avatar
+- Add tooltip on each avatar showing the name ("You" for the current user)
+
+### 3. Add the component to the editor header
+
+**File: `src/pages/WikiEditPage.tsx`**
+- Place `<WikiPageViewers>` in the actions area (line ~270), right before the Comments toggle button
+- Pass `pageId`, `currentEmployee.id`, `userName`, and `currentEmployee.profiles.avatar_url`
+- Remove the existing `WikiActiveEditors` component (lines 242-245) since the new viewers component replaces it
+
+### Layout in header (left to right):
 ```
-
-Additionally, since BlockNote's Mantine menus use Floating UI internally, we can target the portal-rendered dropdowns more broadly to ensure they always prefer downward placement:
-
-```css
-/* Ensure toolbar sub-menus (text type, color, etc.) open downward */
-.mantine-Portal .mantine-Menu-dropdown,
-.mantine-Portal .mantine-Popover-dropdown {
-  margin-top: 4px;
-}
+[Title input] ... [Save status] ... [Avatar Stack] [Comments btn] [Close btn]
 ```
-
-**File to modify:**
-- `src/components/wiki/blocknote-styles.css` (append new CSS rules)
