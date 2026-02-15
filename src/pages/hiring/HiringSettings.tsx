@@ -659,65 +659,58 @@ function AssignmentTemplatesSection() {
 // ============================================
 
 function ConfigurationSection() {
-  const [config, setConfig] = useState({
-    auto_send_application_received: true,
-    require_cover_letter: false,
-    allow_internal_applications: true,
-    default_rejection_delay_days: 3,
-    careers_page_enabled: true,
-    careers_page_title: 'Join Our Team',
-    careers_page_description: '',
-  });
+  const { data: emailTemplates, isLoading } = useHiringEmailTemplates();
+  const updateTemplate = useUpdateEmailTemplate();
 
-  const handleSave = () => {
-    // Would save to org settings
-    toast.success('Settings saved');
+  const templateTypes = [
+    { type: 'application_received', label: 'Auto-send application received email', description: 'Send confirmation when a candidate applies' },
+    { type: 'application_rejected', label: 'Auto-send rejection email', description: 'Notify candidates when rejected' },
+    { type: 'interview_scheduled', label: 'Auto-send interview scheduled email', description: 'Notify candidates when an interview is scheduled' },
+    { type: 'assignment_sent', label: 'Auto-send assignment email', description: 'Notify candidates when an assignment is sent' },
+    { type: 'assignment_reminder', label: 'Auto-send assignment reminder', description: 'Remind candidates of upcoming assignment deadlines' },
+    { type: 'offer_sent', label: 'Auto-send offer email', description: 'Notify candidates when an offer is extended' },
+  ];
+
+  const getTemplateActive = (templateType: string) => {
+    const template = emailTemplates?.find((t: any) => t.template_type === templateType);
+    return template?.is_active ?? true;
+  };
+
+  const handleToggle = (templateType: string, checked: boolean) => {
+    const template = emailTemplates?.find((t: any) => t.template_type === templateType);
+    if (template) {
+      updateTemplate.mutate({ id: template.id, input: { is_active: checked } });
+    }
   };
 
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Careers Page</CardTitle>
+          <CardTitle>Email Automation</CardTitle>
           <CardDescription>
-            Customize your public careers page
+            Control which emails are automatically sent during the hiring process
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Enable careers page</Label>
-              <p className="text-sm text-muted-foreground">
-                Show your open jobs on a public page
-              </p>
+          {isLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
             </div>
-            <Switch
-              checked={config.careers_page_enabled}
-              onCheckedChange={(checked) => 
-                setConfig({ ...config, careers_page_enabled: checked })
-              }
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Page Title</Label>
-            <Input
-              value={config.careers_page_title}
-              onChange={(e) => setConfig({ ...config, careers_page_title: e.target.value })}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Page Description</Label>
-            <Textarea
-              value={config.careers_page_description}
-              onChange={(e) => setConfig({ ...config, careers_page_description: e.target.value })}
-              rows={3}
-              placeholder="Describe your company and culture..."
-            />
-          </div>
-
-          <Button onClick={handleSave}>Save Settings</Button>
+          ) : (
+            templateTypes.map(({ type, label, description }) => (
+              <div key={type} className="flex items-center justify-between py-2">
+                <div>
+                  <Label>{label}</Label>
+                  <p className="text-sm text-muted-foreground">{description}</p>
+                </div>
+                <Switch
+                  checked={getTemplateActive(type)}
+                  onCheckedChange={(checked) => handleToggle(type, checked)}
+                />
+              </div>
+            ))
+          )}
         </CardContent>
       </Card>
     </div>

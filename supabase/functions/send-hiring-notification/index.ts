@@ -65,7 +65,7 @@ const handler = async (req: Request): Promise<Response> => {
       .from("hiring_email_templates")
       .select("*")
       .eq("organization_id", organization_id)
-      .eq("trigger_type", trigger_type)
+      .eq("template_type", trigger_type)
       .eq("is_active", true)
       .single();
 
@@ -132,7 +132,7 @@ const handler = async (req: Request): Promise<Response> => {
     };
 
     let subject = template.subject;
-    let body_html = template.body_template;
+    let body_html = template.body;
 
     for (const [key, value] of Object.entries(replacements)) {
       subject = subject.replace(new RegExp(key, "g"), value);
