@@ -226,9 +226,9 @@ const WikiEditPage = () => {
     <div className="fixed inset-0 bg-background z-50 flex flex-col">
       {/* Sticky Header */}
       <header className="sticky top-0 z-10 bg-card border-b shadow-sm">
-        <div className="flex items-center justify-between max-w-4xl mx-auto px-4 py-3">
+        <div className="flex items-center justify-between container mx-auto px-4 md:px-8 py-3">
           {/* Page Title */}
-          <div className="flex-1 max-w-2xl">
+          <div className="flex-1">
             <Input
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
@@ -291,7 +291,7 @@ const WikiEditPage = () => {
 
       {/* Editor Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto px-4 py-6">
+        <div className="container mx-auto px-4 md:px-8 py-6">
           <BlockNoteWikiEditor
             initialContent={editContent}
             onChange={handleContentChange}
