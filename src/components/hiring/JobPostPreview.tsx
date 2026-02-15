@@ -124,7 +124,7 @@ export function JobPostPreview({
   };
 
   return (
-    <Card className="sticky top-20 overflow-hidden">
+    <Card className="overflow-hidden border-0 shadow-none">
       <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/5 border-b">
         <div className="space-y-1">
           <p className="text-xs font-medium text-primary uppercase tracking-wider">

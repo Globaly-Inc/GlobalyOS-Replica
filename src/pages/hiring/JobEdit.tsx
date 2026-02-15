@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -44,7 +45,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Loader2, Save, Globe, Sparkles, Wand2, CalendarIcon, Info, MoreHorizontal, Pause, Play, Archive, Trash2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, Globe, Sparkles, Wand2, CalendarIcon, Info, MoreHorizontal, Pause, Play, Archive, Trash2, Eye } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -130,6 +131,7 @@ export default function JobEdit() {
   const [isGeneratingJD, setIsGeneratingJD] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -424,6 +426,19 @@ export default function JobEdit() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 w-9 p-0"
+                onClick={() => setPreviewOpen(true)}
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Preview</TooltipContent>
+          </Tooltip>
           <Button variant="outline" size="sm" asChild>
             <OrgLink to={`/hiring/jobs/${job.slug}`}>Cancel</OrgLink>
           </Button>
@@ -901,30 +916,36 @@ export default function JobEdit() {
 
           <VacancyAssignmentCard jobTitle={formData.title} />
 
-          <JobPostPreview
-            formData={{
-              title: formData.title,
-              department_id: formData.department_id,
-              office_id: formData.office_id,
-              location: formData.location,
-              work_model: formData.work_model,
-              employment_type: formData.employment_type,
-              headcount: formData.headcount,
-              salary_min: formData.salary_min,
-              salary_max: formData.salary_max,
-              salary_currency: formData.salary_currency,
-              salary_visible: formData.salary_visible,
-              target_start_date: formData.target_start_date,
-              application_close_date: formData.application_close_date,
-              description: formData.description,
-            }}
-            departments={departments}
-            offices={offices}
-            companyName={currentOrg?.name}
-          />
         </div>
       </div>
     </div>
+
+    {/* Preview Dialog */}
+    <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+      <DialogContent className="max-w-[60vw] max-h-[85vh] overflow-y-auto p-0">
+        <JobPostPreview
+          formData={{
+            title: formData.title,
+            department_id: formData.department_id,
+            office_id: formData.office_id,
+            location: formData.location,
+            work_model: formData.work_model,
+            employment_type: formData.employment_type,
+            headcount: formData.headcount,
+            salary_min: formData.salary_min,
+            salary_max: formData.salary_max,
+            salary_currency: formData.salary_currency,
+            salary_visible: formData.salary_visible,
+            target_start_date: formData.target_start_date,
+            application_close_date: formData.application_close_date,
+            description: formData.description,
+          }}
+          departments={departments}
+          offices={offices}
+          companyName={currentOrg?.name}
+        />
+      </DialogContent>
+    </Dialog>
 
     {/* Delete Confirmation Dialog */}
     <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
