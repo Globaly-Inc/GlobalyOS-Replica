@@ -232,7 +232,7 @@ const WikiEditPage = () => {
             <Input
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
-              className="text-xl font-semibold border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-0 h-auto py-1"
+              className="text-[20px] font-semibold border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-0 h-auto py-1"
               placeholder="Page title..."
             />
           </div>
