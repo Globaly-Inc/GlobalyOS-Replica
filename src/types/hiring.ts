@@ -207,7 +207,7 @@ export interface AssignmentTemplate {
   id: string;
   organization_id: string;
   name: string;
-  type: AssignmentType;
+  type: string;
   role_tags: string[];
   position_ids: string[];
   instructions: string;
@@ -431,7 +431,7 @@ export interface CreateApplicationInput {
 
 export interface CreateAssignmentTemplateInput {
   name: string;
-  type?: AssignmentType;
+  type?: string;
   role_tags?: string[];
   position_ids?: string[];
   instructions: string;
@@ -653,7 +653,7 @@ export const EMAIL_TRIGGER_LABELS: Record<EmailTrigger, string> = {
   offer_accepted: 'Offer Accepted',
 };
 
-export const ASSIGNMENT_TYPE_LABELS: Record<AssignmentType, string> = {
+export const ASSIGNMENT_TYPE_LABELS: Record<string, string> = {
   coding: 'Coding Challenge',
   writing: 'Writing Sample',
   design: 'Design Task',

@@ -57,7 +57,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { EMAIL_TRIGGER_LABELS, ASSIGNMENT_TYPE_LABELS } from '@/types/hiring';
-import type { EmailTrigger, AssignmentType, ExpectedDeliverables } from '@/types/hiring';
+import type { EmailTrigger, ExpectedDeliverables } from '@/types/hiring';
+import { AssignmentTypeCombobox } from '@/components/hiring/AssignmentTypeCombobox';
 import { PositionMultiSelect } from '@/components/hiring/PositionMultiSelect';
 import { usePositions } from '@/hooks/usePositions';
 
@@ -357,7 +358,7 @@ function AssignmentTemplatesSection() {
 
   const [formData, setFormData] = useState({
     name: '',
-    type: 'coding' as AssignmentType,
+    type: 'coding',
     instructions: '',
     default_deadline_hours: 72,
     recommended_effort: '',
@@ -373,7 +374,7 @@ function AssignmentTemplatesSection() {
   const handleEdit = (template: any) => {
     setFormData({
       name: template.name,
-      type: (template.type || 'coding') as AssignmentType,
+      type: template.type || 'coding',
       instructions: template.instructions,
       default_deadline_hours: template.default_deadline_hours || 72,
       recommended_effort: template.recommended_effort || '',
@@ -392,7 +393,7 @@ function AssignmentTemplatesSection() {
   const handleCreate = () => {
     setFormData({
       name: '',
-      type: 'coding' as AssignmentType,
+      type: 'coding',
       instructions: '',
       default_deadline_hours: 72,
       recommended_effort: '',
@@ -471,19 +472,10 @@ function AssignmentTemplatesSection() {
                 </div>
                 <div className="space-y-2">
                   <Label>Type</Label>
-                  <Select
+                  <AssignmentTypeCombobox
                     value={formData.type}
-                    onValueChange={(v) => setFormData({ ...formData, type: v as AssignmentType })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(ASSIGNMENT_TYPE_LABELS).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>{label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onChange={(v) => setFormData({ ...formData, type: v })}
+                  />
                 </div>
               </div>
 

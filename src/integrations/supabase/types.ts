@@ -876,7 +876,7 @@ export type Database = {
           position_ids: string[] | null
           recommended_effort: string | null
           role_tags: string[] | null
-          type: Database["public"]["Enums"]["assignment_type"] | null
+          type: string | null
           updated_at: string | null
         }
         Insert: {
@@ -892,7 +892,7 @@ export type Database = {
           position_ids?: string[] | null
           recommended_effort?: string | null
           role_tags?: string[] | null
-          type?: Database["public"]["Enums"]["assignment_type"] | null
+          type?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -908,7 +908,7 @@ export type Database = {
           position_ids?: string[] | null
           recommended_effort?: string | null
           role_tags?: string[] | null
-          type?: Database["public"]["Enums"]["assignment_type"] | null
+          type?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -928,6 +928,38 @@ export type Database = {
           },
           {
             foreignKeyName: "assignment_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assignment_type_options: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          organization_id: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          organization_id: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          organization_id?: string
+          value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assignment_type_options_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
