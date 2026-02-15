@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { InternalApplyDialog } from '@/components/hiring/InternalApplyDialog';
+import { ShareVacancyDialog } from '@/components/hiring/ShareVacancyDialog';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -44,7 +46,8 @@ import {
   DollarSign,
   CheckCircle,
   Loader2,
-  
+  UserPlus,
+  Send,
   Pause,
   Play,
   Archive,
@@ -76,7 +79,8 @@ export default function JobDetail() {
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-
+  const [applyDialogOpen, setApplyDialogOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
 
   const handleStatusChange = async (newStatus: JobStatus) => {
     if (!job) return;
@@ -215,7 +219,29 @@ export default function JobDetail() {
         </div>
         <TooltipProvider>
           <div className="flex items-center gap-1.5">
-            
+            {job.status === 'open' && (
+              <>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="sm" onClick={() => setApplyDialogOpen(true)}>
+                      <UserPlus className="h-4 w-4 mr-1.5" />
+                      Apply
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Apply internally</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="sm" onClick={() => setShareDialogOpen(true)}>
+                      <Send className="h-4 w-4 mr-1.5" />
+                      Share
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Share or refer a candidate</TooltipContent>
+                </Tooltip>
+              </>
+            )}
+
 
             {job.is_public_visible && (
               <Tooltip>
@@ -420,6 +446,28 @@ export default function JobDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {job.status === 'open' && (
+        <>
+          <InternalApplyDialog
+            open={applyDialogOpen}
+            onOpenChange={setApplyDialogOpen}
+            vacancy={{ id: job.id, title: job.title }}
+          />
+          <ShareVacancyDialog
+            open={shareDialogOpen}
+            onOpenChange={setShareDialogOpen}
+            vacancy={{
+              id: job.id,
+              title: job.title,
+              slug: job.slug,
+              location: job.location,
+              employment_type: job.employment_type,
+              work_model: job.work_model,
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }
