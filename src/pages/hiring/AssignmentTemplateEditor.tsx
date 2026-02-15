@@ -163,14 +163,6 @@ export default function AssignmentTemplateEditor() {
                   onChange={(v) => setFormData({ ...formData, type: v })}
                 />
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Settings</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>Default Deadline (hours)</Label>
                 <Input
