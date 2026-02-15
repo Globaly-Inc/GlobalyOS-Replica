@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageBody } from '@/components/ui/page-body';
@@ -252,12 +252,11 @@ export default function AssignmentTemplateEditor() {
               <CardTitle className="text-lg">Instructions *</CardTitle>
             </CardHeader>
             <CardContent>
-              <Textarea
+              <RichTextEditor
                 value={formData.instructions}
-                onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
-                rows={16}
+                onChange={(val) => setFormData({ ...formData, instructions: val })}
                 placeholder="Describe what the candidate needs to complete..."
-                className="min-h-[300px]"
+                minHeight="300px"
               />
             </CardContent>
           </Card>
