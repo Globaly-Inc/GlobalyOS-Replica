@@ -1,36 +1,47 @@
 
-## Add "Who is Viewing" Presence Stack to Wiki Editor Header
+## Fix Comment System Issues and Add @Mentions
 
-**What changes:**
-Place a styled avatar stack showing all users currently viewing the page (including the current user) in the editor header, positioned before the Comments button. The design will match the reference screenshot -- overlapping circular avatars with a "+N" overflow indicator.
+Three issues to address:
 
-**Technical Details:**
+### Issue 1: Duplicate Comment Icons in Toolbar
+`getFormattingToolbarItems()` from BlockNote already includes two built-in comment buttons (one for the CommentsExtension and one for Tiptap comments). The code then manually adds a THIRD `<AddCommentButton />` on line 357. This results in duplicate comment icons.
 
-### 1. Update `useWikiPagePresence` hook to include the current user
+**Fix**: Remove the manually added `<AddCommentButton />` from the formatting toolbar since `getFormattingToolbarItems()` already provides it.
 
-Currently the hook filters out the current user from viewers. We need to change it to return **all** viewers (including self), so the UI can show the current user in the stack.
+**File: `src/components/wiki/BlockNoteWikiEditor.tsx` (line 357)**
+- Remove `{commentsEnabled && <AddCommentButton />}`
+- Remove the `AddCommentButton` import (line 13)
 
-**File: `src/hooks/useWikiPagePresence.ts`**
-- Remove the `if (key === employeeId) continue;` filter so all presence entries are returned
-- Add an `isSelf` boolean to the `WikiViewer` interface so the UI can distinguish the current user
+---
 
-### 2. Update `WikiPageViewers` component for the new design
+### Issue 2: Comment Composer Disappears When Clicking Textarea
+The `BlockNoteView` component does not have `comments={false}` set, so it renders its own default `FloatingComposerController` and `FloatingThreadController` internally (via BlockNote's default UI). The code ALSO manually renders these same controllers at lines 380-382. This creates two competing floating controllers -- when one opens, the other interferes, causing the composer to immediately close when interacted with.
 
-**File: `src/components/wiki/collaboration/WikiPageViewers.tsx`**
-- Render all viewers (including self) as overlapping avatars with a ring/border style matching the reference (circular, slight overlap, border)
-- Show up to 5 avatars, then a "+N" overflow badge
-- Remove the "X viewing" text label -- just show the avatar stack
-- No longer return `null` when empty -- always show at least the current user's avatar
-- Add tooltip on each avatar showing the name ("You" for the current user)
+**Fix**: Add `comments={false}` to `BlockNoteView` so only the manually rendered controllers are active, OR remove the manual controllers and let the default UI handle it. Since the manual controllers don't add any customization, the simplest fix is to remove them and let `BlockNoteView` handle comments automatically.
 
-### 3. Add the component to the editor header
+**File: `src/components/wiki/BlockNoteWikiEditor.tsx`**
+- Remove lines 377-383 (manual `FloatingComposerController` and `FloatingThreadController`)
+- Keep the default comments UI from `BlockNoteView` (do NOT set `comments={false}`)
 
-**File: `src/pages/WikiEditPage.tsx`**
-- Place `<WikiPageViewers>` in the actions area (line ~270), right before the Comments toggle button
-- Pass `pageId`, `currentEmployee.id`, `userName`, and `currentEmployee.profiles.avatar_url`
-- Remove the existing `WikiActiveEditors` component (lines 242-245) since the new viewers component replaces it
+---
 
-### Layout in header (left to right):
-```
-[Title input] ... [Save status] ... [Avatar Stack] [Comments btn] [Close btn]
-```
+### Issue 3: Enable @Mentions in Document Comments
+Implement team member mentions in comments using the `resolveUsers` function that already exists.
+
+Currently, `resolveUsers` is passed to `CommentsExtension` which handles resolving user data for display. To enable @mentions in comment editors, we need to add a `mentionUsers` resolver that queries accessible team members when "@" is typed.
+
+**File: `src/components/wiki/collaboration/useResolveUsers.ts`**
+- Add a `mentionUsers` function that queries employees by search term
+- Export it alongside `resolveUsers`
+
+**File: `src/components/wiki/BlockNoteWikiEditor.tsx`**
+- Pass `mentionUsers` to the `CommentsExtension` configuration
+
+---
+
+### Summary of Changes
+
+| File | Change |
+|------|--------|
+| `src/components/wiki/BlockNoteWikiEditor.tsx` | Remove duplicate `AddCommentButton` import and usage; remove manual `FloatingComposerController`/`FloatingThreadController`; add `mentionUsers` to CommentsExtension |
+| `src/components/wiki/collaboration/useResolveUsers.ts` | Add `mentionUsers` function for @mention search |
