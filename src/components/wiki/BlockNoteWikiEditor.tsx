@@ -29,6 +29,7 @@ import {
   YjsThreadStore,
 } from "@blocknote/core/comments";
 
+import { offset, shift } from "@floating-ui/react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import "./blocknote-styles.css";
@@ -343,6 +344,12 @@ export const BlockNoteWikiEditor = ({
           <div className={showCommentsSidebar && commentsEnabled ? 'flex-1 min-w-0' : ''}>
             {/* Custom formatting toolbar with AI + Comment buttons */}
             <FormattingToolbarController
+              floatingUIOptions={{
+                useFloatingOptions: {
+                  placement: "bottom-start",
+                  middleware: [offset(10), shift()],
+                },
+              }}
               formattingToolbar={() => (
                 <div className="bn-toolbar bn-formatting-toolbar" role="toolbar">
                   {getFormattingToolbarItems()}
