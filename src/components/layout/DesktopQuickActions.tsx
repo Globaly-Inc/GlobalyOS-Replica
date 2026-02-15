@@ -6,6 +6,7 @@ import { GlobalAskAI } from "@/components/GlobalAskAI";
 import { GetHelpButton } from "@/components/GetHelpButton";
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { useFeatureFlags } from "@/hooks/useFeatureFlags";
+import { useLocation, useParams } from 'react-router-dom';
 import type { UserProfile } from '@/hooks/useLayoutState';
 import type { CheckInMethod } from '@/hooks/useCheckInMethod';
 
@@ -42,6 +43,10 @@ export const DesktopQuickActions = ({
 }: DesktopQuickActionsProps) => {
   const { navigateOrg } = useOrgNavigation();
   const { isEnabled } = useFeatureFlags();
+  const location = useLocation();
+  const { orgCode } = useParams<{ orgCode: string }>();
+  const basePath = orgCode ? `/org/${orgCode}` : '';
+  const isSettingsActive = location.pathname.startsWith(`${basePath}/settings`);
 
   return (
     <div className="hidden md:flex md:items-center md:gap-2 tour-quick-actions">
@@ -118,9 +123,9 @@ export const DesktopQuickActions = ({
         <Tooltip>
           <TooltipTrigger asChild>
             <Button 
-              variant="outline" 
+              variant={isSettingsActive ? "default" : "outline"}
               size="icon"
-              className="h-10 w-10 tour-settings-menu"
+              className={`h-10 w-10 tour-settings-menu ${isSettingsActive ? 'bg-primary text-primary-foreground' : ''}`}
               onClick={() => navigateOrg('/settings')}
             >
               <Settings className="h-4 w-4" />
