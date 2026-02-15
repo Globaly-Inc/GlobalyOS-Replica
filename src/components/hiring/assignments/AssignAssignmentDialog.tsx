@@ -48,7 +48,6 @@ export function AssignAssignmentDialog({
   const [deadlineHours, setDeadlineHours] = useState(72);
   const [expectedDeliverables, setExpectedDeliverables] = useState<ExpectedDeliverables>({
     files: false,
-    text_questions: [],
     url_fields: [],
   });
 

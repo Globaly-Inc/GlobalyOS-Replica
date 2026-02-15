@@ -193,7 +193,6 @@ export interface CandidateApplicationWithRelations extends CandidateApplication 
 
 export interface ExpectedDeliverables {
   files: boolean;
-  text_questions: string[];
   url_fields: string[];
 }
 
