@@ -1,23 +1,22 @@
 
+## Widen Wiki Editor and Add Viewer Presence to Header
 
-## Fix: Always-Visible Cursor Labels and Thicker Cursor
+### Changes
 
-### The Problem
-Currently, collaboration cursor labels (showing the user's name like "Sarah Smith") only appear briefly and then fade out due to the `showCursorLabels: "activity"` setting. The cursor caret line is also thin (2px), making it hard to spot.
+**1. Expand editor width to full page width**
+Remove the `max-w-6xl` constraint from both the header and editor content areas, replacing them with full-width layout (just keeping horizontal padding). This matches how other pages in the app use the full available width.
 
-### The Fix
+- Header: `max-w-6xl mx-auto px-6` becomes just `px-6` (full width)
+- Editor body: `max-w-6xl mx-auto px-6` becomes just `px-6` (full width)
 
-**`src/components/wiki/BlockNoteWikiEditor.tsx`**
-- Change `showCursorLabels` from `"activity"` to `"always"` so the name label stays permanently visible above the cursor
+**2. Add "who is viewing" profile stack to the top bar**
+Import and add the existing `WikiPageViewers` component next to the comments icon in the header. This shows stacked profile pictures of everyone currently viewing the page.
 
-**`src/components/wiki/blocknote-styles.css`**
-- Increase `.collaboration-cursor__caret` border width from `2px` to `3px` for better visibility
-- Remove the idle fade rule (`.collaboration-cursor__label[data-idle="true"]` with `opacity: 0`) since labels should always be visible now
+### Technical Details
 
-### Files to Modify
+**File: `src/pages/WikiEditPage.tsx`**
 
-| File | Change |
-|------|--------|
-| `src/components/wiki/BlockNoteWikiEditor.tsx` | `showCursorLabels: "always"` |
-| `src/components/wiki/blocknote-styles.css` | Thicker caret (3px), remove idle fade rule |
-
+- Import `WikiPageViewers` from `@/components/wiki/collaboration/WikiPageViewers`
+- Remove `max-w-6xl mx-auto` from the header inner div (line 229) and editor wrapper (line 292)
+- Add `WikiPageViewers` in the header actions area, positioned before the comment toggle button, passing `pageId`, `employeeId` (from `currentEmployee`), `userName`, and `userAvatar` (from `currentEmployee?.profiles?.avatar_url`)
+- Keep `WikiActiveEditors` as well -- it shows who is actively editing (cursor-based), while `WikiPageViewers` shows who is viewing the page (presence-based)
