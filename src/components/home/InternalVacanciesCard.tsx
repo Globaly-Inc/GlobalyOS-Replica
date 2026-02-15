@@ -66,7 +66,7 @@ export const InternalVacanciesCard = () => {
                   </Badge>
                 )}
                 {vacancy.published_at && (
-                  <span className="text-[10px] text-muted-foreground ml-auto">
+                  <span className="text-[10px] text-muted-foreground">
                     {getShortRelativeTime(vacancy.published_at)}
                   </span>
                 )}
