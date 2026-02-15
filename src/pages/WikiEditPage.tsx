@@ -226,7 +226,7 @@ const WikiEditPage = () => {
     <div className="fixed inset-0 bg-background z-50 flex flex-col">
       {/* Sticky Header */}
       <header className="sticky top-0 z-10 bg-card border-b shadow-sm">
-        <div className="flex items-center justify-between max-w-4xl mx-auto px-4 py-3">
+        <div className="flex items-center justify-between max-w-6xl mx-auto px-6 py-3">
           {/* Page Title */}
           <div className="flex-1 max-w-2xl">
             <Input
@@ -237,13 +237,8 @@ const WikiEditPage = () => {
             />
           </div>
 
-          {/* Active editors + Save status */}
+          {/* Save status + Active editors + Actions */}
           <div className="flex items-center gap-3">
-            <WikiActiveEditors
-              provider={providerRef.current}
-              currentClientId={undefined}
-            />
-
             {/* Auto-save status indicator */}
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               {saveStatus === "saving" && (
@@ -264,10 +259,13 @@ const WikiEditPage = () => {
                 </span>
               )}
             </div>
-          </div>
 
-          {/* Actions */}
-          <div className="flex items-center gap-2 ml-4">
+            {/* Active editors avatars */}
+            <WikiActiveEditors
+              provider={providerRef.current}
+              currentClientId={undefined}
+            />
+
             {/* Comments toggle */}
             <Button
               variant={showCommentsSidebar ? "default" : "outline"}
@@ -291,7 +289,7 @@ const WikiEditPage = () => {
 
       {/* Editor Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto px-4 py-6">
+        <div className="max-w-6xl mx-auto px-6 py-6">
           <BlockNoteWikiEditor
             initialContent={editContent}
             onChange={handleContentChange}
