@@ -56,10 +56,12 @@ Deno.serve(async (req) => {
     let candidateLinkedin: string | null = null;
     let candidatePortfolio: string | null = null;
     let candidateLocation: string | null = null;
-    let coverLetter: string | null = null;
-    let sourceOfApplication: string | null = null;
-    let resumeFile: File | null = null;
-    let additionalFiles: File[] = [];
+  let coverLetter: string | null = null;
+  let sourceOfApplication: string | null = null;
+  let resumeFile: File | null = null;
+  let additionalFiles: File[] = [];
+  let customFieldsData: Record<string, string> = {};
+  let customFileEntries: { fieldId: string; file: File }[] = [];
 
     if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
@@ -78,6 +80,17 @@ Deno.serve(async (req) => {
       const allAdditional = formData.getAll('additional_files');
       for (const f of allAdditional) {
         if (f instanceof File) additionalFiles.push(f);
+      }
+      // Custom fields data (JSON string)
+      const customFieldsDataStr = formData.get('custom_fields_data') as string || null;
+      if (customFieldsDataStr) {
+        try { customFieldsData = JSON.parse(customFieldsDataStr); } catch {}
+      }
+      // Custom file uploads (prefixed with custom_file_)
+      for (const [key, value] of formData.entries()) {
+        if (key.startsWith('custom_file_') && value instanceof File) {
+          customFileEntries.push({ fieldId: key.replace('custom_file_', ''), file: value });
+        }
       }
     } else {
       // Fallback to JSON for backwards compatibility
@@ -111,8 +124,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Validate all files (resume + additional)
-    const allFiles = resumeFile ? [resumeFile, ...additionalFiles] : [...additionalFiles];
+    // Validate all files (resume + additional + custom)
+    const customFiles = customFileEntries.map(e => e.file);
+    const allFiles = [...(resumeFile ? [resumeFile] : []), ...additionalFiles, ...customFiles];
     for (const file of allFiles) {
       if (!ALLOWED_MIME_TYPES.includes(file.type)) {
         return new Response(
@@ -269,7 +283,40 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Step 5: Create the application
+    // Step 5: Upload custom field files
+    const customFileUploads: Record<string, string> = {};
+    for (const entry of customFileEntries) {
+      const fileExt = entry.file.name.split('.').pop() || 'pdf';
+      const fileName = `custom-${entry.fieldId}-${Date.now()}.${fileExt}`;
+      const filePath = `${org.id}/${candidateId}/${fileName}`;
+      const fileBuffer = await entry.file.arrayBuffer();
+      const { error: uploadError } = await supabase.storage
+        .from('hiring-documents')
+        .upload(filePath, fileBuffer, {
+          contentType: entry.file.type,
+          upsert: false,
+        });
+      if (!uploadError) {
+        customFileUploads[entry.fieldId] = filePath;
+        console.log(`Uploaded custom file: ${filePath}`);
+      } else {
+        console.error(`Error uploading custom file ${entry.file.name}:`, uploadError);
+      }
+    }
+
+    // Step 6: Create the application
+    // Merge custom field data: text answers + file paths + additional portfolio files
+    const mergedCustomFields: Record<string, unknown> = {};
+    if (Object.keys(customFieldsData).length > 0) {
+      mergedCustomFields.text_answers = customFieldsData;
+    }
+    if (Object.keys(customFileUploads).length > 0) {
+      mergedCustomFields.file_uploads = customFileUploads;
+    }
+    if (uploadedFilePaths.length > 1) {
+      mergedCustomFields.additional_files = uploadedFilePaths.slice(1);
+    }
+
     const { data: application, error: appError } = await supabase
       .from('candidate_applications')
       .insert({
@@ -280,9 +327,7 @@ Deno.serve(async (req) => {
         status: 'active',
         cover_letter: sanitizedCoverLetter,
         cv_file_path: cvFilePath,
-        custom_fields: uploadedFilePaths.length > 1
-          ? { additional_files: uploadedFilePaths.slice(1) }
-          : null,
+        custom_fields: Object.keys(mergedCustomFields).length > 0 ? mergedCustomFields : null,
         source_of_application: sourceOfApplication || 'careers_site',
       })
       .select('id')

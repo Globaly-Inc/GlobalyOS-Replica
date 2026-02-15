@@ -25,7 +25,8 @@ import { useUpdateJob, usePublishJob } from '@/services/useHiringMutations';
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { useDepartments, useOffices } from '@/hooks/useOrganizationData';
 import { useOrganization } from '@/hooks/useOrganization';
-import type { WorkModel, HiringEmploymentType } from '@/types/hiring';
+import type { WorkModel, HiringEmploymentType, ApplicationFormConfig } from '@/types/hiring';
+import { ApplicationFormSettings } from '@/components/hiring/ApplicationFormSettings';
 import { OrgLink } from '@/components/OrgLink';
 import { VacancyAssignmentCard } from '@/components/hiring/VacancyAssignmentCard';
 import {
@@ -155,6 +156,7 @@ export default function JobEdit() {
     is_internal_visible: true,
     is_internal_apply: false,
     is_public_visible: true,
+    application_form_config: {} as ApplicationFormConfig,
   });
 
   // Populate form when job loads
@@ -182,6 +184,7 @@ export default function JobEdit() {
         is_internal_visible: job.is_internal_visible ?? true,
         is_internal_apply: (job as any).is_internal_apply ?? false,
         is_public_visible: job.is_public_visible ?? false,
+        application_form_config: ((job as any).application_form_config ?? {}) as ApplicationFormConfig,
       });
     }
   }, [job]);
@@ -235,6 +238,7 @@ export default function JobEdit() {
           is_internal_visible: formData.is_internal_visible,
           is_internal_apply: formData.is_internal_apply,
           is_public_visible: formData.is_public_visible,
+          application_form_config: formData.application_form_config,
         },
       });
       toast.success('Job updated');
@@ -915,6 +919,11 @@ export default function JobEdit() {
           </Card>
 
           <VacancyAssignmentCard jobTitle={formData.title} />
+
+          <ApplicationFormSettings
+            config={formData.application_form_config}
+            onChange={(config) => handleChange('application_form_config', config)}
+          />
 
         </div>
       </div>
