@@ -1,6 +1,6 @@
 /**
  * Application Form Settings – Calendly-style
- * Fixed fields pinned at top, sortable custom questions below with edit dialog
+ * Fixed fields pinned at top, sortable custom questions below with edit dialog.
  */
 
 import { useState } from 'react';
