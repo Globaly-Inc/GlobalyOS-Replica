@@ -43,6 +43,7 @@ import {
   EMPLOYMENT_TYPE_LABELS 
 } from '@/types/hiring';
 import type { ApplicationFormConfig, CustomFieldConfig } from '@/types/hiring';
+import { migrateApplicationFormConfig } from '@/types/hiring';
 import { toast } from 'sonner';
 import { HelmetProvider, Helmet } from 'react-helmet-async';
 import DOMPurify from 'dompurify';
@@ -235,17 +236,21 @@ export default function JobDetailPublic() {
     if (!job || !orgCode) return;
 
     // Validate required custom fields
-    const formConfig = (job as any).application_form_config as ApplicationFormConfig | undefined;
+    const rawConfig = (job as any).application_form_config as ApplicationFormConfig | undefined;
+    const formConfig = rawConfig ? migrateApplicationFormConfig(rawConfig) : undefined;
     const customFields = formConfig?.custom_fields ?? [];
     for (const cf of customFields) {
       if (cf.required) {
-        if (cf.type === 'text' && !customTextValues[cf.id]?.trim()) {
-          toast.error(`${cf.label} is required`);
-          return;
-        }
-        if (cf.type === 'file' && !customFileValues[cf.id]) {
-          toast.error(`${cf.label} is required`);
-          return;
+        if (cf.type === 'file') {
+          if (!customFileValues[cf.id]) {
+            toast.error(`${cf.label} is required`);
+            return;
+          }
+        } else {
+          if (!customTextValues[cf.id]?.trim()) {
+            toast.error(`${cf.label} is required`);
+            return;
+          }
         }
       }
     }
@@ -523,60 +528,14 @@ export default function JobDetailPublic() {
                           />
                         </div>
 
-                        {/* LinkedIn - conditional based on config */}
+                        {/* Dynamic fields from config */}
                         {(() => {
-                          const formConfig = (job as any).application_form_config as ApplicationFormConfig | undefined;
-                          const showLinkedin = formConfig?.optional_fields?.linkedin_url !== false;
-                          const showCoverLetter = formConfig?.optional_fields?.cover_letter === true;
+                          const rawConfig = (job as any).application_form_config as ApplicationFormConfig | undefined;
+                          const formConfig = rawConfig ? migrateApplicationFormConfig(rawConfig) : undefined;
                           const customFields = formConfig?.custom_fields ?? [];
-                          const sourceOptions = formConfig?.source_options ?? ['LinkedIn', 'Referral', 'Job Board', 'Company Website', 'Other'];
 
                           return (
                             <>
-                              {showLinkedin && (
-                                <div className="space-y-2">
-                                  <Label htmlFor="linkedin">LinkedIn or Personal URL</Label>
-                                  <Input
-                                    id="linkedin"
-                                    type="url"
-                                    placeholder="https://linkedin.com/in/..."
-                                    value={formData.linkedin_url}
-                                    onChange={(e) => setFormData({ ...formData, linkedin_url: e.target.value })}
-                                  />
-                                </div>
-                              )}
-
-                              {/* Source dropdown - always shown */}
-                              <div className="space-y-2">
-                                <Label htmlFor="source">How did you hear about us? *</Label>
-                                <Select
-                                  value={formData.source_of_application}
-                                  onValueChange={(value) => setFormData({ ...formData, source_of_application: value })}
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select source" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {sourceOptions.filter(Boolean).map((opt) => (
-                                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-
-                              {showCoverLetter && (
-                                <div className="space-y-2">
-                                  <Label htmlFor="cover_letter">Cover Letter</Label>
-                                  <Textarea
-                                    id="cover_letter"
-                                    placeholder="Tell us why you're a great fit..."
-                                    value={formData.cover_letter}
-                                    onChange={(e) => setFormData({ ...formData, cover_letter: e.target.value })}
-                                    className="min-h-[100px]"
-                                  />
-                                </div>
-                              )}
-
                               {/* Resume upload */}
                               <div className="space-y-2">
                                 <Label htmlFor="resume">Upload Resume & Portfolios *</Label>
@@ -617,17 +576,96 @@ export default function JobDetailPublic() {
                                 </label>
                               </div>
 
-                              {/* Custom fields */}
+                              {/* Custom fields – all types */}
                               {customFields.map((cf) => (
                                 <div key={cf.id} className="space-y-2">
                                   <Label>{cf.label}{cf.required ? ' *' : ''}</Label>
-                                  {cf.type === 'text' ? (
+
+                                  {cf.type === 'one_line' && (
                                     <Input
                                       value={customTextValues[cf.id] || ''}
                                       onChange={(e) => setCustomTextValues(prev => ({ ...prev, [cf.id]: e.target.value }))}
                                       required={cf.required}
                                     />
-                                  ) : (
+                                  )}
+
+                                  {cf.type === 'multiple_lines' && (
+                                    <Textarea
+                                      value={customTextValues[cf.id] || ''}
+                                      onChange={(e) => setCustomTextValues(prev => ({ ...prev, [cf.id]: e.target.value }))}
+                                      required={cf.required}
+                                      className="min-h-[100px]"
+                                    />
+                                  )}
+
+                                  {cf.type === 'dropdown' && (
+                                    <Select
+                                      value={customTextValues[cf.id] || ''}
+                                      onValueChange={(val) => setCustomTextValues(prev => ({ ...prev, [cf.id]: val }))}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select..." />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {(cf.options || []).filter(Boolean).map((opt) => (
+                                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  )}
+
+                                  {cf.type === 'radio_buttons' && (
+                                    <div className="space-y-2">
+                                      {(cf.options || []).map((opt) => (
+                                        <label key={opt} className="flex items-center gap-2 cursor-pointer">
+                                          <input
+                                            type="radio"
+                                            name={`cf_${cf.id}`}
+                                            value={opt}
+                                            checked={customTextValues[cf.id] === opt}
+                                            onChange={() => setCustomTextValues(prev => ({ ...prev, [cf.id]: opt }))}
+                                            className="accent-primary"
+                                          />
+                                          <span className="text-sm">{opt}</span>
+                                        </label>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  {cf.type === 'checkboxes' && (
+                                    <div className="space-y-2">
+                                      {(cf.options || []).map((opt) => {
+                                        const selected = (customTextValues[cf.id] || '').split('||').filter(Boolean);
+                                        const isChecked = selected.includes(opt);
+                                        return (
+                                          <label key={opt} className="flex items-center gap-2 cursor-pointer">
+                                            <Checkbox
+                                              checked={isChecked}
+                                              onCheckedChange={(checked) => {
+                                                const next = checked
+                                                  ? [...selected, opt]
+                                                  : selected.filter((s) => s !== opt);
+                                                setCustomTextValues(prev => ({ ...prev, [cf.id]: next.join('||') }));
+                                              }}
+                                            />
+                                            <span className="text-sm">{opt}</span>
+                                          </label>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+
+                                  {cf.type === 'phone_number' && (
+                                    <Input
+                                      type="tel"
+                                      value={customTextValues[cf.id] || ''}
+                                      onChange={(e) => setCustomTextValues(prev => ({ ...prev, [cf.id]: e.target.value }))}
+                                      required={cf.required}
+                                      placeholder="Phone number"
+                                    />
+                                  )}
+
+                                  {cf.type === 'file' && (
                                     <>
                                       {customFileValues[cf.id] ? (
                                         <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">

@@ -19,6 +19,7 @@ import { useDepartments, useOffices } from '@/hooks/useOrganizationData';
 import { useOrganization } from '@/hooks/useOrganization';
 import { generateJobSlug } from '@/types/hiring';
 import type { ApplicationFormConfig } from '@/types/hiring';
+import { DEFAULT_APPLICATION_FIELDS } from '@/types/hiring';
 import { ApplicationFormSettings } from '@/components/hiring/ApplicationFormSettings';
 import { ArrowLeft, Loader2, Save, Sparkles, Wand2, CalendarIcon, Globe } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -77,9 +78,7 @@ export default function JobCreate() {
     is_internal_apply: false,
     is_public_visible: true,
     application_form_config: {
-      optional_fields: { linkedin_url: true, cover_letter: false },
-      custom_fields: [],
-      source_options: ['LinkedIn', 'Referral', 'Job Board', 'Company Website', 'Other'],
+      custom_fields: [...DEFAULT_APPLICATION_FIELDS],
     } as ApplicationFormConfig,
   });
 
