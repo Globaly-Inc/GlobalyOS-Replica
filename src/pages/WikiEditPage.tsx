@@ -12,7 +12,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { BlockNoteWikiEditor } from "@/components/wiki/BlockNoteWikiEditor";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { useCollaborationColor } from "@/components/wiki/collaboration/useCollaborationColor";
-import { WikiActiveEditors } from "@/components/wiki/collaboration/WikiActiveEditors";
+import { WikiPageViewers } from "@/components/wiki/collaboration/WikiPageViewers";
 import { SupabaseYjsProvider } from "@/components/wiki/collaboration/SupabaseYjsProvider";
 
 import { toast } from "sonner";
@@ -239,11 +239,6 @@ const WikiEditPage = () => {
 
           {/* Active editors + Save status */}
           <div className="flex items-center gap-3">
-            <WikiActiveEditors
-              provider={providerRef.current}
-              currentClientId={undefined}
-            />
-
             {/* Auto-save status indicator */}
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               {saveStatus === "saving" && (
@@ -268,6 +263,13 @@ const WikiEditPage = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-2 ml-4">
+            {/* Viewer presence stack */}
+            <WikiPageViewers
+              pageId={pageId}
+              employeeId={currentEmployee?.id}
+              userName={userName}
+              userAvatar={currentEmployee?.profiles?.avatar_url ?? null}
+            />
             {/* Comments toggle */}
             <Button
               variant={showCommentsSidebar ? "default" : "outline"}

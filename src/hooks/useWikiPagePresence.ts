@@ -6,6 +6,7 @@ export interface WikiViewer {
   employeeId: string;
   name: string;
   avatarUrl: string | null;
+  isSelf: boolean;
 }
 
 interface UseWikiPagePresenceOptions {
@@ -39,19 +40,21 @@ export const useWikiPagePresence = ({
           avatarUrl: string | null;
         }>();
 
-        const otherViewers: WikiViewer[] = [];
+        const allViewers: WikiViewer[] = [];
         for (const [key, presences] of Object.entries(state)) {
-          if (key === employeeId) continue;
           const p = presences[0];
           if (p) {
-            otherViewers.push({
+            allViewers.push({
               employeeId: p.employeeId,
               name: p.name,
               avatarUrl: p.avatarUrl,
+              isSelf: key === employeeId,
             });
           }
         }
-        setViewers(otherViewers);
+        // Sort so current user appears first
+        allViewers.sort((a, b) => (a.isSelf ? -1 : b.isSelf ? 1 : 0));
+        setViewers(allViewers);
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
