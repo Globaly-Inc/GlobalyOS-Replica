@@ -3,6 +3,7 @@ import { X, MessageSquareText } from "lucide-react";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import {
+  FormattingToolbar,
   FormattingToolbarController,
   SuggestionMenuController,
   getDefaultReactSlashMenuItems,
@@ -27,7 +28,7 @@ import {
   YjsThreadStore,
 } from "@blocknote/core/comments";
 
-import { offset, shift } from "@floating-ui/react";
+// floating-ui imports removed – static toolbar no longer needs them
 import { CommentsAlwaysShowActions } from "./comments/CommentAlwaysShowActions";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -345,31 +346,20 @@ export const BlockNoteWikiEditor = ({
         data-theming-css-variables-demo
       >
         <CommentsAlwaysShowActions>
-          {/* Static formatting toolbar - pinned above scroll area */}
-          <div className="bn-static-toolbar bn-toolbar" role="toolbar">
-            {getFormattingToolbarItems()}
-            <AIToolbarButton />
+          {/* Static formatting toolbar - always visible, pinned above scroll area */}
+          <div className="bn-static-toolbar">
+            <FormattingToolbar>
+              {getFormattingToolbarItems()}
+              <AIToolbarButton />
+            </FormattingToolbar>
           </div>
 
           <div className="flex flex-1 min-h-0">
             {/* Scrollable editor content area */}
             <div className="flex-1 min-w-0 overflow-y-auto py-6">
-              {/* Floating toolbar kept for text-selection context but hidden visually;
-                  the static bar above handles formatting. We still need this for
-                  slash menu and AI menu controllers. */}
+              {/* Hide the default floating formatting toolbar */}
               <FormattingToolbarController
-                floatingUIOptions={{
-                  useFloatingOptions: {
-                    placement: "bottom-start",
-                    middleware: [offset(10), shift()],
-                  },
-                }}
-                formattingToolbar={() => (
-                  <div className="bn-toolbar bn-formatting-toolbar" role="toolbar" style={{ display: 'none' }}>
-                    {getFormattingToolbarItems()}
-                    <AIToolbarButton />
-                  </div>
-                )}
+                formattingToolbar={() => <div style={{ display: 'none' }} />}
               />
 
               {/* Slash menu with AI items merged */}
