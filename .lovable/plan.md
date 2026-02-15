@@ -1,18 +1,36 @@
 
-## Convert WikiShareDialog from Sheet (Slider) to Dialog (Pop-up)
+## Fix: Wiki Folders Not Visible to Non-Admin Users
 
-### What Changes
+### Root Cause
 
-The `WikiShareDialog` currently uses a `Sheet` component (slides in from the right side). This will be converted to a `Dialog` (centered pop-up modal) to match the user's preference for a consistent pop-up style across the system.
+The `can_view_wiki_item` database function has a bug that causes it to crash for non-admin users when checking folder visibility.
 
-### Technical Changes
+The function loads different fields into the `_item` record depending on whether it's a folder or page:
+- **Folder**: loads `(organization_id, access_scope, created_by)` -- no `inherit_from_folder` field
+- **Page**: loads `(organization_id, access_scope, folder_id, inherit_from_folder, created_by)`
 
-**`src/components/wiki/WikiShareDialog.tsx`** (single file change):
+Later, the function accesses `_item.inherit_from_folder` regardless of item type. PL/pgSQL throws an error because the field doesn't exist on the folder record. Admin/Owner/HR users never hit this line because they return `true` earlier (at the role check). Regular members like Sarah reach this line and the function crashes, causing the RLS policy to deny access to ALL folders and root-level pages.
 
-1. Replace `Sheet`/`SheetContent`/`SheetHeader`/`SheetTitle`/`SheetDescription` imports with `Dialog`/`DialogContent`/`DialogHeader`/`DialogTitle`/`DialogDescription` from `@/components/ui/dialog`
-2. Swap the JSX wrapper from `<Sheet>` to `<Dialog>` and `<SheetContent>` to `<DialogContent>`
-3. Replace `<SheetHeader>` with `<DialogHeader>`, `<SheetTitle>` with `<DialogTitle>`, `<SheetDescription>` with `<DialogDescription>`
-4. Adjust the content container styling: remove the Sheet-specific `sm:max-w-md w-full flex flex-col p-0 overflow-hidden` class and apply Dialog-appropriate sizing (`sm:max-w-lg` with proper padding and scroll behavior)
-5. Keep all internal logic, sub-components, and nested dialogs (transfer ownership, confirmation) exactly as-is
+### Why the `can_edit_wiki_item` Function Works
 
-No other files need changes -- the `WikiShareDialog` is already used via its `open`/`onOpenChange` props everywhere (Wiki.tsx, WikiEditPage.tsx, WikiFolderView.tsx), so swapping the container component is fully transparent to consumers.
+The edit function uses separate variables (`_permission_level`, `_created_by`, `_inherit_from_folder`, `_folder_id`) instead of a single record, avoiding the field-access issue entirely.
+
+### Fix
+
+**Database migration** -- Rewrite `can_view_wiki_item` to use separate variables (matching the pattern from `can_edit_wiki_item`) instead of accessing fields on a dynamically-typed record:
+
+```text
+Key changes:
+1. Replace _item record with individual variables:
+   _org_id, _access_scope, _created_by, _inherit_from_folder, _folder_id
+2. Only assign _inherit_from_folder and _folder_id when item type is 'page'
+3. Default _inherit_from_folder to false for folders
+```
+
+This ensures the `inherit_from_folder` check only runs when the variable is properly set, eliminating the crash for folder visibility checks.
+
+### Impact
+
+- All non-admin users will immediately be able to see `company`-scoped folders (and pages) they previously couldn't access
+- No frontend code changes needed -- the RLS policy and existing queries remain the same
+- The `can_edit_wiki_item` function is already correct and needs no changes
