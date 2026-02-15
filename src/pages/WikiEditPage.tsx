@@ -13,6 +13,7 @@ import { BlockNoteWikiEditor } from "@/components/wiki/BlockNoteWikiEditor";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { useCollaborationColor } from "@/components/wiki/collaboration/useCollaborationColor";
 import { WikiActiveEditors } from "@/components/wiki/collaboration/WikiActiveEditors";
+import { WikiPageViewers } from "@/components/wiki/collaboration/WikiPageViewers";
 import { SupabaseYjsProvider } from "@/components/wiki/collaboration/SupabaseYjsProvider";
 
 import { toast } from "sonner";
@@ -226,7 +227,7 @@ const WikiEditPage = () => {
     <div className="fixed inset-0 bg-background z-50 flex flex-col">
       {/* Sticky Header */}
       <header className="sticky top-0 z-10 bg-card border-b shadow-sm">
-        <div className="flex items-center justify-between max-w-6xl mx-auto px-6 py-3">
+        <div className="flex items-center justify-between px-6 py-3">
           {/* Page Title */}
           <div className="flex-1 max-w-2xl">
             <Input
@@ -266,6 +267,14 @@ const WikiEditPage = () => {
               currentClientId={undefined}
             />
 
+            {/* Who is viewing */}
+            <WikiPageViewers
+              pageId={pageId}
+              employeeId={currentEmployee?.id}
+              userName={userName}
+              userAvatar={currentEmployee?.profiles?.avatar_url ?? null}
+            />
+
             {/* Comments toggle */}
             <Button
               variant={showCommentsSidebar ? "default" : "outline"}
@@ -289,7 +298,7 @@ const WikiEditPage = () => {
 
       {/* Editor Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-6xl mx-auto px-6 py-6">
+        <div className="px-6 py-6">
           <BlockNoteWikiEditor
             initialContent={editContent}
             onChange={handleContentChange}
