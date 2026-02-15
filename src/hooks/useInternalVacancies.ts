@@ -12,6 +12,7 @@ export interface InternalVacancy {
   published_at: string | null;
   department: { name: string } | null;
   office: { name: string; city: string | null } | null;
+  is_internal_apply: boolean;
 }
 
 export const useInternalVacancies = () => {
@@ -24,7 +25,7 @@ export const useInternalVacancies = () => {
       if (!orgId) return [];
       const { data, error } = await supabase
         .from('jobs')
-        .select('id, title, slug, employment_type, work_model, location, published_at, department:departments(name), office:offices(name, city)')
+        .select('id, title, slug, employment_type, work_model, location, published_at, is_internal_apply, department:departments(name), office:offices(name, city)')
         .eq('organization_id', orgId)
         .eq('status', 'open')
         .eq('is_internal_visible', true)

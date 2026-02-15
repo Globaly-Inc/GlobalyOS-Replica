@@ -5135,6 +5135,7 @@ export type Database = {
           headcount: number | null
           hiring_manager_id: string | null
           id: string
+          is_internal_apply: boolean | null
           is_internal_visible: boolean | null
           is_public_visible: boolean | null
           justification: string | null
@@ -5174,6 +5175,7 @@ export type Database = {
           headcount?: number | null
           hiring_manager_id?: string | null
           id?: string
+          is_internal_apply?: boolean | null
           is_internal_visible?: boolean | null
           is_public_visible?: boolean | null
           justification?: string | null
@@ -5213,6 +5215,7 @@ export type Database = {
           headcount?: number | null
           hiring_manager_id?: string | null
           id?: string
+          is_internal_apply?: boolean | null
           is_internal_visible?: boolean | null
           is_public_visible?: boolean | null
           justification?: string | null

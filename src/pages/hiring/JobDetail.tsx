@@ -481,11 +481,13 @@ export default function JobDetail() {
 
       {job.status === 'open' && (
         <>
-          <InternalApplyDialog
-            open={applyDialogOpen}
-            onOpenChange={setApplyDialogOpen}
-            vacancy={{ id: job.id, title: job.title }}
-          />
+          {(job as any).is_internal_apply && (
+            <InternalApplyDialog
+              open={applyDialogOpen}
+              onOpenChange={setApplyDialogOpen}
+              vacancy={{ id: job.id, title: job.title }}
+            />
+          )}
           <ShareVacancyDialog
             open={shareDialogOpen}
             onOpenChange={setShareDialogOpen}
