@@ -1,36 +1,42 @@
 
-## Fix: Wiki Folders Not Visible to Non-Admin Users
 
-### Root Cause
+## Replace Role Tags with Multi-Select Positions Dropdown on Assignment Templates
 
-The `can_view_wiki_item` database function has a bug that causes it to crash for non-admin users when checking folder visibility.
+### What Changes
 
-The function loads different fields into the `_item` record depending on whether it's a folder or page:
-- **Folder**: loads `(organization_id, access_scope, created_by)` -- no `inherit_from_folder` field
-- **Page**: loads `(organization_id, access_scope, folder_id, inherit_from_folder, created_by)`
+The "Role Tags (comma-separated)" text input on the assignment template form will be replaced with a multi-select positions dropdown. Positions are sourced from the organization's existing positions (managed in org settings). A new `position_ids` column will be added to `assignment_templates` to store the selected position UUIDs.
 
-Later, the function accesses `_item.inherit_from_folder` regardless of item type. PL/pgSQL throws an error because the field doesn't exist on the folder record. Admin/Owner/HR users never hit this line because they return `true` earlier (at the role check). Regular members like Sarah reach this line and the function crashes, causing the RLS policy to deny access to ALL folders and root-level pages.
+### Database Changes
 
-### Why the `can_edit_wiki_item` Function Works
+**Add `position_ids` column to `assignment_templates`:**
+- New column: `position_ids UUID[] DEFAULT '{}'` -- stores array of position IDs linked to this template
+- The existing `role_tags` column remains untouched for backward compatibility
 
-The edit function uses separate variables (`_permission_level`, `_created_by`, `_inherit_from_folder`, `_folder_id`) instead of a single record, avoiding the field-access issue entirely.
+### Frontend Changes
 
-### Fix
+**`src/pages/hiring/HiringSettings.tsx`:**
 
-**Database migration** -- Rewrite `can_view_wiki_item` to use separate variables (matching the pattern from `can_edit_wiki_item`) instead of accessing fields on a dynamically-typed record:
+1. Import `usePositions` from `@/hooks/usePositions`
+2. Replace the "Role Tags (comma-separated)" `<Input>` (lines 515-524) with a multi-select positions UI:
+   - Use a Popover + Command pattern (similar to `PositionCombobox`) with checkboxes for multi-select
+   - Show selected positions as removable Badge chips below the trigger
+   - Search/filter capability within the dropdown
+3. Update `formData` state to include `position_ids: string[]` alongside (or replacing) `role_tags`
+4. Update `handleEdit` to populate `position_ids` from template data
+5. Update `handleCreate` to initialize `position_ids: []`
+6. In the templates table list view, replace the "Tags" column (lines 600, 614-626) with "Positions" showing position names resolved from IDs
 
-```text
-Key changes:
-1. Replace _item record with individual variables:
-   _org_id, _access_scope, _created_by, _inherit_from_folder, _folder_id
-2. Only assign _inherit_from_folder and _folder_id when item type is 'page'
-3. Default _inherit_from_folder to false for folders
-```
+**`src/types/hiring.ts`:**
+- Add `position_ids?: string[]` to `CreateAssignmentTemplateInput`
 
-This ensures the `inherit_from_folder` check only runs when the variable is properly set, eliminating the crash for folder visibility checks.
+**`src/services/useHiringMutations.ts`:**
+- The mutation already spreads `...input`, so `position_ids` will be included automatically once added to the input type
 
-### Impact
+### How Auto-Assignment Would Work
 
-- All non-admin users will immediately be able to see `company`-scoped folders (and pages) they previously couldn't access
-- No frontend code changes needed -- the RLS policy and existing queries remain the same
-- The `can_edit_wiki_item` function is already correct and needs no changes
+The `position_ids` on templates establish which positions a template applies to. The actual auto-assignment logic (automatically adding assignments when a candidate applies to a vacancy with a matching position) would require:
+- A `position_id` column on the `jobs` table (not yet present)
+- A trigger or application-level logic to match
+
+This plan focuses on the UI and data model for linking positions to templates. The auto-assignment trigger can be added as a follow-up once jobs also reference positions.
+
