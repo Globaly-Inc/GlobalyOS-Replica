@@ -188,7 +188,8 @@ export default function JobDetail() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <OrgLink to="/hiring?tab=jobs" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <OrgLink to="/hiring?tab=jobs" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="h-3.5 w-3.5" />
             Vacancies
           </OrgLink>
           <span className="text-muted-foreground">/</span>
