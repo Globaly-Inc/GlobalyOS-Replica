@@ -315,6 +315,8 @@ export default function JobDetail() {
                     {departmentName}
                   </span>
                 )}
+              </div>
+              <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <Briefcase className="h-3.5 w-3.5" />
                   {job.work_model ? job.work_model.charAt(0).toUpperCase() + job.work_model.slice(1) : 'On-site'}
