@@ -1,37 +1,75 @@
 
 
-## Application Form Settings -- Already Implemented, Needs Verification
+## Redesign Pipeline Tab to Vertical Stage Sidebar + Candidate Grid
 
-### Current State
+### What Changes
 
-The `ApplicationFormSettings.tsx` component **already has** the Calendly-style layout with:
+Replace the current horizontal Kanban board with a two-panel layout matching the wireframe:
 
-- **Fixed fields** (Full Name, Email, Phone, Resume) locked at the top with lock icons
-- **Drag-and-drop** sortable custom questions using `@dnd-kit/sortable`
-- **All 7 answer types** (One Line, Multiple Lines, Radio Buttons, Checkboxes, Dropdown, Phone Number, File) in the edit dialog
-- **Edit dialog** matching the Calendly screenshot (Question text, Required toggle, Answer Type dropdown, Options builder)
-- **3-dot menu** on each question row (Edit / Delete)
-- **"Add New Question"** button at the bottom
+- **Left panel**: Vertical list of pipeline stages (Applied, Screening, Assignment, etc.) with colored left borders and candidate counts. Clicking a stage selects it.
+- **Right panel**: A 2-column grid of candidate cards for the selected stage. Cards show: Full Name, Email + Phone, Applied Date and Time.
+- **Summary card (3rd column)**: Replace the dot-list pipeline stats with a small bar/summary chart showing candidate counts per stage.
 
-The selected element text you see ("Optional Fields", "Source Options", etc.) appears to be from a **stale/cached render**. The underlying code has already been updated to the unified Calendly-style layout per the previously approved plan.
+### Layout Structure
 
-### What This Plan Will Do
+```text
+Pipeline Tab
++------------------+--------------------------------------+
+| Applied       1  |  [Card]              [Card]          |
+| Screening     1  |  Name                Name            |
+| Assignment    1  |  Email - Phone       Email - Phone   |
+| Interview 1   0  |  Applied Date        Applied Date    |
+| Interview 2   0  |                                      |
+| Interview 3   0  |  [Card]              [Card]          |
+| Offer         0  |  ...                 ...             |
+| Hired         0  |                                      |
++------------------+--------------------------------------+
+```
 
-Force a clean re-render by making a trivial whitespace-only touch to the component file, ensuring the latest code is picked up by the build system. No functional changes are needed -- the implementation is complete.
+### Drag-and-Drop
 
-### Technical Verification
+- Candidate cards can be dragged from the right grid and dropped onto any stage in the left sidebar to move them between stages
+- The left sidebar stages act as drop targets with visual feedback
 
-| Feature | Status |
-|---------|--------|
-| Fixed fields pinned at top | Done (line 350-363) |
-| Drag-and-drop reordering | Done (lines 371-383, using `@dnd-kit/sortable`) |
-| All 7 answer types | Done (types in `hiring.ts` line 68, labels line 70-78) |
-| Edit dialog with options builder | Done (lines 134-287) |
-| 3-dot menu (edit/delete) | Done (lines 111-127) |
-| "Add New Question" button | Done (line 388-391) |
-| Old sections removed | Done (no "Optional Fields" or "Source Options" sections) |
+### Files to Modify
 
-### File to Touch
+**1. `src/components/hiring/pipeline/HiringKanbanBoard.tsx`** (major rewrite)
+- Add `selectedStage` state (defaults to first stage with candidates, or `'applied'`)
+- Left panel: vertical list of stages, each is a clickable row with colored left border, stage name, and count badge. Active stage gets highlighted background. Each row is a drop target for drag-and-drop.
+- Right panel: 2-column responsive grid (`grid grid-cols-1 md:grid-cols-2`) showing candidates for the selected stage only
+- Candidate cards simplified to match wireframe: Full Name (bold), Email - Phone on second line, Applied date/time on third line
+- Cards remain draggable; dropping on a stage row in the sidebar moves the candidate
 
-**`src/components/hiring/ApplicationFormSettings.tsx`** -- no-op re-save to clear stale render
+**2. `src/pages/hiring/JobDetail.tsx`** (minor update to pipeline stats column)
+- Replace the dot-list pipeline stats in the summary card's right column with a small horizontal bar chart or stacked mini-bars showing counts per stage with colored segments, giving a visual summary of the pipeline distribution
 
+### Stage Sidebar Item Design
+
+Each stage row in the left sidebar:
+- 3px colored left border (matching existing stage colors)
+- Stage label text
+- Count badge on the right
+- Selected state: light background fill
+- Drop hover state: dashed border or highlighted background
+
+### Candidate Card Design (simplified)
+
+```text
++--------------------------------+
+| Candidate Full Name            |
+| email@example.com - 9841234567 |
+| Applied 15 Feb 2026, 2:30 PM  |
++--------------------------------+
+```
+
+- Clean card with border, rounded corners
+- No avatar, no dropdown menu, no badges (cleaner per wireframe)
+- Clicking the name links to the application detail page
+- Draggable with grab cursor
+
+### Technical Details
+
+- No database changes
+- No new dependencies (uses native HTML drag-and-drop, same as current)
+- Stage colors reused from existing `STAGE_COLORS` map but converted to left-border-only style
+- Responsive: on mobile, sidebar stacks above the grid
