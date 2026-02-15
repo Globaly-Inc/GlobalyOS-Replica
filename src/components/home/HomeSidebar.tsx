@@ -16,6 +16,7 @@ const AllPendingLeavesCard = lazy(() => import("@/components/home/AllPendingLeav
 const NotCheckedInCard = lazy(() => import("@/components/home/NotCheckedInCard").then(m => ({ default: m.NotCheckedInCard })));
 const UserHelpRequests = lazy(() => import("@/components/home/UserHelpRequests").then(m => ({ default: m.UserHelpRequests })));
 const MyWorkflowTasks = lazy(() => import("@/components/home/MyWorkflowTasks").then(m => ({ default: m.MyWorkflowTasks })));
+const InternalVacanciesCard = lazy(() => import("@/components/home/InternalVacanciesCard"));
 
 const getEventTypeBadgeStyle = (eventType: string) => {
   switch (eventType) {
@@ -173,6 +174,10 @@ export const HomeSidebar = ({
           </>
         )}
       </Card>
+
+      <Suspense fallback={<CardSkeleton />}>
+        <InternalVacanciesCard />
+      </Suspense>
       
       {/* Upcoming Events */}
       {upcomingCalendarEvents.length > 0 && (

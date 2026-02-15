@@ -9,6 +9,7 @@ import { SelfCheckInCard } from "@/components/home/SelfCheckInCard";
 import type { PersonOnLeave } from "@/hooks/useHomeData";
 
 const AllPendingLeavesCard = lazy(() => import("@/components/home/AllPendingLeavesCard").then(m => ({ default: m.AllPendingLeavesCard })));
+const InternalVacanciesCard = lazy(() => import("@/components/home/InternalVacanciesCard"));
 
 interface HomeMobileLeaveSectionProps {
   peopleOnLeave: PersonOnLeave[];
@@ -61,6 +62,10 @@ export const HomeMobileLeaveSection = ({ peopleOnLeave, onLeaveDataChange }: Hom
           <p className="text-xs text-muted-foreground">No one is on leave today</p>
         )}
       </Card>
+
+      <Suspense fallback={<CardSkeleton />}>
+        <InternalVacanciesCard />
+      </Suspense>
     </div>
   );
 };
