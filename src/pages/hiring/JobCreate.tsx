@@ -18,6 +18,8 @@ import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { useDepartments, useOffices } from '@/hooks/useOrganizationData';
 import { useOrganization } from '@/hooks/useOrganization';
 import { generateJobSlug } from '@/types/hiring';
+import type { ApplicationFormConfig } from '@/types/hiring';
+import { ApplicationFormSettings } from '@/components/hiring/ApplicationFormSettings';
 import { ArrowLeft, Loader2, Save, Sparkles, Wand2, CalendarIcon, Globe } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
@@ -74,6 +76,11 @@ export default function JobCreate() {
     is_internal_visible: true,
     is_internal_apply: false,
     is_public_visible: true,
+    application_form_config: {
+      optional_fields: { linkedin_url: true, cover_letter: false },
+      custom_fields: [],
+      source_options: ['LinkedIn', 'Referral', 'Job Board', 'Company Website', 'Other'],
+    } as ApplicationFormConfig,
   });
 
   const [isGeneratingJD, setIsGeneratingJD] = useState(false);
@@ -114,6 +121,7 @@ export default function JobCreate() {
         target_start_date: formData.target_start_date || null,
         justification: formData.justification || null,
         description: formData.description || null,
+        application_form_config: formData.application_form_config,
       });
 
       if (publish) {
@@ -600,6 +608,11 @@ export default function JobCreate() {
             departments={departments}
             offices={offices}
             companyName={currentOrg?.name}
+          />
+
+          <ApplicationFormSettings
+            config={formData.application_form_config}
+            onChange={(config) => handleChange('application_form_config', config)}
           />
         </div>
       </div>

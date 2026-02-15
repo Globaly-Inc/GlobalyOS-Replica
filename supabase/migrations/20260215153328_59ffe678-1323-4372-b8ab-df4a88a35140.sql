@@ -1,0 +1,1 @@
+ALTER TABLE public.jobs ADD COLUMN application_form_config JSONB DEFAULT '{}';

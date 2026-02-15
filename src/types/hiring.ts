@@ -62,6 +62,26 @@ export type HiringActivityAction =
   | 'note_added';
 
 // ============================================
+// APPLICATION FORM CONFIG
+// ============================================
+
+export interface CustomFieldConfig {
+  id: string;
+  label: string;
+  type: 'text' | 'file';
+  required: boolean;
+}
+
+export interface ApplicationFormConfig {
+  optional_fields?: {
+    linkedin_url?: boolean;
+    cover_letter?: boolean;
+  };
+  custom_fields?: CustomFieldConfig[];
+  source_options?: string[];
+}
+
+// ============================================
 // CORE ENTITIES
 // ============================================
 
@@ -93,6 +113,7 @@ export interface Job {
   is_internal_visible: boolean;
   is_internal_apply: boolean;
   is_public_visible: boolean;
+  application_form_config?: ApplicationFormConfig;
   approved_by: string | null;
   approved_at: string | null;
   published_at: string | null;
@@ -405,6 +426,7 @@ export interface CreateJobInput {
   target_start_date?: string | null;
   application_close_date?: string | null;
   justification?: string | null;
+  application_form_config?: ApplicationFormConfig;
 }
 
 export interface UpdateJobInput extends Partial<CreateJobInput> {
@@ -413,6 +435,7 @@ export interface UpdateJobInput extends Partial<CreateJobInput> {
   is_internal_apply?: boolean;
   is_public_visible?: boolean;
   auto_close_on_deadline?: boolean;
+  application_form_config?: ApplicationFormConfig;
 }
 
 export interface CreateCandidateInput {

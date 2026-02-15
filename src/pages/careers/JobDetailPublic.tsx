@@ -16,6 +16,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { 
   MapPin, 
   Briefcase, 
@@ -34,6 +42,7 @@ import {
   WORK_MODEL_LABELS, 
   EMPLOYMENT_TYPE_LABELS 
 } from '@/types/hiring';
+import type { ApplicationFormConfig, CustomFieldConfig } from '@/types/hiring';
 import { toast } from 'sonner';
 import { HelmetProvider, Helmet } from 'react-helmet-async';
 import DOMPurify from 'dompurify';
@@ -79,6 +88,10 @@ export default function JobDetailPublic() {
       };
       resume: File;
       additionalFiles?: File[];
+      cover_letter?: string;
+      source_of_application?: string;
+      custom_fields_data?: Record<string, string>;
+      custom_files?: Record<string, File>;
     }) => {
       const formPayload = new FormData();
       formPayload.append('org_code', data.orgCode);
@@ -87,10 +100,20 @@ export default function JobDetailPublic() {
       formPayload.append('candidate_email', data.candidate.email);
       if (data.candidate.phone) formPayload.append('candidate_phone', data.candidate.phone);
       if (data.candidate.linkedin_url) formPayload.append('candidate_linkedin_url', data.candidate.linkedin_url);
+      if (data.cover_letter) formPayload.append('cover_letter', data.cover_letter);
+      if (data.source_of_application) formPayload.append('source_of_application', data.source_of_application);
       formPayload.append('resume', data.resume);
       if (data.additionalFiles) {
         data.additionalFiles.forEach((file) => {
           formPayload.append('additional_files', file);
+        });
+      }
+      if (data.custom_fields_data) {
+        formPayload.append('custom_fields_data', JSON.stringify(data.custom_fields_data));
+      }
+      if (data.custom_files) {
+        Object.entries(data.custom_files).forEach(([fieldId, file]) => {
+          formPayload.append(`custom_file_${fieldId}`, file);
         });
       }
 
@@ -148,8 +171,12 @@ export default function JobDetailPublic() {
     email: '',
     phone: '',
     linkedin_url: '',
+    cover_letter: '',
+    source_of_application: '',
     consent: false,
   });
+  const [customTextValues, setCustomTextValues] = useState<Record<string, string>>({});
+  const [customFileValues, setCustomFileValues] = useState<Record<string, File | null>>({});
   const [phoneCountryCode, setPhoneCountryCode] = useState(() => getDefaultCountryCode());
   const [resumeFiles, setResumeFiles] = useState<File[]>([]);
   const [emailTouched, setEmailTouched] = useState(false);
@@ -207,6 +234,26 @@ export default function JobDetailPublic() {
 
     if (!job || !orgCode) return;
 
+    // Validate required custom fields
+    const formConfig = (job as any).application_form_config as ApplicationFormConfig | undefined;
+    const customFields = formConfig?.custom_fields ?? [];
+    for (const cf of customFields) {
+      if (cf.required) {
+        if (cf.type === 'text' && !customTextValues[cf.id]?.trim()) {
+          toast.error(`${cf.label} is required`);
+          return;
+        }
+        if (cf.type === 'file' && !customFileValues[cf.id]) {
+          toast.error(`${cf.label} is required`);
+          return;
+        }
+      }
+    }
+
+    // Build custom files map (only non-null)
+    const customFilesMap: Record<string, File> = {};
+    Object.entries(customFileValues).forEach(([k, v]) => { if (v) customFilesMap[k] = v; });
+
     try {
       await submitApplication.mutateAsync({
         orgCode,
@@ -219,6 +266,10 @@ export default function JobDetailPublic() {
         },
         resume: resumeFiles[0],
         additionalFiles: resumeFiles.slice(1),
+        cover_letter: formData.cover_letter || undefined,
+        source_of_application: formData.source_of_application || undefined,
+        custom_fields_data: Object.keys(customTextValues).length > 0 ? customTextValues : undefined,
+        custom_files: Object.keys(customFilesMap).length > 0 ? customFilesMap : undefined,
       });
       
       // Applied state is set in onSuccess
@@ -472,55 +523,153 @@ export default function JobDetailPublic() {
                           />
                         </div>
 
-                        <div className="space-y-2">
-                          <Label htmlFor="linkedin">LinkedIn or Personal URL</Label>
-                          <Input
-                            id="linkedin"
-                            type="url"
-                            placeholder="https://linkedin.com/in/..."
-                            value={formData.linkedin_url}
-                            onChange={(e) => setFormData({ ...formData, linkedin_url: e.target.value })}
-                          />
-                        </div>
+                        {/* LinkedIn - conditional based on config */}
+                        {(() => {
+                          const formConfig = (job as any).application_form_config as ApplicationFormConfig | undefined;
+                          const showLinkedin = formConfig?.optional_fields?.linkedin_url !== false;
+                          const showCoverLetter = formConfig?.optional_fields?.cover_letter === true;
+                          const customFields = formConfig?.custom_fields ?? [];
+                          const sourceOptions = formConfig?.source_options ?? ['LinkedIn', 'Referral', 'Job Board', 'Company Website', 'Other'];
 
-                        <div className="space-y-2">
-                          <Label htmlFor="resume">Upload Resume & Portfolios *</Label>
-                          {resumeFiles.length > 0 && (
-                            <div className="space-y-2">
-                              {resumeFiles.map((file, index) => (
-                                <div key={index} className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
-                                  <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                                  <span className="text-sm truncate flex-1">{file.name}</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => removeFile(index)}
-                                    className="text-muted-foreground hover:text-foreground"
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </button>
+                          return (
+                            <>
+                              {showLinkedin && (
+                                <div className="space-y-2">
+                                  <Label htmlFor="linkedin">LinkedIn or Personal URL</Label>
+                                  <Input
+                                    id="linkedin"
+                                    type="url"
+                                    placeholder="https://linkedin.com/in/..."
+                                    value={formData.linkedin_url}
+                                    onChange={(e) => setFormData({ ...formData, linkedin_url: e.target.value })}
+                                  />
+                                </div>
+                              )}
+
+                              {/* Source dropdown - always shown */}
+                              <div className="space-y-2">
+                                <Label htmlFor="source">How did you hear about us? *</Label>
+                                <Select
+                                  value={formData.source_of_application}
+                                  onValueChange={(value) => setFormData({ ...formData, source_of_application: value })}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select source" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {sourceOptions.filter(Boolean).map((opt) => (
+                                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              {showCoverLetter && (
+                                <div className="space-y-2">
+                                  <Label htmlFor="cover_letter">Cover Letter</Label>
+                                  <Textarea
+                                    id="cover_letter"
+                                    placeholder="Tell us why you're a great fit..."
+                                    value={formData.cover_letter}
+                                    onChange={(e) => setFormData({ ...formData, cover_letter: e.target.value })}
+                                    className="min-h-[100px]"
+                                  />
+                                </div>
+                              )}
+
+                              {/* Resume upload */}
+                              <div className="space-y-2">
+                                <Label htmlFor="resume">Upload Resume & Portfolios *</Label>
+                                {resumeFiles.length > 0 && (
+                                  <div className="space-y-2">
+                                    {resumeFiles.map((file, index) => (
+                                      <div key={index} className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
+                                        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                                        <span className="text-sm truncate flex-1">{file.name}</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => removeFile(index)}
+                                          className="text-muted-foreground hover:text-foreground"
+                                        >
+                                          <X className="h-4 w-4" />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                <label
+                                  htmlFor="resume"
+                                  className="flex flex-col items-center gap-2 p-4 border-2 border-dashed rounded-md cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
+                                >
+                                  <Upload className="h-6 w-6 text-muted-foreground" />
+                                  <span className="text-sm text-muted-foreground text-center">
+                                    {resumeFiles.length > 0 ? 'Add more files' : 'Click to upload'} (PDF, DOC, DOCX, JPEG, PNG)
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">Max {MAX_FILE_SIZE_MB}MB per file</span>
+                                  <input
+                                    id="resume"
+                                    type="file"
+                                    accept={ACCEPTED_FILE_TYPES}
+                                    onChange={handleFileChange}
+                                    multiple
+                                    className="sr-only"
+                                  />
+                                </label>
+                              </div>
+
+                              {/* Custom fields */}
+                              {customFields.map((cf) => (
+                                <div key={cf.id} className="space-y-2">
+                                  <Label>{cf.label}{cf.required ? ' *' : ''}</Label>
+                                  {cf.type === 'text' ? (
+                                    <Input
+                                      value={customTextValues[cf.id] || ''}
+                                      onChange={(e) => setCustomTextValues(prev => ({ ...prev, [cf.id]: e.target.value }))}
+                                      required={cf.required}
+                                    />
+                                  ) : (
+                                    <>
+                                      {customFileValues[cf.id] ? (
+                                        <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
+                                          <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                                          <span className="text-sm truncate flex-1">{customFileValues[cf.id]!.name}</span>
+                                          <button
+                                            type="button"
+                                            onClick={() => setCustomFileValues(prev => ({ ...prev, [cf.id]: null }))}
+                                            className="text-muted-foreground hover:text-foreground"
+                                          >
+                                            <X className="h-4 w-4" />
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <label className="flex flex-col items-center gap-1 p-3 border-2 border-dashed rounded-md cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors">
+                                          <Upload className="h-5 w-5 text-muted-foreground" />
+                                          <span className="text-xs text-muted-foreground">Upload file</span>
+                                          <input
+                                            type="file"
+                                            accept={ACCEPTED_FILE_TYPES}
+                                            className="sr-only"
+                                            onChange={(e) => {
+                                              const file = e.target.files?.[0];
+                                              if (file) {
+                                                if (file.size > MAX_FILE_SIZE_BYTES) {
+                                                  toast.error(`File exceeds ${MAX_FILE_SIZE_MB}MB limit`);
+                                                  return;
+                                                }
+                                                setCustomFileValues(prev => ({ ...prev, [cf.id]: file }));
+                                              }
+                                              e.target.value = '';
+                                            }}
+                                          />
+                                        </label>
+                                      )}
+                                    </>
+                                  )}
                                 </div>
                               ))}
-                            </div>
-                          )}
-                          <label
-                            htmlFor="resume"
-                            className="flex flex-col items-center gap-2 p-4 border-2 border-dashed rounded-md cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
-                          >
-                            <Upload className="h-6 w-6 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground text-center">
-                              {resumeFiles.length > 0 ? 'Add more files' : 'Click to upload'} (PDF, DOC, DOCX, JPEG, PNG)
-                            </span>
-                            <span className="text-xs text-muted-foreground">Max {MAX_FILE_SIZE_MB}MB per file</span>
-                            <input
-                              id="resume"
-                              type="file"
-                              accept={ACCEPTED_FILE_TYPES}
-                              onChange={handleFileChange}
-                              multiple
-                              className="sr-only"
-                            />
-                          </label>
-                        </div>
+                            </>
+                          );
+                        })()}
 
                         <div className="flex items-start gap-2">
                           <Checkbox

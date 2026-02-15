@@ -81,14 +81,18 @@ export function useCreateJob() {
         uniqueSlug = `${slug}-${counter}`;
       }
 
+      const payload = {
+        organization_id: currentOrg.id,
+        slug: uniqueSlug,
+        created_by: currentEmployee?.id || null,
+        ...input,
+      } as Record<string, unknown>;
+      if (input.application_form_config) {
+        payload.application_form_config = input.application_form_config as unknown;
+      }
       const { data, error } = await supabase
         .from('jobs')
-        .insert({
-          organization_id: currentOrg.id,
-          slug: uniqueSlug,
-          created_by: currentEmployee?.id || null,
-          ...input,
-        })
+        .insert(payload as any)
         .select()
         .single();
 
@@ -126,9 +130,13 @@ export function useUpdateJob() {
     mutationFn: async ({ jobId, input }: { jobId: string; input: UpdateJobInput }) => {
       if (!currentOrg?.id) throw new Error('No organization selected');
 
+      const payload = { ...input } as Record<string, unknown>;
+      if (input.application_form_config) {
+        payload.application_form_config = input.application_form_config as unknown;
+      }
       const { data, error } = await supabase
         .from('jobs')
-        .update(input)
+        .update(payload as any)
         .eq('id', jobId)
         .eq('organization_id', currentOrg.id)
         .select()

@@ -5119,6 +5119,7 @@ export type Database = {
       jobs: {
         Row: {
           application_close_date: string | null
+          application_form_config: Json | null
           approved_at: string | null
           approved_by: string | null
           auto_close_on_deadline: boolean | null
@@ -5159,6 +5160,7 @@ export type Database = {
         }
         Insert: {
           application_close_date?: string | null
+          application_form_config?: Json | null
           approved_at?: string | null
           approved_by?: string | null
           auto_close_on_deadline?: boolean | null
@@ -5199,6 +5201,7 @@ export type Database = {
         }
         Update: {
           application_close_date?: string | null
+          application_form_config?: Json | null
           approved_at?: string | null
           approved_by?: string | null
           auto_close_on_deadline?: boolean | null
