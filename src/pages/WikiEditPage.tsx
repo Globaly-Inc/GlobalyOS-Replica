@@ -2,9 +2,19 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
-import { X, Loader2, Check, Cloud, MessageSquare } from "lucide-react";
+import { X, Loader2, Check, Cloud, MessageSquare, Share2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -30,6 +40,7 @@ const WikiEditPage = () => {
   const [hasInitialized, setHasInitialized] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [showCommentsSidebar, setShowCommentsSidebar] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const autosaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const providerRef = useRef<SupabaseYjsProvider | null>(null);
   // Track the last saved values to detect real changes
@@ -188,6 +199,23 @@ const WikiEditPage = () => {
     navigateOrg("/wiki");
   };
 
+  const handleDeletePage = useCallback(async () => {
+    if (!pageId) return;
+    try {
+      const { error } = await supabase
+        .from("wiki_pages")
+        .delete()
+        .eq("id", pageId);
+      if (error) throw error;
+      toast.success("Page deleted");
+      queryClient.invalidateQueries({ queryKey: ["wiki-pages-list"] });
+      navigateOrg("/wiki");
+    } catch (err) {
+      console.error("Failed to delete page:", err);
+      toast.error("Failed to delete page");
+    }
+  }, [pageId, queryClient, navigateOrg]);
+
   const handleContentChange = useCallback((value: string) => {
     setEditContent(value);
   }, []);
@@ -270,7 +298,36 @@ const WikiEditPage = () => {
               userName={userName}
               userAvatar={currentEmployee?.profiles?.avatar_url ?? null}
             />
-            {/* Comments toggle */}
+            {/* Share button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const url = window.location.href;
+                navigator.clipboard.writeText(url).then(() => {
+                  toast.success("Link copied to clipboard");
+                }).catch(() => {
+                  toast.error("Failed to copy link");
+                });
+              }}
+              title="Copy page link"
+            >
+              <Share2 className="h-4 w-4 mr-1.5" />
+              Share
+            </Button>
+            {/* Delete button */}
+            {hasGlobalAccess && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                onClick={() => setShowDeleteConfirm(true)}
+                title="Delete this page"
+              >
+                <Trash2 className="h-4 w-4 mr-1.5" />
+                Delete
+              </Button>
+            )}
             <Button 
               variant="outline" 
               size="sm" 
@@ -304,6 +361,27 @@ const WikiEditPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this page?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The page "{editTitle}" and all its version history will be permanently deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeletePage}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
