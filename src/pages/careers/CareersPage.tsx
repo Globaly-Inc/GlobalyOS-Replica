@@ -39,7 +39,7 @@ export default function CareersPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('organizations')
-        .select('name, logo_url, website')
+        .select('name, logo_url, website, careers_page_title, careers_page_subtitle, careers_header_color')
         .eq('slug', orgCode!)
         .single();
       if (error) throw error;
@@ -101,13 +101,16 @@ export default function CareersPage() {
         </header>
 
         {/* Hero Section */}
-        <div className="bg-primary text-primary-foreground py-16">
+        <div
+          className="py-16 text-white"
+          style={{ backgroundColor: (org as any)?.careers_header_color || 'hsl(var(--primary))' }}
+        >
           <div className="container mx-auto px-4 text-center">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">
-              Join Our Team
+              {(org as any)?.careers_page_title || 'Join Our Team'}
             </h1>
             <p className="text-lg md:text-xl opacity-90 max-w-2xl mx-auto">
-              Discover opportunities to grow your career with us. We're looking for talented people to help shape the future.
+              {(org as any)?.careers_page_subtitle || 'Discover opportunities to grow your career with us. We\'re looking for talented people to help shape the future.'}
             </p>
           </div>
         </div>

@@ -7673,6 +7673,9 @@ export type Database = {
           business_email: string | null
           business_phone: string | null
           business_registration_number: string | null
+          careers_header_color: string | null
+          careers_page_subtitle: string | null
+          careers_page_title: string | null
           company_size: string | null
           country: string | null
           created_at: string
@@ -7715,6 +7718,9 @@ export type Database = {
           business_email?: string | null
           business_phone?: string | null
           business_registration_number?: string | null
+          careers_header_color?: string | null
+          careers_page_subtitle?: string | null
+          careers_page_title?: string | null
           company_size?: string | null
           country?: string | null
           created_at?: string
@@ -7757,6 +7763,9 @@ export type Database = {
           business_email?: string | null
           business_phone?: string | null
           business_registration_number?: string | null
+          careers_header_color?: string | null
+          careers_page_subtitle?: string | null
+          careers_page_title?: string | null
           company_size?: string | null
           country?: string | null
           created_at?: string

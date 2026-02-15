@@ -53,6 +53,7 @@ import {
   Pencil,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import { EMAIL_TRIGGER_LABELS, ASSIGNMENT_TYPE_LABELS } from '@/types/hiring';
 import type { EmailTrigger } from '@/types/hiring';
 import { usePositions } from '@/hooks/usePositions';
@@ -452,27 +453,42 @@ function AssignmentTemplatesSection() {
 // ============================================
 
 function ConfigurationSection() {
-  const { data: emailTemplates, isLoading } = useHiringEmailTemplates();
-  const updateTemplate = useUpdateEmailTemplate();
+  const { currentOrg, refreshOrganizations } = useOrganization();
+  const [title, setTitle] = useState('');
+  const [subtitle, setSubtitle] = useState('');
+  const [headerColor, setHeaderColor] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
-  const templateTypes = [
-    { type: 'application_received', label: 'Auto-send application received email', description: 'Send confirmation when a candidate applies' },
-    { type: 'application_rejected', label: 'Auto-send rejection email', description: 'Notify candidates when rejected' },
-    { type: 'interview_scheduled', label: 'Auto-send interview scheduled email', description: 'Notify candidates when an interview is scheduled' },
-    { type: 'assignment_sent', label: 'Auto-send assignment email', description: 'Notify candidates when an assignment is sent' },
-    { type: 'assignment_reminder', label: 'Auto-send assignment reminder', description: 'Remind candidates of upcoming assignment deadlines' },
-    { type: 'offer_sent', label: 'Auto-send offer email', description: 'Notify candidates when an offer is extended' },
-  ];
+  // Load current values from org
+  useState(() => {
+    if (currentOrg && !loaded) {
+      setTitle((currentOrg as any).careers_page_title || 'Join Our Team');
+      setSubtitle((currentOrg as any).careers_page_subtitle || 'Discover opportunities to grow your career with us. We\'re looking for talented people to help shape the future.');
+      setHeaderColor((currentOrg as any).careers_header_color || '');
+      setLoaded(true);
+    }
+  });
 
-  const getTemplateActive = (templateType: string) => {
-    const template = emailTemplates?.find((t: any) => t.template_type === templateType);
-    return template?.is_active ?? true;
-  };
-
-  const handleToggle = (templateType: string, checked: boolean) => {
-    const template = emailTemplates?.find((t: any) => t.template_type === templateType);
-    if (template) {
-      updateTemplate.mutate({ id: template.id, input: { is_active: checked } });
+  const handleSave = async () => {
+    if (!currentOrg) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('organizations')
+        .update({
+          careers_page_title: title || 'Join Our Team',
+          careers_page_subtitle: subtitle || null,
+          careers_header_color: headerColor || null,
+        } as any)
+        .eq('id', currentOrg.id);
+      if (error) throw error;
+      toast.success('Career page settings saved');
+      refreshOrganizations();
+    } catch (err) {
+      toast.error('Failed to save settings');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -480,30 +496,76 @@ function ConfigurationSection() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Email Automation</CardTitle>
+          <CardTitle>Career Page Settings</CardTitle>
           <CardDescription>
-            Control which emails are automatically sent during the hiring process
+            Customize the public careers page for your organization
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {isLoading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <Label>Page Title</Label>
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Join Our Team"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Page Subtitle</Label>
+            <Textarea
+              value={subtitle}
+              onChange={(e) => setSubtitle(e.target.value)}
+              rows={3}
+              placeholder="Discover opportunities to grow your career with us..."
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Header Color</Label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={headerColor || '#2563eb'}
+                onChange={(e) => setHeaderColor(e.target.value)}
+                className="h-10 w-14 rounded border border-input cursor-pointer"
+              />
+              <Input
+                value={headerColor}
+                onChange={(e) => setHeaderColor(e.target.value)}
+                placeholder="#2563eb (leave empty for default)"
+                className="flex-1"
+              />
+              {headerColor && (
+                <Button variant="ghost" size="sm" onClick={() => setHeaderColor('')}>
+                  Reset
+                </Button>
+              )}
             </div>
-          ) : (
-            templateTypes.map(({ type, label, description }) => (
-              <div key={type} className="flex items-center justify-between py-2">
-                <div>
-                  <Label>{label}</Label>
-                  <p className="text-sm text-muted-foreground">{description}</p>
-                </div>
-                <Switch
-                  checked={getTemplateActive(type)}
-                  onCheckedChange={(checked) => handleToggle(type, checked)}
-                />
-              </div>
-            ))
-          )}
+            <p className="text-xs text-muted-foreground">
+              Sets the hero section background color. Leave empty to use default theme color.
+            </p>
+          </div>
+
+          {/* Preview */}
+          <div className="space-y-2">
+            <Label>Preview</Label>
+            <div
+              className="rounded-lg p-8 text-center text-white"
+              style={{ backgroundColor: headerColor || 'hsl(var(--primary))' }}
+            >
+              <h2 className="text-2xl font-bold mb-2">{title || 'Join Our Team'}</h2>
+              <p className="text-sm opacity-90 max-w-md mx-auto">
+                {subtitle || 'Discover opportunities to grow your career with us.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving...' : 'Save Settings'}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
