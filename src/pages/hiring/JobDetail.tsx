@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { InternalApplyDialog } from '@/components/hiring/InternalApplyDialog';
 import { ShareVacancyDialog } from '@/components/hiring/ShareVacancyDialog';
 import { useParams } from 'react-router-dom';
@@ -27,8 +27,9 @@ import { OrgLink } from '@/components/OrgLink';
 import { useJob, useJobStages, useApplications } from '@/services/useHiring';
 import { useHiringApplications } from '@/services';
 import { useUpdateJob } from '@/services/useHiringMutations';
-import type { JobStatus } from '@/types/hiring';
-import { getJobStatusLabel, getJobStatusColor, APPLICATION_STAGE_LABELS } from '@/types/hiring';
+import { useAssignmentTemplatesForPosition } from '@/hooks/useAssignmentTemplatesForPosition';
+import type { JobStatus, ApplicationStage } from '@/types/hiring';
+import { getJobStatusLabel, getJobStatusColor, APPLICATION_STAGE_LABELS, APPLICATION_STAGE_COLORS } from '@/types/hiring';
 import { countryToFlag } from '@/utils/countryFlag';
 import { HiringKanbanBoard } from '@/components/hiring/pipeline/HiringKanbanBoard';
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
@@ -44,7 +45,6 @@ import {
   Calendar,
   Users,
   DollarSign,
-  CheckCircle,
   Loader2,
   UserPlus,
   Send,
@@ -54,6 +54,8 @@ import {
   Trash2,
   Globe,
   Clock,
+  FileText,
+  Briefcase,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -71,7 +73,6 @@ export default function JobDetail() {
   const { data: stages } = useJobStages(job?.id || '');
   const { data: applications, isLoading: applicationsLoading } = useJobApplications(job?.id);
   const updateJob = useUpdateJob();
-  
 
   const isDraft = job?.status === 'draft';
   const [activeTab, setActiveTab] = useState<string | undefined>(undefined);
@@ -152,6 +153,28 @@ export default function JobDetail() {
   const departmentName = typeof job.department === 'object' ? job.department?.name : null;
   const isClosed = job.status === 'closed';
   const candidateCount = applications?.length || 0;
+  const assignmentData = useAssignmentTemplatesForPosition(job.title || '').data;
+
+  // Compute stage counts for pipeline mini-chart
+  const stageCounts = (() => {
+    if (!applications?.length) return [];
+    const counts: Record<string, number> = {};
+    for (const app of applications) {
+      const stage = (app as any).stage || 'applied';
+      counts[stage] = (counts[stage] || 0) + 1;
+    }
+    const activeStages: ApplicationStage[] = ['applied', 'screening', 'assignment', 'interview_1', 'interview_2', 'interview_3', 'offer', 'hired'];
+    return activeStages
+      .filter(s => counts[s])
+      .map(s => ({ stage: s, label: APPLICATION_STAGE_LABELS[s], count: counts[s], color: APPLICATION_STAGE_COLORS[s] }));
+  })();
+
+  const locationText = (() => {
+    const city = job.location || (job as any).office?.city;
+    const country = (job as any).office?.country;
+    return [city, country].filter(Boolean).join(', ');
+  })();
+  const locationFlag = countryToFlag((job as any).office?.country);
 
   return (
     <div className="space-y-6">
@@ -164,57 +187,7 @@ export default function JobDetail() {
             </OrgLink>
           </Button>
           <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold tracking-tight">{job.title}</h1>
-              <Badge className={getJobStatusColor(job.status)}>
-                {getJobStatusLabel(job.status)}
-              </Badge>
-            </div>
-            <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-muted-foreground">
-              {(() => {
-                const city = job.location || (job as any).office?.city;
-                const country = (job as any).office?.country;
-                const locationText = [city, country].filter(Boolean).join(', ');
-                const flag = countryToFlag(country);
-                if (!locationText) return null;
-                return (
-                  <span className="flex items-center gap-1">
-                    {flag ? <span className="text-base">{flag}</span> : <MapPin className="h-4 w-4" />}
-                    {locationText}
-                  </span>
-                );
-              })()}
-              {departmentName && (
-                <span className="flex items-center gap-1">
-                  <Building className="h-4 w-4" />
-                  {departmentName}
-                </span>
-              )}
-              <span className="flex items-center gap-1">
-                <Building className="h-4 w-4" />
-                {job.work_model ? job.work_model.charAt(0).toUpperCase() + job.work_model.slice(1) : 'On-site'}
-              </span>
-              <span className="flex items-center gap-1">
-                <Calendar className="h-4 w-4" />
-                {job.employment_type ? job.employment_type.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Full-time'}
-              </span>
-              {(job as any).application_close_date && (
-                <span className="flex items-center gap-1">
-                  <Calendar className="h-4 w-4" />
-                  Apply by {new Date((job as any).application_close_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  {(job as any).auto_close_on_deadline && (
-                    <Badge variant="outline" className="ml-1 text-xs gap-1 py-0">
-                      <Clock className="h-3 w-3" />
-                      Auto-close
-                    </Badge>
-                  )}
-                </span>
-              )}
-              <span className="flex items-center gap-1">
-                <Users className="h-4 w-4" />
-                {candidateCount} candidates
-              </span>
-            </div>
+            <h1 className="text-2xl font-bold tracking-tight">Position Pipeline</h1>
           </div>
         </div>
         <TooltipProvider>
@@ -241,7 +214,6 @@ export default function JobDetail() {
                 </Tooltip>
               </>
             )}
-
 
             {job.is_public_visible && (
               <Tooltip>
@@ -335,33 +307,96 @@ export default function JobDetail() {
         </TooltipProvider>
       </div>
 
-      {/* Job Summary Card */}
+      {/* Position Pipeline Summary Card */}
       <Card>
         <CardContent className="pt-6">
-          <div className="grid gap-6 md:grid-cols-4">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Employment Type</p>
-              <p className="mt-1 font-medium capitalize">{job.employment_type?.replace('_', ' ') || 'Not specified'}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Work Model</p>
-              <p className="mt-1 font-medium capitalize">{job.work_model || 'Not specified'}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Positions</p>
-              <p className="mt-1 font-medium">{job.headcount || 1}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Salary Range</p>
-              <p className="mt-1 font-medium">
-                {job.salary_min && job.salary_max ? (
-                  <>
-                    {job.salary_currency} {job.salary_min.toLocaleString()} - {job.salary_max.toLocaleString()}
-                  </>
-                ) : (
-                  'Not specified'
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Left Column: Job Details */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-lg font-semibold">{job.title}</h2>
+                <Badge className={getJobStatusColor(job.status)}>
+                  {getJobStatusLabel(job.status)}
+                </Badge>
+              </div>
+              <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-sm text-muted-foreground">
+                {locationText && (
+                  <span className="flex items-center gap-1">
+                    {locationFlag ? <span className="text-base">{locationFlag}</span> : <MapPin className="h-3.5 w-3.5" />}
+                    {locationText}
+                  </span>
                 )}
-              </p>
+                {departmentName && (
+                  <span className="flex items-center gap-1">
+                    <Building className="h-3.5 w-3.5" />
+                    {departmentName}
+                  </span>
+                )}
+                <span className="flex items-center gap-1">
+                  <Briefcase className="h-3.5 w-3.5" />
+                  {job.work_model ? job.work_model.charAt(0).toUpperCase() + job.work_model.slice(1) : 'On-site'}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5" />
+                  {job.employment_type ? job.employment_type.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Full-time'}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Users className="h-3.5 w-3.5" />
+                  {job.headcount || 1} position{(job.headcount || 1) > 1 ? 's' : ''}
+                </span>
+              </div>
+              {(job as any).application_close_date && (
+                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <Clock className="h-3.5 w-3.5" />
+                  Apply by {new Date((job as any).application_close_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {(job as any).auto_close_on_deadline && (
+                    <Badge variant="outline" className="ml-1 text-xs py-0 px-1.5">Auto</Badge>
+                  )}
+                </div>
+              )}
+              {(job.salary_min && job.salary_max) && (
+                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <DollarSign className="h-3.5 w-3.5" />
+                  {job.salary_currency} {job.salary_min.toLocaleString()} – {job.salary_max.toLocaleString()}
+                </div>
+              )}
+            </div>
+
+            {/* Middle Column: Overview */}
+            <div className="space-y-4 md:border-l md:pl-6 border-border">
+              <div>
+                <p className="text-sm text-muted-foreground">Total candidates</p>
+                <p className="text-2xl font-bold">{candidateCount}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Assignment</p>
+                <div className="mt-1 flex items-center gap-1.5 text-sm">
+                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                  {assignmentData?.templates?.length ? (
+                    <span className="font-medium">{assignmentData.templates.map(t => t.name).join(', ')}</span>
+                  ) : (
+                    <span className="text-muted-foreground">None</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: Pipeline Stats */}
+            <div className="md:border-l md:pl-6 border-border">
+              <p className="text-sm text-muted-foreground mb-3">Pipeline</p>
+              {stageCounts.length > 0 ? (
+                <div className="space-y-2">
+                  {stageCounts.map(({ stage, label, count, color }) => (
+                    <div key={stage} className="flex items-center gap-2 text-sm">
+                      <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                      <span className="text-muted-foreground">{label}</span>
+                      <span className="font-semibold ml-auto">{count}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No candidates yet</p>
+              )}
             </div>
           </div>
         </CardContent>
