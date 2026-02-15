@@ -1,47 +1,38 @@
 
-## Fix: Show Formatting Toolbar Below Text (Not Above)
+## Fix: Force Text Type Dropdown to Open Below the Toolbar
 
 **Problem:**
-The BlockNote formatting toolbar appears above the selected text by default, and gets clipped by the sticky header at the top of the editor page. The `overflow-y-auto` on the scroll container creates a clipping boundary, and `flip()` middleware does not help because the header overlay blocks the space.
+The formatting toolbar now correctly appears below the selected text. However, the "Paragraph / Heading" dropdown inside the toolbar still opens **upward** (above the toolbar), which gets clipped by the header area.
 
 **Solution:**
-Force the formatting toolbar to always appear **below** the selected text by passing custom `floatingUIOptions` to the `FormattingToolbarController`. This avoids the clipping entirely because the toolbar will render into the content area below the selection, never near the header.
+Add CSS rules in `blocknote-styles.css` that target the Mantine dropdown/popover used by the BlockNote text-type selector and force it to render below the toolbar button instead of above.
 
 **Technical Details:**
 
-**File: `src/components/wiki/BlockNoteWikiEditor.tsx` (around line 345)**
+**File: `src/components/wiki/blocknote-styles.css`**
 
-Pass a `floatingUIOptions` prop to `FormattingToolbarController` that overrides the default `placement` from `"top-start"` to `"bottom-start"`, and replaces the `flip()` middleware with one that only flips to other bottom placements (so it never flips back up behind the header):
+Add rules to force BlockNote toolbar dropdowns to open downward:
 
-```tsx
-<FormattingToolbarController
-  floatingUIOptions={{
-    useFloatingOptions: {
-      placement: "bottom-start",
-      middleware: [offset(10), shift()],
-    },
-  }}
-  formattingToolbar={() => (
-    <div className="bn-toolbar bn-formatting-toolbar" role="toolbar">
-      {getFormattingToolbarItems()}
-      <AIToolbarButton />
-      {commentsEnabled && <AddCommentButton />}
-    </div>
-  )}
-/>
+```css
+/* Force all Mantine dropdowns inside the formatting toolbar to open below */
+.bn-formatting-toolbar .mantine-Menu-dropdown,
+.bn-formatting-toolbar .mantine-Popover-dropdown,
+.bn-toolbar .mantine-Menu-dropdown,
+.bn-toolbar .mantine-Popover-dropdown {
+  top: 100% !important;
+  bottom: auto !important;
+}
 ```
 
-- Import `offset` and `shift` from `@floating-ui/react` at the top of the file.
-- The `placement: "bottom-start"` ensures the toolbar always renders below text.
-- Removing `flip()` prevents the toolbar from flipping back above (where it gets clipped).
-- `shift()` keeps the toolbar within the viewport horizontally.
+Additionally, since BlockNote's Mantine menus use Floating UI internally, we can target the portal-rendered dropdowns more broadly to ensure they always prefer downward placement:
 
-**File: `src/components/wiki/BlockNoteWikiEditor.tsx` (imports)**
-
-Add to existing imports:
-```tsx
-import { offset, shift } from "@floating-ui/react";
+```css
+/* Ensure toolbar sub-menus (text type, color, etc.) open downward */
+.mantine-Portal .mantine-Menu-dropdown,
+.mantine-Portal .mantine-Popover-dropdown {
+  margin-top: 4px;
+}
 ```
 
-**Files to modify:**
-- `src/components/wiki/BlockNoteWikiEditor.tsx` (2 changes: add import + pass floatingUIOptions)
+**File to modify:**
+- `src/components/wiki/blocknote-styles.css` (append new CSS rules)
