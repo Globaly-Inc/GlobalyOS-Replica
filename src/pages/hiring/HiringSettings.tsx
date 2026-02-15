@@ -4,6 +4,7 @@
  */
 
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -18,8 +19,6 @@ import { useHiringEmailTemplates, useAssignmentTemplates } from '@/services/useH
 import { 
   useCreateEmailTemplate, 
   useUpdateEmailTemplate,
-  useCreateAssignmentTemplate,
-  useUpdateAssignmentTemplate,
 } from '@/services/useHiringMutations';
 import {
   Dialog,
@@ -52,18 +51,18 @@ import {
   Settings2,
   Plus,
   Pencil,
-  Trash2,
-  FileText
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { EMAIL_TRIGGER_LABELS, ASSIGNMENT_TYPE_LABELS } from '@/types/hiring';
-import type { EmailTrigger, ExpectedDeliverables } from '@/types/hiring';
-import { AssignmentTypeCombobox } from '@/components/hiring/AssignmentTypeCombobox';
-import { PositionMultiSelect } from '@/components/hiring/PositionMultiSelect';
+import type { EmailTrigger } from '@/types/hiring';
 import { usePositions } from '@/hooks/usePositions';
+import { useNavigate } from 'react-router-dom';
+import { useOrganization } from '@/hooks/useOrganization';
 
 export default function HiringSettings() {
-  const [activeTab, setActiveTab] = useState('templates');
+  const [searchParams] = useSearchParams();
+  const defaultTab = searchParams.get('tab') || 'templates';
+  const [activeTab, setActiveTab] = useState(defaultTab);
 
   return (
     <div className="space-y-6">
@@ -349,82 +348,16 @@ function EmailTemplatesSection() {
 
 function AssignmentTemplatesSection() {
   const { data: templates, isLoading } = useAssignmentTemplates();
-  const createTemplate = useCreateAssignmentTemplate();
-  const updateTemplate = useUpdateAssignmentTemplate();
-  const [editingTemplate, setEditingTemplate] = useState<any>(null);
-  const [showDialog, setShowDialog] = useState(false);
-
   const { data: allPositions = [] } = usePositions();
-
-  const [formData, setFormData] = useState({
-    name: '',
-    type: 'coding',
-    instructions: '',
-    default_deadline_hours: 72,
-    recommended_effort: '',
-    role_tags: [] as string[],
-    position_ids: [] as string[],
-    expected_deliverables: {
-      files: false,
-      url_fields: [] as string[],
-    },
-  });
-
-  const handleEdit = (template: any) => {
-    setFormData({
-      name: template.name,
-      type: template.type || 'coding',
-      instructions: template.instructions,
-      default_deadline_hours: template.default_deadline_hours || 72,
-      recommended_effort: template.recommended_effort || '',
-      role_tags: template.role_tags || [],
-      position_ids: template.position_ids || [],
-      expected_deliverables: template.expected_deliverables || {
-        files: false,
-        url_fields: [],
-      },
-    });
-    setEditingTemplate(template);
-    setShowDialog(true);
-  };
+  const navigate = useNavigate();
+  const { currentOrg } = useOrganization();
 
   const handleCreate = () => {
-    setFormData({
-      name: '',
-      type: 'coding',
-      instructions: '',
-      default_deadline_hours: 72,
-      recommended_effort: '',
-      role_tags: [],
-      position_ids: [],
-      expected_deliverables: {
-        files: false,
-        url_fields: [],
-      },
-    });
-    setEditingTemplate(null);
-    setShowDialog(true);
+    navigate(`/org/${currentOrg?.slug}/hiring/settings/assignments/new`);
   };
 
-  const handleSave = async () => {
-    if (!formData.name || !formData.instructions) {
-      toast.error('Please fill all required fields');
-      return;
-    }
-
-    try {
-      if (editingTemplate) {
-        await updateTemplate.mutateAsync({
-          id: editingTemplate.id,
-          input: formData,
-        });
-      } else {
-        await createTemplate.mutateAsync(formData);
-      }
-      setShowDialog(false);
-    } catch (error) {
-      // Error handled by mutation
-    }
+  const handleEdit = (template: any) => {
+    navigate(`/org/${currentOrg?.slug}/hiring/settings/assignments/${template.id}/edit`);
   };
 
   if (isLoading) {
@@ -440,132 +373,10 @@ function AssignmentTemplatesSection() {
             Create reusable templates for candidate assessments
           </CardDescription>
         </div>
-        <Dialog open={showDialog} onOpenChange={setShowDialog}>
-          <DialogTrigger asChild>
-            <Button onClick={handleCreate}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Template
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {editingTemplate ? 'Edit Assignment Template' : 'Create Assignment Template'}
-              </DialogTitle>
-              <DialogDescription>
-                Define a reusable assignment that can be sent to candidates
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Name *</Label>
-                  <Input
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="e.g., Frontend Technical Assessment"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Type</Label>
-                  <AssignmentTypeCombobox
-                    value={formData.type}
-                    onChange={(v) => setFormData({ ...formData, type: v })}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Instructions *</Label>
-                <Textarea
-                  value={formData.instructions}
-                  onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
-                  rows={8}
-                  placeholder="Describe what the candidate needs to complete..."
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Default Deadline (hours)</Label>
-                  <Input
-                    type="number"
-                    value={formData.default_deadline_hours}
-                    onChange={(e) => setFormData({ 
-                      ...formData, 
-                      default_deadline_hours: parseInt(e.target.value) || 72 
-                    })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Recommended Effort</Label>
-                  <Input
-                    value={formData.recommended_effort}
-                    onChange={(e) => setFormData({ ...formData, recommended_effort: e.target.value })}
-                    placeholder="e.g., 2-3 hours"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Positions</Label>
-                <PositionMultiSelect
-                  value={formData.position_ids}
-                  onChange={(ids) => setFormData({ ...formData, position_ids: ids })}
-                  placeholder="Select positions this template applies to..."
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Expected Deliverables</Label>
-                <div className="space-y-3 p-3 border rounded-md">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.expected_deliverables.files}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        expected_deliverables: {
-                          ...formData.expected_deliverables,
-                          files: e.target.checked
-                        }
-                      })}
-                      className="rounded"
-                    />
-                    <span className="text-sm">File uploads</span>
-                  </label>
-                  <div className="space-y-1">
-                    <Label className="text-xs">URL Fields (comma-separated)</Label>
-                    <Input
-                      value={formData.expected_deliverables.url_fields.join(', ')}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        expected_deliverables: {
-                          ...formData.expected_deliverables,
-                          url_fields: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
-                        }
-                      })}
-                      placeholder="e.g., GitHub Repo, Live Demo"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowDialog(false)}>
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleSave}
-                disabled={createTemplate.isPending || updateTemplate.isPending}
-              >
-                {createTemplate.isPending || updateTemplate.isPending ? 'Saving...' : 'Save Template'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={handleCreate}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Template
+        </Button>
       </CardHeader>
       <CardContent>
         {templates && templates.length > 0 ? (
