@@ -9,7 +9,7 @@ import {
 } from '@blocknote/react';
 import { BlockNoteView } from '@blocknote/mantine';
 import { forwardRef, useContext } from 'react';
-import { MentionUsersContext } from './CommentAlwaysShowActions';
+// MentionUsersContext was removed — this file is currently unused but kept for future reference
 
 /**
  * Custom comment Editor component that adds @mention support
@@ -25,7 +25,7 @@ export const CommentEditorWithMentions = forwardRef<
   assertEmpty(rest, false);
 
   const blockNoteContext = useBlockNoteContext();
-  const mentionUsers = useContext(MentionUsersContext);
+  const mentionUsers = undefined; // Disabled — MentionUsersContext removed
 
   return (
     <BlockNoteView
@@ -46,29 +46,6 @@ export const CommentEditorWithMentions = forwardRef<
       <FormattingToolbarController
         formattingToolbar={CustomFormattingToolbar}
       />
-      {editable && mentionUsers && (
-        <SuggestionMenuController
-          triggerCharacter="@"
-          getItems={async (query) => {
-            const users = await mentionUsers(query);
-            return users.map((user) => ({
-              title: user.username,
-              onItemClick: () => {
-                editor.insertInlineContent([
-                  {
-                    type: 'mention',
-                    props: {
-                      userId: user.id,
-                      userName: user.username,
-                    },
-                  },
-                  ' ',
-                ]);
-              },
-            }));
-          }}
-        />
-      )}
     </BlockNoteView>
   );
 });
