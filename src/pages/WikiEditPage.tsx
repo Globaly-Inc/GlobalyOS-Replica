@@ -26,6 +26,7 @@ import { WikiPageViewers } from "@/components/wiki/collaboration/WikiPageViewers
 import { SupabaseYjsProvider } from "@/components/wiki/collaboration/SupabaseYjsProvider";
 
 import { toast } from "sonner";
+import { WikiShareDialog } from "@/components/wiki/WikiShareDialog";
 
 const WikiEditPage = () => {
   const { pageId } = useParams<{ pageId: string }>();
@@ -41,6 +42,7 @@ const WikiEditPage = () => {
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [showCommentsSidebar, setShowCommentsSidebar] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const autosaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const providerRef = useRef<SupabaseYjsProvider | null>(null);
   // Track the last saved values to detect real changes
@@ -302,15 +304,8 @@ const WikiEditPage = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                const url = window.location.href;
-                navigator.clipboard.writeText(url).then(() => {
-                  toast.success("Link copied to clipboard");
-                }).catch(() => {
-                  toast.error("Failed to copy link");
-                });
-              }}
-              title="Copy page link"
+              onClick={() => setShareDialogOpen(true)}
+              title="Share page"
             >
               <Share2 className="h-4 w-4 mr-1.5" />
               Share
@@ -382,6 +377,19 @@ const WikiEditPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Share dialog */}
+      {pageId && currentOrg && (
+        <WikiShareDialog
+          open={shareDialogOpen}
+          onOpenChange={setShareDialogOpen}
+          itemType="page"
+          itemId={pageId}
+          itemName={editTitle}
+          organizationId={currentOrg.id}
+          currentFolderId={page?.folder_id}
+        />
+      )}
     </div>
   );
 };
