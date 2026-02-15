@@ -1,6 +1,7 @@
 /**
  * Full-page editor for creating/editing assignment templates.
- * Replaces the previous dialog-based approach for more space.
+ * Left sidebar (1/3): Basic Info, Settings, Positions, Deliverables
+ * Right content (2/3): Instructions + Questions Builder
  */
 
 import { useState, useEffect } from 'react';
@@ -14,15 +15,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageBody } from '@/components/ui/page-body';
-import { OrgLink } from '@/components/OrgLink';
 import { AssignmentTypeCombobox } from '@/components/hiring/AssignmentTypeCombobox';
 import { PositionMultiSelect } from '@/components/hiring/PositionMultiSelect';
+import { QuestionsBuilder } from '@/components/hiring/QuestionsBuilder';
 import { useAssignmentTemplates } from '@/services/useHiring';
 import {
   useCreateAssignmentTemplate,
   useUpdateAssignmentTemplate,
 } from '@/services/useHiringMutations';
 import { useOrganization } from '@/hooks/useOrganization';
+import type { AssignmentQuestion } from '@/types/hiring';
 
 export default function AssignmentTemplateEditor() {
   const { templateId } = useParams<{ templateId: string }>();
@@ -45,6 +47,7 @@ export default function AssignmentTemplateEditor() {
     expected_deliverables: {
       files: false,
       url_fields: [] as string[],
+      questions: [] as AssignmentQuestion[],
     },
   });
 
@@ -61,9 +64,10 @@ export default function AssignmentTemplateEditor() {
           recommended_effort: template.recommended_effort || '',
           role_tags: template.role_tags || [],
           position_ids: template.position_ids || [],
-          expected_deliverables: template.expected_deliverables || {
-            files: false,
-            url_fields: [],
+          expected_deliverables: {
+            files: template.expected_deliverables?.files || false,
+            url_fields: template.expected_deliverables?.url_fields || [],
+            questions: template.expected_deliverables?.questions || [],
           },
         });
       }
@@ -135,53 +139,33 @@ export default function AssignmentTemplateEditor() {
         </div>
       </div>
 
-      {/* Form */}
+      {/* Form: Left sidebar (1/3) + Right content (2/3) */}
       <div className="grid gap-6 md:grid-cols-3">
-        {/* Main content - 2 cols */}
-        <div className="md:col-span-2 space-y-6">
+        {/* LEFT SIDEBAR */}
+        <div className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Basic Info</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Name *</Label>
-                  <Input
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="e.g., Frontend Technical Assessment"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Type</Label>
-                  <AssignmentTypeCombobox
-                    value={formData.type}
-                    onChange={(v) => setFormData({ ...formData, type: v })}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label>Name *</Label>
+                <Input
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g., Frontend Technical Assessment"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Type</Label>
+                <AssignmentTypeCombobox
+                  value={formData.type}
+                  onChange={(v) => setFormData({ ...formData, type: v })}
+                />
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Instructions *</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Textarea
-                value={formData.instructions}
-                onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
-                rows={16}
-                placeholder="Describe what the candidate needs to complete..."
-                className="min-h-[300px]"
-              />
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Sidebar - 1 col */}
-        <div className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Settings</CardTitle>
@@ -265,6 +249,47 @@ export default function AssignmentTemplateEditor() {
                   placeholder="e.g., GitHub Repo, Live Demo"
                 />
               </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* RIGHT CONTENT (2/3) */}
+        <div className="md:col-span-2 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Instructions *</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Textarea
+                value={formData.instructions}
+                onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
+                rows={16}
+                placeholder="Describe what the candidate needs to complete..."
+                className="min-h-[300px]"
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Questions</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Add screening questions for candidates to answer with their submission.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <QuestionsBuilder
+                questions={formData.expected_deliverables.questions || []}
+                onChange={(questions) =>
+                  setFormData({
+                    ...formData,
+                    expected_deliverables: {
+                      ...formData.expected_deliverables,
+                      questions,
+                    },
+                  })
+                }
+              />
             </CardContent>
           </Card>
         </div>
