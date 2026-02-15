@@ -1,83 +1,59 @@
 
 
-## Show Internal Vacancies on Home Page Sidebar
+## Add Assignment Templates Card to Vacancy Sidebar
 
 ### Overview
-When a vacancy has "Show on internal job board" enabled and its status is `open`, it will appear as a card in the home page right sidebar (desktop) and in the mobile section, positioned below "On Leave Today." All org members will see these openings, encouraging internal mobility.
+Add an "Assignment Template" card to the right sidebar of the JobEdit page (below Publishing Options, above Preview). This card will show assignment templates that are linked to the vacancy's position, allow selecting one if multiple exist, and let users update the deadline hours.
 
-### New Component: `InternalVacanciesCard`
-**File: `src/components/home/InternalVacanciesCard.tsx`**
+### How Position Matching Works
+- The `jobs` table has no `position_id` column; it uses `title` as the position name
+- The `positions` table has `id` and `name`
+- Assignment templates have a `position_ids` (UUID array) linking them to positions
+- We match: job title -> position name -> position ID -> templates containing that ID
 
-A lazy-loaded card that:
-- Fetches open jobs where `is_internal_visible = true` for the current org
-- Displays each vacancy as a compact row with:
-  - Job title (bold, clickable link to vacancy detail)
-  - Department name and location/office as subtle metadata
-  - Employment type badge (Full-time, Part-time, etc.)
-  - Work model badge (Remote, Hybrid, On-site)
-  - Posted date as relative time ("2 days ago")
-- Header: Briefcase icon + "Open Positions" title with a count badge
-- "View All" link to `/hiring` if more than 3 vacancies exist
-- Shows max 3 vacancies in the sidebar; sorted by `published_at` descending (newest first)
-- Empty state: card is hidden entirely (no "No openings" message), keeping the sidebar clean
+### New Hook: `useAssignmentTemplatesForPosition`
+**File: `src/hooks/useAssignmentTemplatesForPosition.ts`**
 
-### New Hook: `useInternalVacancies`
-**File: `src/hooks/useInternalVacancies.ts`**
-
-- Uses `useQuery` from TanStack React Query
-- Query: `supabase.from('jobs').select('id, title, slug, employment_type, work_model, location, published_at, department:departments(name), office:offices(name, city)').eq('organization_id', orgId).eq('status', 'open').eq('is_internal_visible', true).order('published_at', { ascending: false }).limit(5)`
-- Cache key: `['internal-vacancies', orgId]`
+- Accepts `jobTitle: string`
+- Step 1: Query `positions` table to find position ID matching the job title (case-insensitive)
+- Step 2: Query `assignment_templates` where `position_ids` contains that position ID, `is_active = true`
+- Returns `{ templates, isLoading, positionId }`
+- Uses TanStack Query with org scoping
 - Stale time: 5 minutes
-- Returns `{ vacancies, isLoading }`
 
-### Integration Points
+### New Component: `VacancyAssignmentCard`
+**File: `src/components/hiring/VacancyAssignmentCard.tsx`**
 
-**`src/components/home/HomeSidebar.tsx`:**
-- Import and render `InternalVacanciesCard` below the "On Leave Today" card (line 175) and above "Upcoming Events" (line 178)
-- Lazy-loaded with `Suspense` and `CardSkeleton` fallback
+A sidebar card that:
+- Shows a header with ClipboardList icon + "Assignment Template" title
+- If no matching templates found: shows subtle "No templates linked to this position" message with a link to create one
+- If one template: displays it directly (name, type badge, recommended effort, deadline hours input)
+- If multiple templates: shows a Select dropdown to pick one, then displays the selected template details
+- Deadline hours: editable Input field (number) that updates the template's `default_deadline_hours` via mutation
+- Shows computed deadline preview: "Due: [date/time from now]"
+- Template details shown:
+  - Template name (bold)
+  - Type badge
+  - Recommended effort (if set)
+  - Expected deliverables summary (file uploads, URL fields count, text questions count)
+  - Editable deadline hours with live preview
 
-**`src/components/home/HomeMobileLeaveSection.tsx`:**
-- Add `InternalVacanciesCard` below the "On Leave Today" card at the bottom of the mobile section
+### Integration
+**`src/pages/hiring/JobEdit.tsx`:**
+- Import `VacancyAssignmentCard`
+- Add it in the right column (line 873) between "Publishing Options" card and `JobPostPreview`
+- Pass `jobTitle={formData.title}` as prop
 
-### Vacancy Card Click Behavior
-- Clicking a vacancy title navigates to `/hiring/vacancies/:id` using `OrgLink`
-- "View All" navigates to `/hiring` using `OrgLink`
-- All links are internal SPA navigation (same tab)
+### UI Design
+- Card matches existing sidebar style (same Card/CardHeader/CardContent pattern)
+- ClipboardList icon in the header
+- Select dropdown for multiple templates follows existing Select component patterns
+- Deadline hours input: compact number input with "hours" suffix and computed date preview below
+- Deliverables shown as small badges/chips (e.g., "Files", "2 URLs", "3 Questions")
+- Muted text for empty states
 
-### No Database Changes Required
-- The `jobs` table already has `is_internal_visible` (boolean) and `status` columns
-- RLS policies already scope queries to the user's organization
-- No new tables or migrations needed
-
-### Technical Details
-
-**Query structure:**
-```text
-SELECT id, title, slug, employment_type, work_model, location, published_at,
-       departments.name AS department,
-       offices.name, offices.city AS office
-FROM jobs
-WHERE organization_id = :orgId
-  AND status = 'open'
-  AND is_internal_visible = true
-ORDER BY published_at DESC
-LIMIT 5
-```
-
-**Component hierarchy:**
-```text
-HomeSidebar
-  +-- ... (existing cards)
-  +-- On Leave Today card
-  +-- InternalVacanciesCard (NEW - lazy loaded)
-  +-- Upcoming Events card
-  +-- ...
-```
-
-**UI design:**
-- Card matches existing sidebar card style (p-6, rounded, same shadow)
-- Briefcase icon in primary color for the header
-- Each vacancy row: hover state with `bg-muted`, rounded-lg, p-2
-- Badges use the same pill style as existing status badges
-- Responsive: hidden on mobile via HomeSidebar (lg:block), separately rendered in HomeMobileLeaveSection for mobile
-
+### Technical Notes
+- Position matching is case-insensitive to handle slight variations
+- The deadline hours update uses the existing `useUpdateAssignmentTemplate` mutation
+- No database changes required -- all data structures already exist
+- The card gracefully handles: no position match, no templates, single template, multiple templates
