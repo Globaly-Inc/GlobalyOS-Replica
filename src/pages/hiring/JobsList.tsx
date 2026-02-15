@@ -172,12 +172,18 @@ export default function JobsList({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start gap-3">
                         <div>
-                          <OrgLink
-                            to={`/hiring/jobs/${job.slug}`}
-                            className="text-lg font-semibold hover:text-primary transition-colors"
-                          >
-                            {job.title}
-                          </OrgLink>
+                          <div className="flex items-center gap-3">
+                            <OrgLink
+                              to={`/hiring/jobs/${job.slug}`}
+                              className="text-lg font-semibold hover:text-primary transition-colors"
+                            >
+                              {job.title}
+                            </OrgLink>
+                            <span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                              <Users className="h-4 w-4" />
+                              {(job as any).candidate_applications?.[0]?.count || 0} candidates
+                            </span>
+                          </div>
                           <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-muted-foreground">
                             {departmentName && (
                               <span className="flex items-center gap-1">
@@ -204,10 +210,6 @@ export default function JobsList({
                             {job.work_model && (
                               <Badge variant="outline">{job.work_model}</Badge>
                             )}
-                            <Badge variant="secondary" className="flex items-center gap-1">
-                              <Users className="h-3 w-3" />
-                              {(job as any).candidate_applications?.[0]?.count || 0} candidates
-                            </Badge>
                             {(job as any).auto_close_on_deadline && (job as any).application_close_date && (
                               <Tooltip>
                                 <TooltipTrigger asChild>
