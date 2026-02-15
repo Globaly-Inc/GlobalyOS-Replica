@@ -1838,6 +1838,7 @@ export type Database = {
           other_urls: Json | null
           phone: string | null
           portfolio_url: string | null
+          referred_by_employee_id: string | null
           source: Database["public"]["Enums"]["candidate_source"] | null
           source_details: string | null
           tags: string[] | null
@@ -1857,6 +1858,7 @@ export type Database = {
           other_urls?: Json | null
           phone?: string | null
           portfolio_url?: string | null
+          referred_by_employee_id?: string | null
           source?: Database["public"]["Enums"]["candidate_source"] | null
           source_details?: string | null
           tags?: string[] | null
@@ -1876,6 +1878,7 @@ export type Database = {
           other_urls?: Json | null
           phone?: string | null
           portfolio_url?: string | null
+          referred_by_employee_id?: string | null
           source?: Database["public"]["Enums"]["candidate_source"] | null
           source_details?: string | null
           tags?: string[] | null
@@ -1901,6 +1904,20 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidates_referred_by_employee_id_fkey"
+            columns: ["referred_by_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidates_referred_by_employee_id_fkey"
+            columns: ["referred_by_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
         ]
