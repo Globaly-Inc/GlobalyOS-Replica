@@ -1,131 +1,99 @@
 
 
-## Application Form Settings with Custom Fields
+## Redesign Application Form Settings -- Calendly-Style with Drag-and-Drop and Extended Answer Types
 
-### What This Does
+### Overview
 
-Add an "Application Form" settings card to the Job Edit page (right column, below Publishing Options). This lets hiring managers configure which fields appear on the public application form for each job, plus create custom fields.
+Redesign the `ApplicationFormSettings` component to match Calendly's booking form builder. Fixed fields (Full Name, Email, Phone, Resume) stay pinned at the top and cannot be reordered. All other fields (Source, LinkedIn, Cover Letter, and custom questions) become a single unified list that supports drag-and-drop reordering. Each custom question opens an inline edit dialog with expanded answer types.
 
-### How It Works
+### New Answer Types
 
-**Default (compulsory) fields** -- always shown, cannot be removed:
-- Full Name
-- Email
-- Phone Number
-- Resume Upload
-- Source (new -- a dropdown for "How did you hear about us?")
+Expand `CustomFieldConfig.type` from `'text' | 'file'` to support:
 
-**Optional built-in fields** -- toggleable on/off:
-- LinkedIn / Personal URL
-- Cover Letter
+| Type | Description | Public Form Renders |
+|------|-------------|-------------------|
+| `one_line` | Short text input | `<Input />` |
+| `multiple_lines` | Long text | `<Textarea />` |
+| `radio_buttons` | Single select from options | Radio group |
+| `checkboxes` | Multi-select from options | Checkbox group |
+| `dropdown` | Single select dropdown | `<Select />` |
+| `phone_number` | Phone with country code | `<PhoneInput />` |
+| `file` | File upload | File input |
 
-**Custom fields** -- user can add new ones with:
-- Field label (e.g., "Portfolio Link", "Years of Experience")
-- Field type: Text Input or File Upload
-- Required toggle
-- Ability to reorder and delete
+### UI Layout (Calendly-style)
 
-### Database Changes
+```text
+Application Form
+Configure fields shown to applicants
 
-Add a JSONB column `application_form_config` to the `jobs` table:
-
-```sql
-ALTER TABLE public.jobs
-ADD COLUMN application_form_config JSONB DEFAULT '{}';
+Applicant Questions
++--------------------------------------------------+
+| [lock] Full Name, Email, Phone, Resume           |
++--------------------------------------------------+
+| [grip] Q1: Source                          [...]  |
+|        Dropdown                                   |
++--------------------------------------------------+
+| [grip] Q2: LinkedIn URL                    [...]  |
+|        One Line                                   |
++--------------------------------------------------+
+| [grip] Q3: Portfolio Link                  [...]  |
+|        One Line                                   |
++--------------------------------------------------+
+| + Add new question                                |
++--------------------------------------------------+
 ```
 
-The JSON structure:
-
-```json
-{
-  "optional_fields": {
-    "linkedin_url": true,
-    "cover_letter": false
-  },
-  "custom_fields": [
-    {
-      "id": "cf_abc123",
-      "label": "Portfolio Link",
-      "type": "text",
-      "required": false
-    },
-    {
-      "id": "cf_def456",
-      "label": "Work Sample",
-      "type": "file",
-      "required": true
-    }
-  ],
-  "source_options": ["LinkedIn", "Referral", "Job Board", "Company Website", "Other"]
-}
-```
+- The locked row at top shows the 4 required fields in one row (non-draggable, non-editable)
+- Each question row shows: drag handle, question number, label, answer type, and a 3-dot menu (edit/delete)
+- Clicking a row or "Edit" opens an edit dialog (like the Calendly screenshot) with: Question text, Required checkbox, Answer Type dropdown, and Options list (for radio/checkboxes/dropdown)
 
 ### Files to Modify
 
-**1. New component: `src/components/hiring/ApplicationFormSettings.tsx`**
-- A Card with title "Application Form"
-- Section 1: "Required Fields" -- read-only list showing Full Name, Email, Phone, Resume, Source with lock icons
-- Section 2: "Optional Fields" -- toggles for LinkedIn URL, Cover Letter
-- Section 3: "Custom Fields" -- list with add button, each has label input, type selector (Text/File), required toggle, delete button
-- Section 4: "Source Options" -- editable list of dropdown values for the "How did you hear about us?" field
-- Props: `config` object and `onChange` callback
+**1. `src/types/hiring.ts`**
+- Expand `CustomFieldConfig.type` union to include all 7 answer types
+- Add `options?: string[]` to `CustomFieldConfig` (for radio/checkboxes/dropdown)
+- Remove `optional_fields` from `ApplicationFormConfig` -- LinkedIn, Cover Letter, and Source become regular custom fields in the unified list with pre-set defaults
 
-**2. `src/pages/hiring/JobEdit.tsx`**
-- Add `application_form_config` to formData state
-- Import and render `ApplicationFormSettings` in the right column after Publishing Options
-- Include it in the save payload
+**2. `src/components/hiring/ApplicationFormSettings.tsx`** (major rewrite)
+- Replace 4-section layout with Calendly-style single list
+- Fixed header row for locked fields (Full Name, Email, Phone, Resume)
+- Sortable list using `@dnd-kit/sortable` for all other fields (Source, LinkedIn, Cover Letter are now just pre-seeded custom fields)
+- Each item: drag grip icon, "Q{n}:" prefix, label, type subtitle, 3-dot menu
+- "Add new question" button at bottom
+- Edit question dialog with: Question text input, Required checkbox, Answer Type select (all 7 types), Options builder (for radio/checkboxes/dropdown types)
+- Source Options editing moves into the Source field's edit dialog (as its dropdown options)
 
-**3. `src/pages/hiring/JobCreate.tsx`**
-- Add `application_form_config` with sensible defaults to initial formData
-- Render the same `ApplicationFormSettings` component
+**3. `src/pages/careers/JobDetailPublic.tsx`**
+- Update the custom fields rendering to handle all 7 new answer types
+- Render radio buttons, checkboxes, dropdowns, phone input, textarea based on field type
+- Remove the separate `optional_fields` handling -- all fields come from the unified `custom_fields` list now
 
-**4. `src/pages/careers/JobDetailPublic.tsx`**
-- Read `application_form_config` from the job data
-- Conditionally render LinkedIn field based on config
-- Add "Source" dropdown field (always shown, using configured options)
-- Render custom text fields as Input elements
-- Render custom file fields as file upload elements
-- Pass all custom field values and files to the submit mutation
+**4. `src/pages/hiring/JobEdit.tsx` and `src/pages/hiring/JobCreate.tsx`**
+- When initializing `application_form_config`, if `custom_fields` is empty, seed with default fields: Source (dropdown), LinkedIn URL (one_line, not required)
+- Migration logic: if old `optional_fields` format is detected, convert to the unified custom_fields format
 
-**5. `src/components/hiring/InternalApplyDialog.tsx`**
-- Add the "Source" field (pre-filled as "internal", hidden or read-only)
+**5. `supabase/functions/submit-public-application/index.ts`**
+- Handle new field types in form submission (radio, checkboxes, dropdown values stored as strings/arrays in custom_fields JSON)
 
-**6. `supabase/functions/submit-public-application/index.ts`**
-- Accept `source_of_application` from form (already partially supported)
-- Accept `custom_fields_data` as JSON with custom text answers
-- Accept `custom_files` as additional named file uploads
-- Store custom field responses in the application's `custom_fields` JSONB column
+### Data Migration Approach
 
-**7. `src/types/hiring.ts`**
-- Add `application_form_config` type definition
-- Add it to the Job interface
+No database migration needed -- `application_form_config` is already a JSONB column. The new format simply stores all configurable fields in `custom_fields[]` instead of splitting between `optional_fields` and `custom_fields`. The code will handle backward compatibility by detecting the old format and converting on read.
 
-### UI Layout (Application Form Card)
+### Default Custom Fields (seeded on new jobs)
 
-```text
-+------------------------------------------+
-| Application Form                         |
-| Configure fields shown to applicants     |
-+------------------------------------------+
-| REQUIRED FIELDS                          |
-|  [lock] Full Name                        |
-|  [lock] Email                            |
-|  [lock] Phone Number                     |
-|  [lock] Resume Upload                    |
-|  [lock] Source                           |
-+------------------------------------------+
-| OPTIONAL FIELDS                          |
-|  [toggle] LinkedIn / Personal URL        |
-|  [toggle] Cover Letter                   |
-+------------------------------------------+
-| CUSTOM FIELDS                            |
-|  Portfolio Link    [Text]  [Req] [x]     |
-|  Work Sample       [File]  [Req] [x]    |
-|  [+ Add Field]                           |
-+------------------------------------------+
-| SOURCE OPTIONS                           |
-|  LinkedIn, Referral, Job Board, ...      |
-|  [+ Add Option]                          |
-+------------------------------------------+
+```json
+{
+  "custom_fields": [
+    { "id": "source", "label": "Source", "type": "dropdown", "required": true, "options": ["LinkedIn", "Referral", "Job Board", "Company Website", "Other"] },
+    { "id": "linkedin_url", "label": "LinkedIn / Personal URL", "type": "one_line", "required": false }
+  ]
+}
 ```
+
+### Technical Details
+
+- Uses `@dnd-kit/sortable` (already installed) with `verticalListSortingStrategy`
+- `SortableContext` wraps the custom fields list; locked fields stay outside
+- Edit dialog uses the existing `Dialog` component
+- Answer type icons match Calendly's pattern for visual recognition
 
