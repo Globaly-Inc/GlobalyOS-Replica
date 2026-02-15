@@ -181,12 +181,9 @@ export default function JobDetail() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" className="text-muted-foreground gap-1" asChild>
-            <OrgLink to="/hiring?tab=jobs">
-              <ArrowLeft className="h-4 w-4" />
-              Vacancies
-            </OrgLink>
-          </Button>
+          <OrgLink to="/hiring?tab=jobs" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+            Vacancies
+          </OrgLink>
           <span className="text-muted-foreground">/</span>
           <h1 className="text-2xl font-bold tracking-tight">Position Pipeline</h1>
         </div>
