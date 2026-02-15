@@ -62,7 +62,7 @@ export const InternalVacanciesCard = () => {
                     </div>
                   </OrgLink>
 
-                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5">
+                  <div className="flex items-center gap-0.5 flex-shrink-0 mt-0.5">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
