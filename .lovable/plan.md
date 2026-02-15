@@ -1,13 +1,14 @@
 
 
-## Change: Set Wiki Editor Background to White
+## Make Editor Area Background White
 
 **What will change:**
-- The BlockNote editor area background will be set to solid white (`#FFFFFF`) instead of the current `transparent`.
+- The editor content container (the `div` at line 294 wrapping the BlockNote editor) will get a white background, rather than the entire page.
 
 **Technical details:**
-- In `src/components/wiki/blocknote-styles.css`, update the `.bn-editor` rule (line 14) from `background: transparent` to `background: #FFFFFF`.
-- Also update the `.bn-container .bn-editor` rule (line 18-20) to include the same white background to ensure specificity covers all cases.
+- At line 294 in `src/pages/WikiEditPage.tsx`, add `bg-white rounded-lg` to the existing `className` of the container div.
+- This scopes the white background to just the editor area, not the full-page overlay.
 
-This is a single-line CSS change that will immediately make the editor content area white.
+**File to modify:**
+- `src/pages/WikiEditPage.tsx` (line 294 only)
 
