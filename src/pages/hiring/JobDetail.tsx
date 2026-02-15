@@ -382,14 +382,23 @@ export default function JobDetail() {
             <div className="md:border-l md:pl-6 border-border">
               <p className="text-sm text-muted-foreground mb-3">Pipeline</p>
               {stageCounts.length > 0 ? (
-                <div className="space-y-2">
-                  {stageCounts.map(({ stage, label, count, color }) => (
-                    <div key={stage} className="flex items-center gap-2 text-sm">
-                      <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                      <span className="text-muted-foreground">{label}</span>
-                      <span className="font-semibold ml-auto">{count}</span>
-                    </div>
-                  ))}
+                <div className="space-y-1.5">
+                  {stageCounts.map(({ stage, label, count, color }) => {
+                    const maxCount = Math.max(...stageCounts.map(s => s.count));
+                    const pct = maxCount > 0 ? (count / maxCount) * 100 : 0;
+                    return (
+                      <div key={stage} className="flex items-center gap-2 text-sm">
+                        <span className="text-muted-foreground w-24 truncate text-xs">{label}</span>
+                        <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{ width: `${pct}%`, backgroundColor: color }}
+                          />
+                        </div>
+                        <span className="font-semibold text-xs w-5 text-right">{count}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">No candidates yet</p>
