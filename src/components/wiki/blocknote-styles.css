@@ -135,32 +135,30 @@
 }
 
 /* Collaboration cursor styling */
-.collaboration-cursor__caret {
-  border-left: 3px solid;
+.bn-collaboration-cursor__caret {
+  border-left: 3px solid !important;
   position: relative;
 }
 
-.collaboration-cursor__label {
+.bn-collaboration-cursor__label {
   position: absolute;
   top: -1.4em;
   left: -1px;
-  font-size: 0.675rem;
+  font-size: 0.75rem;
   font-weight: 600;
   line-height: 1;
-  padding: 0.125rem 0.375rem;
+  padding: 0.125rem 0.5rem;
   border-radius: 0.25rem 0.25rem 0.25rem 0;
   white-space: nowrap;
   user-select: none;
   pointer-events: none;
-  color: white;
-  opacity: 1;
-  transition: opacity 0.3s ease;
+  opacity: 1 !important;
+  display: inline !important;
+  visibility: visible !important;
 }
 
-/* Label always visible – no idle fade */
-
 /* Remote selection highlight */
-.ProseMirror .collaboration-cursor__selection {
+.ProseMirror .bn-collaboration-cursor__selection {
   opacity: 0.2;
 }
 
