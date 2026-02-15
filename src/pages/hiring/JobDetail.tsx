@@ -6,12 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,7 +44,7 @@ import {
   DollarSign,
   CheckCircle,
   Loader2,
-  MoreHorizontal,
+  
   Pause,
   Play,
   Archive,
@@ -214,71 +213,106 @@ export default function JobDetail() {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {isDraft && (
-            <Button onClick={() => handleStatusChange('open')}>
-              <Globe className="h-4 w-4 mr-2" />
-              Publish
-            </Button>
-          )}
-          {job.is_public_visible && (
-            <Button variant="outline" asChild>
-              <a
-                href={`/careers/${orgCode}/${job.slug}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                View Public Page
-              </a>
-            </Button>
-          )}
-          {!isClosed && (
-            <Button variant="outline" asChild>
-              <OrgLink to={`/hiring/jobs/${job.slug}/edit`}>
-                <Pencil className="h-4 w-4 mr-2" />
-                Edit
-              </OrgLink>
-            </Button>
-          )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {job.status === 'open' && (
-                <DropdownMenuItem onClick={() => handleStatusChange('paused')}>
-                  <Pause className="h-4 w-4 mr-2" />
-                  Pause Vacancy
-                </DropdownMenuItem>
-              )}
-              {job.status === 'paused' && (
-                <DropdownMenuItem onClick={() => handleStatusChange('open')}>
-                  <Play className="h-4 w-4 mr-2" />
-                  Resume Vacancy
-                </DropdownMenuItem>
-              )}
-              {(job.status === 'open' || job.status === 'paused') && (
-                <DropdownMenuItem onClick={() => handleStatusChange('closed')}>
-                  <Archive className="h-4 w-4 mr-2" />
-                  Close Vacancy
-                </DropdownMenuItem>
-              )}
-              {(job.status === 'open' || job.status === 'paused' || job.status === 'draft') && (
-                <DropdownMenuSeparator />
-              )}
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                onClick={handleDeleteClick}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete Vacancy
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        <TooltipProvider>
+          <div className="flex items-center gap-1.5">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" onClick={() => navigateOrg('/hiring')}>
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Back to vacancies</TooltipContent>
+            </Tooltip>
+
+            {job.is_public_visible && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="icon" asChild>
+                    <a
+                      href={`/careers/${orgCode}/${job.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>View public page</TooltipContent>
+              </Tooltip>
+            )}
+
+            {isDraft && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button size="icon" onClick={() => handleStatusChange('open')}>
+                    <Globe className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Publish vacancy</TooltipContent>
+              </Tooltip>
+            )}
+
+            {!isClosed && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="icon" asChild>
+                    <OrgLink to={`/hiring/jobs/${job.slug}/edit`}>
+                      <Pencil className="h-4 w-4" />
+                    </OrgLink>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Edit vacancy</TooltipContent>
+              </Tooltip>
+            )}
+
+            {job.status === 'open' && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="icon" onClick={() => handleStatusChange('paused')}>
+                    <Pause className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Pause vacancy</TooltipContent>
+              </Tooltip>
+            )}
+
+            {job.status === 'paused' && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="icon" onClick={() => handleStatusChange('open')}>
+                    <Play className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Resume vacancy</TooltipContent>
+              </Tooltip>
+            )}
+
+            {(job.status === 'open' || job.status === 'paused') && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="icon" onClick={() => handleStatusChange('closed')}>
+                    <Archive className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Close vacancy</TooltipContent>
+              </Tooltip>
+            )}
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="text-destructive hover:text-destructive"
+                  onClick={handleDeleteClick}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Delete vacancy</TooltipContent>
+            </Tooltip>
+          </div>
+        </TooltipProvider>
       </div>
 
       {/* Job Summary Card */}
