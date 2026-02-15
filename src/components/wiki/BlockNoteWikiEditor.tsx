@@ -161,7 +161,7 @@ export const BlockNoteWikiEditor = ({
         name: userName!,
         color: userColor || "#4ECDC4",
       },
-      showCursorLabels: "always" as const,
+      showCursorLabels: "activity" as const,
     };
   }, [isCollaborative, doc, provider, userName, userColor]);
 

@@ -136,7 +136,7 @@
 
 /* Collaboration cursor styling */
 .collaboration-cursor__caret {
-  border-left: 3px solid;
+  border-left: 2px solid;
   position: relative;
 }
 
@@ -157,7 +157,10 @@
   transition: opacity 0.3s ease;
 }
 
-/* Labels always visible (showCursorLabels: "always") */
+/* Fade label after idle */
+.collaboration-cursor__label[data-idle="true"] {
+  opacity: 0;
+}
 
 /* Remote selection highlight */
 .ProseMirror .collaboration-cursor__selection {
