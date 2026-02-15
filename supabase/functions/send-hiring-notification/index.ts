@@ -170,6 +170,7 @@ const handler = async (req: Request): Promise<Response> => {
       html: emailHtml,
     });
 
+    const emailId = emailResponse?.data?.id || emailResponse?.id || "sent";
     console.log("Email sent successfully:", emailResponse);
 
     // Log the activity
@@ -184,11 +185,12 @@ const handler = async (req: Request): Promise<Response> => {
         template_id: template.id,
         recipient: candidate.email,
         subject,
+        email_id: emailId,
       },
     });
 
     return new Response(
-      JSON.stringify({ success: true, email_id: (emailResponse as any)?.id || "sent" }),
+      JSON.stringify({ success: true, email_id: emailId }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
