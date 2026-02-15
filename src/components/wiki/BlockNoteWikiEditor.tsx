@@ -6,11 +6,8 @@ import {
   SuggestionMenuController,
   getDefaultReactSlashMenuItems,
   getFormattingToolbarItems,
-  FloatingComposerController,
-  FloatingThreadController,
   ThreadsSidebar,
 } from "@blocknote/react";
-import { AddCommentButton } from "@blocknote/react";
 import { PartialBlock } from "@blocknote/core";
 import { en } from "@blocknote/core/locales";
 import {
@@ -79,7 +76,7 @@ export const BlockNoteWikiEditor = ({
   // Comments require collaboration (Yjs doc) and a userId
   const commentsEnabled = isCollaborative && canComment && !!userId;
 
-  const resolveUsers = useResolveUsers(organizationId);
+  const { resolveUsers, mentionUsers } = useResolveUsers(organizationId);
 
   // Create Yjs doc and provider for collaborative editing
   const { doc, provider } = useMemo(() => {
@@ -352,9 +349,8 @@ export const BlockNoteWikiEditor = ({
               }}
               formattingToolbar={() => (
                 <div className="bn-toolbar bn-formatting-toolbar" role="toolbar">
-                  {getFormattingToolbarItems()}
+              {getFormattingToolbarItems()}
                   <AIToolbarButton />
-                  {commentsEnabled && <AddCommentButton />}
                 </div>
               )}
             />
@@ -374,13 +370,6 @@ export const BlockNoteWikiEditor = ({
             {/* AI menu controller for the AI interaction panel */}
             <AIMenuController />
 
-            {/* Comment floating controllers */}
-            {commentsEnabled && (
-              <>
-                <FloatingComposerController />
-                <FloatingThreadController />
-              </>
-            )}
           </div>
 
           {/* Comments sidebar panel - inside BlockNoteView for context access */}
