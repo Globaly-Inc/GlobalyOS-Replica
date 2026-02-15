@@ -157,7 +157,7 @@ export default function AssignmentTemplateEditor() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Type</Label>
+                <Label>Assignment Type</Label>
                 <AssignmentTypeCombobox
                   value={formData.type}
                   onChange={(v) => setFormData({ ...formData, type: v })}
