@@ -412,11 +412,6 @@ export default function JobEdit() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <OrgLink to={`/hiring/jobs/${job.slug}`}>
-            <ArrowLeft className="h-4 w-4" />
-          </OrgLink>
-        </Button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold tracking-tight">Edit Job Vacancy</h1>
           <p className="text-muted-foreground">
