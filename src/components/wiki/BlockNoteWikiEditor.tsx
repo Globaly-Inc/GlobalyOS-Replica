@@ -151,6 +151,61 @@ export const BlockNoteWikiEditor = ({
   // Build the AI proxy URL using the Supabase functions endpoint
   const aiProxyUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/blocknote-ai-proxy`;
 
+  // Custom cursor renderer with colored name label
+  const renderCursor = useCallback((user: { name: string; color: string }) => {
+    // Wrapper
+    const base = document.createElement("span");
+    base.style.cssText = "position: relative; display: inline; overflow: visible;";
+
+    // Caret line
+    const caret = document.createElement("span");
+    caret.setAttribute("contentEditable", "false");
+    caret.style.cssText = `
+      border-left: 3px solid ${user.color};
+      position: relative;
+      display: inline;
+      overflow: visible;
+    `;
+
+    // Name label
+    const label = document.createElement("span");
+    // Pick white or black text based on luminance
+    const hex = (user.color || "#4ECDC4").replace("#", "");
+    const r = parseInt(hex.substring(0, 2), 16) || 0;
+    const g = parseInt(hex.substring(2, 4), 16) || 0;
+    const b = parseInt(hex.substring(4, 6), 16) || 0;
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    const textColor = luminance > 0.5 ? "#1a1a1a" : "#ffffff";
+    const bgColor = user.color || "#4ECDC4";
+
+    label.style.cssText = `
+      position: absolute;
+      top: -1.5em;
+      left: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1;
+      padding: 4px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+      user-select: none;
+      pointer-events: none;
+      z-index: 50;
+      background: ${bgColor};
+      color: ${textColor};
+      box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+      display: inline-block;
+    `;
+    label.textContent = user.name;
+
+    caret.appendChild(label);
+    base.appendChild(document.createTextNode("\u2060"));
+    base.appendChild(caret);
+    base.appendChild(document.createTextNode("\u2060"));
+
+    return base;
+  }, []);
+
   // Build collaboration config for useCreateBlockNote
   const collaborationConfig = useMemo(() => {
     if (!isCollaborative || !doc || !provider) return undefined;
@@ -162,8 +217,9 @@ export const BlockNoteWikiEditor = ({
         color: userColor || "#4ECDC4",
       },
       showCursorLabels: "always" as const,
+      renderCursor,
     };
-  }, [isCollaborative, doc, provider, userName, userColor]);
+  }, [isCollaborative, doc, provider, userName, userColor, renderCursor]);
 
   // Create thread store for comments (backed by Yjs)
   const threadStore = useMemo(() => {
