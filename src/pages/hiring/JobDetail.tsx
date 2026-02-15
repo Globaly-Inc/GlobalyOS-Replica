@@ -23,11 +23,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { OrgLink } from '@/components/OrgLink';
 import { useJob, useJobStages, useApplications } from '@/services/useHiring';
 import { useHiringApplications } from '@/services';
 import { useUpdateJob } from '@/services/useHiringMutations';
-import { useAssignmentTemplatesForPosition } from '@/hooks/useAssignmentTemplatesForPosition';
+import { useAssignmentTemplatesForPosition, type AssignmentTemplateForPosition } from '@/hooks/useAssignmentTemplatesForPosition';
 import type { JobStatus, ApplicationStage } from '@/types/hiring';
 import { getJobStatusLabel, getJobStatusColor, APPLICATION_STAGE_LABELS, APPLICATION_STAGE_COLORS } from '@/types/hiring';
 import { countryToFlag } from '@/utils/countryFlag';
@@ -82,6 +88,7 @@ export default function JobDetail() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<AssignmentTemplateForPosition | null>(null);
 
   const handleStatusChange = async (newStatus: JobStatus) => {
     if (!job) return;
@@ -345,12 +352,23 @@ export default function JobDetail() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Assignment</p>
-                <div className="mt-1 flex items-center gap-1.5 text-sm">
-                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                <div className="mt-1 flex flex-col gap-1 text-sm">
                   {assignmentData?.templates?.length ? (
-                    <span className="font-medium">{assignmentData.templates.map(t => t.name).join(', ')}</span>
+                    assignmentData.templates.map(t => (
+                      <button
+                        key={t.id}
+                        onClick={() => setSelectedTemplate(t)}
+                        className="flex items-center gap-1.5 text-left hover:text-primary transition-colors cursor-pointer"
+                      >
+                        <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="font-medium underline-offset-2 hover:underline">{t.name}</span>
+                      </button>
+                    ))
                   ) : (
-                    <span className="text-muted-foreground">None</span>
+                    <div className="flex items-center gap-1.5">
+                      <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-muted-foreground">None</span>
+                    </div>
                   )}
                 </div>
               </div>
@@ -478,6 +496,51 @@ export default function JobDetail() {
           />
         </>
       )}
+
+      {/* Assignment Template Details Dialog */}
+      <Dialog open={!!selectedTemplate} onOpenChange={(open) => !open && setSelectedTemplate(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{selectedTemplate?.name}</DialogTitle>
+          </DialogHeader>
+          {selectedTemplate && (
+            <div className="space-y-4">
+              {selectedTemplate.type && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Type</p>
+                  <p className="mt-0.5 text-sm capitalize">{selectedTemplate.type}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Instructions</p>
+                <p className="mt-0.5 text-sm whitespace-pre-wrap">{selectedTemplate.instructions}</p>
+              </div>
+              {selectedTemplate.recommended_effort && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Recommended Effort</p>
+                  <p className="mt-0.5 text-sm">{selectedTemplate.recommended_effort}</p>
+                </div>
+              )}
+              {selectedTemplate.default_deadline_hours && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Default Deadline</p>
+                  <p className="mt-0.5 text-sm">{selectedTemplate.default_deadline_hours} hours</p>
+                </div>
+              )}
+              {selectedTemplate.expected_deliverables && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Expected Deliverables</p>
+                  <p className="mt-0.5 text-sm whitespace-pre-wrap">
+                    {typeof selectedTemplate.expected_deliverables === 'string'
+                      ? selectedTemplate.expected_deliverables
+                      : JSON.stringify(selectedTemplate.expected_deliverables, null, 2)}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
