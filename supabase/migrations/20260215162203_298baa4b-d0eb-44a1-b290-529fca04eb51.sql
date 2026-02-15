@@ -1,0 +1,1 @@
+ALTER TABLE public.pipeline_stage_rules ADD COLUMN IF NOT EXISTS auto_assign_enabled boolean NOT NULL DEFAULT false;

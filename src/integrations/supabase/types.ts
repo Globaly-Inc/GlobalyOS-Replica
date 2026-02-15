@@ -8447,6 +8447,7 @@ export type Database = {
       }
       pipeline_stage_rules: {
         Row: {
+          auto_assign_enabled: boolean
           auto_assignment_template_id: string | null
           auto_reject_after_hours: number | null
           auto_reject_on_deadline: boolean
@@ -8460,6 +8461,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auto_assign_enabled?: boolean
           auto_assignment_template_id?: string | null
           auto_reject_after_hours?: number | null
           auto_reject_on_deadline?: boolean
@@ -8473,6 +8475,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auto_assign_enabled?: boolean
           auto_assignment_template_id?: string | null
           auto_reject_after_hours?: number | null
           auto_reject_on_deadline?: boolean
