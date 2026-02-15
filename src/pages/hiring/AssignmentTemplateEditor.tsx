@@ -205,23 +205,32 @@ export default function AssignmentTemplateEditor() {
               <CardTitle className="text-lg">Expected Deliverables</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={formData.expected_deliverables.files}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      expected_deliverables: {
-                        ...formData.expected_deliverables,
-                        files: e.target.checked,
-                      },
-                    })
-                  }
-                  className="rounded"
-                />
-                <span className="text-sm">File uploads</span>
-              </label>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.expected_deliverables.files}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        expected_deliverables: {
+                          ...formData.expected_deliverables,
+                          files: e.target.checked,
+                        },
+                      })
+                    }
+                    className="rounded"
+                  />
+                  <span className="text-sm">File uploads</span>
+                </label>
+                {formData.expected_deliverables.files && (
+                  <div className="ml-6 space-y-1 text-xs text-muted-foreground">
+                    <p><span className="font-medium">Accepted types:</span> PDF, DOC, DOCX, JPG, JPEG, PNG, GIF, WEBP</p>
+                    <p><span className="font-medium">Max file size:</span> 25MB per file</p>
+                    <p><span className="font-medium">Multiple uploads:</span> Supported</p>
+                  </div>
+                )}
+              </div>
               <div className="space-y-1">
                 <Label className="text-xs">URL Fields (comma-separated)</Label>
                 <Input
