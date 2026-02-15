@@ -209,6 +209,7 @@ export interface AssignmentTemplate {
   name: string;
   type: AssignmentType;
   role_tags: string[];
+  position_ids: string[];
   instructions: string;
   expected_deliverables: ExpectedDeliverables;
   recommended_effort: string | null;
@@ -432,6 +433,7 @@ export interface CreateAssignmentTemplateInput {
   name: string;
   type?: AssignmentType;
   role_tags?: string[];
+  position_ids?: string[];
   instructions: string;
   expected_deliverables?: ExpectedDeliverables;
   recommended_effort?: string | null;

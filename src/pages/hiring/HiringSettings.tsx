@@ -58,6 +58,8 @@ import {
 import { toast } from 'sonner';
 import { EMAIL_TRIGGER_LABELS, ASSIGNMENT_TYPE_LABELS } from '@/types/hiring';
 import type { EmailTrigger, AssignmentType, ExpectedDeliverables } from '@/types/hiring';
+import { PositionMultiSelect } from '@/components/hiring/PositionMultiSelect';
+import { usePositions } from '@/hooks/usePositions';
 
 export default function HiringSettings() {
   const [activeTab, setActiveTab] = useState('templates');
@@ -351,6 +353,8 @@ function AssignmentTemplatesSection() {
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
   const [showDialog, setShowDialog] = useState(false);
 
+  const { data: allPositions = [] } = usePositions();
+
   const [formData, setFormData] = useState({
     name: '',
     type: 'coding' as AssignmentType,
@@ -358,6 +362,7 @@ function AssignmentTemplatesSection() {
     default_deadline_hours: 72,
     recommended_effort: '',
     role_tags: [] as string[],
+    position_ids: [] as string[],
     expected_deliverables: {
       files: false,
       text_questions: [] as string[],
@@ -373,6 +378,7 @@ function AssignmentTemplatesSection() {
       default_deadline_hours: template.default_deadline_hours || 72,
       recommended_effort: template.recommended_effort || '',
       role_tags: template.role_tags || [],
+      position_ids: template.position_ids || [],
       expected_deliverables: template.expected_deliverables || {
         files: false,
         text_questions: [],
@@ -391,6 +397,7 @@ function AssignmentTemplatesSection() {
       default_deadline_hours: 72,
       recommended_effort: '',
       role_tags: [],
+      position_ids: [],
       expected_deliverables: {
         files: false,
         text_questions: [],
@@ -513,14 +520,11 @@ function AssignmentTemplatesSection() {
               </div>
 
               <div className="space-y-2">
-                <Label>Role Tags (comma-separated)</Label>
-                <Input
-                  value={formData.role_tags.join(', ')}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    role_tags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) 
-                  })}
-                  placeholder="e.g., engineering, frontend, senior"
+                <Label>Positions</Label>
+                <PositionMultiSelect
+                  value={formData.position_ids}
+                  onChange={(ids) => setFormData({ ...formData, position_ids: ids })}
+                  placeholder="Select positions this template applies to..."
                 />
               </div>
 
@@ -597,7 +601,7 @@ function AssignmentTemplatesSection() {
                 <TableHead>Name</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Deadline</TableHead>
-                <TableHead>Tags</TableHead>
+                <TableHead>Positions</TableHead>
                 <TableHead className="w-20">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -613,15 +617,21 @@ function AssignmentTemplatesSection() {
                   <TableCell>{template.default_deadline_hours}h</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {template.role_tags?.slice(0, 2).map((tag: string, i: number) => (
-                        <Badge key={i} variant="secondary" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                      {(template.role_tags?.length || 0) > 2 && (
+                      {(template.position_ids || []).slice(0, 2).map((pid: string) => {
+                        const pos = allPositions.find(p => p.id === pid);
+                        return (
+                          <Badge key={pid} variant="secondary" className="text-xs">
+                            {pos?.name || 'Unknown'}
+                          </Badge>
+                        );
+                      })}
+                      {(template.position_ids?.length || 0) > 2 && (
                         <Badge variant="secondary" className="text-xs">
-                          +{template.role_tags!.length - 2}
+                          +{template.position_ids!.length - 2}
                         </Badge>
+                      )}
+                      {!(template.position_ids?.length) && (
+                        <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </div>
                   </TableCell>

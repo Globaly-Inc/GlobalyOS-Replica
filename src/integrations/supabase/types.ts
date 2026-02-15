@@ -873,6 +873,7 @@ export type Database = {
           is_active: boolean | null
           name: string
           organization_id: string
+          position_ids: string[] | null
           recommended_effort: string | null
           role_tags: string[] | null
           type: Database["public"]["Enums"]["assignment_type"] | null
@@ -888,6 +889,7 @@ export type Database = {
           is_active?: boolean | null
           name: string
           organization_id: string
+          position_ids?: string[] | null
           recommended_effort?: string | null
           role_tags?: string[] | null
           type?: Database["public"]["Enums"]["assignment_type"] | null
@@ -903,6 +905,7 @@ export type Database = {
           is_active?: boolean | null
           name?: string
           organization_id?: string
+          position_ids?: string[] | null
           recommended_effort?: string | null
           role_tags?: string[] | null
           type?: Database["public"]["Enums"]["assignment_type"] | null
