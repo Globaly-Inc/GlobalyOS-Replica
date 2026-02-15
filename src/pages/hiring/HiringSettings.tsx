@@ -49,9 +49,11 @@ import {
   Mail, 
   ClipboardList, 
   Settings2,
+  GitBranch,
   Plus,
   Pencil,
 } from 'lucide-react';
+import { PipelineSettingsSection } from '@/components/hiring/PipelineSettingsSection';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { EMAIL_TRIGGER_LABELS, ASSIGNMENT_TYPE_LABELS } from '@/types/hiring';
@@ -62,7 +64,7 @@ import { useOrganization } from '@/hooks/useOrganization';
 
 export default function HiringSettings() {
   const [searchParams] = useSearchParams();
-  const defaultTab = searchParams.get('tab') || 'templates';
+  const defaultTab = searchParams.get('tab') || 'pipeline';
   const [activeTab, setActiveTab] = useState(defaultTab);
 
   return (
@@ -84,6 +86,10 @@ export default function HiringSettings() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
+          <TabsTrigger value="pipeline" className="flex items-center gap-2">
+            <GitBranch className="h-4 w-4" />
+            Pipeline Settings
+          </TabsTrigger>
           <TabsTrigger value="templates" className="flex items-center gap-2">
             <Mail className="h-4 w-4" />
             Email Automation
@@ -97,6 +103,10 @@ export default function HiringSettings() {
             Career Site Settings
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="pipeline" className="mt-6">
+          <PipelineSettingsSection />
+        </TabsContent>
 
         <TabsContent value="templates" className="mt-6">
           <EmailTemplatesSection />

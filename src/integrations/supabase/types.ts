@@ -8445,6 +8445,70 @@ export type Database = {
           },
         ]
       }
+      pipeline_stage_rules: {
+        Row: {
+          auto_assignment_template_id: string | null
+          auto_reject_after_hours: number | null
+          auto_reject_on_deadline: boolean
+          created_at: string
+          id: string
+          is_active: boolean
+          job_id: string | null
+          notify_employee_ids: string[] | null
+          organization_id: string
+          stage_key: string
+          updated_at: string
+        }
+        Insert: {
+          auto_assignment_template_id?: string | null
+          auto_reject_after_hours?: number | null
+          auto_reject_on_deadline?: boolean
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          job_id?: string | null
+          notify_employee_ids?: string[] | null
+          organization_id: string
+          stage_key: string
+          updated_at?: string
+        }
+        Update: {
+          auto_assignment_template_id?: string | null
+          auto_reject_after_hours?: number | null
+          auto_reject_on_deadline?: boolean
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          job_id?: string | null
+          notify_employee_ids?: string[] | null
+          organization_id?: string
+          stage_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_stage_rules_auto_assignment_template_id_fkey"
+            columns: ["auto_assignment_template_id"]
+            isOneToOne: false
+            referencedRelation: "assignment_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipeline_stage_rules_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipeline_stage_rules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plan_limits: {
         Row: {
           created_at: string
