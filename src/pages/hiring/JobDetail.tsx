@@ -79,6 +79,7 @@ export default function JobDetail() {
   const { data: stages } = useJobStages(job?.id || '');
   const { data: applications, isLoading: applicationsLoading } = useJobApplications(job?.id);
   const updateJob = useUpdateJob();
+  const assignmentData = useAssignmentTemplatesForPosition(job?.title || '').data;
 
   const isDraft = job?.status === 'draft';
   const [activeTab, setActiveTab] = useState<string | undefined>(undefined);
@@ -160,7 +161,7 @@ export default function JobDetail() {
   const departmentName = typeof job.department === 'object' ? job.department?.name : null;
   const isClosed = job.status === 'closed';
   const candidateCount = applications?.length || 0;
-  const assignmentData = useAssignmentTemplatesForPosition(job.title || '').data;
+  
 
   // Compute stage counts for pipeline mini-chart
   const stageCounts = (() => {
