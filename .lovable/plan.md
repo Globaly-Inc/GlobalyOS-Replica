@@ -1,22 +1,27 @@
 
 
-## Replace Instructions Textarea with Rich Text Editor
+## Enhance File Uploads in Expected Deliverables
 
 ### What Changes
 
-Replace the plain `<Textarea>` in the Instructions section of the Assignment Template Editor with the existing `RichTextEditor` component already used throughout the project (e.g., in Job Create/Edit pages).
+Update the "File uploads" checkbox area in the Expected Deliverables card to:
+1. Show the list of accepted file types (PDF, DOC, DOCX, JPG, PNG, etc.)
+2. Display the max file size (25MB, matching existing hiring-documents conventions)
+3. Add a note that multiple file uploads are supported
+4. Replace the bare checkbox with a more informative UI showing these details when enabled
 
 ### Technical Details
 
 **File modified:** `src/pages/hiring/AssignmentTemplateEditor.tsx`
 
-1. Import `RichTextEditor` from `@/components/ui/rich-text-editor`
-2. Replace the `<Textarea>` at line 255 with `<RichTextEditor>`, passing:
-   - `value={formData.instructions}`
-   - `onChange` to update `formData.instructions`
-   - `placeholder="Describe what the candidate needs to complete..."`
-   - `minHeight="300px"`
-3. Remove the now-unused `Textarea` import if no longer needed elsewhere in the file
+Changes to the Expected Deliverables card (lines 207-224):
+- Keep the checkbox toggle for enabling file uploads
+- When checked, show a helper text block listing:
+  - Accepted types: PDF, DOC, DOCX, JPG, JPEG, PNG, GIF, WEBP
+  - Max file size: 25MB per file
+  - Multiple files allowed
+- Use muted/secondary text styling consistent with the rest of the form
+- This is a template configuration display only (informational for the template creator); actual upload validation happens at submission time
 
-The `RichTextEditor` provides a toolbar with Bold, Italic, Underline, Bullet List, and Numbered List -- matching the "simple toolbar on top" requirement. It stores content as sanitized HTML, which is compatible with the existing `instructions` text field.
+No database or type changes needed -- this is purely a UI enhancement to the existing boolean `files` toggle.
 
