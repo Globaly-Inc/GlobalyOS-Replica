@@ -1,5 +1,10 @@
 import * as Y from 'yjs';
-import { Awareness } from 'y-protocols/awareness';
+import {
+  Awareness,
+  encodeAwarenessUpdate,
+  applyAwarenessUpdate,
+  removeAwarenessStates,
+} from 'y-protocols/awareness';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
@@ -101,16 +106,15 @@ export class SupabaseYjsProvider {
       })
       .on('presence', { event: 'leave' }, ({ leftPresences }) => {
         if (this._destroyed) return;
-        // Remove awareness for peers that left
+        // Remove awareness for peers that left using proper y-protocols method
+        const clientsToRemove: number[] = [];
         for (const p of leftPresences) {
           if (p.clientID && p.clientID !== this.doc.clientID) {
-            const states = this.awareness.getStates();
-            states.delete(p.clientID as number);
-            this.awareness.emit('change', [
-              { added: [], updated: [], removed: [p.clientID as number] },
-              this,
-            ]);
+            clientsToRemove.push(p.clientID as number);
           }
+        }
+        if (clientsToRemove.length > 0) {
+          removeAwarenessStates(this.awareness, clientsToRemove, this);
         }
       })
       .subscribe(async (status) => {
@@ -156,9 +160,11 @@ export class SupabaseYjsProvider {
     const localState = this.awareness.getLocalState();
     if (!localState) return;
     try {
+      // Encode the full awareness update for this client using y-protocols
+      const update = encodeAwarenessUpdate(this.awareness, [this.doc.clientID]);
       await this.channel.track({
         clientID: this.doc.clientID,
-        awarenessState: localState,
+        awarenessUpdate: Array.from(update),
       });
     } catch {
       // Presence tracking can fail transiently
@@ -170,19 +176,16 @@ export class SupabaseYjsProvider {
     for (const key of Object.keys(presenceState)) {
       const presences = presenceState[key] as Array<{
         clientID?: number;
-        awarenessState?: Record<string, unknown>;
+        awarenessUpdate?: number[];
       }>;
       for (const p of presences) {
-        if (p.clientID && p.clientID !== this.doc.clientID && p.awarenessState) {
-          this.awareness.setLocalStateField('__remote__', null); // no-op to trigger
-          // Directly set remote awareness state
-          const states = this.awareness.getStates();
-          states.set(p.clientID, p.awarenessState as Record<string, unknown>);
-          // Emit awareness change
-          this.awareness.emit('change', [
-            { added: [p.clientID], updated: [], removed: [] },
-            this,
-          ]);
+        if (p.clientID && p.clientID !== this.doc.clientID && p.awarenessUpdate) {
+          try {
+            const update = new Uint8Array(p.awarenessUpdate);
+            applyAwarenessUpdate(this.awareness, update, this);
+          } catch (e) {
+            console.error('[SupabaseYjsProvider] Failed to apply awareness update:', e);
+          }
         }
       }
     }
