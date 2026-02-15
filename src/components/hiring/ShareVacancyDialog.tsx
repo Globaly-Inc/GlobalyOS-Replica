@@ -32,7 +32,8 @@ export const ShareVacancyDialog = ({ open, onOpenChange, vacancy }: ShareVacancy
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
 
-  const publicLink = `https://globalyos.lovable.app/careers/${currentOrg?.slug || ''}/${vacancy.id}`;
+  const vacancySlug = vacancy.slug || vacancy.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  const publicLink = `https://globalyos.com/careers/${currentOrg?.slug || ''}/${vacancySlug}`;
   const referrerName = employee?.profiles?.full_name || 'A team member';
   const companyName = currentOrg?.name || 'our company';
   const locationLabel = vacancy.office?.city || vacancy.office?.name || vacancy.location || '';
