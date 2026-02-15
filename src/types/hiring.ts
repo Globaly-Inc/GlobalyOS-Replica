@@ -191,9 +191,18 @@ export interface CandidateApplicationWithRelations extends CandidateApplication 
 // ASSIGNMENTS
 // ============================================
 
+export interface AssignmentQuestion {
+  id: string;
+  text: string;
+  type: 'multiple_choice' | 'paragraph';
+  options?: string[];
+  required: boolean;
+}
+
 export interface ExpectedDeliverables {
   files: boolean;
   url_fields: string[];
+  questions?: AssignmentQuestion[];
 }
 
 export interface SubmissionData {
