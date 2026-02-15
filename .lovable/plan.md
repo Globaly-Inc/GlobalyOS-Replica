@@ -1,42 +1,23 @@
 
-## Fix: Edit Button Not Showing for Page-Level "Everyone Can Edit"
+
+## Widen Wiki Editor to Match Other Pages
 
 ### The Problem
-The Edit button on wiki pages is only visible to admins, HR, and owners. The code currently passes `canEdit={hasGlobalEditAccess}` to the `WikiContent` component, which only checks role-based access. It completely ignores the page's `access_scope` setting (e.g., "Everyone can edit").
-
-So even though you set the file to "Everyone can edit", Sarah (a regular member) never sees the Edit button because her role is not admin/HR/owner.
+The Wiki edit page uses `max-w-4xl` (896px) for both the header and editor content, making it noticeably narrower than other pages like Home which use the Tailwind `container` class (responsive, up to ~1280px on large screens).
 
 ### The Fix
-Add a page-level permission check using the existing `can_edit_wiki_item` RPC function, and combine it with the role-based check. This is exactly how `WikiEditPage.tsx` already works -- we just need to apply the same logic to the read view.
+Replace `max-w-4xl mx-auto` with `container mx-auto` in two places within `src/pages/WikiEditPage.tsx`:
 
-### What Changes
+1. **Header bar** (line 229): `max-w-4xl mx-auto px-4` becomes `container mx-auto px-4 md:px-8`
+2. **Editor content area** (line 294): `max-w-4xl mx-auto px-4` becomes `container mx-auto px-4 md:px-8`
 
-**`src/pages/Wiki.tsx`**
-- Add a query that calls `can_edit_wiki_item` RPC for the currently selected page (similar to what `WikiEditPage.tsx` already does)
-- Change `canEdit={hasGlobalEditAccess}` to `canEdit={hasGlobalEditAccess || canEditSelectedPage}` in all three places where `WikiContent` is rendered (mobile view, desktop view, and preview dialog)
-- The query only runs when a page is selected and the user is not already an admin/HR/owner (to avoid unnecessary calls)
+Also remove the `max-w-2xl` constraint on the title input wrapper (line 231) so the title field can use more of the available width.
 
-### Technical Detail
-
-The fix adds a `useQuery` call:
-```text
-queryKey: ["wiki-page-edit-permission", selectedPageId, user?.id]
-queryFn: supabase.rpc('can_edit_wiki_item', {
-  _item_type: 'page',
-  _item_id: selectedPageId,
-  _user_id: user.id,
-})
-```
-
-Then all `canEdit` props become:
-```text
-canEdit={hasGlobalEditAccess || canEditSelectedPage === true}
-```
-
-This mirrors the existing pattern in `WikiEditPage.tsx` (lines 46-62) and uses the same RPC that already accounts for `access_scope = 'company'` (Everyone) and member-level sharing.
+This matches the exact padding (`px-4 md:px-8`) and width (`container`) used by Layout.tsx for all other pages.
 
 ### Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/pages/Wiki.tsx` | Add page-level edit permission query; update `canEdit` prop in 3 `WikiContent` renders and 1 preview dialog render |
+| `src/pages/WikiEditPage.tsx` | Replace `max-w-4xl` with `container` in header and content; add `md:px-8` padding; remove `max-w-2xl` from title wrapper |
+
