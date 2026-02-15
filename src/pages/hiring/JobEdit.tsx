@@ -26,6 +26,7 @@ import { useDepartments, useOffices } from '@/hooks/useOrganizationData';
 import { useOrganization } from '@/hooks/useOrganization';
 import type { WorkModel, HiringEmploymentType } from '@/types/hiring';
 import { OrgLink } from '@/components/OrgLink';
+import { VacancyAssignmentCard } from '@/components/hiring/VacancyAssignmentCard';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -871,6 +872,8 @@ export default function JobEdit() {
               </div>
             </CardContent>
           </Card>
+
+          <VacancyAssignmentCard jobTitle={formData.title} />
 
           <JobPostPreview
             formData={{
