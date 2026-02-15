@@ -244,3 +244,23 @@
 .mantine-Portal .mantine-Popover-dropdown {
   margin-top: 4px;
 }
+
+/* Mention inline content styling */
+.bn-mention {
+  color: hsl(var(--primary));
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 0.25rem;
+  padding: 0 0.125rem;
+}
+
+.bn-mention:hover {
+  background: hsl(var(--primary) / 0.1);
+  text-decoration: underline;
+}
+
+/* Comment actions always visible */
+.bn-thread-comment .bn-action-toolbar.bn-comment-actions {
+  opacity: 1 !important;
+  visibility: visible !important;
+}

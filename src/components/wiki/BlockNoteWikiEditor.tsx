@@ -27,12 +27,14 @@ import {
 } from "@blocknote/core/comments";
 
 import { offset, shift } from "@floating-ui/react";
+import { CommentsAlwaysShowActions } from "./comments/CommentAlwaysShowActions";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import "./blocknote-styles.css";
 import { isBlockNoteJson } from "./wikiContentUtils";
 import { SupabaseYjsProvider } from "./collaboration/SupabaseYjsProvider";
 import { useResolveUsers } from "./collaboration/useResolveUsers";
+import { commentEditorSchemaWithMentions } from "./comments/commentEditorSchema";
 
 // Re-export for backward compatibility
 export { isBlockNoteJson };
@@ -253,6 +255,7 @@ export const BlockNoteWikiEditor = ({
         CommentsExtension({
           threadStore,
           resolveUsers,
+          schema: commentEditorSchemaWithMentions,
         }),
       );
     }
@@ -337,48 +340,50 @@ export const BlockNoteWikiEditor = ({
         slashMenu={false}
         data-theming-css-variables-demo
       >
-        <div className={showCommentsSidebar && commentsEnabled ? 'flex gap-4' : ''}>
-          <div className={showCommentsSidebar && commentsEnabled ? 'flex-1 min-w-0' : ''}>
-            {/* Custom formatting toolbar with AI + Comment buttons */}
-            <FormattingToolbarController
-              floatingUIOptions={{
-                useFloatingOptions: {
-                  placement: "bottom-start",
-                  middleware: [offset(10), shift()],
-                },
-              }}
-              formattingToolbar={() => (
-                <div className="bn-toolbar bn-formatting-toolbar" role="toolbar">
-              {getFormattingToolbarItems()}
-                  <AIToolbarButton />
-                </div>
-              )}
-            />
+        <CommentsAlwaysShowActions mentionUsers={mentionUsers}>
+          <div className={showCommentsSidebar && commentsEnabled ? 'flex gap-4' : ''}>
+            <div className={showCommentsSidebar && commentsEnabled ? 'flex-1 min-w-0' : ''}>
+              {/* Custom formatting toolbar with AI + Comment buttons */}
+              <FormattingToolbarController
+                floatingUIOptions={{
+                  useFloatingOptions: {
+                    placement: "bottom-start",
+                    middleware: [offset(10), shift()],
+                  },
+                }}
+                formattingToolbar={() => (
+                  <div className="bn-toolbar bn-formatting-toolbar" role="toolbar">
+                    {getFormattingToolbarItems()}
+                    <AIToolbarButton />
+                  </div>
+                )}
+              />
 
-            {/* Slash menu with AI items merged */}
-            <SuggestionMenuController
-              triggerCharacter="/"
-              getItems={async (query) => {
-                const defaultItems = getDefaultReactSlashMenuItems(editor);
-                const aiItems = getAISlashMenuItems(editor);
-                return [...aiItems, ...defaultItems].filter((item) =>
-                  item.title.toLowerCase().includes(query.toLowerCase()),
-                );
-              }}
-            />
+              {/* Slash menu with AI items merged */}
+              <SuggestionMenuController
+                triggerCharacter="/"
+                getItems={async (query) => {
+                  const defaultItems = getDefaultReactSlashMenuItems(editor);
+                  const aiItems = getAISlashMenuItems(editor);
+                  return [...aiItems, ...defaultItems].filter((item) =>
+                    item.title.toLowerCase().includes(query.toLowerCase()),
+                  );
+                }}
+              />
 
-            {/* AI menu controller for the AI interaction panel */}
-            <AIMenuController />
+              {/* AI menu controller for the AI interaction panel */}
+              <AIMenuController />
 
-          </div>
-
-          {/* Comments sidebar panel - inside BlockNoteView for context access */}
-          {showCommentsSidebar && commentsEnabled && (
-            <div className="w-80 flex-shrink-0 border-l bg-card overflow-y-auto">
-              <ThreadsSidebar />
             </div>
-          )}
-        </div>
+
+            {/* Comments sidebar panel - inside BlockNoteView for context access */}
+            {showCommentsSidebar && commentsEnabled && (
+              <div className="w-80 flex-shrink-0 border-l bg-card overflow-y-auto">
+                <ThreadsSidebar />
+              </div>
+            )}
+          </div>
+        </CommentsAlwaysShowActions>
       </BlockNoteView>
     </div>
   );
