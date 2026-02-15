@@ -161,10 +161,12 @@ export function usePublishJob() {
     mutationFn: async ({
       jobId,
       isInternal,
+      isInternalApply,
       isPublic,
     }: {
       jobId: string;
       isInternal: boolean;
+      isInternalApply?: boolean;
       isPublic: boolean;
     }) => {
       if (!currentOrg?.id) throw new Error('No organization selected');
@@ -174,6 +176,7 @@ export function usePublishJob() {
         .update({
           status: 'open' as JobStatus,
           is_internal_visible: isInternal,
+          is_internal_apply: isInternalApply ?? false,
           is_public_visible: isPublic,
           published_at: new Date().toISOString(),
         })

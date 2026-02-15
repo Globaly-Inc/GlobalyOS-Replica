@@ -91,6 +91,7 @@ export interface Job {
   justification: string | null;
   status: JobStatus;
   is_internal_visible: boolean;
+  is_internal_apply: boolean;
   is_public_visible: boolean;
   approved_by: string | null;
   approved_at: string | null;
@@ -409,6 +410,7 @@ export interface CreateJobInput {
 export interface UpdateJobInput extends Partial<CreateJobInput> {
   status?: JobStatus;
   is_internal_visible?: boolean;
+  is_internal_apply?: boolean;
   is_public_visible?: boolean;
   auto_close_on_deadline?: boolean;
 }

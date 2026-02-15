@@ -72,6 +72,7 @@ export default function JobCreate() {
     justification: '',
     description: '',
     is_internal_visible: true,
+    is_internal_apply: false,
     is_public_visible: true,
   });
 
@@ -549,15 +550,37 @@ export default function JobCreate() {
               <CardDescription>Control where this job is visible</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center gap-3">
-                <Switch
-                  id="is_internal_visible"
-                  checked={formData.is_internal_visible}
-                  onCheckedChange={(checked) => handleChange('is_internal_visible', checked)}
-                />
-                <Label htmlFor="is_internal_visible" className="cursor-pointer">
-                  Show on internal job board (visible to employees)
-                </Label>
+              <div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="is_internal_visible"
+                    checked={formData.is_internal_visible}
+                    onCheckedChange={(checked) => {
+                      handleChange('is_internal_visible', checked);
+                      if (!checked) handleChange('is_internal_apply', false);
+                    }}
+                  />
+                  <div>
+                    <Label htmlFor="is_internal_visible" className="cursor-pointer">
+                      Show on internal job board
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">Visible to employees on home page with share/refer option</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 ml-6 mt-3">
+                  <Switch
+                    id="is_internal_apply"
+                    checked={formData.is_internal_apply}
+                    onCheckedChange={(checked) => handleChange('is_internal_apply', checked)}
+                    disabled={!formData.is_internal_visible}
+                  />
+                  <div className={!formData.is_internal_visible ? 'opacity-50' : ''}>
+                    <Label htmlFor="is_internal_apply" className="cursor-pointer">
+                      Allow internal applications
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">Team members can apply directly to this position</p>
+                  </div>
+                </div>
               </div>
               <div className="flex items-center gap-3">
                 <Switch

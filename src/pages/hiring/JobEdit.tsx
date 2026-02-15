@@ -151,6 +151,7 @@ export default function JobEdit() {
     requirements: '',
     benefits: '',
     is_internal_visible: true,
+    is_internal_apply: false,
     is_public_visible: true,
   });
 
@@ -177,6 +178,7 @@ export default function JobEdit() {
         requirements: job.requirements || '',
         benefits: job.benefits || '',
         is_internal_visible: job.is_internal_visible ?? true,
+        is_internal_apply: (job as any).is_internal_apply ?? false,
         is_public_visible: job.is_public_visible ?? false,
       });
     }
@@ -229,6 +231,7 @@ export default function JobEdit() {
           requirements: formData.requirements || null,
           benefits: formData.benefits || null,
           is_internal_visible: formData.is_internal_visible,
+          is_internal_apply: formData.is_internal_apply,
           is_public_visible: formData.is_public_visible,
         },
       });
@@ -245,6 +248,7 @@ export default function JobEdit() {
       await publishJob.mutateAsync({
         jobId: job.id,
         isInternal: formData.is_internal_visible,
+        isInternalApply: formData.is_internal_apply,
         isPublic: formData.is_public_visible,
       });
       toast.success('Job published');
@@ -850,15 +854,37 @@ export default function JobEdit() {
               <CardDescription>Control where this job is visible</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center gap-3">
-                <Switch
-                  id="is_internal_visible"
-                  checked={formData.is_internal_visible}
-                  onCheckedChange={(checked) => handleChange('is_internal_visible', checked)}
-                />
-                <Label htmlFor="is_internal_visible" className="cursor-pointer">
-                  Show on internal job board (visible to employees)
-                </Label>
+              <div>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="is_internal_visible"
+                    checked={formData.is_internal_visible}
+                    onCheckedChange={(checked) => {
+                      handleChange('is_internal_visible', checked);
+                      if (!checked) handleChange('is_internal_apply', false);
+                    }}
+                  />
+                  <div>
+                    <Label htmlFor="is_internal_visible" className="cursor-pointer">
+                      Show on internal job board
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">Visible to employees on home page with share/refer option</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 ml-6 mt-3">
+                  <Switch
+                    id="is_internal_apply"
+                    checked={formData.is_internal_apply}
+                    onCheckedChange={(checked) => handleChange('is_internal_apply', checked)}
+                    disabled={!formData.is_internal_visible}
+                  />
+                  <div className={!formData.is_internal_visible ? 'opacity-50' : ''}>
+                    <Label htmlFor="is_internal_apply" className="cursor-pointer">
+                      Allow internal applications
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">Team members can apply directly to this position</p>
+                  </div>
+                </div>
               </div>
               <div className="flex items-center gap-3">
                 <Switch

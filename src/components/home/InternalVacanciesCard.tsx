@@ -63,17 +63,19 @@ export const InternalVacanciesCard = () => {
                   </OrgLink>
 
                   <div className="flex items-center gap-0.5 flex-shrink-0 mt-0.5">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setApplyVacancy(vacancy); }}
-                          className="p-1.5 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
-                        >
-                          <UserPlus className="h-3.5 w-3.5" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top"><p>Apply</p></TooltipContent>
-                    </Tooltip>
+                    {vacancy.is_internal_apply && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setApplyVacancy(vacancy); }}
+                            className="p-1.5 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                          >
+                            <UserPlus className="h-3.5 w-3.5" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top"><p>Apply</p></TooltipContent>
+                      </Tooltip>
+                    )}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button

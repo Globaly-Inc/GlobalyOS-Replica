@@ -1,0 +1,1 @@
+ALTER TABLE public.jobs ADD COLUMN is_internal_apply BOOLEAN DEFAULT false;
