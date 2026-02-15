@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useCurrentEmployee } from './useCurrentEmployee';
 import { toast } from 'sonner';
+import { triggerHiringEmail } from './useHiringEmailTrigger';
 import type {
   CreateJobInput,
   UpdateJobInput,
@@ -333,6 +334,14 @@ export function useCreateApplication() {
         { job_id: input.job_id }
       );
 
+      // Trigger application received email
+      triggerHiringEmail({
+        organizationId: currentOrg.id,
+        triggerType: 'application_received',
+        applicationId: data.id,
+        jobId: input.job_id,
+      });
+
       return data;
     },
     onSuccess: () => {
@@ -392,6 +401,15 @@ export function useUpdateApplicationStage() {
         currentEmployee?.id || null,
         { from_stage: current?.stage, to_stage: stage }
       );
+
+      // Trigger rejection email if stage changed to rejected
+      if (stage === 'rejected') {
+        triggerHiringEmail({
+          organizationId: currentOrg.id,
+          triggerType: 'application_rejected',
+          applicationId: data.id,
+        });
+      }
 
       return data;
     },
@@ -475,6 +493,14 @@ export function useAssignAssignment() {
         currentEmployee?.id || null,
         { title: input.title, deadline: input.deadline }
       );
+
+      // Trigger assignment sent email
+      triggerHiringEmail({
+        organizationId: currentOrg.id,
+        triggerType: 'assignment_sent',
+        assignmentId: data.id,
+        applicationId: input.candidate_application_id,
+      });
 
       return data;
     },
@@ -630,6 +656,14 @@ export function useScheduleInterview() {
         currentEmployee?.id || null,
         { scheduled_at: input.scheduled_at, type: input.interview_type }
       );
+
+      // Trigger interview scheduled email
+      triggerHiringEmail({
+        organizationId: currentOrg.id,
+        triggerType: 'interview_scheduled',
+        interviewId: data.id,
+        applicationId: input.application_id,
+      });
 
       return data;
     },
