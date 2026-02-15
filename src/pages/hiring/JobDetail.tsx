@@ -215,14 +215,7 @@ export default function JobDetail() {
         </div>
         <TooltipProvider>
           <div className="flex items-center gap-1.5">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" onClick={() => navigateOrg('/hiring')}>
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Back to vacancies</TooltipContent>
-            </Tooltip>
+            
 
             {job.is_public_visible && (
               <Tooltip>
