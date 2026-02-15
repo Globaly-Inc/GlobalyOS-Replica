@@ -1,38 +1,83 @@
 
 
-## Replace 3-Dot Menu with Individual Icon Action Buttons
+## Show Internal Vacancies on Home Page Sidebar
 
-### What Changes
+### Overview
+When a vacancy has "Show on internal job board" enabled and its status is `open`, it will appear as a card in the home page right sidebar (desktop) and in the mobile section, positioned below "On Leave Today." All org members will see these openings, encouraging internal mobility.
 
-The current vacancy detail header has a mix of text buttons ("Publish", "View Public Page", "Edit") and a 3-dot dropdown menu hiding Pause, Resume, Close, and Delete actions. All actions will be surfaced as individual icon-only buttons with tooltips, matching the reference image style (a row of outlined/ghost icon buttons).
+### New Component: `InternalVacanciesCard`
+**File: `src/components/home/InternalVacanciesCard.tsx`**
 
-### Action Buttons (left to right, all with tooltips)
+A lazy-loaded card that:
+- Fetches open jobs where `is_internal_visible = true` for the current org
+- Displays each vacancy as a compact row with:
+  - Job title (bold, clickable link to vacancy detail)
+  - Department name and location/office as subtle metadata
+  - Employment type badge (Full-time, Part-time, etc.)
+  - Work model badge (Remote, Hybrid, On-site)
+  - Posted date as relative time ("2 days ago")
+- Header: Briefcase icon + "Open Positions" title with a count badge
+- "View All" link to `/hiring` if more than 3 vacancies exist
+- Shows max 3 vacancies in the sidebar; sorted by `published_at` descending (newest first)
+- Empty state: card is hidden entirely (no "No openings" message), keeping the sidebar clean
 
-| Action | Icon | Tooltip | Condition | Style |
-|---|---|---|---|---|
-| Back | `ArrowLeft` | "Back to vacancies" | Always | `outline` |
-| View Public Page | `ExternalLink` | "View public page" | `job.is_public_visible` | `outline` |
-| Publish | `Globe` | "Publish vacancy" | Draft only | `default` (primary) |
-| Edit | `Pencil` | "Edit vacancy" | Not closed | `outline` |
-| Pause | `Pause` | "Pause vacancy" | Status = open | `outline` |
-| Resume | `Play` | "Resume vacancy" | Status = paused | `outline` |
-| Close | `Archive` | "Close vacancy" | Status = open or paused | `outline` |
-| Delete | `Trash2` | "Delete vacancy" | Always (if no candidates) | `outline`, destructive text |
+### New Hook: `useInternalVacancies`
+**File: `src/hooks/useInternalVacancies.ts`**
 
-### Frontend Changes
+- Uses `useQuery` from TanStack React Query
+- Query: `supabase.from('jobs').select('id, title, slug, employment_type, work_model, location, published_at, department:departments(name), office:offices(name, city)').eq('organization_id', orgId).eq('status', 'open').eq('is_internal_visible', true).order('published_at', { ascending: false }).limit(5)`
+- Cache key: `['internal-vacancies', orgId]`
+- Stale time: 5 minutes
+- Returns `{ vacancies, isLoading }`
 
-**`src/pages/hiring/JobDetail.tsx`:**
-1. Remove the `DropdownMenu` import and the entire 3-dot dropdown block (lines 244-280).
-2. Replace the action area (lines 217-281) with a row of icon-only `Button` components wrapped in `Tooltip` for labels.
-3. Import `Tooltip`, `TooltipContent`, `TooltipProvider`, `TooltipTrigger` from `@/components/ui/tooltip`.
-4. Each button uses `variant="outline" size="icon"` except Publish which uses `variant="default" size="icon"` and Delete which adds destructive styling.
-5. Remove the text labels ("Publish", "View Public Page", "Edit") -- icons only with tooltips.
-6. The "Back" button (ArrowLeft) navigates back to the vacancies list.
+### Integration Points
 
-### Technical Notes
+**`src/components/home/HomeSidebar.tsx`:**
+- Import and render `InternalVacanciesCard` below the "On Leave Today" card (line 175) and above "Upcoming Events" (line 178)
+- Lazy-loaded with `Suspense` and `CardSkeleton` fallback
 
-- The delete confirmation `AlertDialog` remains unchanged -- clicking the delete icon button triggers it as before.
-- Status change handlers (`handleStatusChange`) remain the same.
-- The `DropdownMenu` and `DropdownMenuContent/Item/Separator/Trigger` imports can be removed since they will no longer be used.
-- No database changes required.
+**`src/components/home/HomeMobileLeaveSection.tsx`:**
+- Add `InternalVacanciesCard` below the "On Leave Today" card at the bottom of the mobile section
+
+### Vacancy Card Click Behavior
+- Clicking a vacancy title navigates to `/hiring/vacancies/:id` using `OrgLink`
+- "View All" navigates to `/hiring` using `OrgLink`
+- All links are internal SPA navigation (same tab)
+
+### No Database Changes Required
+- The `jobs` table already has `is_internal_visible` (boolean) and `status` columns
+- RLS policies already scope queries to the user's organization
+- No new tables or migrations needed
+
+### Technical Details
+
+**Query structure:**
+```text
+SELECT id, title, slug, employment_type, work_model, location, published_at,
+       departments.name AS department,
+       offices.name, offices.city AS office
+FROM jobs
+WHERE organization_id = :orgId
+  AND status = 'open'
+  AND is_internal_visible = true
+ORDER BY published_at DESC
+LIMIT 5
+```
+
+**Component hierarchy:**
+```text
+HomeSidebar
+  +-- ... (existing cards)
+  +-- On Leave Today card
+  +-- InternalVacanciesCard (NEW - lazy loaded)
+  +-- Upcoming Events card
+  +-- ...
+```
+
+**UI design:**
+- Card matches existing sidebar card style (p-6, rounded, same shadow)
+- Briefcase icon in primary color for the header
+- Each vacancy row: hover state with `bg-muted`, rounded-lg, p-2
+- Badges use the same pill style as existing status badges
+- Responsive: hidden on mobile via HomeSidebar (lg:block), separately rendered in HomeMobileLeaveSection for mobile
 
