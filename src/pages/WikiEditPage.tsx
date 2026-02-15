@@ -254,7 +254,7 @@ const WikiEditPage = () => {
     <div className="fixed inset-0 bg-background z-50 flex flex-col">
       {/* Sticky Header */}
       <header className="sticky top-0 z-10 bg-card border-b shadow-sm">
-        <div className="flex items-center justify-between container mx-auto px-4 md:px-8 py-1.5">
+        <div className="flex items-center justify-between container mx-auto px-4 md:px-8 py-3">
           {/* Page Title */}
           <div className="flex-1">
             <Input
