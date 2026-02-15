@@ -3,7 +3,7 @@
  * Manage hiring configuration, email templates, and assignment templates
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -471,14 +471,14 @@ function ConfigurationSection() {
   const [loaded, setLoaded] = useState(false);
 
   // Load current values from org
-  useState(() => {
+  useEffect(() => {
     if (currentOrg && !loaded) {
       setTitle((currentOrg as any).careers_page_title || 'Join Our Team');
       setSubtitle((currentOrg as any).careers_page_subtitle || 'Discover opportunities to grow your career with us. We\'re looking for talented people to help shape the future.');
       setHeaderColor((currentOrg as any).careers_header_color || '');
       setLoaded(true);
     }
-  });
+  }, [currentOrg, loaded]);
 
   const handleSave = async () => {
     if (!currentOrg) return;
