@@ -86,7 +86,7 @@ export default function HiringSettings() {
         <TabsList>
           <TabsTrigger value="templates" className="flex items-center gap-2">
             <Mail className="h-4 w-4" />
-            Email Templates
+            Email Automation
           </TabsTrigger>
           <TabsTrigger value="assignments" className="flex items-center gap-2">
             <ClipboardList className="h-4 w-4" />
@@ -188,7 +188,7 @@ function EmailTemplatesSection() {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle>Email Templates</CardTitle>
+          <CardTitle>Email Automation</CardTitle>
           <CardDescription>
             Customize automated emails sent during the hiring process
           </CardDescription>
