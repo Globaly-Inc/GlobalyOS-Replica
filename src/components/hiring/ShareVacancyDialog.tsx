@@ -32,12 +32,14 @@ export const ShareVacancyDialog = ({ open, onOpenChange, vacancy }: ShareVacancy
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
 
-  const publicLink = `${window.location.origin}/careers/${currentOrg?.slug || ''}/${vacancy.id}`;
+  const publicLink = `https://globalyos.lovable.app/careers/${currentOrg?.slug || ''}/${vacancy.id}`;
   const referrerName = employee?.profiles?.full_name || 'A team member';
   const companyName = currentOrg?.name || 'our company';
   const locationLabel = vacancy.office?.city || vacancy.office?.name || vacancy.location || '';
+  const workModel = vacancy.work_model ? vacancy.work_model.charAt(0).toUpperCase() + vacancy.work_model.slice(1) : '';
+  const employmentLabel = vacancy.employment_type ? vacancy.employment_type.replace(/_/g, '-') : '';
 
-  const sharingText = `🚀 We're hiring! ${companyName} is looking for a ${vacancy.title}${locationLabel ? ` in ${locationLabel}` : ''}${vacancy.employment_type ? ` (${vacancy.employment_type.replace(/_/g, '-')})` : ''}.\n\nInterested? Apply here:\n${publicLink}\n\n— Shared by ${referrerName}`;
+  const sharingText = `Hey! 👋\n\nI'm excited to share that my team at ${companyName} is hiring a ${vacancy.title}${locationLabel ? ` based in ${locationLabel}` : ''}${workModel ? ` (${workModel})` : ''}. ${employmentLabel ? `It's a ${employmentLabel} role. ` : ''}\n\nWe're building something truly special here, and this is an incredible opportunity to be part of it. If you or someone you know would be a great fit, I'd love for them to check it out!\n\n👉 Apply here: ${publicLink}\n\nFeel free to reach out to me directly if you have any questions — happy to share more about what it's like working here.\n\n— ${referrerName} at ${companyName}`;
 
   const handleCopy = async () => {
     try {
