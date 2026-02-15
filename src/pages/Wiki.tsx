@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useOrgNavigation } from "@/hooks/useOrgNavigation";
 import { WikiSidebar } from '@/components/wiki/WikiSidebar';
@@ -18,6 +18,7 @@ import { useWikiFavorites } from "@/hooks/useWikiFavorites";
 import { useWikiPermissions } from "@/hooks/useWikiPermissions";
 import { useWikiRecentlyViewed } from "@/hooks/useWikiRecentlyViewed";
 import { useWikiSharedAccess } from "@/hooks/useWikiSharedAccess";
+import { useAuth } from "@/hooks/useAuth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { toast } from "sonner";
@@ -83,6 +84,7 @@ const Wiki = () => {
   const { navigateOrg } = useOrgNavigation();
   const isMobile = useIsMobile();
   const { currentOrg } = useOrganization();
+  const { user } = useAuth();
   const { isAdmin, isHR, isOwner } = useUserRole();
   const { isFavorite, toggleFavorite } = useWikiFavorites();
   const { recentItems, addRecentItem, removeRecentItem } = useWikiRecentlyViewed();
@@ -306,6 +308,28 @@ const Wiki = () => {
 
   // Get current employee using centralized hook (properly scoped by org)
   const { data: currentEmployee, isLoading: isLoadingEmployee } = useCurrentEmployee();
+
+  // Check page-level edit permission for the selected page
+  const { data: canEditSelectedPage } = useQuery({
+    queryKey: ["wiki-page-edit-permission", selectedPageId, user?.id],
+    queryFn: async () => {
+      if (!selectedPageId || !user?.id) return false;
+      const { data, error } = await supabase.rpc('can_edit_wiki_item', {
+        _item_type: 'page' as const,
+        _item_id: selectedPageId,
+        _user_id: user.id,
+      });
+      if (error) {
+        console.error("Error checking edit permission:", error);
+        return false;
+      }
+      return data === true;
+    },
+    enabled: !!selectedPageId && !!user?.id && !hasGlobalEditAccess,
+    staleTime: 30000,
+  });
+
+  const canEditPage = hasGlobalEditAccess || canEditSelectedPage === true;
 
   // Track recently viewed pages
   useEffect(() => {
@@ -695,7 +719,7 @@ const Wiki = () => {
               versions={pageVersions}
               folders={folders}
               onSave={async () => {}}
-              canEdit={hasGlobalEditAccess}
+              canEdit={canEditPage}
               isLoading={isLoadingPage}
               organizationId={currentOrg?.id}
               onBack={handleMobileBack}
@@ -775,7 +799,7 @@ const Wiki = () => {
                 onSave={async (pageId, title, content) => {
                   await savePageMutation.mutateAsync({ pageId, title, content });
                 }}
-                canEdit={hasGlobalEditAccess}
+                canEdit={canEditPage}
                 isLoading={isLoadingPage}
                 organizationId={currentOrg?.id}
                 pendingNavigation={pendingNavigation}
@@ -864,7 +888,7 @@ const Wiki = () => {
             setSelectedPageId(items[index].id);
           }
         }}
-        canEdit={hasGlobalEditAccess}
+        canEdit={canEditPage}
         isFavorite={selectedPageId ? isFavorite('page', selectedPageId) : false}
         onToggleFavorite={() => selectedPageId && toggleFavorite('page', selectedPageId)}
         onShare={() => selectedPageId && handleOpenShare('page', selectedPageId)}
