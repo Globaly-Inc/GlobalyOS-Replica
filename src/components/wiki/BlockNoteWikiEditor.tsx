@@ -35,7 +35,7 @@ import "./blocknote-styles.css";
 import { isBlockNoteJson } from "./wikiContentUtils";
 import { SupabaseYjsProvider } from "./collaboration/SupabaseYjsProvider";
 import { useResolveUsers } from "./collaboration/useResolveUsers";
-import { commentEditorSchemaWithMentions } from "./comments/commentEditorSchema";
+
 
 // Re-export for backward compatibility
 export { isBlockNoteJson };
@@ -258,7 +258,6 @@ export const BlockNoteWikiEditor = ({
         CommentsExtension({
           threadStore,
           resolveUsers,
-          schema: commentEditorSchemaWithMentions,
         }),
       );
     }
@@ -345,7 +344,7 @@ export const BlockNoteWikiEditor = ({
         slashMenu={false}
         data-theming-css-variables-demo
       >
-        <CommentsAlwaysShowActions mentionUsers={mentionUsers}>
+        <CommentsAlwaysShowActions>
           <div className="flex h-full">
             <div className="flex-1 min-w-0">
               {/* Custom formatting toolbar with AI + Comment buttons */}
