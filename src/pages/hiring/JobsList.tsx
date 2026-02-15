@@ -179,10 +179,15 @@ export default function JobsList({
                             >
                               {job.title}
                             </OrgLink>
-                            <span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-                              <Users className="h-4 w-4" />
-                              {(job as any).candidate_applications?.[0]?.count || 0} candidates
-                            </span>
+                            {(() => {
+                              const count = (job as any).candidate_applications?.[0]?.count || 0;
+                              return (
+                                <span className={`flex items-center gap-1.5 text-sm font-medium ${count > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-500 dark:text-red-400'}`}>
+                                  <Users className="h-4 w-4" />
+                                  {count} candidates
+                                </span>
+                              );
+                            })()}
                           </div>
                           <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-muted-foreground">
                             <Badge className={getJobStatusColor(job.status)}>
