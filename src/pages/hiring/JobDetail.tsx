@@ -62,7 +62,7 @@ function useJobApplications(jobId: string | undefined) {
 
 export default function JobDetail() {
   const { jobSlug } = useParams<{ jobSlug: string }>();
-  const { navigateOrg } = useOrgNavigation();
+  const { navigateOrg, orgCode } = useOrgNavigation();
   const { currentOrg } = useOrganization();
   const queryClient = useQueryClient();
   const { data: job, isLoading: jobLoading } = useJob(jobSlug || '');
@@ -224,7 +224,7 @@ export default function JobDetail() {
           {job.is_public_visible && (
             <Button variant="outline" asChild>
               <a
-                href={`/careers/${job.organization_id}/${job.slug}`}
+                href={`/careers/${orgCode}/${job.slug}`}
                 target="_blank"
                 rel="noopener noreferrer"
               >
