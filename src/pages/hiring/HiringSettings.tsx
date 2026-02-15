@@ -603,7 +603,7 @@ function AssignmentTemplatesSection() {
                   <TableCell className="font-medium">{template.name}</TableCell>
                   <TableCell>
                     <Badge variant="outline">
-                      {ASSIGNMENT_TYPE_LABELS[template.type] || template.type}
+                      {ASSIGNMENT_TYPE_LABELS[template.type] || template.type?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                     </Badge>
                   </TableCell>
                   <TableCell>{template.default_deadline_hours}h</TableCell>
