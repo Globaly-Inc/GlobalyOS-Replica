@@ -372,9 +372,10 @@ export default function JobDetail() {
             </CardHeader>
             <CardContent>
               {job.description ? (
-                <div className="prose prose-sm max-w-none dark:prose-invert">
-                  <pre className="whitespace-pre-wrap font-sans">{job.description}</pre>
-                </div>
+                <div
+                  className="prose prose-sm max-w-none dark:prose-invert"
+                  dangerouslySetInnerHTML={{ __html: job.description }}
+                />
               ) : (
                 <p className="text-muted-foreground">No description provided.</p>
               )}
