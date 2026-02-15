@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -990,26 +990,26 @@ export const WikiShareDialog = ({
   const excludedEmployeeIds = membersWithAccess.map(m => m.employee_id);
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-md w-full flex flex-col p-0 overflow-hidden">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg p-0 overflow-hidden flex flex-col max-h-[85vh] max-h-[85dvh]">
         {/* Header */}
-        <SheetHeader className="p-6 pb-4 border-b shrink-0">
+        <DialogHeader className="p-6 pb-4 border-b shrink-0">
           <div className="flex items-start gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted shrink-0">
               <UserPlus className="h-6 w-6 text-muted-foreground" />
             </div>
             <div className="flex-1 min-w-0">
-              <SheetTitle className="text-lg truncate">Share "{itemName}"</SheetTitle>
-              <SheetDescription>
+              <DialogTitle className="text-lg truncate">Share "{itemName}"</DialogTitle>
+              <DialogDescription>
                 {itemType === 'folder' && folderStats ? (
                   <>Contains {folderStats.folders} folder{folderStats.folders !== 1 ? 's' : ''}, {folderStats.pages} page{folderStats.pages !== 1 ? 's' : ''}, and {folderStats.files} file{folderStats.files !== 1 ? 's' : ''}.</>
                 ) : (
                   <>Collaborate with members on this {itemType}.</>
                 )}
-              </SheetDescription>
+              </DialogDescription>
             </div>
           </div>
-        </SheetHeader>
+        </DialogHeader>
 
         {isLoading ? (
           <div className="p-6 space-y-6">
@@ -1127,7 +1127,7 @@ export const WikiShareDialog = ({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 };
