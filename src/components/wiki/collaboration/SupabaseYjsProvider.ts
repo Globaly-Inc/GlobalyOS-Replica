@@ -11,8 +11,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 /**
  * Lightweight Yjs provider that syncs via Supabase Realtime Broadcast + Presence.
  *
- * Broadcast is used for Yjs document updates (binary).
- * Presence is used for awareness (cursor positions, user info).
+ * Broadcast is used for Yjs document updates (binary) AND awareness updates.
+ * Presence is used only for detecting when peers leave (to remove their cursors).
  */
 export class SupabaseYjsProvider {
   doc: Y.Doc;
@@ -47,7 +47,7 @@ export class SupabaseYjsProvider {
       this.broadcastUpdate(update);
     };
 
-    // Listen for local awareness changes and broadcast via presence
+    // Listen for local awareness changes and broadcast via broadcast channel
     this._onAwarenessUpdate = ({ added, updated, removed }: { added: number[]; updated: number[]; removed: number[] }) => {
       const changedClients = [...added, ...updated, ...removed];
       if (changedClients.includes(this.doc.clientID)) {
@@ -86,6 +86,8 @@ export class SupabaseYjsProvider {
           event: 'yjs-sync-response',
           payload: { update: Array.from(state) },
         });
+        // Also send our current awareness so the new peer sees our cursor
+        this.broadcastAwareness();
       })
       .on('broadcast', { event: 'yjs-sync-response' }, ({ payload }) => {
         if (this._destroyed) return;
@@ -96,17 +98,19 @@ export class SupabaseYjsProvider {
           console.error('[SupabaseYjsProvider] Failed to apply sync response:', e);
         }
       })
-      .on('presence', { event: 'sync' }, () => {
+      // Awareness updates arrive via broadcast (not presence)
+      .on('broadcast', { event: 'yjs-awareness' }, ({ payload }) => {
         if (this._destroyed) return;
-        this.applyRemoteAwareness();
+        try {
+          const update = new Uint8Array(payload.update);
+          applyAwarenessUpdate(this.awareness, update, this);
+        } catch (e) {
+          console.error('[SupabaseYjsProvider] Failed to apply awareness update:', e);
+        }
       })
-      .on('presence', { event: 'join' }, () => {
-        if (this._destroyed) return;
-        this.applyRemoteAwareness();
-      })
+      // Presence is only used for detecting leave (to clean up cursors)
       .on('presence', { event: 'leave' }, ({ leftPresences }) => {
         if (this._destroyed) return;
-        // Remove awareness for peers that left using proper y-protocols method
         const clientsToRemove: number[] = [];
         for (const p of leftPresences) {
           if (p.clientID && p.clientID !== this.doc.clientID) {
@@ -123,8 +127,15 @@ export class SupabaseYjsProvider {
           this.connected = true;
           this.onConnect?.();
 
-          // Track presence with our awareness info
-          await this.broadcastAwareness();
+          // Track presence with just our clientID (for leave detection)
+          try {
+            await this.channel.track({ clientID: this.doc.clientID });
+          } catch {
+            // Presence tracking can fail transiently
+          }
+
+          // Broadcast our awareness state
+          this.broadcastAwareness();
 
           // Request full state from peers (in case someone is already editing)
           this.channel.send({
@@ -155,39 +166,19 @@ export class SupabaseYjsProvider {
     });
   }
 
-  private async broadcastAwareness() {
+  private broadcastAwareness() {
     if (!this.connected || this._destroyed) return;
     const localState = this.awareness.getLocalState();
     if (!localState) return;
     try {
-      // Encode the full awareness update for this client using y-protocols
       const update = encodeAwarenessUpdate(this.awareness, [this.doc.clientID]);
-      await this.channel.track({
-        clientID: this.doc.clientID,
-        awarenessUpdate: Array.from(update),
+      this.channel.send({
+        type: 'broadcast',
+        event: 'yjs-awareness',
+        payload: { update: Array.from(update) },
       });
     } catch {
-      // Presence tracking can fail transiently
-    }
-  }
-
-  private applyRemoteAwareness() {
-    const presenceState = this.channel.presenceState();
-    for (const key of Object.keys(presenceState)) {
-      const presences = presenceState[key] as Array<{
-        clientID?: number;
-        awarenessUpdate?: number[];
-      }>;
-      for (const p of presences) {
-        if (p.clientID && p.clientID !== this.doc.clientID && p.awarenessUpdate) {
-          try {
-            const update = new Uint8Array(p.awarenessUpdate);
-            applyAwarenessUpdate(this.awareness, update, this);
-          } catch (e) {
-            console.error('[SupabaseYjsProvider] Failed to apply awareness update:', e);
-          }
-        }
-      }
+      // Encoding can fail transiently
     }
   }
 
