@@ -335,7 +335,7 @@ export const BlockNoteWikiEditor = ({
   const sidebarOpen = showCommentsSidebar && commentsEnabled;
 
   return (
-    <div style={{ minHeight }} className="relative">
+    <div style={{ minHeight }} className="flex flex-col h-full">
       <BlockNoteView
         editor={editor}
         onChange={handleChange}
@@ -345,9 +345,18 @@ export const BlockNoteWikiEditor = ({
         data-theming-css-variables-demo
       >
         <CommentsAlwaysShowActions>
-          <div className="flex h-full">
-            <div className="flex-1 min-w-0">
-              {/* Custom formatting toolbar with AI + Comment buttons */}
+          {/* Static formatting toolbar - pinned above scroll area */}
+          <div className="bn-static-toolbar bn-toolbar" role="toolbar">
+            {getFormattingToolbarItems()}
+            <AIToolbarButton />
+          </div>
+
+          <div className="flex flex-1 min-h-0">
+            {/* Scrollable editor content area */}
+            <div className="flex-1 min-w-0 overflow-y-auto py-6">
+              {/* Floating toolbar kept for text-selection context but hidden visually;
+                  the static bar above handles formatting. We still need this for
+                  slash menu and AI menu controllers. */}
               <FormattingToolbarController
                 floatingUIOptions={{
                   useFloatingOptions: {
@@ -356,7 +365,7 @@ export const BlockNoteWikiEditor = ({
                   },
                 }}
                 formattingToolbar={() => (
-                  <div className="bn-toolbar bn-formatting-toolbar" role="toolbar">
+                  <div className="bn-toolbar bn-formatting-toolbar" role="toolbar" style={{ display: 'none' }}>
                     {getFormattingToolbarItems()}
                     <AIToolbarButton />
                   </div>

@@ -335,25 +335,23 @@ const WikiEditPage = () => {
         </div>
       </header>
 
-      {/* Editor Content */}
-      <div className="flex-1 overflow-hidden flex">
-        <div className="flex-1 overflow-y-auto">
-          <div className="container mx-auto px-4 md:px-8 py-6 bg-white rounded-lg">
-            <BlockNoteWikiEditor
-              initialContent={editContent}
-              onChange={handleContentChange}
-              organizationId={currentOrg?.id}
-              placeholder="Start writing or press '/' for commands..."
-              minHeight="calc(100vh - 200px)"
-              pageId={pageId}
-              userName={userName}
-              userColor={collaborationColor}
-              userId={currentEmployee?.id}
-              canComment={true}
-              showCommentsSidebar={showCommentsSidebar}
-              onCloseSidebar={() => setShowCommentsSidebar(false)}
-            />
-          </div>
+      {/* Editor Content - flex-1 with internal scroll only in the content area */}
+      <div className="flex-1 overflow-hidden">
+        <div className="h-full container mx-auto px-4 md:px-8 bg-white">
+          <BlockNoteWikiEditor
+            initialContent={editContent}
+            onChange={handleContentChange}
+            organizationId={currentOrg?.id}
+            placeholder="Start writing or press '/' for commands..."
+            minHeight="100%"
+            pageId={pageId}
+            userName={userName}
+            userColor={collaborationColor}
+            userId={currentEmployee?.id}
+            canComment={true}
+            showCommentsSidebar={showCommentsSidebar}
+            onCloseSidebar={() => setShowCommentsSidebar(false)}
+          />
         </div>
       </div>
 
