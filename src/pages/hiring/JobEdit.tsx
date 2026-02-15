@@ -26,6 +26,7 @@ import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { useDepartments, useOffices } from '@/hooks/useOrganizationData';
 import { useOrganization } from '@/hooks/useOrganization';
 import type { WorkModel, HiringEmploymentType, ApplicationFormConfig } from '@/types/hiring';
+import { migrateApplicationFormConfig } from '@/types/hiring';
 import { ApplicationFormSettings } from '@/components/hiring/ApplicationFormSettings';
 import { OrgLink } from '@/components/OrgLink';
 import { VacancyAssignmentCard } from '@/components/hiring/VacancyAssignmentCard';
@@ -184,7 +185,7 @@ export default function JobEdit() {
         is_internal_visible: job.is_internal_visible ?? true,
         is_internal_apply: (job as any).is_internal_apply ?? false,
         is_public_visible: job.is_public_visible ?? false,
-        application_form_config: ((job as any).application_form_config ?? {}) as ApplicationFormConfig,
+        application_form_config: migrateApplicationFormConfig(((job as any).application_form_config ?? {}) as ApplicationFormConfig),
       });
     }
   }, [job]);

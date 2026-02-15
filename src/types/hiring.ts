@@ -65,20 +65,70 @@ export type HiringActivityAction =
 // APPLICATION FORM CONFIG
 // ============================================
 
+export type CustomFieldType = 'one_line' | 'multiple_lines' | 'radio_buttons' | 'checkboxes' | 'dropdown' | 'phone_number' | 'file';
+
+export const FIELD_TYPE_LABELS: Record<CustomFieldType, string> = {
+  one_line: 'One Line',
+  multiple_lines: 'Multiple Lines',
+  radio_buttons: 'Radio Buttons',
+  checkboxes: 'Checkboxes',
+  dropdown: 'Dropdown',
+  phone_number: 'Phone Number',
+  file: 'File Upload',
+};
+
 export interface CustomFieldConfig {
   id: string;
   label: string;
-  type: 'text' | 'file';
+  type: CustomFieldType;
   required: boolean;
+  options?: string[];
 }
 
 export interface ApplicationFormConfig {
+  /** @deprecated Use custom_fields with unified list instead */
   optional_fields?: {
     linkedin_url?: boolean;
     cover_letter?: boolean;
   };
   custom_fields?: CustomFieldConfig[];
+  /** @deprecated Source options are now stored as options on a dropdown custom field */
   source_options?: string[];
+}
+
+/** Default custom fields seeded on new jobs */
+export const DEFAULT_APPLICATION_FIELDS: CustomFieldConfig[] = [
+  { id: 'source', label: 'Source', type: 'dropdown', required: true, options: ['LinkedIn', 'Referral', 'Job Board', 'Company Website', 'Other'] },
+  { id: 'linkedin_url', label: 'LinkedIn / Personal URL', type: 'one_line', required: false },
+];
+
+/** Migrate old ApplicationFormConfig format to unified custom_fields list */
+export function migrateApplicationFormConfig(config: ApplicationFormConfig): ApplicationFormConfig {
+  // Already migrated if custom_fields has items and no optional_fields keys
+  if (config.custom_fields && config.custom_fields.length > 0) {
+    // Check if it still has old-style 'text'/'file' types and convert
+    const migrated = config.custom_fields.map((f) => {
+      if ((f.type as string) === 'text') return { ...f, type: 'one_line' as CustomFieldType };
+      return f;
+    });
+    return { custom_fields: migrated };
+  }
+
+  const fields: CustomFieldConfig[] = [];
+
+  // Migrate source_options to a dropdown field
+  const sourceOptions = config.source_options ?? ['LinkedIn', 'Referral', 'Job Board', 'Company Website', 'Other'];
+  fields.push({ id: 'source', label: 'Source', type: 'dropdown', required: true, options: sourceOptions });
+
+  // Migrate optional_fields
+  if (config.optional_fields?.linkedin_url !== false) {
+    fields.push({ id: 'linkedin_url', label: 'LinkedIn / Personal URL', type: 'one_line', required: false });
+  }
+  if (config.optional_fields?.cover_letter === true) {
+    fields.push({ id: 'cover_letter', label: 'Cover Letter', type: 'multiple_lines', required: false });
+  }
+
+  return { custom_fields: fields };
 }
 
 // ============================================
