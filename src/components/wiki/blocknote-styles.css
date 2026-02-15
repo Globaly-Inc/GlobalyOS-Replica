@@ -230,54 +230,13 @@
   border-color: hsl(var(--primary) / 0.3);
 }
 
-/* ── Static formatting toolbar (pinned above scroll area) ── */
-
-/* BlockNoteView renders the editor canvas first, then children.
-   We use flexbox + order to put our static toolbar above the canvas. */
-.bn-container[data-theming-css-variables-demo] {
-  display: flex !important;
-  flex-direction: column !important;
-}
-
-/* The editor's editable area (ProseMirror wrapper) should come after the toolbar */
-.bn-container[data-theming-css-variables-demo] > .bn-editor {
-  order: 2;
-  flex: 1;
-  overflow-y: auto;
-}
-
-/* Our custom children wrapper rendered by BlockNoteView */
-.bn-container[data-theming-css-variables-demo] > :not(.bn-editor) {
-  order: 1;
-}
-
-.bn-static-toolbar {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  border-bottom: 1px solid hsl(var(--border));
-  background: hsl(var(--background) / 0.97);
-  backdrop-filter: blur(6px);
-  flex-shrink: 0;
-}
-
 /* Force all Mantine dropdowns inside the formatting toolbar to open below */
 .bn-formatting-toolbar .mantine-Menu-dropdown,
 .bn-formatting-toolbar .mantine-Popover-dropdown,
 .bn-toolbar .mantine-Menu-dropdown,
-.bn-toolbar .mantine-Popover-dropdown,
-.bn-static-toolbar .mantine-Menu-dropdown,
-.bn-static-toolbar .mantine-Popover-dropdown {
+.bn-toolbar .mantine-Popover-dropdown {
   top: 100% !important;
   bottom: auto !important;
-}
-
-/* ── Comment floating thread: anchor to start of highlight ── */
-.bn-floating-thread,
-.bn-floating-composer {
-  /* Override floating-ui default centred placement to left-align */
-  inset-inline-start: 0 !important;
-  transform: none !important;
 }
 
 /* Ensure toolbar sub-menus (text type, color, etc.) open downward */

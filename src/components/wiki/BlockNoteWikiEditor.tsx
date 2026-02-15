@@ -3,7 +3,6 @@ import { X, MessageSquareText } from "lucide-react";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import {
-  FormattingToolbar,
   FormattingToolbarController,
   SuggestionMenuController,
   getDefaultReactSlashMenuItems,
@@ -28,7 +27,7 @@ import {
   YjsThreadStore,
 } from "@blocknote/core/comments";
 
-// floating-ui imports removed – static toolbar no longer needs them
+import { offset, shift } from "@floating-ui/react";
 import { CommentsAlwaysShowActions } from "./comments/CommentAlwaysShowActions";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -336,7 +335,7 @@ export const BlockNoteWikiEditor = ({
   const sidebarOpen = showCommentsSidebar && commentsEnabled;
 
   return (
-    <div style={{ minHeight }} className="flex flex-col h-full">
+    <div style={{ minHeight }} className="relative">
       <BlockNoteView
         editor={editor}
         onChange={handleChange}
@@ -346,20 +345,22 @@ export const BlockNoteWikiEditor = ({
         data-theming-css-variables-demo
       >
         <CommentsAlwaysShowActions>
-          {/* Static formatting toolbar - always visible, pinned above scroll area */}
-          <div className="bn-static-toolbar">
-            <FormattingToolbar>
-              {getFormattingToolbarItems()}
-              <AIToolbarButton />
-            </FormattingToolbar>
-          </div>
-
-          <div className="flex flex-1 min-h-0">
-            {/* Scrollable editor content area */}
-            <div className="flex-1 min-w-0 overflow-y-auto py-6">
-              {/* Hide the default floating formatting toolbar */}
+          <div className="flex h-full">
+            <div className="flex-1 min-w-0">
+              {/* Custom formatting toolbar with AI + Comment buttons */}
               <FormattingToolbarController
-                formattingToolbar={() => <div style={{ display: 'none' }} />}
+                floatingUIOptions={{
+                  useFloatingOptions: {
+                    placement: "bottom-start",
+                    middleware: [offset(10), shift()],
+                  },
+                }}
+                formattingToolbar={() => (
+                  <div className="bn-toolbar bn-formatting-toolbar" role="toolbar">
+                    {getFormattingToolbarItems()}
+                    <AIToolbarButton />
+                  </div>
+                )}
               />
 
               {/* Slash menu with AI items merged */}
