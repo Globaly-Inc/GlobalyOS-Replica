@@ -1,42 +1,47 @@
 
 
-## Replace Role Tags with Multi-Select Positions Dropdown on Assignment Templates
+## Make Assignment Type a Searchable, Creatable Combobox
+
+### Current State
+The "Type" field on assignment templates is a static `<Select>` dropdown backed by a Postgres enum (`assignment_type`) with 5 fixed values: Coding Challenge, Writing Sample, Design Task, Case Study, General Assignment.
 
 ### What Changes
 
-The "Role Tags (comma-separated)" text input on the assignment template form will be replaced with a multi-select positions dropdown. Positions are sourced from the organization's existing positions (managed in org settings). A new `position_ids` column will be added to `assignment_templates` to store the selected position UUIDs.
+**1. Database Migration**
+- Change the `type` column on `assignment_templates` from the `assignment_type` enum to `TEXT` so users can enter custom types.
+- Create a new table `assignment_type_options` (`id UUID`, `organization_id UUID`, `label TEXT`, `value TEXT`, `created_at`) to store org-specific custom types.
+- Seed the 5 default types into `assignment_type_options` for each org that has templates (or handle defaults in code).
+- Add RLS policies scoped to organization membership.
 
-### Database Changes
+**2. New Component: `AssignmentTypeCombobox`**
+- Popover + Command pattern (matching the existing `PositionMultiSelect` style).
+- Searchable list of existing types from `assignment_type_options` + the 5 built-in defaults.
+- Scrollable list with `CommandList`.
+- "Create [typed value]" option appears when no exact match exists, which inserts the new type into `assignment_type_options` for the org.
+- Single-select (not multi-select).
 
-**Add `position_ids` column to `assignment_templates`:**
-- New column: `position_ids UUID[] DEFAULT '{}'` -- stores array of position IDs linked to this template
-- The existing `role_tags` column remains untouched for backward compatibility
+**3. Update `src/pages/hiring/HiringSettings.tsx`**
+- Replace the `<Select>` for Type (lines 474-486) with the new `AssignmentTypeCombobox`.
+- Update `formData.type` to be a `string` instead of `AssignmentType` enum.
+- Update the templates table display to show the type label directly (already falls back to `template.type` so this mostly works).
 
-### Frontend Changes
+**4. Update Types**
+- In `src/types/hiring.ts`, change `AssignmentType` usage in template interfaces to `string`.
+- Keep `ASSIGNMENT_TYPE_LABELS` as default/built-in labels for display.
 
-**`src/pages/hiring/HiringSettings.tsx`:**
+### Technical Details
 
-1. Import `usePositions` from `@/hooks/usePositions`
-2. Replace the "Role Tags (comma-separated)" `<Input>` (lines 515-524) with a multi-select positions UI:
-   - Use a Popover + Command pattern (similar to `PositionCombobox`) with checkboxes for multi-select
-   - Show selected positions as removable Badge chips below the trigger
-   - Search/filter capability within the dropdown
-3. Update `formData` state to include `position_ids: string[]` alongside (or replacing) `role_tags`
-4. Update `handleEdit` to populate `position_ids` from template data
-5. Update `handleCreate` to initialize `position_ids: []`
-6. In the templates table list view, replace the "Tags" column (lines 600, 614-626) with "Positions" showing position names resolved from IDs
+**Migration SQL (summary):**
+```text
+1. ALTER assignment_templates column type from enum to TEXT
+2. CREATE TABLE assignment_type_options with org_id, label, value, RLS
+3. Seed default options per existing org
+```
 
-**`src/types/hiring.ts`:**
-- Add `position_ids?: string[]` to `CreateAssignmentTemplateInput`
-
-**`src/services/useHiringMutations.ts`:**
-- The mutation already spreads `...input`, so `position_ids` will be included automatically once added to the input type
-
-### How Auto-Assignment Would Work
-
-The `position_ids` on templates establish which positions a template applies to. The actual auto-assignment logic (automatically adding assignments when a candidate applies to a vacancy with a matching position) would require:
-- A `position_id` column on the `jobs` table (not yet present)
-- A trigger or application-level logic to match
-
-This plan focuses on the UI and data model for linking positions to templates. The auto-assignment trigger can be added as a follow-up once jobs also reference positions.
+**Component behavior:**
+- On open: fetch org's `assignment_type_options` + merge with built-in defaults
+- On search: filter list client-side
+- On select: set the value
+- On "Create new": insert into `assignment_type_options`, then select it
+- Display: show label (human-readable) in the trigger button
 
