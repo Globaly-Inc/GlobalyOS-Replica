@@ -1,37 +1,34 @@
 
-## Position Pipeline Card Redesign
 
-### What changes
+## Convert Assignment Template Editor to Full Page
 
-**1. Page title becomes "Position Pipeline"**
-- The `h1` heading changes from the job title (e.g., "Product Manager") to "Position Pipeline"
-- The job title will appear inside the new summary card instead
+Currently, creating/editing assignment templates uses a dialog box which constrains the space — especially problematic for long instructions. This plan converts it to a dedicated full page with its own route.
 
-**2. Remove the inline metadata row from the header**
-- The metadata currently shown next to the title (location, department, work model, etc.) moves into the new card
+### What Changes
 
-**3. New 3-column summary card below the header**
+1. **New page**: `src/pages/hiring/AssignmentTemplateEditor.tsx`
+   - A full-page form with the same fields (Name, Type, Instructions, Deadline, Effort, Positions, Deliverables)
+   - Header with back navigation to Hiring Settings (assignments tab)
+   - Save and Cancel buttons in the header area
+   - The Instructions textarea gets more vertical space since we are no longer constrained by a dialog
+   - Reads template ID from URL params for edit mode; no ID means create mode
 
-The card will have three sections side by side:
+2. **New routes** in `src/App.tsx`:
+   - `hiring/settings/assignments/new` — create mode
+   - `hiring/settings/assignments/:templateId/edit` — edit mode
 
-| Left Column | Middle Column | Right Column |
-|---|---|---|
-| **Job Title - Status** | **Total X candidates** (bold count) | Pipeline stage mini-chart |
-| Location - Department - Work Model - Employment Type - Positions count | Assignment - (template name or "None") | Shows candidate count per active stage |
-| Apply by date - Auto-close badge | | e.g., Applied: 2, Screening: 1, Interview: 3 |
-| Salary Range - Currency Min - Max | | |
+3. **Update `HiringSettings.tsx`**:
+   - Remove the Dialog entirely from `AssignmentTemplatesSection`
+   - "Add Template" button navigates to the new create page
+   - Edit (pencil) button navigates to the edit page
+   - Remove all dialog-related state (`showDialog`, `formData`, `editingTemplate`, `handleCreate`, `handleEdit`, `handleSave`) from this component
 
-**4. Remove the old "Job Summary Card"** (lines 338-368) since its data is merged into the new card
+### Technical Details
 
-### Technical details
+- The new page component will use `useParams()` to get `templateId` and `useAssignmentTemplates()` to load existing data for edit mode
+- Uses `useNavigate()` to go back to settings after save/cancel, with `?tab=assignments` query param to land on the correct tab
+- The `HiringSettings` component will read the `tab` query param to auto-select the assignments tab when returning
+- Reuses existing mutations: `useCreateAssignmentTemplate` and `useUpdateAssignmentTemplate`
+- Reuses existing components: `AssignmentTypeCombobox`, `PositionMultiSelect`
+- Layout follows the same pattern as other full-page forms (e.g., JobCreate) with `PageBody`, back arrow, and card-based form sections
 
-**File: `src/pages/hiring/JobDetail.tsx`**
-
-- Change the `h1` text from `{job.title}` to `"Position Pipeline"`
-- Remove the metadata `div` (lines 173-217) from the header area
-- Replace the existing summary Card (lines 338-368) with the new 3-column layout
-- The right column will compute stage counts from `applications` array, grouping by `stage` field and displaying counts using `APPLICATION_STAGE_LABELS`
-- Assignment info will check if the job has linked assignment templates (query from `assignment_templates` table or show from existing data)
-- Responsive: on mobile, columns stack vertically
-
-**No database changes needed** -- all data is already available from existing queries.
