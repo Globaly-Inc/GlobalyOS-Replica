@@ -1,0 +1,556 @@
+/**
+ * Task Management Service Hooks
+ */
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useOrganization } from '@/hooks/useOrganization';
+import { useCurrentEmployee } from './useCurrentEmployee';
+import type {
+  TaskSpaceRow, TaskSpaceInsert, TaskSpaceUpdate,
+  TaskStatusRow, TaskStatusInsert, TaskStatusUpdate,
+  TaskCategoryRow, TaskCategoryInsert, TaskCategoryUpdate,
+  TaskRow, TaskInsert, TaskUpdate,
+  TaskChecklistRow, TaskChecklistInsert, TaskChecklistUpdate,
+  TaskCommentInsert,
+  TaskFollowerInsert,
+  TaskActivityLogInsert,
+  TaskWithRelations,
+  TaskCommentWithAuthor,
+  TaskActivityLogWithActor,
+  TaskFilters,
+  TaskSpaceTreeNode,
+} from '@/types/task';
+
+// ─── Spaces ───
+
+export const useTaskSpaces = () => {
+  const { currentOrg } = useOrganization();
+  return useQuery({
+    queryKey: ['task-spaces', currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [];
+      const { data, error } = await supabase
+        .from('task_spaces')
+        .select('*')
+        .eq('organization_id', currentOrg.id)
+        .order('sort_order');
+      if (error) throw error;
+      return data as TaskSpaceRow[];
+    },
+    enabled: !!currentOrg?.id,
+  });
+};
+
+export const buildSpaceTree = (spaces: TaskSpaceRow[]): TaskSpaceTreeNode[] => {
+  const map = new Map<string, TaskSpaceTreeNode>();
+  const roots: TaskSpaceTreeNode[] = [];
+  spaces.forEach(s => map.set(s.id, { ...s, children: [] }));
+  spaces.forEach(s => {
+    const node = map.get(s.id)!;
+    if (s.parent_id && map.has(s.parent_id)) {
+      map.get(s.parent_id)!.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+  return roots;
+};
+
+export const useCreateTaskSpace = () => {
+  const qc = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: employee } = useCurrentEmployee();
+  return useMutation({
+    mutationFn: async (input: Omit<TaskSpaceInsert, 'organization_id' | 'owner_id'>) => {
+      const { data, error } = await supabase
+        .from('task_spaces')
+        .insert({ ...input, organization_id: currentOrg!.id, owner_id: employee?.id })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['task-spaces'] }),
+  });
+};
+
+export const useUpdateTaskSpace = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: TaskSpaceUpdate & { id: string }) => {
+      const { data, error } = await supabase
+        .from('task_spaces')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['task-spaces'] }),
+  });
+};
+
+export const useDeleteTaskSpace = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('task_spaces').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['task-spaces'] }),
+  });
+};
+
+// ─── Statuses ───
+
+export const useTaskStatuses = (spaceId: string | undefined) => {
+  return useQuery({
+    queryKey: ['task-statuses', spaceId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('task_statuses')
+        .select('*')
+        .eq('space_id', spaceId!)
+        .order('sort_order');
+      if (error) throw error;
+      return data as TaskStatusRow[];
+    },
+    enabled: !!spaceId,
+  });
+};
+
+export const useCreateTaskStatus = () => {
+  const qc = useQueryClient();
+  const { currentOrg } = useOrganization();
+  return useMutation({
+    mutationFn: async (input: Omit<TaskStatusInsert, 'organization_id'>) => {
+      const { data, error } = await supabase
+        .from('task_statuses')
+        .insert({ ...input, organization_id: currentOrg!.id })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, vars) => qc.invalidateQueries({ queryKey: ['task-statuses', vars.space_id] }),
+  });
+};
+
+export const useUpdateTaskStatus = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: TaskStatusUpdate & { id: string }) => {
+      const { data, error } = await supabase
+        .from('task_statuses')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => qc.invalidateQueries({ queryKey: ['task-statuses', data.space_id] }),
+  });
+};
+
+export const useDeleteTaskStatus = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, spaceId }: { id: string; spaceId: string }) => {
+      const { error } = await supabase.from('task_statuses').delete().eq('id', id);
+      if (error) throw error;
+      return spaceId;
+    },
+    onSuccess: (spaceId) => qc.invalidateQueries({ queryKey: ['task-statuses', spaceId] }),
+  });
+};
+
+// ─── Categories ───
+
+export const useTaskCategories = (spaceId: string | undefined) => {
+  return useQuery({
+    queryKey: ['task-categories', spaceId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('task_categories')
+        .select('*')
+        .eq('space_id', spaceId!)
+        .order('sort_order');
+      if (error) throw error;
+      return data as TaskCategoryRow[];
+    },
+    enabled: !!spaceId,
+  });
+};
+
+export const useCreateTaskCategory = () => {
+  const qc = useQueryClient();
+  const { currentOrg } = useOrganization();
+  return useMutation({
+    mutationFn: async (input: Omit<TaskCategoryInsert, 'organization_id'>) => {
+      const { data, error } = await supabase
+        .from('task_categories')
+        .insert({ ...input, organization_id: currentOrg!.id })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, vars) => qc.invalidateQueries({ queryKey: ['task-categories', vars.space_id] }),
+  });
+};
+
+export const useUpdateTaskCategory = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: TaskCategoryUpdate & { id: string }) => {
+      const { data, error } = await supabase
+        .from('task_categories')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => qc.invalidateQueries({ queryKey: ['task-categories', data.space_id] }),
+  });
+};
+
+export const useDeleteTaskCategory = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, spaceId }: { id: string; spaceId: string }) => {
+      const { error } = await supabase.from('task_categories').delete().eq('id', id);
+      if (error) throw error;
+      return spaceId;
+    },
+    onSuccess: (spaceId) => qc.invalidateQueries({ queryKey: ['task-categories', spaceId] }),
+  });
+};
+
+// ─── Tasks ───
+
+export const useTasks = (spaceId: string | undefined, filters?: TaskFilters) => {
+  return useQuery({
+    queryKey: ['tasks', spaceId, filters],
+    queryFn: async () => {
+      if (!spaceId) return [];
+      let query = supabase
+        .from('tasks')
+        .select(`
+          *,
+          status:task_statuses(*),
+          category:task_categories(*),
+          assignee:employees!tasks_assignee_id_fkey(id, full_name:profiles(full_name, avatar_url)),
+          reporter:employees!tasks_reporter_id_fkey(id, full_name:profiles(full_name, avatar_url))
+        `)
+        .eq('space_id', spaceId)
+        .eq('is_archived', false)
+        .order('sort_order');
+
+      if (filters?.status_ids?.length) query = query.in('status_id', filters.status_ids);
+      if (filters?.assignee_ids?.length) query = query.in('assignee_id', filters.assignee_ids);
+      if (filters?.priority?.length) query = query.in('priority', filters.priority);
+      if (filters?.category_ids?.length) query = query.in('category_id', filters.category_ids);
+      if (filters?.search) query = query.ilike('title', `%${filters.search}%`);
+      if (filters?.due_date_from) query = query.gte('due_date', filters.due_date_from);
+      if (filters?.due_date_to) query = query.lte('due_date', filters.due_date_to);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      // Flatten nested joins
+      return (data || []).map((t: any) => ({
+        ...t,
+        assignee: t.assignee?.full_name ? {
+          id: t.assignee.id,
+          full_name: t.assignee.full_name?.full_name,
+          avatar_url: t.assignee.full_name?.avatar_url,
+        } : null,
+        reporter: t.reporter?.full_name ? {
+          id: t.reporter.id,
+          full_name: t.reporter.full_name?.full_name,
+          avatar_url: t.reporter.full_name?.avatar_url,
+        } : null,
+      })) as TaskWithRelations[];
+    },
+    enabled: !!spaceId,
+  });
+};
+
+export const useTask = (taskId: string | undefined) => {
+  return useQuery({
+    queryKey: ['task', taskId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select(`
+          *,
+          status:task_statuses(*),
+          category:task_categories(*)
+        `)
+        .eq('id', taskId!)
+        .single();
+      if (error) throw error;
+      return data as TaskWithRelations;
+    },
+    enabled: !!taskId,
+  });
+};
+
+export const useCreateTask = () => {
+  const qc = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: employee } = useCurrentEmployee();
+  return useMutation({
+    mutationFn: async (input: Omit<TaskInsert, 'organization_id' | 'reporter_id'>) => {
+      const { data, error } = await supabase
+        .from('tasks')
+        .insert({
+          ...input,
+          organization_id: currentOrg!.id,
+          reporter_id: employee?.id,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+
+      // Log creation
+      await supabase.from('task_activity_logs').insert({
+        organization_id: currentOrg!.id,
+        task_id: data.id,
+        actor_id: employee?.id,
+        action_type: 'created',
+        new_value: { title: data.title },
+      });
+
+      return data;
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['tasks', data.space_id] });
+    },
+  });
+};
+
+export const useUpdateTask = () => {
+  const qc = useQueryClient();
+  const { data: employee } = useCurrentEmployee();
+  const { currentOrg } = useOrganization();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: TaskUpdate & { id: string }) => {
+      const { data, error } = await supabase
+        .from('tasks')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['tasks', data.space_id] });
+      qc.invalidateQueries({ queryKey: ['task', data.id] });
+    },
+  });
+};
+
+export const useDeleteTask = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, spaceId }: { id: string; spaceId: string }) => {
+      const { error } = await supabase.from('tasks').delete().eq('id', id);
+      if (error) throw error;
+      return spaceId;
+    },
+    onSuccess: (spaceId) => qc.invalidateQueries({ queryKey: ['tasks', spaceId] }),
+  });
+};
+
+// ─── Checklists ───
+
+export const useTaskChecklists = (taskId: string | undefined) => {
+  return useQuery({
+    queryKey: ['task-checklists', taskId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('task_checklists')
+        .select('*')
+        .eq('task_id', taskId!)
+        .order('sort_order');
+      if (error) throw error;
+      return data as TaskChecklistRow[];
+    },
+    enabled: !!taskId,
+  });
+};
+
+export const useCreateTaskChecklist = () => {
+  const qc = useQueryClient();
+  const { currentOrg } = useOrganization();
+  return useMutation({
+    mutationFn: async (input: Omit<TaskChecklistInsert, 'organization_id'>) => {
+      const { data, error } = await supabase
+        .from('task_checklists')
+        .insert({ ...input, organization_id: currentOrg!.id })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => qc.invalidateQueries({ queryKey: ['task-checklists', data.task_id] }),
+  });
+};
+
+export const useUpdateTaskChecklist = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: TaskChecklistUpdate & { id: string }) => {
+      const { data, error } = await supabase
+        .from('task_checklists')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => qc.invalidateQueries({ queryKey: ['task-checklists', data.task_id] }),
+  });
+};
+
+export const useDeleteTaskChecklist = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, taskId }: { id: string; taskId: string }) => {
+      const { error } = await supabase.from('task_checklists').delete().eq('id', id);
+      if (error) throw error;
+      return taskId;
+    },
+    onSuccess: (taskId) => qc.invalidateQueries({ queryKey: ['task-checklists', taskId] }),
+  });
+};
+
+// ─── Comments ───
+
+export const useTaskComments = (taskId: string | undefined) => {
+  return useQuery({
+    queryKey: ['task-comments', taskId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('task_comments')
+        .select('*, employee:employees!task_comments_employee_id_fkey(id, full_name:profiles(full_name, avatar_url))')
+        .eq('task_id', taskId!)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return (data || []).map((c: any) => ({
+        ...c,
+        employee: c.employee?.full_name ? {
+          id: c.employee.id,
+          full_name: c.employee.full_name?.full_name,
+          avatar_url: c.employee.full_name?.avatar_url,
+        } : null,
+      })) as TaskCommentWithAuthor[];
+    },
+    enabled: !!taskId,
+  });
+};
+
+export const useCreateTaskComment = () => {
+  const qc = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: employee } = useCurrentEmployee();
+  return useMutation({
+    mutationFn: async (input: { task_id: string; content: string }) => {
+      const { data, error } = await supabase
+        .from('task_comments')
+        .insert({
+          ...input,
+          organization_id: currentOrg!.id,
+          employee_id: employee!.id,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => qc.invalidateQueries({ queryKey: ['task-comments', data.task_id] }),
+  });
+};
+
+// ─── Activity Logs ───
+
+export const useTaskActivityLogs = (taskId: string | undefined) => {
+  return useQuery({
+    queryKey: ['task-activity-logs', taskId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('task_activity_logs')
+        .select('*, actor:employees!task_activity_logs_actor_id_fkey(id, full_name:profiles(full_name, avatar_url))')
+        .eq('task_id', taskId!)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []).map((l: any) => ({
+        ...l,
+        actor: l.actor?.full_name ? {
+          id: l.actor.id,
+          full_name: l.actor.full_name?.full_name,
+          avatar_url: l.actor.full_name?.avatar_url,
+        } : null,
+      })) as TaskActivityLogWithActor[];
+    },
+    enabled: !!taskId,
+  });
+};
+
+// ─── Followers ───
+
+export const useTaskFollowers = (taskId: string | undefined) => {
+  return useQuery({
+    queryKey: ['task-followers', taskId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('task_followers')
+        .select('*, employee:employees!task_followers_employee_id_fkey(id, full_name:profiles(full_name, avatar_url))')
+        .eq('task_id', taskId!);
+      if (error) throw error;
+      return (data || []).map((f: any) => ({
+        ...f,
+        full_name: f.employee?.full_name?.full_name,
+        avatar_url: f.employee?.full_name?.avatar_url,
+      }));
+    },
+    enabled: !!taskId,
+  });
+};
+
+export const useToggleTaskFollower = () => {
+  const qc = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: employee } = useCurrentEmployee();
+  return useMutation({
+    mutationFn: async ({ taskId, isFollowing }: { taskId: string; isFollowing: boolean }) => {
+      if (isFollowing) {
+        const { error } = await supabase
+          .from('task_followers')
+          .delete()
+          .eq('task_id', taskId)
+          .eq('employee_id', employee!.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('task_followers')
+          .insert({
+            task_id: taskId,
+            employee_id: employee!.id,
+            organization_id: currentOrg!.id,
+          });
+        if (error) throw error;
+      }
+      return taskId;
+    },
+    onSuccess: (taskId) => qc.invalidateQueries({ queryKey: ['task-followers', taskId] }),
+  });
+};

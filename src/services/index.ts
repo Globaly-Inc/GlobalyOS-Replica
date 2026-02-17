@@ -57,3 +57,16 @@ export {
   usePublicJobs,
 } from './useHiring';
 export * from './useHiringMutations';
+// Task Management - explicit exports to avoid conflicts with workflow checklist hooks
+export {
+  useTaskSpaces, buildSpaceTree, useCreateTaskSpace, useUpdateTaskSpace, useDeleteTaskSpace,
+  useTaskStatuses, useCreateTaskStatus, useUpdateTaskStatus, useDeleteTaskStatus,
+  useTaskCategories, useCreateTaskCategory, useUpdateTaskCategory, useDeleteTaskCategory,
+  useTasks, useTask, useCreateTask, useUpdateTask, useDeleteTask,
+  useTaskChecklists as useTaskMgmtChecklists,
+  useCreateTaskChecklist as useCreateTaskMgmtChecklist,
+  useUpdateTaskChecklist as useUpdateTaskMgmtChecklist,
+  useDeleteTaskChecklist as useDeleteTaskMgmtChecklist,
+  useTaskComments, useCreateTaskComment,
+  useTaskActivityLogs, useTaskFollowers, useToggleTaskFollower,
+} from './useTasks';

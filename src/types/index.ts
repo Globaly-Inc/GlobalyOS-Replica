@@ -125,5 +125,8 @@ export type {
 // Hiring types
 export * from './hiring';
 
+// Task types
+export * from './task';
+
 // Activity types
 export * from './activity';
