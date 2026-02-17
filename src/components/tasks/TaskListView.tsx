@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { TaskRow } from './TaskRow';
 import { TaskQuickAdd } from './TaskQuickAdd';
 import type { TaskStatusRow, TaskWithRelations, TaskCategoryRow } from '@/types/task';
+import type { ColumnConfig } from './TaskColumnCustomizer';
 
 interface TaskListViewProps {
   statuses: TaskStatusRow[];
@@ -12,11 +13,22 @@ interface TaskListViewProps {
   categories: TaskCategoryRow[];
   spaceId: string;
   onTaskClick: (taskId: string) => void;
+  columns?: ColumnConfig[];
 }
 
-export const TaskListView = ({ statuses, tasks, categories, spaceId, onTaskClick }: TaskListViewProps) => {
+export const TaskListView = ({ statuses, tasks, categories, spaceId, onTaskClick, columns }: TaskListViewProps) => {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [addingInStatus, setAddingInStatus] = useState<string | null>(null);
+
+  const visibleColumns = columns?.filter(c => c.visible) || [
+    { key: 'name', label: 'Name', visible: true },
+    { key: 'category', label: 'Category', visible: true },
+    { key: 'assignee', label: 'Assignee', visible: true },
+    { key: 'tags', label: 'Tags', visible: true },
+    { key: 'comments', label: 'Comments', visible: true },
+    { key: 'attachments', label: 'Attachments', visible: true },
+    { key: 'priority', label: 'Priority', visible: true },
+  ];
 
   const toggleGroup = (statusId: string) => {
     setCollapsedGroups(prev => {
@@ -30,6 +42,38 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, onTaskClick
     status,
     tasks: tasks.filter(t => t.status_id === status.id),
   }));
+
+  // Build grid template from visible columns
+  const gridTemplate = visibleColumns.map(col => {
+    switch (col.key) {
+      case 'name': return '1fr';
+      case 'category': return '120px';
+      case 'assignee': return '100px';
+      case 'tags': return '120px';
+      case 'comments': return '60px';
+      case 'attachments': return '60px';
+      case 'priority': return '80px';
+      case 'due_date': return '100px';
+      default: return '100px';
+    }
+  }).join('_');
+
+  const gridClass = `grid gap-2`;
+  const gridStyle = {
+    gridTemplateColumns: visibleColumns.map(col => {
+      switch (col.key) {
+        case 'name': return '1fr';
+        case 'category': return '120px';
+        case 'assignee': return '100px';
+        case 'tags': return '120px';
+        case 'comments': return '60px';
+        case 'attachments': return '60px';
+        case 'priority': return '80px';
+        case 'due_date': return '100px';
+        default: return '100px';
+      }
+    }).join(' '),
+  };
 
   return (
     <div className="space-y-1">
@@ -72,14 +116,20 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, onTaskClick
               <div>
                 {/* Column headers */}
                 {statusTasks.length > 0 && (
-                  <div className="grid grid-cols-[1fr_120px_100px_120px_60px_60px_80px] gap-2 px-3 py-1 text-xs text-muted-foreground border-t bg-muted/20">
-                    <span>Name</span>
-                    <span>Category</span>
-                    <span>Assignee</span>
-                    <span>Tags</span>
-                    <span className="text-center">💬</span>
-                    <span className="text-center">📎</span>
-                    <span>Priority</span>
+                  <div
+                    className={cn(gridClass, 'px-3 py-1 text-xs text-muted-foreground border-t bg-muted/20')}
+                    style={gridStyle}
+                  >
+                    {visibleColumns.map(col => (
+                      <span
+                        key={col.key}
+                        className={cn(
+                          (col.key === 'comments' || col.key === 'attachments') && 'text-center'
+                        )}
+                      >
+                        {col.key === 'comments' ? '💬' : col.key === 'attachments' ? '📎' : col.label}
+                      </span>
+                    ))}
                   </div>
                 )}
 
@@ -88,6 +138,8 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, onTaskClick
                     key={task.id}
                     task={task}
                     onClick={() => onTaskClick(task.id)}
+                    visibleColumns={visibleColumns}
+                    gridStyle={gridStyle}
                   />
                 ))}
 

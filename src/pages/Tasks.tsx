@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, SlidersHorizontal, Plus, Settings, LayoutList, Columns3 } from 'lucide-react';
+import { Search, Plus, Settings, LayoutList, Columns3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useTasks, useTaskStatuses, useTaskCategories } from '@/services/useTasks';
@@ -8,8 +8,10 @@ import { TaskBoardView } from '../components/tasks/TaskBoardView';
 import { TaskInnerSidebar } from '../components/tasks/TaskInnerSidebar';
 import { ManageDialog } from '../components/tasks/ManageDialog';
 import { TaskDetailPage } from '../components/tasks/TaskDetailPage';
+import { TaskFilterPopover } from '../components/tasks/TaskFilterPopover';
+import { TaskColumnCustomizer, getDefaultColumns } from '../components/tasks/TaskColumnCustomizer';
 import { useTaskSpaces } from '@/services/useTasks';
-import type { TaskSpaceRow } from '@/types/task';
+import type { TaskSpaceRow, TaskFilters } from '@/types/task';
 import { cn } from '@/lib/utils';
 
 type ViewMode = 'list' | 'board';
@@ -20,14 +22,14 @@ const Tasks = () => {
   const [showManage, setShowManage] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [filters, setFilters] = useState<TaskFilters>({});
+  const [columns, setColumns] = useState(getDefaultColumns());
 
   const { data: spaces = [] } = useTaskSpaces();
 
-  // Auto-select first space if none selected
   const activeSpaceId = selectedSpaceId || spaces[0]?.id || null;
   const activeSpace = spaces.find(s => s.id === activeSpaceId);
 
-  // Build breadcrumb
   const breadcrumb = useMemo(() => {
     if (!activeSpace) return [];
     const trail: TaskSpaceRow[] = [];
@@ -39,9 +41,19 @@ const Tasks = () => {
     return trail;
   }, [activeSpace, spaces]);
 
+  // Combine search with filters
+  const combinedFilters: TaskFilters = useMemo(() => ({
+    ...filters,
+    ...(search ? { search } : {}),
+  }), [filters, search]);
+
+  const hasActiveFilters = Object.values(combinedFilters).some(v =>
+    Array.isArray(v) ? v.length > 0 : !!v
+  );
+
   const { data: statuses = [] } = useTaskStatuses(activeSpaceId || undefined);
   const { data: categories = [] } = useTaskCategories(activeSpaceId || undefined);
-  const { data: tasks = [] } = useTasks(activeSpaceId || undefined, search ? { search } : undefined);
+  const { data: tasks = [] } = useTasks(activeSpaceId || undefined, hasActiveFilters ? combinedFilters : undefined);
 
   const handleSelectSpace = (spaceId: string) => {
     setSelectedSpaceId(spaceId);
@@ -62,14 +74,10 @@ const Tasks = () => {
     }
   };
 
-  // If a task is selected, show its detail
   if (selectedTaskId) {
     return (
       <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
-        <TaskInnerSidebar
-          selectedSpaceId={activeSpaceId}
-          onSelectSpace={handleSelectSpace}
-        />
+        <TaskInnerSidebar selectedSpaceId={activeSpaceId} onSelectSpace={handleSelectSpace} />
         <div className="flex-1 flex flex-col overflow-hidden">
           <TaskDetailPage
             taskId={selectedTaskId}
@@ -84,13 +92,8 @@ const Tasks = () => {
 
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
-      {/* Inner sidebar */}
-      <TaskInnerSidebar
-        selectedSpaceId={activeSpaceId}
-        onSelectSpace={handleSelectSpace}
-      />
+      <TaskInnerSidebar selectedSpaceId={activeSpaceId} onSelectSpace={handleSelectSpace} />
 
-      {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {activeSpaceId && activeSpace ? (
           <>
@@ -125,10 +128,17 @@ const Tasks = () => {
                   className="h-8 text-sm pl-8"
                 />
               </div>
-              <Button variant="outline" size="sm" className="h-8 gap-1.5">
-                <SlidersHorizontal className="h-3.5 w-3.5" />
-                Filters
-              </Button>
+
+              <TaskFilterPopover
+                statuses={statuses}
+                categories={categories}
+                filters={filters}
+                onFiltersChange={setFilters}
+              />
+
+              {viewMode === 'list' && (
+                <TaskColumnCustomizer columns={columns} onColumnsChange={setColumns} />
+              )}
 
               {/* View toggle */}
               <div className="flex items-center border rounded-md overflow-hidden">
@@ -178,6 +188,7 @@ const Tasks = () => {
                   categories={categories}
                   spaceId={activeSpaceId}
                   onTaskClick={handleTaskClick}
+                  columns={columns}
                 />
               ) : (
                 <TaskBoardView
@@ -190,12 +201,7 @@ const Tasks = () => {
               )}
             </div>
 
-            {/* Manage dialog */}
-            <ManageDialog
-              open={showManage}
-              onOpenChange={setShowManage}
-              spaceId={activeSpaceId}
-            />
+            <ManageDialog open={showManage} onOpenChange={setShowManage} spaceId={activeSpaceId} />
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
