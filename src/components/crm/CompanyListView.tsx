@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useCRMCompanies, useDeleteCRMCompany } from '@/services/useCRM';
 import { AddCompanyDialog } from './AddCompanyDialog';
-import { CompanyDetailDialog } from './CompanyDetailDialog';
+import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { toast } from 'sonner';
 
 const RatingIcon = ({ rating }: { rating: string | null }) => {
@@ -22,8 +22,8 @@ export const CompanyListView = () => {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(20);
-  const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const { navigateOrg } = useOrgNavigation();
 
   const { data, isLoading } = useCRMCompanies({ search: search || undefined, page, per_page: perPage });
   const deleteMutation = useDeleteCRMCompany();
@@ -73,7 +73,7 @@ export const CompanyListView = () => {
               </TableRow>
             ) : (
               companies.map((company) => (
-                <TableRow key={company.id} className="cursor-pointer" onClick={() => setSelectedCompany(company.id)}>
+                <TableRow key={company.id} className="cursor-pointer" onClick={() => navigateOrg(`/crm/companies/${company.id}`)}>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
@@ -99,7 +99,7 @@ export const CompanyListView = () => {
                         <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setSelectedCompany(company.id)}>View</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigateOrg(`/crm/companies/${company.id}`)}>View</DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate(company.id, { onSuccess: () => toast.success('Company deleted') })}>Delete</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -131,7 +131,6 @@ export const CompanyListView = () => {
       )}
 
       <AddCompanyDialog open={addOpen} onOpenChange={setAddOpen} />
-      <CompanyDetailDialog companyId={selectedCompany} onClose={() => setSelectedCompany(null)} />
     </div>
   );
 };

@@ -10,7 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Checkbox } from '@/components/ui/checkbox';
 import { useCRMContacts, useDeleteCRMContact, useUpdateCRMContact } from '@/services/useCRM';
 import { AddContactDialog } from './AddContactDialog';
-import { ContactDetailDialog } from './ContactDetailDialog';
+import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import type { CRMContact, CRMSidebarCategory } from '@/types/crm';
 import { toast } from 'sonner';
 
@@ -29,9 +29,9 @@ export const ContactListView = ({ category }: Props) => {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(20);
-  const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const { navigateOrg } = useOrgNavigation();
 
   const filters = {
     search: search || undefined,
@@ -130,7 +130,7 @@ export const ContactListView = ({ category }: Props) => {
                 <TableRow
                   key={contact.id}
                   className="cursor-pointer"
-                  onClick={() => setSelectedContact(contact.id)}
+                  onClick={() => navigateOrg(`/crm/contacts/${contact.id}`)}
                 >
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <Checkbox
@@ -169,7 +169,7 @@ export const ContactListView = ({ category }: Props) => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setSelectedContact(contact.id)}>View</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigateOrg(`/crm/contacts/${contact.id}`)}>View</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleArchive(contact)}>
                           {contact.is_archived ? 'Restore' : 'Archive'}
                         </DropdownMenuItem>
@@ -211,7 +211,6 @@ export const ContactListView = ({ category }: Props) => {
       )}
 
       <AddContactDialog open={addOpen} onOpenChange={setAddOpen} />
-      <ContactDetailDialog contactId={selectedContact} onClose={() => setSelectedContact(null)} />
     </div>
   );
 };
