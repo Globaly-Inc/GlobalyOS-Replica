@@ -29,7 +29,7 @@ const mainNavItems: NavItem[] = [
   { name: 'Wiki', href: '/wiki', icon: BookOpen, adminOnly: false },
   { name: 'Chat', href: '/chat', icon: MessageSquare, adminOnly: false, featureFlag: 'chat' },
   { name: 'Ask AI', href: '/ask-ai', icon: Sparkles, adminOnly: false, featureFlag: 'ask-ai' },
-  { name: 'Tasks', href: '/tasks', icon: CheckSquare, adminOnly: false, ownerOnly: true, isStatic: true, featureFlag: 'tasks' },
+  { name: 'Tasks', href: '/tasks', icon: CheckSquare, adminOnly: false, featureFlag: 'tasks' },
    { name: 'CRM', href: '/crm', icon: Briefcase, adminOnly: false, ownerOnly: true, isStatic: true, featureFlag: 'crm' },
 ];
 
