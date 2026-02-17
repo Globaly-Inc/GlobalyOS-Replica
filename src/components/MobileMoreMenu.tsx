@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
-  X, User, Users, Clock, Palmtree, Calendar, BookOpen, 
+  X, User, Users, Clock, Palmtree, Calendar, BookOpen, CheckSquare,
   Settings, LogOut, BarChart3, ChevronRight, Moon, Sun, Sparkles 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -67,6 +67,7 @@ export const MobileMoreMenu = ({ open, onOpenChange, userProfile }: MobileMoreMe
     { icon: Clock, label: "Attendance History", href: "/attendance-history" },
     { icon: BookOpen, label: "Wiki", href: "/wiki" },
     { icon: Sparkles, label: "Ask AI", href: "/ask-ai", featureFlag: "ask-ai" },
+    { icon: CheckSquare, label: "Tasks", href: "/tasks", featureFlag: "tasks" },
   ];
 
   const adminItems: MenuItem[] = [
