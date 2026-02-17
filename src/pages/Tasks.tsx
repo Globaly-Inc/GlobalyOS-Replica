@@ -7,6 +7,7 @@ import { useTasks, useTaskStatuses, useTaskCategories } from '@/services/useTask
 import { TaskListView } from '../components/tasks/TaskListView';
 import { TaskInnerSidebar } from '../components/tasks/TaskInnerSidebar';
 import { ManageDialog } from '../components/tasks/ManageDialog';
+import { TaskDetailPage } from '../components/tasks/TaskDetailPage';
 import { useTaskSpaces } from '@/services/useTasks';
 import type { TaskSpaceRow } from '@/types/task';
 
@@ -14,7 +15,8 @@ const Tasks = () => {
   const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [showManage, setShowManage] = useState(false);
-  
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+
   const { data: spaces = [] } = useTaskSpaces();
 
   // Auto-select first space if none selected
@@ -39,11 +41,42 @@ const Tasks = () => {
 
   const handleSelectSpace = (spaceId: string) => {
     setSelectedSpaceId(spaceId);
+    setSelectedTaskId(null);
   };
 
   const handleTaskClick = (taskId: string) => {
-    // TODO: Navigate to task detail page in Phase 2
+    setSelectedTaskId(taskId);
   };
+
+  const handleTaskNav = (direction: 'prev' | 'next') => {
+    if (!selectedTaskId) return;
+    const idx = tasks.findIndex(t => t.id === selectedTaskId);
+    if (idx < 0) return;
+    const newIdx = direction === 'prev' ? idx - 1 : idx + 1;
+    if (newIdx >= 0 && newIdx < tasks.length) {
+      setSelectedTaskId(tasks[newIdx].id);
+    }
+  };
+
+  // If a task is selected, show its detail
+  if (selectedTaskId) {
+    return (
+      <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
+        <TaskInnerSidebar
+          selectedSpaceId={activeSpaceId}
+          onSelectSpace={handleSelectSpace}
+        />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <TaskDetailPage
+            taskId={selectedTaskId}
+            onClose={() => setSelectedTaskId(null)}
+            onPrev={tasks.findIndex(t => t.id === selectedTaskId) > 0 ? () => handleTaskNav('prev') : undefined}
+            onNext={tasks.findIndex(t => t.id === selectedTaskId) < tasks.length - 1 ? () => handleTaskNav('next') : undefined}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
