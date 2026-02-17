@@ -17,6 +17,7 @@ import { useCreateJob } from '@/services/useHiringMutations';
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { useDepartments, useOffices } from '@/hooks/useOrganizationData';
 import { useOrganization } from '@/hooks/useOrganization';
+import { useOrgPipelines } from '@/hooks/useOrgPipelines';
 import { generateJobSlug } from '@/types/hiring';
 import type { ApplicationFormConfig } from '@/types/hiring';
 import { DEFAULT_APPLICATION_FIELDS } from '@/types/hiring';
@@ -54,6 +55,7 @@ export default function JobCreate() {
   const createJob = useCreateJob();
   const { data: departments = [] } = useDepartments();
   const { data: offices = [] } = useOffices();
+  const { data: pipelines = [] } = useOrgPipelines(currentOrg?.id);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -69,6 +71,7 @@ export default function JobCreate() {
     salary_max: '',
     salary_currency: 'USD',
     salary_visible: false,
+    pipeline_id: '',
     application_close_date: '',
     auto_close_on_deadline: false,
     target_start_date: '',
@@ -115,6 +118,7 @@ export default function JobCreate() {
         salary_max: formData.salary_max ? parseFloat(formData.salary_max) : null,
         salary_currency: formData.salary_currency,
         salary_visible: formData.salary_visible,
+        pipeline_id: formData.pipeline_id || null,
         hiring_manager_id: formData.hiring_manager_id || null,
         recruiter_id: formData.recruiter_id || null,
         target_start_date: formData.target_start_date || null,
@@ -364,6 +368,28 @@ export default function JobCreate() {
                     value={formData.headcount}
                     onChange={(e) => handleChange('headcount', parseInt(e.target.value) || 1)}
                   />
+                </div>
+              </div>
+
+              {/* Pipeline selector */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Hiring Pipeline</Label>
+                  <Select
+                    value={formData.pipeline_id}
+                    onValueChange={(value) => handleChange('pipeline_id', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Default pipeline" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pipelines.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}{p.is_default ? ' (Default)' : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 

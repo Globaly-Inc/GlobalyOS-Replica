@@ -5143,6 +5143,7 @@ export type Database = {
           location: string | null
           office_id: string | null
           organization_id: string
+          pipeline_id: string | null
           published_at: string | null
           recruiter_id: string | null
           requirements: string | null
@@ -5184,6 +5185,7 @@ export type Database = {
           location?: string | null
           office_id?: string | null
           organization_id: string
+          pipeline_id?: string | null
           published_at?: string | null
           recruiter_id?: string | null
           requirements?: string | null
@@ -5225,6 +5227,7 @@ export type Database = {
           location?: string | null
           office_id?: string | null
           organization_id?: string
+          pipeline_id?: string | null
           published_at?: string | null
           recruiter_id?: string | null
           requirements?: string | null
@@ -5302,6 +5305,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "org_pipelines"
             referencedColumns: ["id"]
           },
           {

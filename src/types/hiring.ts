@@ -477,6 +477,7 @@ export interface CreateJobInput {
   application_close_date?: string | null;
   justification?: string | null;
   application_form_config?: ApplicationFormConfig;
+  pipeline_id?: string | null;
 }
 
 export interface UpdateJobInput extends Partial<CreateJobInput> {

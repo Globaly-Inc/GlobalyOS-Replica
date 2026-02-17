@@ -25,6 +25,7 @@ import { useUpdateJob, usePublishJob } from '@/services/useHiringMutations';
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { useDepartments, useOffices } from '@/hooks/useOrganizationData';
 import { useOrganization } from '@/hooks/useOrganization';
+import { useOrgPipelines } from '@/hooks/useOrgPipelines';
 import type { WorkModel, HiringEmploymentType, ApplicationFormConfig } from '@/types/hiring';
 import { migrateApplicationFormConfig } from '@/types/hiring';
 import { ApplicationFormSettings } from '@/components/hiring/ApplicationFormSettings';
@@ -129,6 +130,7 @@ export default function JobEdit() {
   const publishJob = usePublishJob();
   const { data: departments = [] } = useDepartments();
   const { data: offices = [] } = useOffices();
+  const { data: pipelines = [] } = useOrgPipelines(currentOrg?.id);
   const { data: jobApplications } = useApplications(job?.id ? { job_id: job.id } : undefined);
   const [isGeneratingJD, setIsGeneratingJD] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -157,6 +159,7 @@ export default function JobEdit() {
     is_internal_visible: true,
     is_internal_apply: false,
     is_public_visible: true,
+    pipeline_id: '',
     application_form_config: {} as ApplicationFormConfig,
   });
 
@@ -185,6 +188,7 @@ export default function JobEdit() {
         is_internal_visible: job.is_internal_visible ?? true,
         is_internal_apply: (job as any).is_internal_apply ?? false,
         is_public_visible: job.is_public_visible ?? false,
+        pipeline_id: (job as any).pipeline_id || '',
         application_form_config: migrateApplicationFormConfig(((job as any).application_form_config ?? {}) as ApplicationFormConfig),
       });
     }
@@ -240,6 +244,7 @@ export default function JobEdit() {
           is_internal_apply: formData.is_internal_apply,
           is_public_visible: formData.is_public_visible,
           application_form_config: formData.application_form_config,
+          pipeline_id: formData.pipeline_id || null,
         },
       });
       toast.success('Job updated');
@@ -673,6 +678,28 @@ export default function JobEdit() {
                     value={formData.headcount}
                     onChange={(e) => handleChange('headcount', parseInt(e.target.value) || 1)}
                   />
+                </div>
+              </div>
+
+              {/* Pipeline selector */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Hiring Pipeline</Label>
+                  <Select
+                    value={formData.pipeline_id}
+                    onValueChange={(value) => handleChange('pipeline_id', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Default pipeline" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pipelines.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}{p.is_default ? ' (Default)' : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
