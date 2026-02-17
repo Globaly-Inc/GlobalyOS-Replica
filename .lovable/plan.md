@@ -1,173 +1,128 @@
 
 
-# CRM Module Implementation Plan
+# Convert CRM Detail Views to Full Pages + Feature Enhancement Suggestions
 
-## Overview
-Build a full CRM module with **Contact** and **Company** management, following the design from the uploaded reference and mirroring the Team Member Profile layout for detail pages. Companies and Contacts have a one-to-many relationship (one company can have multiple contacts).
+## Part 1: Contact & Company Detail as Separate Pages
 
----
+### What Changes
 
-## Database Schema
+Currently, Contact and Company details open as pop-up Dialogs. This plan converts them into standalone pages at `/crm/contacts/:id` and `/crm/companies/:id`, using the same layout structure as the Team Member Profile page.
 
-### Tables to Create
+### Layout (Mirroring TeamMemberProfile)
 
-**`crm_companies`**
-- `id` (uuid, PK)
-- `organization_id` (uuid, FK to organizations, NOT NULL)
-- `name` (text, NOT NULL)
-- `industry` (text)
-- `website` (text)
-- `phone` (text)
-- `email` (text)
-- `address_street`, `address_city`, `address_state`, `address_postcode`, `address_country` (text)
-- `logo_url` (text)
-- `notes` (text)
-- `rating` (text) -- hot / warm / cold
-- `source` (text) -- how the company was added
-- `created_by` (uuid, FK to employees)
-- `created_at`, `updated_at` (timestamptz)
+Each detail page will have:
+- **Back button** at top ("Back to Contacts" / "Back to Companies") using `OrgLink`
+- **Top Card**: Avatar/Logo, Name, Job Title/Industry, Rating badge, Email, Phone, Company link (for contacts), Tags
+- **Below**: A 3-column grid (1 left + 2 right) with:
+  - **Left column**: Info cards (Contact Details, Address, Tags, Source)
+  - **Right column (2-col span)**: Tabbed content (Activity, Notes, Deals, and for companies: Linked Contacts)
 
-**`crm_contacts`**
-- `id` (uuid, PK)
-- `organization_id` (uuid, FK to organizations, NOT NULL)
-- `company_id` (uuid, FK to crm_companies, nullable) -- links contact to company
-- `first_name` (text, NOT NULL)
-- `last_name` (text)
-- `email` (text)
-- `phone` (text)
-- `job_title` (text)
-- `avatar_url` (text)
-- `address_street`, `address_city`, `address_state`, `address_postcode`, `address_country` (text)
-- `notes` (text)
-- `rating` (text) -- hot / warm / cold
-- `source` (text) -- walk-in-clients, web-form, etc.
-- `is_archived` (boolean, default false)
-- `tags` (text[])
-- `date_of_birth` (date)
-- `created_by` (uuid, FK to employees)
-- `created_at`, `updated_at` (timestamptz)
+### Routing Changes (App.tsx)
 
-**`crm_activity_log`**
-- `id` (uuid, PK)
-- `organization_id` (uuid, NOT NULL)
-- `contact_id` (uuid, FK to crm_contacts, nullable)
-- `company_id` (uuid, FK to crm_companies, nullable)
-- `employee_id` (uuid, FK to employees) -- who performed it
-- `type` (text) -- note, call, email, meeting, task
-- `content` (text)
-- `created_at` (timestamptz)
-
-### RLS Policies
-- All three tables: scoped by `organization_id` matching the user's org membership
-- SELECT/INSERT/UPDATE/DELETE policies checking `organization_id IN (SELECT organization_id FROM employees WHERE user_id = auth.uid())`
-
-### Feature Flag
-- Enable the existing `crm` feature flag for the user's organization
-
----
-
-## Routing (in App.tsx)
-
-Add nested CRM routes under the existing `/crm` path:
-
-```text
-/crm                    -> CRM landing (contacts list, default)
-/crm/contacts           -> Contact listing
-/crm/contacts/:id       -> Contact detail (dialog or page)
-/crm/companies          -> Company listing
-/crm/companies/:id      -> Company detail (dialog or page)
+Add two new routes inside the CRM feature-protected section:
+```
+/crm/contacts/:id  -->  CRMContactProfile page
+/crm/companies/:id -->  CRMCompanyProfile page
 ```
 
-Since the reference design shows a left sidebar with categories (All Contacts, Enquiries, Prospects, Clients, Archived), the CRM page will use a layout similar to Tasks: **left sidebar + main content area**.
+### Files to Create
+
+1. **`src/pages/CRMContactProfile.tsx`** -- Full-page contact detail
+   - Uses `useParams()` to get contact ID
+   - Fetches contact via `useCRMContact(id)`
+   - Fetches activities via `useCRMActivities(id)`
+   - Top card with avatar, name, job title, company link, rating, email
+   - Left sidebar cards: Personal Details (editable fields), Address, Tags, Source
+   - Right tabs: Activity feed, Notes (with add note form), Deals (future)
+
+2. **`src/pages/CRMCompanyProfile.tsx`** -- Full-page company detail
+   - Uses `useParams()` to get company ID
+   - Fetches company via `useCRMCompany(id)`
+   - Top card with logo, name, industry, rating, website, phone, email
+   - Left sidebar cards: Company Details, Address, Source
+   - Right tabs: Contacts (linked), Activity feed, Notes
+
+### Files to Modify
+
+3. **`src/App.tsx`** -- Add two new routes:
+   - `crm/contacts/:id` pointing to `CRMContactProfile`
+   - `crm/companies/:id` pointing to `CRMCompanyProfile`
+
+4. **`src/components/crm/ContactListView.tsx`** -- Change row click from opening a dialog to navigating via `useOrgNavigation()` to `/crm/contacts/:id`. Remove the `ContactDetailDialog` import and usage.
+
+5. **`src/components/crm/CompanyListView.tsx`** -- Same change: navigate to `/crm/companies/:id` on row click. Remove `CompanyDetailDialog` usage.
+
+### Files to Delete (or keep as unused)
+
+6. **`src/components/crm/ContactDetailDialog.tsx`** -- No longer needed (replaced by full page)
+7. **`src/components/crm/CompanyDetailDialog.tsx`** -- No longer needed (replaced by full page)
 
 ---
 
-## Components Structure
+## Part 2: Suggested CRM Feature Enhancements
 
-### Layout
-- **`src/pages/CRM.tsx`** -- Main CRM page with inner routing via tabs/state (Contacts vs Companies)
-- **`src/components/crm/CRMSidebar.tsx`** -- Left sidebar with:
-  - "All Contacts" / "Enquiries" / "Prospects" / "Clients" / "Archived" (filter by rating/status)
-  - "Saved Filters" section
-  - "Last Opened" section (local state)
-  - Switch between Contacts / Companies views
-- **`src/components/crm/ContactListView.tsx`** -- Table-style listing matching the reference design
-  - Columns: checkbox, Avatar+Name, Email, Actions (3-dot), Phone, Source, Rating
-  - Search bar, Filters, Manage Columns toggle, Grid/List view toggle
-  - Pagination controls
-- **`src/components/crm/CompanyListView.tsx`** -- Similar table for companies
-  - Columns: Logo+Name, Industry, Phone, Website, Contacts count, Rating
-- **`src/components/crm/ContactDetailDialog.tsx`** -- Profile-style detail in a Dialog (like Task detail)
-  - Tabs: Overview, Activity, Notes
-  - Overview: avatar, name, job title, company link, contact info, address, tags
-  - Styled like TeamMemberProfile with card sections and editable fields
-- **`src/components/crm/CompanyDetailDialog.tsx`** -- Company profile in Dialog
-  - Overview: logo, company name, industry, website, contact info, address
-  - "Contacts" tab showing linked contacts
-  - Activity tab
-- **`src/components/crm/AddContactDialog.tsx`** -- Create new contact form
-- **`src/components/crm/AddCompanyDialog.tsx`** -- Create new company form
+Based on industry-leading CRMs (HubSpot, Salesforce, Pipedrive, Zoho), here are the most impactful features to add:
 
-### Services
-- **`src/services/useCRM.ts`** -- React Query hooks:
-  - `useCRMContacts(filters)` / `useCRMContact(id)`
-  - `useCreateCRMContact` / `useUpdateCRMContact` / `useDeleteCRMContact`
-  - `useCRMCompanies(filters)` / `useCRMCompany(id)`
-  - `useCreateCRMCompany` / `useUpdateCRMCompany` / `useDeleteCRMCompany`
-  - `useCRMActivities(contactId?, companyId?)`
-  - `useCreateCRMActivity`
+### High Priority (Core CRM)
 
-### Types
-- **`src/types/crm.ts`** -- CRMContact, CRMCompany, CRMActivity interfaces
+| Feature | Description |
+|---------|-------------|
+| **Deals / Pipeline** | Kanban-style deal pipeline with stages (Lead, Qualified, Proposal, Negotiation, Won, Lost). Link deals to contacts and companies. |
+| **Inline Editing on Profile** | Use `EditableField` and `ClickToEdit` components (already in codebase) to make contact/company fields editable directly on the profile page. |
+| **Activity Types** | Expand beyond notes: Log calls, emails, meetings, and tasks with dedicated forms and icons. |
+| **Contact/Company Merge** | Detect and merge duplicate contacts or companies. |
+| **Import/Export (CSV)** | Bulk import contacts/companies from CSV. Export filtered lists. |
 
----
+### Medium Priority (Productivity)
 
-## UI Design (Matching Reference)
+| Feature | Description |
+|---------|-------------|
+| **Tasks linked to Contacts** | Create follow-up tasks from a contact's profile, linked to the existing Tasks module. |
+| **Email Integration** | Log emails as activities, or send emails directly from contact profile. |
+| **Custom Fields** | Let admins define custom fields per organization for contacts and companies. |
+| **Tags Management** | Tag-based filtering, bulk tagging, and a tag management settings page. |
+| **Contact Timeline** | A unified chronological timeline showing all interactions (notes, calls, deals, emails) on the profile page. |
 
-### Contact Listing
-- Header: "Contacts" title with "Import Contacts" and "+ Create New" buttons (top-right)
-- Search bar with assignee filter, "Show Archived" toggle, "Filters" button, "Manage Columns"
-- Grid/List view toggle icons
-- Table with sortable columns: Name (with avatar), Email, Actions, Phone, Source, Rating (with colored icons: Hot=red fire, Warm=orange handshake, Cold=blue snowflake)
-- Pagination at bottom: page numbers + "Result per page" dropdown + total count
+### Lower Priority (Advanced)
 
-### Contact/Company Detail
-- Opens as a centered Dialog (consistent with Task detail pattern)
-- Layout mirrors TeamMemberProfile:
-  - Left column: avatar/logo, name, title, company, key info cards
-  - Right column: tabs for Activity, Notes
-  - Editable fields using the existing `EditableField` and `ClickToEdit` components
+| Feature | Description |
+|---------|-------------|
+| **Lead Scoring** | Automatic scoring based on activity, rating, and engagement. |
+| **Reports & Dashboards** | CRM-specific analytics: deals by stage, conversion rates, activity volume, revenue forecasts. |
+| **Web Forms / Lead Capture** | Embeddable forms that create contacts automatically. |
+| **Workflow Automation** | Auto-assign contacts, send reminders, change status based on triggers. |
+| **Document Attachments** | Attach files (proposals, contracts) to contacts/companies. |
 
 ---
 
 ## Technical Details
 
-### Files to Create
-1. `supabase/migrations/..._crm_tables.sql` -- DB migration
-2. `src/types/crm.ts` -- Type definitions
-3. `src/services/useCRM.ts` -- React Query hooks
-4. `src/pages/CRM.tsx` -- Rewrite from ComingSoon to full module
-5. `src/components/crm/CRMSidebar.tsx`
-6. `src/components/crm/ContactListView.tsx`
-7. `src/components/crm/CompanyListView.tsx`
-8. `src/components/crm/ContactDetailDialog.tsx`
-9. `src/components/crm/CompanyDetailDialog.tsx`
-10. `src/components/crm/AddContactDialog.tsx`
-11. `src/components/crm/AddCompanyDialog.tsx`
+### CRMContactProfile Page Structure
 
-### Files to Modify
-1. `src/App.tsx` -- Add CRM sub-routes (`/crm/*`)
-2. `src/types/index.ts` -- Export CRM types
-3. `src/services/index.ts` -- Export CRM service hooks
-4. `src/components/TopNav.tsx` -- Remove `isStatic` and `ownerOnly` from CRM nav item (if not already done)
+```text
+Back to Contacts (button)
++--------------------------------------------------+
+| [Avatar]  Name  |  Rating Badge  |  Status       |
+|           Job Title - Company (link)              |
+|           email@example.com                       |
++--------------------------------------------------+
+
++----------------+  +------------------------------+
+| Contact Info   |  | [Activity] [Notes] [Deals]   |
+| - Email        |  |                              |
+| - Phone        |  |  Activity feed / Notes list  |
+| - Address      |  |  with add note form          |
+| - DOB          |  |                              |
++----------------+  +------------------------------+
+| Tags           |
+| Source          |
++----------------+
+```
 
 ### Implementation Sequence
-1. Database migration (tables + RLS + enable feature flag)
-2. Types and service hooks
-3. Contact listing with sidebar
-4. Company listing
-5. Contact detail dialog (profile-style)
-6. Company detail dialog (profile-style, with linked contacts)
-7. Create/edit dialogs for both
-8. Wire routing and navigation
+
+1. Create `CRMContactProfile.tsx` and `CRMCompanyProfile.tsx` pages
+2. Add routes in `App.tsx`
+3. Update `ContactListView` and `CompanyListView` to navigate instead of opening dialogs
+4. Remove old dialog components
 
