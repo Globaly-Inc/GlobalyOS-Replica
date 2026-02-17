@@ -161,7 +161,7 @@ export const TaskDetailPage = ({ taskId, onClose, onPrev, onNext }: TaskDetailPa
     : null;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b shrink-0">
         <div className="flex-1 flex items-center gap-2 text-xs text-muted-foreground">
