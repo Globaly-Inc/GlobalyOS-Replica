@@ -36,6 +36,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Save, Zap, Clock, Bell, Loader2, Plus } from 'lucide-react';
 import { PipelineCard, type Pipeline, type PipelineStage } from './PipelineCard';
+import { useOrgPipelines } from '@/hooks/useOrgPipelines';
 
 // ── constants ──────────────────────────────────────────────────
 
@@ -52,45 +53,7 @@ const DEFAULT_STAGES: { stage_key: ApplicationStage; name: string }[] = PIPELINE
 
 // ── hooks ──────────────────────────────────────────────────────
 
-function useOrgPipelines(orgId: string | undefined) {
-  return useQuery({
-    queryKey: ['org-pipelines', orgId],
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data: pipelines, error: pErr } = await supabase
-        .from('org_pipelines')
-        .select('*')
-        .eq('organization_id', orgId)
-        .order('sort_order');
-      if (pErr) throw pErr;
-
-      const { data: stages, error: sErr } = await supabase
-        .from('org_pipeline_stages')
-        .select('*')
-        .eq('organization_id', orgId)
-        .order('sort_order');
-      if (sErr) throw sErr;
-
-      return (pipelines || []).map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        is_default: p.is_default,
-        sort_order: p.sort_order,
-        stages: (stages || [])
-          .filter((s: any) => s.pipeline_id === p.id)
-          .map((s: any) => ({
-            id: s.id,
-            stage_key: s.stage_key,
-            name: s.name,
-            color: s.color,
-            sort_order: s.sort_order,
-            is_active: s.is_active,
-          })),
-      })) as Pipeline[];
-    },
-    enabled: !!orgId,
-  });
-}
+// useOrgPipelines is now imported from @/hooks/useOrgPipelines
 
 function usePipelineStageRules(orgId: string | undefined) {
   return useQuery({
@@ -324,6 +287,22 @@ export function PipelineSettingsSection() {
     onError: () => toast.error('Failed to add stage'),
   });
 
+  const reorderStagesMutation = useMutation({
+    mutationFn: async ({ pipelineId, orderedStageIds }: { pipelineId: string; orderedStageIds: string[] }) => {
+      for (let i = 0; i < orderedStageIds.length; i++) {
+        const { error } = await supabase
+          .from('org_pipeline_stages')
+          .update({ sort_order: i } as any)
+          .eq('id', orderedStageIds[i]);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['org-pipelines', orgId] });
+    },
+    onError: () => toast.error('Failed to reorder stages'),
+  });
+
   // ── save automation rules ──
 
   const saveMutation = useMutation({
@@ -387,6 +366,7 @@ export function PipelineSettingsSection() {
               onRenameStage={(id, name) => renameStageMutation.mutate({ id, name })}
               onDeleteStage={id => deleteStageMutation.mutate(id)}
               onAddStage={(pipelineId, stageKey, name) => addStageMutation.mutate({ pipelineId, stageKey, name })}
+              onReorderStages={(pipelineId, orderedStageIds) => reorderStagesMutation.mutate({ pipelineId, orderedStageIds })}
               canDeletePipeline={!pipeline.is_default}
               canDeleteStage={() => true /* TODO: check candidate_applications */}
             />
