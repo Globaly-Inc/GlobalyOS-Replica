@@ -1,302 +1,173 @@
 
 
-## Task Management Module -- Revised Comprehensive Plan
+# CRM Module Implementation Plan
 
-This is a large feature. It will be built in **4 phases** across multiple prompts. The left sidebar (app navigation icons) and top bar (org name, search, etc.) are **not** part of this module -- they already exist in the app shell. This plan covers only the task content area that renders inside the existing layout.
-
----
-
-### What the Mockups Show (Summary)
-
-From the PDFs:
-
-1. **Inner Task Sidebar** (inside the content area, not the app-level sidebar):
-   - "Workspace" section with links: Tasks, Office Check-Ins, Documents
-   - "Spaces" tree: parent spaces (e.g. "Head Office") with child spaces (e.g. "Client Follow-up", "Seminar Events", "Marketing Tasks")
-   - "+" button to add new spaces
-
-2. **Task List View** (main content area):
-   - Breadcrumb: "Head Office / Client Follow Up"
-   - Space title: "Client Follow Up"
-   - Top bar: Search, Assignee filter avatar, Filters button, Customize button, List View / Board View toggle
-   - Top-right: "... Manage" button, "+ Add Task" button
-   - Tasks grouped by collapsible status sections (To Do 4, In Progress 3, In Review 2, Completed 2)
-   - Each section has "+ Add Task" inline
-   - Columns: Name (with category icon + color dot), Category, Assignee (avatar), Tags (badges), Comments (count), Attachments (count), Followers (avatar stack), Priority (colored label)
-
-3. **Task Detail Page** (full page, not dialog):
-   - Top: breadcrumb "Head Office / Client Follow Up", "Created by [name] on [date]", prev/next arrows, close X
-   - Left section: "Related to" with edit pencil, then "Internal" badge
-   - Task title (editable), then metadata grid:
-     - Status (pill badge), Assignee (avatar + name), Category (icon + name), Notification (on/off), Followers (avatar stack + count), Priority (colored label), Due Date, Tags (+ Add), Reminders, Recurrence
-   - Body: Description (rich text), Checklist (items with checkboxes), Attachments
-   - Right panel: "Comments & Logs" timeline with comments, activity entries (assignee changes, priority changes, category changes), and comment input with @ mentions
-
-4. **Manage Dialog** (centered dialog):
-   - Two tabs: Status, Category
-   - Status tab: groups by status group (To do, In Queue under "To do"; In Progress under "In Progress"; In Review; Completed) with drag handles, inline rename, delete via 3-dot menu, "+ Add Status" per group
-   - Category tab: similar list of categories (Email, Call, Call Back, Reminder) with drag handles
-
-5. **Add Task Flow**:
-   - Click "+ Add Task" opens inline row in the status section
-   - Type task name, optionally select category
-   - Save creates the task
-
-6. **Filter Panel**:
-   - Dropdown/popover with filter categories: Status, Assignee, Priority, Category, Tags, Due Date
-   - Multi-select checkboxes within each filter
-   - Apply button
-
-7. **Column Rearrangement** (Customize):
-   - Popover showing column list with checkboxes (show/hide)
-   - Drag-and-drop to reorder columns
-
-8. **Related To**:
-   - In Task Detail, click "Related to" to open a popover
-   - Select entity type (Employee, Department, etc.) and search/select the entity
-
-9. **Board View**:
-   - Toggle between List View and Board View
-   - Kanban columns by status with task cards
+## Overview
+Build a full CRM module with **Contact** and **Company** management, following the design from the uploaded reference and mirroring the Team Member Profile layout for detail pages. Companies and Contacts have a one-to-many relationship (one company can have multiple contacts).
 
 ---
 
-### Database Schema (9 Tables)
+## Database Schema
 
-**1. `task_spaces`**
+### Tables to Create
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID PK | |
-| organization_id | UUID FK -> organizations | Tenant isolation |
-| name | TEXT NOT NULL | e.g. "Client Follow Up" |
-| description | TEXT | Optional |
-| parent_id | UUID FK (self-ref) | For nesting (Head Office > Client Follow-up) |
-| icon | TEXT | Emoji or letter |
-| color | TEXT | Space accent color |
-| owner_id | UUID FK -> employees | Creator |
-| sort_order | INT DEFAULT 0 | Ordering |
-| created_at | TIMESTAMPTZ DEFAULT now() | |
-| updated_at | TIMESTAMPTZ DEFAULT now() | |
+**`crm_companies`**
+- `id` (uuid, PK)
+- `organization_id` (uuid, FK to organizations, NOT NULL)
+- `name` (text, NOT NULL)
+- `industry` (text)
+- `website` (text)
+- `phone` (text)
+- `email` (text)
+- `address_street`, `address_city`, `address_state`, `address_postcode`, `address_country` (text)
+- `logo_url` (text)
+- `notes` (text)
+- `rating` (text) -- hot / warm / cold
+- `source` (text) -- how the company was added
+- `created_by` (uuid, FK to employees)
+- `created_at`, `updated_at` (timestamptz)
 
-**2. `task_statuses`**
+**`crm_contacts`**
+- `id` (uuid, PK)
+- `organization_id` (uuid, FK to organizations, NOT NULL)
+- `company_id` (uuid, FK to crm_companies, nullable) -- links contact to company
+- `first_name` (text, NOT NULL)
+- `last_name` (text)
+- `email` (text)
+- `phone` (text)
+- `job_title` (text)
+- `avatar_url` (text)
+- `address_street`, `address_city`, `address_state`, `address_postcode`, `address_country` (text)
+- `notes` (text)
+- `rating` (text) -- hot / warm / cold
+- `source` (text) -- walk-in-clients, web-form, etc.
+- `is_archived` (boolean, default false)
+- `tags` (text[])
+- `date_of_birth` (date)
+- `created_by` (uuid, FK to employees)
+- `created_at`, `updated_at` (timestamptz)
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID PK | |
-| organization_id | UUID FK | |
-| space_id | UUID FK -> task_spaces ON DELETE CASCADE | |
-| name | TEXT NOT NULL | e.g. "To Do", "In Queue" |
-| color | TEXT | Status color |
-| status_group | TEXT | Group label: 'todo', 'in_progress', 'in_review', 'completed' |
-| sort_order | INT DEFAULT 0 | |
-| is_default | BOOLEAN DEFAULT false | Default for new tasks |
-| is_closed | BOOLEAN DEFAULT false | Marks "done" semantics |
+**`crm_activity_log`**
+- `id` (uuid, PK)
+- `organization_id` (uuid, NOT NULL)
+- `contact_id` (uuid, FK to crm_contacts, nullable)
+- `company_id` (uuid, FK to crm_companies, nullable)
+- `employee_id` (uuid, FK to employees) -- who performed it
+- `type` (text) -- note, call, email, meeting, task
+- `content` (text)
+- `created_at` (timestamptz)
 
-**3. `task_categories`**
+### RLS Policies
+- All three tables: scoped by `organization_id` matching the user's org membership
+- SELECT/INSERT/UPDATE/DELETE policies checking `organization_id IN (SELECT organization_id FROM employees WHERE user_id = auth.uid())`
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID PK | |
-| organization_id | UUID FK | |
-| space_id | UUID FK -> task_spaces ON DELETE CASCADE | |
-| name | TEXT NOT NULL | e.g. "Email", "Call" |
-| icon | TEXT | Category icon name |
-| color | TEXT | |
-| sort_order | INT DEFAULT 0 | |
-
-**4. `tasks`**
-
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID PK | |
-| organization_id | UUID FK | |
-| space_id | UUID FK -> task_spaces | |
-| title | TEXT NOT NULL | |
-| description | TEXT | Rich text / HTML |
-| status_id | UUID FK -> task_statuses | |
-| category_id | UUID FK -> task_categories | Nullable |
-| priority | TEXT CHECK IN ('urgent','high','normal','low') | Default 'normal' |
-| assignee_id | UUID FK -> employees | Nullable |
-| reporter_id | UUID FK -> employees | Creator |
-| due_date | DATE | Nullable |
-| start_date | DATE | Nullable |
-| tags | TEXT[] DEFAULT '{}' | Array of tag strings |
-| sort_order | INT DEFAULT 0 | Within status group |
-| is_archived | BOOLEAN DEFAULT false | Soft delete |
-| completed_at | TIMESTAMPTZ | Set when moved to closed status |
-| related_entity_type | TEXT | 'employee', 'department', etc. |
-| related_entity_id | UUID | ID of the linked entity |
-| notification_enabled | BOOLEAN DEFAULT true | Per-task notification toggle |
-| recurrence | TEXT | Optional recurrence rule |
-| created_at | TIMESTAMPTZ DEFAULT now() | |
-| updated_at | TIMESTAMPTZ DEFAULT now() | |
-
-**5. `task_checklists`**
-
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID PK | |
-| organization_id | UUID FK | |
-| task_id | UUID FK -> tasks ON DELETE CASCADE | |
-| title | TEXT NOT NULL | |
-| is_done | BOOLEAN DEFAULT false | |
-| assignee_id | UUID FK -> employees | Optional |
-| due_date | DATE | Optional |
-| sort_order | INT DEFAULT 0 | |
-
-**6. `task_comments`**
-
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID PK | |
-| organization_id | UUID FK | |
-| task_id | UUID FK -> tasks ON DELETE CASCADE | |
-| employee_id | UUID FK -> employees | Author |
-| content | TEXT NOT NULL | |
-| created_at | TIMESTAMPTZ DEFAULT now() | |
-| updated_at | TIMESTAMPTZ DEFAULT now() | |
-
-**7. `task_attachments`**
-
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID PK | |
-| organization_id | UUID FK | |
-| task_id | UUID FK -> tasks ON DELETE CASCADE | |
-| file_name | TEXT NOT NULL | |
-| file_path | TEXT NOT NULL | Storage path |
-| file_type | TEXT | MIME type |
-| file_size | BIGINT | Bytes |
-| uploaded_by | UUID FK -> employees | |
-| created_at | TIMESTAMPTZ DEFAULT now() | |
-
-**8. `task_followers`**
-
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID PK | |
-| organization_id | UUID FK | |
-| task_id | UUID FK -> tasks ON DELETE CASCADE | |
-| employee_id | UUID FK -> employees | |
-| UNIQUE(task_id, employee_id) | | |
-
-**9. `task_activity_logs`**
-
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID PK | |
-| organization_id | UUID FK | |
-| task_id | UUID FK -> tasks ON DELETE CASCADE | |
-| actor_id | UUID FK -> employees | |
-| action_type | TEXT NOT NULL | 'created', 'status_changed', 'assignee_changed', 'priority_changed', 'category_changed', 'comment_added', etc. |
-| old_value | JSONB | Previous state |
-| new_value | JSONB | New state |
-| created_at | TIMESTAMPTZ DEFAULT now() | |
-
-All tables get RLS policies using `is_org_member(auth.uid(), organization_id)` for SELECT, INSERT, UPDATE, DELETE -- following the exact same pattern as existing tables.
-
-A storage bucket `task-attachments` will be created for file uploads.
+### Feature Flag
+- Enable the existing `crm` feature flag for the user's organization
 
 ---
 
-### Routing
+## Routing (in App.tsx)
 
-The existing single route `tasks` will be expanded to nested routes:
+Add nested CRM routes under the existing `/crm` path:
 
-| Route | Component | Purpose |
-|-------|-----------|---------|
-| `tasks` | TasksLayout | Two-pane layout: inner sidebar + content |
-| `tasks` (index) | TasksHome | My Tasks default view |
-| `tasks/spaces/:spaceId` | TaskSpaceList | List view for a space |
-| `tasks/spaces/:spaceId/board` | TaskSpaceBoard | Kanban board for a space |
-| `tasks/:taskId` | TaskDetail | Full task detail page |
+```text
+/crm                    -> CRM landing (contacts list, default)
+/crm/contacts           -> Contact listing
+/crm/contacts/:id       -> Contact detail (dialog or page)
+/crm/companies          -> Company listing
+/crm/companies/:id      -> Company detail (dialog or page)
+```
 
----
-
-### Phase 1: Database + CRUD + List View (This Implementation)
-
-This first phase delivers:
-
-1. **Migration SQL**: Create all 9 tables + RLS + auto-seed trigger (when a space is created, auto-insert 4 default statuses: To Do, In Progress, In Review, Completed; and 4 default categories: Email, Call, Call Back, Reminder)
-
-2. **Types**: `src/types/task.ts` with TypeScript interfaces for all entities
-
-3. **Service Hooks**: `src/services/useTasks.ts`
-   - `useTaskSpaces(orgId)` -- fetch spaces tree
-   - `useTaskStatuses(spaceId)` -- statuses for a space
-   - `useTaskCategories(spaceId)` -- categories for a space
-   - `useTasks(spaceId, filters?)` -- tasks for a space
-   - `useTask(taskId)` -- single task with relations
-   - `useTaskComments(taskId)` -- comments for a task
-   - `useTaskChecklists(taskId)` -- checklist items
-   - `useTaskActivityLogs(taskId)` -- activity timeline
-   - Mutations: create/update/delete for tasks, spaces, statuses, categories, comments, checklists
-
-4. **Page Components**:
-   - `src/pages/Tasks.tsx` -- Rewrite from Coming Soon to TasksLayout (two-pane)
-   - `src/components/tasks/TaskInnerSidebar.tsx` -- "Workspace" links + "Spaces" tree with expand/collapse and "+ Add" button
-   - `src/components/tasks/TaskListView.tsx` -- Grouped-by-status task list matching mockup
-   - `src/components/tasks/TaskRow.tsx` -- Single task row with category icon, assignee avatar, tags, counts, priority
-   - `src/components/tasks/TaskQuickAdd.tsx` -- Inline add row (title input + optional category + save)
-   - `src/components/tasks/TaskDetailPage.tsx` -- Full task detail with metadata grid, description, checklist, attachments, comments & logs
-   - `src/components/tasks/ManageDialog.tsx` -- Dialog with Status/Category tabs, drag-and-drop reorder, add/rename/delete
-   - `src/components/tasks/CreateSpaceDialog.tsx` -- Dialog to create a new space
-
-5. **Route Changes**: Update `src/App.tsx` to add nested task routes under the existing `tasks` path
+Since the reference design shows a left sidebar with categories (All Contacts, Enquiries, Prospects, Clients, Archived), the CRM page will use a layout similar to Tasks: **left sidebar + main content area**.
 
 ---
 
-### Phase 2: Kanban Board View (Future)
+## Components Structure
 
-- Board View toggle on space view
-- Kanban columns = statuses, cards = tasks
-- Drag-and-drop between columns using `@dnd-kit` (already installed)
-- Card shows: title, assignee avatar, priority badge, due date, tags, comment/subtask indicators
+### Layout
+- **`src/pages/CRM.tsx`** -- Main CRM page with inner routing via tabs/state (Contacts vs Companies)
+- **`src/components/crm/CRMSidebar.tsx`** -- Left sidebar with:
+  - "All Contacts" / "Enquiries" / "Prospects" / "Clients" / "Archived" (filter by rating/status)
+  - "Saved Filters" section
+  - "Last Opened" section (local state)
+  - Switch between Contacts / Companies views
+- **`src/components/crm/ContactListView.tsx`** -- Table-style listing matching the reference design
+  - Columns: checkbox, Avatar+Name, Email, Actions (3-dot), Phone, Source, Rating
+  - Search bar, Filters, Manage Columns toggle, Grid/List view toggle
+  - Pagination controls
+- **`src/components/crm/CompanyListView.tsx`** -- Similar table for companies
+  - Columns: Logo+Name, Industry, Phone, Website, Contacts count, Rating
+- **`src/components/crm/ContactDetailDialog.tsx`** -- Profile-style detail in a Dialog (like Task detail)
+  - Tabs: Overview, Activity, Notes
+  - Overview: avatar, name, job title, company link, contact info, address, tags
+  - Styled like TeamMemberProfile with card sections and editable fields
+- **`src/components/crm/CompanyDetailDialog.tsx`** -- Company profile in Dialog
+  - Overview: logo, company name, industry, website, contact info, address
+  - "Contacts" tab showing linked contacts
+  - Activity tab
+- **`src/components/crm/AddContactDialog.tsx`** -- Create new contact form
+- **`src/components/crm/AddCompanyDialog.tsx`** -- Create new company form
 
-### Phase 3: Filters, Column Customization, Search (Future)
+### Services
+- **`src/services/useCRM.ts`** -- React Query hooks:
+  - `useCRMContacts(filters)` / `useCRMContact(id)`
+  - `useCreateCRMContact` / `useUpdateCRMContact` / `useDeleteCRMContact`
+  - `useCRMCompanies(filters)` / `useCRMCompany(id)`
+  - `useCreateCRMCompany` / `useUpdateCRMCompany` / `useDeleteCRMCompany`
+  - `useCRMActivities(contactId?, companyId?)`
+  - `useCreateCRMActivity`
 
-- Filter panel popover (status, assignee, priority, category, tags, due date range)
-- Customize popover for show/hide columns + drag-and-drop column reorder
-- Search bar searching title/description/tags
-- Persist column settings per user
-
-### Phase 4: AI, Integration Hooks, Polish (Future)
-
-- AI description generation from title
-- AI subtask breakdown from description
-- AI comment summarization
-- Integration API for Boarding module
-- "Related To" entity linking with search popover
-- Realtime subscriptions
-- My Tasks dashboard (Today, This Week, Overdue sections)
+### Types
+- **`src/types/crm.ts`** -- CRMContact, CRMCompany, CRMActivity interfaces
 
 ---
 
-### Files to Create/Modify in Phase 1
+## UI Design (Matching Reference)
 
-| File | Action | Purpose |
-|------|--------|---------|
-| Migration SQL | Create | 9 tables + RLS + seed trigger + storage bucket |
-| `src/types/task.ts` | Create | TypeScript interfaces |
-| `src/services/useTasks.ts` | Create | All query/mutation hooks |
-| `src/pages/Tasks.tsx` | Rewrite | Two-pane layout replacing Coming Soon |
-| `src/components/tasks/TaskInnerSidebar.tsx` | Create | Workspace + Spaces sidebar |
-| `src/components/tasks/TaskListView.tsx` | Create | Status-grouped task list |
-| `src/components/tasks/TaskRow.tsx` | Create | Single task row |
-| `src/components/tasks/TaskQuickAdd.tsx` | Create | Inline task creation |
-| `src/components/tasks/TaskDetailPage.tsx` | Create | Full task detail view |
-| `src/components/tasks/ManageDialog.tsx` | Create | Status/Category management |
-| `src/components/tasks/CreateSpaceDialog.tsx` | Create | New space creation |
-| `src/App.tsx` | Modify | Add nested task routes |
-| `src/services/index.ts` | Modify | Export new hooks |
+### Contact Listing
+- Header: "Contacts" title with "Import Contacts" and "+ Create New" buttons (top-right)
+- Search bar with assignee filter, "Show Archived" toggle, "Filters" button, "Manage Columns"
+- Grid/List view toggle icons
+- Table with sortable columns: Name (with avatar), Email, Actions, Phone, Source, Rating (with colored icons: Hot=red fire, Warm=orange handshake, Cold=blue snowflake)
+- Pagination at bottom: page numbers + "Result per page" dropdown + total count
 
-### Technical Notes
+### Contact/Company Detail
+- Opens as a centered Dialog (consistent with Task detail pattern)
+- Layout mirrors TeamMemberProfile:
+  - Left column: avatar/logo, name, title, company, key info cards
+  - Right column: tabs for Activity, Notes
+  - Editable fields using the existing `EditableField` and `ClickToEdit` components
 
-- The inner sidebar (Workspace + Spaces) is rendered **inside** the Tasks content area, not as part of the app-level navigation. The app sidebar and top bar are untouched.
-- The Wiki module uses the same two-pane pattern (WikiSidebar + content) -- we follow the same approach.
-- Default statuses are auto-seeded via a database trigger when a space is created, matching the mockup groups: To Do, In Progress, In Review, Completed.
-- Default categories: Email, Call, Call Back, Reminder (with appropriate icons).
-- All data access is scoped by `organization_id` using existing `is_org_member` RLS helper.
-- The Figma link requires authentication to view, so the plan is based entirely on the PDF mockups provided.
+---
+
+## Technical Details
+
+### Files to Create
+1. `supabase/migrations/..._crm_tables.sql` -- DB migration
+2. `src/types/crm.ts` -- Type definitions
+3. `src/services/useCRM.ts` -- React Query hooks
+4. `src/pages/CRM.tsx` -- Rewrite from ComingSoon to full module
+5. `src/components/crm/CRMSidebar.tsx`
+6. `src/components/crm/ContactListView.tsx`
+7. `src/components/crm/CompanyListView.tsx`
+8. `src/components/crm/ContactDetailDialog.tsx`
+9. `src/components/crm/CompanyDetailDialog.tsx`
+10. `src/components/crm/AddContactDialog.tsx`
+11. `src/components/crm/AddCompanyDialog.tsx`
+
+### Files to Modify
+1. `src/App.tsx` -- Add CRM sub-routes (`/crm/*`)
+2. `src/types/index.ts` -- Export CRM types
+3. `src/services/index.ts` -- Export CRM service hooks
+4. `src/components/TopNav.tsx` -- Remove `isStatic` and `ownerOnly` from CRM nav item (if not already done)
+
+### Implementation Sequence
+1. Database migration (tables + RLS + enable feature flag)
+2. Types and service hooks
+3. Contact listing with sidebar
+4. Company listing
+5. Contact detail dialog (profile-style)
+6. Company detail dialog (profile-style, with linked contacts)
+7. Create/edit dialogs for both
+8. Wire routing and navigation
 
