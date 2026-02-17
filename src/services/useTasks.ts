@@ -243,9 +243,7 @@ export const useTasks = (spaceId: string | undefined, filters?: TaskFilters) => 
         .select(`
           *,
           status:task_statuses(*),
-          category:task_categories(*),
-          assignee:employees!tasks_assignee_id_fkey(id, full_name:profiles(full_name, avatar_url)),
-          reporter:employees!tasks_reporter_id_fkey(id, full_name:profiles(full_name, avatar_url))
+          category:task_categories(*)
         `)
         .eq('space_id', spaceId)
         .eq('is_archived', false)
@@ -262,19 +260,26 @@ export const useTasks = (spaceId: string | undefined, filters?: TaskFilters) => 
       const { data, error } = await query;
       if (error) throw error;
 
-      // Flatten nested joins
+      // Enrich with assignee/reporter from employee_directory
+      const empIds = new Set<string>();
+      (data || []).forEach((t: any) => {
+        if (t.assignee_id) empIds.add(t.assignee_id);
+        if (t.reporter_id) empIds.add(t.reporter_id);
+      });
+      
+      let empMap = new Map<string, { id: string; full_name: string; avatar_url: string | null }>();
+      if (empIds.size > 0) {
+        const { data: emps } = await supabase
+          .from('employee_directory')
+          .select('id, full_name, avatar_url')
+          .in('id', [...empIds]);
+        (emps || []).forEach((e: any) => empMap.set(e.id, e));
+      }
+
       return (data || []).map((t: any) => ({
         ...t,
-        assignee: t.assignee?.full_name ? {
-          id: t.assignee.id,
-          full_name: t.assignee.full_name?.full_name,
-          avatar_url: t.assignee.full_name?.avatar_url,
-        } : null,
-        reporter: t.reporter?.full_name ? {
-          id: t.reporter.id,
-          full_name: t.reporter.full_name?.full_name,
-          avatar_url: t.reporter.full_name?.avatar_url,
-        } : null,
+        assignee: t.assignee_id ? empMap.get(t.assignee_id) || null : null,
+        reporter: t.reporter_id ? empMap.get(t.reporter_id) || null : null,
       })) as TaskWithRelations[];
     },
     enabled: !!spaceId,
@@ -441,17 +446,24 @@ export const useTaskComments = (taskId: string | undefined) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('task_comments')
-        .select('*, employee:employees!task_comments_employee_id_fkey(id, full_name:profiles(full_name, avatar_url))')
+        .select('*')
         .eq('task_id', taskId!)
         .order('created_at', { ascending: true });
       if (error) throw error;
+
+      const empIds = [...new Set((data || []).map((c: any) => c.employee_id).filter(Boolean))];
+      let empMap = new Map<string, { id: string; full_name: string; avatar_url: string | null }>();
+      if (empIds.length > 0) {
+        const { data: emps } = await supabase
+          .from('employee_directory')
+          .select('id, full_name, avatar_url')
+          .in('id', empIds);
+        (emps || []).forEach((e: any) => empMap.set(e.id, e));
+      }
+
       return (data || []).map((c: any) => ({
         ...c,
-        employee: c.employee?.full_name ? {
-          id: c.employee.id,
-          full_name: c.employee.full_name?.full_name,
-          avatar_url: c.employee.full_name?.avatar_url,
-        } : null,
+        employee: c.employee_id ? empMap.get(c.employee_id) || null : null,
       })) as TaskCommentWithAuthor[];
     },
     enabled: !!taskId,
@@ -488,17 +500,24 @@ export const useTaskActivityLogs = (taskId: string | undefined) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('task_activity_logs')
-        .select('*, actor:employees!task_activity_logs_actor_id_fkey(id, full_name:profiles(full_name, avatar_url))')
+        .select('*')
         .eq('task_id', taskId!)
         .order('created_at', { ascending: false });
       if (error) throw error;
+
+      const actorIds = [...new Set((data || []).map((l: any) => l.actor_id).filter(Boolean))];
+      let actorMap = new Map<string, { id: string; full_name: string; avatar_url: string | null }>();
+      if (actorIds.length > 0) {
+        const { data: emps } = await supabase
+          .from('employee_directory')
+          .select('id, full_name, avatar_url')
+          .in('id', actorIds);
+        (emps || []).forEach((e: any) => actorMap.set(e.id, e));
+      }
+
       return (data || []).map((l: any) => ({
         ...l,
-        actor: l.actor?.full_name ? {
-          id: l.actor.id,
-          full_name: l.actor.full_name?.full_name,
-          avatar_url: l.actor.full_name?.avatar_url,
-        } : null,
+        actor: l.actor_id ? actorMap.get(l.actor_id) || null : null,
       })) as TaskActivityLogWithActor[];
     },
     enabled: !!taskId,
@@ -513,13 +532,24 @@ export const useTaskFollowers = (taskId: string | undefined) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('task_followers')
-        .select('*, employee:employees!task_followers_employee_id_fkey(id, full_name:profiles(full_name, avatar_url))')
+        .select('*')
         .eq('task_id', taskId!);
       if (error) throw error;
+
+      const empIds = [...new Set((data || []).map((f: any) => f.employee_id).filter(Boolean))];
+      let empMap = new Map<string, { id: string; full_name: string; avatar_url: string | null }>();
+      if (empIds.length > 0) {
+        const { data: emps } = await supabase
+          .from('employee_directory')
+          .select('id, full_name, avatar_url')
+          .in('id', empIds);
+        (emps || []).forEach((e: any) => empMap.set(e.id, e));
+      }
+
       return (data || []).map((f: any) => ({
         ...f,
-        full_name: f.employee?.full_name?.full_name,
-        avatar_url: f.employee?.full_name?.avatar_url,
+        full_name: empMap.get(f.employee_id)?.full_name,
+        avatar_url: empMap.get(f.employee_id)?.avatar_url,
       }));
     },
     enabled: !!taskId,
