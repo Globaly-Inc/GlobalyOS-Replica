@@ -300,7 +300,26 @@ export const useTask = (taskId: string | undefined) => {
         .eq('id', taskId!)
         .single();
       if (error) throw error;
-      return data as TaskWithRelations;
+
+      // Enrich with assignee/reporter from employee_directory
+      const empIds = new Set<string>();
+      if (data.assignee_id) empIds.add(data.assignee_id);
+      if (data.reporter_id) empIds.add(data.reporter_id);
+
+      let empMap = new Map<string, { id: string; full_name: string; avatar_url: string | null }>();
+      if (empIds.size > 0) {
+        const { data: emps } = await supabase
+          .from('employee_directory')
+          .select('id, full_name, avatar_url')
+          .in('id', [...empIds]);
+        (emps || []).forEach((e: any) => empMap.set(e.id, e));
+      }
+
+      return {
+        ...data,
+        assignee: data.assignee_id ? empMap.get(data.assignee_id) || null : null,
+        reporter: data.reporter_id ? empMap.get(data.reporter_id) || null : null,
+      } as TaskWithRelations;
     },
     enabled: !!taskId,
   });

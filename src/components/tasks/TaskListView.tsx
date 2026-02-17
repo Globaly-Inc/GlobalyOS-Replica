@@ -43,22 +43,6 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, onTaskClick
     tasks: tasks.filter(t => t.status_id === status.id),
   }));
 
-  // Build grid template from visible columns
-  const gridTemplate = visibleColumns.map(col => {
-    switch (col.key) {
-      case 'name': return '1fr';
-      case 'category': return '120px';
-      case 'assignee': return '100px';
-      case 'tags': return '120px';
-      case 'comments': return '60px';
-      case 'attachments': return '60px';
-      case 'priority': return '80px';
-      case 'due_date': return '100px';
-      default: return '100px';
-    }
-  }).join('_');
-
-  const gridClass = `grid gap-2`;
   const gridStyle = {
     gridTemplateColumns: visibleColumns.map(col => {
       switch (col.key) {
@@ -117,7 +101,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, onTaskClick
                 {/* Column headers */}
                 {statusTasks.length > 0 && (
                   <div
-                    className={cn(gridClass, 'px-3 py-1 text-xs text-muted-foreground border-t bg-muted/20')}
+                    className={cn('grid gap-2', 'px-3 py-1 text-xs text-muted-foreground border-t bg-muted/20')}
                     style={gridStyle}
                   >
                     {visibleColumns.map(col => (

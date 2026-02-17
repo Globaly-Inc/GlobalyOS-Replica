@@ -10,7 +10,9 @@ import { ManageDialog } from '../components/tasks/ManageDialog';
 import { TaskDetailPage } from '../components/tasks/TaskDetailPage';
 import { TaskFilterPopover } from '../components/tasks/TaskFilterPopover';
 import { TaskColumnCustomizer, getDefaultColumns } from '../components/tasks/TaskColumnCustomizer';
+import { AddTaskDialog } from '../components/tasks/AddTaskDialog';
 import { useTaskSpaces } from '@/services/useTasks';
+import { useTaskListRealtime } from '@/services/useTaskDetailRealtime';
 import type { TaskSpaceRow, TaskFilters } from '@/types/task';
 import { cn } from '@/lib/utils';
 
@@ -20,6 +22,7 @@ const Tasks = () => {
   const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [showManage, setShowManage] = useState(false);
+  const [showAddTask, setShowAddTask] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [filters, setFilters] = useState<TaskFilters>({});
@@ -29,6 +32,9 @@ const Tasks = () => {
 
   const activeSpaceId = selectedSpaceId || spaces[0]?.id || null;
   const activeSpace = spaces.find(s => s.id === activeSpaceId);
+
+  // Realtime for the active space
+  useTaskListRealtime(activeSpaceId);
 
   const breadcrumb = useMemo(() => {
     if (!activeSpace) return [];
@@ -173,7 +179,7 @@ const Tasks = () => {
                 <Settings className="h-3.5 w-3.5" />
                 Manage
               </Button>
-              <Button size="sm" className="h-8 gap-1.5">
+              <Button size="sm" className="h-8 gap-1.5" onClick={() => setShowAddTask(true)}>
                 <Plus className="h-3.5 w-3.5" />
                 Add Task
               </Button>
@@ -202,6 +208,7 @@ const Tasks = () => {
             </div>
 
             <ManageDialog open={showManage} onOpenChange={setShowManage} spaceId={activeSpaceId} />
+            <AddTaskDialog open={showAddTask} onOpenChange={setShowAddTask} spaceId={activeSpaceId} />
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">

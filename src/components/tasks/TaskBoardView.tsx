@@ -16,6 +16,7 @@ import {
   verticalListSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable';
+import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Plus } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -135,9 +136,10 @@ interface BoardColumnProps {
 
 const BoardColumn = ({ status, tasks, categories, spaceId, onTaskClick, isAddingTask, onAddTask, onDoneAdding }: BoardColumnProps) => {
   const taskIds = tasks.map(t => t.id);
+  const { setNodeRef: setDropRef } = useDroppable({ id: status.id });
 
   return (
-    <div className="w-72 shrink-0 flex flex-col bg-muted/30 rounded-lg border">
+    <div className="w-72 shrink-0 flex flex-col bg-muted/30 rounded-lg border" ref={setDropRef}>
       {/* Column header */}
       <div className="flex items-center gap-2 px-3 py-2.5 border-b">
         <div

@@ -1,6 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { X, ChevronLeft, ChevronRight, Bell, BellOff, Calendar, Tag, Clock, Send } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { X, ChevronLeft, ChevronRight, Bell, BellOff, Send, Copy, Trash2, MoreHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -10,17 +9,19 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import {
-  useTask, useUpdateTask,
+  useTask, useUpdateTask, useCreateTask, useDeleteTask,
   useTaskStatuses, useTaskCategories,
   useTaskChecklists, useCreateTaskChecklist, useUpdateTaskChecklist, useDeleteTaskChecklist,
   useTaskComments, useCreateTaskComment,
   useTaskActivityLogs,
   useTaskFollowers, useToggleTaskFollower,
 } from '@/services/useTasks';
+import { useTaskDetailRealtime } from '@/services/useTaskDetailRealtime';
 import { useCurrentEmployee } from '@/services/useCurrentEmployee';
-import type { TaskWithRelations, TaskCommentWithAuthor, TaskActivityLogWithActor } from '@/types/task';
+import type { TaskWithRelations } from '@/types/task';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -48,17 +49,31 @@ export const TaskDetailPage = ({ taskId, onClose, onPrev, onNext }: TaskDetailPa
   const { data: followers = [] } = useTaskFollowers(taskId);
   const { data: currentEmployee } = useCurrentEmployee();
   const updateTask = useUpdateTask();
+  const createTask = useCreateTask();
+  const deleteTask = useDeleteTask();
   const createChecklist = useCreateTaskChecklist();
   const updateChecklist = useUpdateTaskChecklist();
   const deleteChecklist = useDeleteTaskChecklist();
   const createComment = useCreateTaskComment();
   const toggleFollower = useToggleTaskFollower();
 
+  // Realtime
+  useTaskDetailRealtime(taskId);
+
   const [editingTitle, setEditingTitle] = useState(false);
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [newChecklistItem, setNewChecklistItem] = useState('');
   const [commentText, setCommentText] = useState('');
   const [activeTab, setActiveTab] = useState<'comments' | 'logs'>('comments');
+  const [newTag, setNewTag] = useState('');
+
+  // Sync description from task data
+  useEffect(() => {
+    if (task) {
+      setDescription(task.description || '');
+    }
+  }, [task?.id, task?.description]);
 
   if (!task) {
     return (
@@ -88,6 +103,12 @@ export const TaskDetailPage = ({ taskId, onClose, onPrev, onNext }: TaskDetailPa
     }
   };
 
+  const handleDescriptionBlur = () => {
+    if (description !== (task.description || '')) {
+      handleFieldUpdate('description', description || null);
+    }
+  };
+
   const handleAddChecklist = async () => {
     if (!newChecklistItem.trim()) return;
     await createChecklist.mutateAsync({
@@ -104,14 +125,77 @@ export const TaskDetailPage = ({ taskId, onClose, onPrev, onNext }: TaskDetailPa
     setCommentText('');
   };
 
+  const handleAddTag = () => {
+    const tag = newTag.trim();
+    if (!tag) return;
+    const currentTags = task.tags || [];
+    if (currentTags.includes(tag)) {
+      setNewTag('');
+      return;
+    }
+    handleFieldUpdate('tags', [...currentTags, tag]);
+    setNewTag('');
+  };
+
+  const handleRemoveTag = (tag: string) => {
+    handleFieldUpdate('tags', (task.tags || []).filter(t => t !== tag));
+  };
+
+  const handleDuplicate = async () => {
+    try {
+      await createTask.mutateAsync({
+        space_id: task.space_id,
+        status_id: task.status_id,
+        title: `${task.title} (copy)`,
+        description: task.description,
+        category_id: task.category_id,
+        priority: task.priority,
+        tags: task.tags,
+        due_date: task.due_date,
+      });
+      toast.success('Task duplicated');
+    } catch {
+      toast.error('Failed to duplicate');
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      await deleteTask.mutateAsync({ id: task.id, spaceId: task.space_id });
+      toast.success('Task deleted');
+      onClose();
+    } catch {
+      toast.error('Failed to delete');
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b shrink-0">
-        <div className="flex-1 text-xs text-muted-foreground">
-          Created {task.created_at ? format(new Date(task.created_at), 'MMM d, yyyy') : ''}
+        <div className="flex-1 flex items-center gap-2 text-xs text-muted-foreground">
+          <span>Created {task.created_at ? format(new Date(task.created_at), 'MMM d, yyyy') : ''}</span>
+          {task.reporter && (
+            <span>by {task.reporter.full_name}</span>
+          )}
         </div>
         <div className="flex items-center gap-1">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleDuplicate}>
+                <Copy className="h-3.5 w-3.5 mr-2" /> Duplicate
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleDelete} className="text-destructive focus:text-destructive">
+                <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {onPrev && (
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onPrev}>
               <ChevronLeft className="h-4 w-4" />
@@ -215,6 +299,22 @@ export const TaskDetailPage = ({ taskId, onClose, onPrev, onNext }: TaskDetailPa
               />
             </div>
 
+            {/* Assignee */}
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground w-20 shrink-0">Assignee</span>
+              {task.assignee ? (
+                <div className="flex items-center gap-1.5">
+                  <Avatar className="h-5 w-5">
+                    <AvatarImage src={task.assignee.avatar_url || undefined} />
+                    <AvatarFallback className="text-[10px]">{task.assignee.full_name?.charAt(0) || '?'}</AvatarFallback>
+                  </Avatar>
+                  <span className="text-xs">{task.assignee.full_name}</span>
+                </div>
+              ) : (
+                <span className="text-xs text-muted-foreground">Unassigned</span>
+              )}
+            </div>
+
             {/* Followers */}
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground w-20 shrink-0">Followers</span>
@@ -256,12 +356,25 @@ export const TaskDetailPage = ({ taskId, onClose, onPrev, onNext }: TaskDetailPa
             {/* Tags */}
             <div className="flex items-center gap-2 col-span-2">
               <span className="text-muted-foreground w-20 shrink-0">Tags</span>
-              <div className="flex gap-1 flex-wrap">
+              <div className="flex gap-1 flex-wrap items-center">
                 {(task.tags || []).map(tag => (
-                  <Badge key={tag} variant="outline" className="text-[10px] h-5">
+                  <Badge
+                    key={tag}
+                    variant="outline"
+                    className="text-[10px] h-5 gap-1 cursor-pointer hover:bg-destructive/10"
+                    onClick={() => handleRemoveTag(tag)}
+                  >
                     {tag}
+                    <X className="h-2.5 w-2.5" />
                   </Badge>
                 ))}
+                <Input
+                  value={newTag}
+                  onChange={(e) => setNewTag(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
+                  placeholder="+ Add tag"
+                  className="h-5 text-[10px] w-20 border-none shadow-none px-1 focus-visible:ring-0"
+                />
               </div>
             </div>
           </div>
@@ -272,13 +385,9 @@ export const TaskDetailPage = ({ taskId, onClose, onPrev, onNext }: TaskDetailPa
           <div className="mb-6">
             <h3 className="text-sm font-medium mb-2">Description</h3>
             <Textarea
-              value={task.description || ''}
-              onChange={(e) => {/* Debounced update in future */}}
-              onBlur={(e) => {
-                if (e.target.value !== (task.description || '')) {
-                  handleFieldUpdate('description', e.target.value || null);
-                }
-              }}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              onBlur={handleDescriptionBlur}
               placeholder="Add a description..."
               className="min-h-[80px] text-sm"
             />
