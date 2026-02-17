@@ -1,21 +1,25 @@
 import { useState, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Search, SlidersHorizontal, Plus, Settings, LayoutList, LayoutGrid } from 'lucide-react';
+import { Search, SlidersHorizontal, Plus, Settings, LayoutList, Columns3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useTasks, useTaskStatuses, useTaskCategories } from '@/services/useTasks';
 import { TaskListView } from '../components/tasks/TaskListView';
+import { TaskBoardView } from '../components/tasks/TaskBoardView';
 import { TaskInnerSidebar } from '../components/tasks/TaskInnerSidebar';
 import { ManageDialog } from '../components/tasks/ManageDialog';
 import { TaskDetailPage } from '../components/tasks/TaskDetailPage';
 import { useTaskSpaces } from '@/services/useTasks';
 import type { TaskSpaceRow } from '@/types/task';
+import { cn } from '@/lib/utils';
+
+type ViewMode = 'list' | 'board';
 
 const Tasks = () => {
   const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [showManage, setShowManage] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
 
   const { data: spaces = [] } = useTaskSpaces();
 
@@ -125,6 +129,35 @@ const Tasks = () => {
                 <SlidersHorizontal className="h-3.5 w-3.5" />
                 Filters
               </Button>
+
+              {/* View toggle */}
+              <div className="flex items-center border rounded-md overflow-hidden">
+                <button
+                  className={cn(
+                    'flex items-center gap-1 px-2.5 py-1 text-xs transition-colors',
+                    viewMode === 'list'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  )}
+                  onClick={() => setViewMode('list')}
+                >
+                  <LayoutList className="h-3.5 w-3.5" />
+                  List
+                </button>
+                <button
+                  className={cn(
+                    'flex items-center gap-1 px-2.5 py-1 text-xs transition-colors',
+                    viewMode === 'board'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  )}
+                  onClick={() => setViewMode('board')}
+                >
+                  <Columns3 className="h-3.5 w-3.5" />
+                  Board
+                </button>
+              </div>
+
               <div className="flex-1" />
               <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => setShowManage(true)}>
                 <Settings className="h-3.5 w-3.5" />
@@ -136,15 +169,25 @@ const Tasks = () => {
               </Button>
             </div>
 
-            {/* Task list */}
+            {/* Task content */}
             <div className="flex-1 overflow-auto p-6">
-              <TaskListView
-                statuses={statuses}
-                tasks={tasks}
-                categories={categories}
-                spaceId={activeSpaceId}
-                onTaskClick={handleTaskClick}
-              />
+              {viewMode === 'list' ? (
+                <TaskListView
+                  statuses={statuses}
+                  tasks={tasks}
+                  categories={categories}
+                  spaceId={activeSpaceId}
+                  onTaskClick={handleTaskClick}
+                />
+              ) : (
+                <TaskBoardView
+                  statuses={statuses}
+                  tasks={tasks}
+                  categories={categories}
+                  spaceId={activeSpaceId}
+                  onTaskClick={handleTaskClick}
+                />
+              )}
             </div>
 
             {/* Manage dialog */}
