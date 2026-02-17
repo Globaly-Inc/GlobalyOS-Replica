@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Search, Plus, Settings, LayoutList, Columns3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useTasks, useTaskStatuses, useTaskCategories } from '@/services/useTasks';
 import { TaskListView } from '../components/tasks/TaskListView';
 import { TaskBoardView } from '../components/tasks/TaskBoardView';
@@ -80,25 +81,23 @@ const Tasks = () => {
     }
   };
 
-  if (selectedTaskId) {
-    return (
-      <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
-        <TaskInnerSidebar selectedSpaceId={activeSpaceId} onSelectSpace={handleSelectSpace} />
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <TaskDetailPage
-            taskId={selectedTaskId}
-            onClose={() => setSelectedTaskId(null)}
-            onPrev={tasks.findIndex(t => t.id === selectedTaskId) > 0 ? () => handleTaskNav('prev') : undefined}
-            onNext={tasks.findIndex(t => t.id === selectedTaskId) < tasks.length - 1 ? () => handleTaskNav('next') : undefined}
-          />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
       <TaskInnerSidebar selectedSpaceId={activeSpaceId} onSelectSpace={handleSelectSpace} />
+
+      {/* Task Detail Dialog */}
+      <Dialog open={!!selectedTaskId} onOpenChange={(open) => { if (!open) setSelectedTaskId(null); }}>
+        <DialogContent className="max-w-5xl w-[95vw] h-[85vh] p-0 gap-0 overflow-hidden">
+          {selectedTaskId && (
+            <TaskDetailPage
+              taskId={selectedTaskId}
+              onClose={() => setSelectedTaskId(null)}
+              onPrev={tasks.findIndex(t => t.id === selectedTaskId) > 0 ? () => handleTaskNav('prev') : undefined}
+              onNext={tasks.findIndex(t => t.id === selectedTaskId) < tasks.length - 1 ? () => handleTaskNav('next') : undefined}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <div className="flex-1 flex flex-col overflow-hidden">
         {activeSpaceId && activeSpace ? (
