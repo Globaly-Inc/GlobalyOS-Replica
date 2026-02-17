@@ -130,3 +130,6 @@ export * from './task';
 
 // Activity types
 export * from './activity';
+
+// CRM types
+export * from './crm';
