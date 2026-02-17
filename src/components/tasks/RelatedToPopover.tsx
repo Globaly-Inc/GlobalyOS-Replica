@@ -1,0 +1,157 @@
+import { useState, useMemo } from 'react';
+import { Search, Link2, X } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useEmployees } from '@/services/useEmployees';
+import { supabase } from '@/integrations/supabase/client';
+import { useOrganization } from '@/hooks/useOrganization';
+import { useQuery } from '@tanstack/react-query';
+
+const ENTITY_TYPES = [
+  { value: 'employee', label: 'Employee' },
+  { value: 'department', label: 'Department' },
+] as const;
+
+type EntityType = typeof ENTITY_TYPES[number]['value'];
+
+interface RelatedToPopoverProps {
+  entityType: string | null;
+  entityId: string | null;
+  onUpdate: (type: string | null, id: string | null) => void;
+  children: React.ReactNode;
+}
+
+export const RelatedToPopover = ({ entityType, entityId, onUpdate, children }: RelatedToPopoverProps) => {
+  const [open, setOpen] = useState(false);
+  const [selectedType, setSelectedType] = useState<EntityType | null>((entityType as EntityType) || null);
+  const [search, setSearch] = useState('');
+
+  const handleSelect = (type: string, id: string) => {
+    onUpdate(type, id);
+    setOpen(false);
+    setSearch('');
+    setSelectedType(null);
+  };
+
+  const handleClear = () => {
+    onUpdate(null, null);
+    setOpen(false);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>{children}</PopoverTrigger>
+      <PopoverContent className="w-72 p-0" align="start">
+        <div className="px-3 py-2 border-b flex items-center justify-between">
+          <span className="text-sm font-medium">Related To</span>
+          {entityId && (
+            <button className="text-xs text-muted-foreground hover:text-destructive" onClick={handleClear}>
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+
+        {!selectedType ? (
+          <div className="p-2 space-y-0.5">
+            {ENTITY_TYPES.map(t => (
+              <button
+                key={t.value}
+                className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors"
+                onClick={() => setSelectedType(t.value)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <>
+            <div className="p-2 border-b">
+              <div className="flex items-center gap-2 mb-2">
+                <Badge variant="outline" className="text-[10px] cursor-pointer" onClick={() => setSelectedType(null)}>
+                  ← {ENTITY_TYPES.find(t => t.value === selectedType)?.label}
+                </Badge>
+              </div>
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search..."
+                  className="h-7 text-xs pl-7"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <ScrollArea className="max-h-[200px]">
+              <EntityList type={selectedType} search={search} onSelect={(id) => handleSelect(selectedType, id)} />
+            </ScrollArea>
+          </>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+const EntityList = ({ type, search, onSelect }: { type: EntityType; search: string; onSelect: (id: string) => void }) => {
+  if (type === 'employee') return <EmployeeList search={search} onSelect={onSelect} />;
+  if (type === 'department') return <DepartmentList search={search} onSelect={onSelect} />;
+  return null;
+};
+
+const EmployeeList = ({ search, onSelect }: { search: string; onSelect: (id: string) => void }) => {
+  const { data: employees = [] } = useEmployees({ status: 'active', includeOffice: false });
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return employees.filter((e: any) => (e.profiles?.full_name || '').toLowerCase().includes(q));
+  }, [employees, search]);
+
+  return (
+    <div className="p-1">
+      {filtered.map((emp: any) => (
+        <button
+          key={emp.id}
+          className="w-full text-left px-3 py-1.5 text-xs rounded-md hover:bg-muted transition-colors"
+          onClick={() => onSelect(emp.id)}
+        >
+          {emp.profiles?.full_name || 'Unknown'}
+        </button>
+      ))}
+      {filtered.length === 0 && <p className="text-xs text-muted-foreground text-center py-3">No results</p>}
+    </div>
+  );
+};
+
+const DepartmentList = ({ search, onSelect }: { search: string; onSelect: (id: string) => void }) => {
+  const { currentOrg } = useOrganization();
+  const { data: departments = [] } = useQuery({
+    queryKey: ['departments', currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [];
+      const { data } = await supabase.from('departments').select('id, name').eq('organization_id', currentOrg.id).order('name');
+      return data || [];
+    },
+    enabled: !!currentOrg?.id,
+  });
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return departments.filter((d: any) => d.name.toLowerCase().includes(q));
+  }, [departments, search]);
+
+  return (
+    <div className="p-1">
+      {filtered.map((dept: any) => (
+        <button
+          key={dept.id}
+          className="w-full text-left px-3 py-1.5 text-xs rounded-md hover:bg-muted transition-colors"
+          onClick={() => onSelect(dept.id)}
+        >
+          {dept.name}
+        </button>
+      ))}
+      {filtered.length === 0 && <p className="text-xs text-muted-foreground text-center py-3">No results</p>}
+    </div>
+  );
+};
