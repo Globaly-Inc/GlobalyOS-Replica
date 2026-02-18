@@ -5,6 +5,119 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+interface StageTemplate {
+  stage_name: string;
+  name: string;
+  subject: string;
+  body: string;
+}
+
+async function callAI(LOVABLE_API_KEY: string, systemPrompt: string, userPrompt: string): Promise<StageTemplate[]> {
+  const tools = [
+    {
+      type: 'function',
+      function: {
+        name: 'generate_stage_templates',
+        description: 'Return email templates for each hiring stage',
+        parameters: {
+          type: 'object',
+          properties: {
+            templates: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  stage_name: { type: 'string', description: 'The stage name exactly as provided' },
+                  name: { type: 'string', description: 'Short friendly template name, e.g. "Application Received"' },
+                  subject: { type: 'string', description: 'Email subject line using {{job_title}} and {{company_name}} variables' },
+                  body: { type: 'string', description: 'Full email body using {{candidate_name}}, {{job_title}}, {{company_name}} variables, 80-120 words' },
+                },
+                required: ['stage_name', 'name', 'subject', 'body'],
+                additionalProperties: false,
+              },
+            },
+          },
+          required: ['templates'],
+          additionalProperties: false,
+        },
+      },
+    },
+  ];
+
+  // Primary attempt: tool calling with gemini-2.5-flash (stable model)
+  const primaryRes = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      tools,
+      tool_choice: { type: 'function', function: { name: 'generate_stage_templates' } },
+    }),
+  });
+
+  if (primaryRes.ok) {
+    const data = await primaryRes.json();
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    if (toolCall?.function?.arguments) {
+      const parsed = JSON.parse(toolCall.function.arguments);
+      if (Array.isArray(parsed.templates) && parsed.templates.length > 0) {
+        return parsed.templates;
+      }
+    }
+  } else {
+    const errText = await primaryRes.text();
+    console.error('Primary AI call failed:', primaryRes.status, errText.slice(0, 300));
+    if (primaryRes.status === 429) throw new Error('RATE_LIMIT');
+    if (primaryRes.status === 402) throw new Error('PAYMENT_REQUIRED');
+  }
+
+  // Fallback attempt: plain JSON via openai/gpt-5-mini
+  console.log('Falling back to JSON mode with gpt-5-mini...');
+  const fallbackRes = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'openai/gpt-5-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        {
+          role: 'user',
+          content: userPrompt + '\n\nRespond with ONLY a valid JSON object in the format: {"templates": [{"stage_name": "...", "name": "...", "subject": "...", "body": "..."}]}',
+        },
+      ],
+      response_format: { type: 'json_object' },
+    }),
+  });
+
+  if (!fallbackRes.ok) {
+    const errText = await fallbackRes.text();
+    console.error('Fallback AI call failed:', fallbackRes.status, errText.slice(0, 300));
+    if (fallbackRes.status === 429) throw new Error('RATE_LIMIT');
+    if (fallbackRes.status === 402) throw new Error('PAYMENT_REQUIRED');
+    throw new Error('AI_UNAVAILABLE');
+  }
+
+  const fallbackData = await fallbackRes.json();
+  const content = fallbackData.choices?.[0]?.message?.content;
+  if (!content) throw new Error('AI_NO_CONTENT');
+
+  const parsed = JSON.parse(content);
+  if (!Array.isArray(parsed.templates) || parsed.templates.length === 0) {
+    throw new Error('AI_INVALID_STRUCTURE');
+  }
+  return parsed.templates;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -68,90 +181,24 @@ For each stage, write a unique email appropriate to that stage in the hiring pro
 
 Return one template per stage.`;
 
-    const tools = [
-      {
-        type: 'function',
-        function: {
-          name: 'generate_stage_templates',
-          description: 'Return email templates for each hiring stage',
-          parameters: {
-            type: 'object',
-            properties: {
-              templates: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    stage_name: { type: 'string', description: 'The stage name exactly as provided' },
-                    name: { type: 'string', description: 'Short friendly template name, e.g. "Application Received"' },
-                    subject: { type: 'string', description: 'Email subject line using {{job_title}} and {{company_name}} variables' },
-                    body: { type: 'string', description: 'Full email body using {{candidate_name}}, {{job_title}}, {{company_name}} variables, 80-120 words' },
-                  },
-                  required: ['stage_name', 'name', 'subject', 'body'],
-                  additionalProperties: false,
-                },
-              },
-            },
-            required: ['templates'],
-            additionalProperties: false,
-          },
-        },
-      },
-    ];
-
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        tools,
-        tool_choice: { type: 'function', function: { name: 'generate_stage_templates' } },
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
+    let generated: StageTemplate[];
+    try {
+      generated = await callAI(LOVABLE_API_KEY, systemPrompt, userPrompt);
+    } catch (err: any) {
+      if (err.message === 'RATE_LIMIT') {
         return new Response(JSON.stringify({ error: 'Rate limit exceeded, please try again later.' }), {
           status: 429,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      if (aiResponse.status === 402) {
+      if (err.message === 'PAYMENT_REQUIRED') {
         return new Response(JSON.stringify({ error: 'AI usage credits required. Please add credits to your workspace.' }), {
           status: 402,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      const errText = await aiResponse.text();
-      console.error('AI gateway error:', aiResponse.status, errText);
-      return new Response(JSON.stringify({ error: 'AI generation failed' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const aiData = await aiResponse.json();
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall) {
-      return new Response(JSON.stringify({ error: 'AI did not return structured output' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    let generated: Array<{ stage_name: string; name: string; subject: string; body: string }>;
-    try {
-      const parsed = JSON.parse(toolCall.function.arguments);
-      generated = parsed.templates;
-    } catch {
-      return new Response(JSON.stringify({ error: 'Failed to parse AI output' }), {
+      console.error('AI generation error:', err);
+      return new Response(JSON.stringify({ error: 'AI generation failed. Please try again in a moment.' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -164,7 +211,6 @@ Return one template per stage.`;
           (s: any) => s.stage_name.toLowerCase() === tpl.stage_name.toLowerCase(),
         );
         if (!matchedStage) {
-          // Fallback: match by index order
           const idx = generated.indexOf(tpl);
           return stagesToGenerate[idx]
             ? {
