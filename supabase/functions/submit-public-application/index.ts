@@ -340,6 +340,35 @@ Deno.serve(async (req) => {
 
     console.log(`Created application: ${application.id}`);
 
+    // Step 7: Trigger application_received email notification (fire-and-forget)
+    try {
+      const notifyUrl = `${supabaseUrl}/functions/v1/send-hiring-notification`;
+      const notifyRes = await fetch(notifyUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${serviceRoleKey}`,
+          'apikey': serviceRoleKey,
+        },
+        body: JSON.stringify({
+          organization_id: org.id,
+          trigger_type: 'application_received',
+          candidate_id: candidateId,
+          application_id: application.id,
+          job_id: jobId,
+        }),
+      });
+      if (!notifyRes.ok) {
+        const errText = await notifyRes.text();
+        console.warn('Hiring notification warning:', errText);
+      } else {
+        await notifyRes.text(); // consume body
+        console.log('application_received notification triggered');
+      }
+    } catch (notifyErr) {
+      console.warn('Failed to trigger hiring notification (non-fatal):', notifyErr);
+    }
+
     // Step 6: Log activity
     await supabase
       .from('hiring_activity_logs')
