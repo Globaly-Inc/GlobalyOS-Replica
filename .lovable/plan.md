@@ -1,100 +1,105 @@
 
-## Enable Email Triggers by Default with AI-Generated Templates
+## Assignment Page OTP Gate — Candidate Email Verification
 
-### What's Being Done
+### What's Being Built
 
-Two things need to happen:
+The public assignment page (`/assignment/:token`) currently lets anyone who has the URL open and submit the assignment with no identity check. We need to add a **one-time password (OTP) email gate**: when a candidate visits the link, they must enter their email, receive a 6-digit OTP, and verify it before seeing the assignment. Anyone who isn't the assigned candidate sees a clear rejection message.
 
-1. **Email triggers ON by default** — When a pipeline is created (or stages initialized), every stage should have `email_trigger_type = 'stage_entry'` set automatically instead of `null`.
-
-2. **AI-generated default email templates** — A new edge function (`generate-stage-email-templates`) will use the Lovable AI gateway to generate sensible email templates for each stage (subject + body), then bulk-insert them into `hiring_email_templates` scoped to each `stage_id`. This is triggered once per pipeline/stage when no template exists.
+Separately, the **email template** for the "Assignment Sent" pipeline stage (or `assignment_sent` trigger) will be updated to include the direct assignment link and OTP access instructions as template variables.
 
 ---
 
 ### Architecture
 
 ```text
-User opens Hiring Settings → Pipeline Settings
-  └── For each stage with no template:
-        └── "Generate Default Templates" button (or auto-trigger on page load)
-              └── Edge Function: generate-stage-email-templates
-                    ├── Accepts: [{ stage_id, stage_name, organization_id }]
-                    ├── Calls Lovable AI (gemini-3-flash-preview) with a prompt per stage
-                    ├── Returns: [{ stage_id, name, subject, body }]
-                    └── Inserts into hiring_email_templates with stage_id set
+Candidate receives email:
+  └── "Complete your assessment" + link + instructions
+        └── Visits /assignment/:token
+              └── Step 1: Email gate
+                    ├── Enter email
+                    ├── POST /send-assignment-otp (new edge function)
+                    │     ├── Look up assignment_instances by secure_token
+                    │     ├── Get candidate email from joined candidate_applications → candidates
+                    │     ├── If email MATCHES → generate 6-digit OTP, store in otp_codes, send email
+                    │     └── If NOT matched → return 403 "not assigned to you"
+                    └── Step 2: OTP entry
+                          └── POST /verify-assignment-otp (new edge function)
+                                ├── Verify code from otp_codes (reuse same table, scoped by email)
+                                └── Return { verified: true, candidateEmail } → show assignment
 ```
 
 ---
 
-### Changes Required
+### What Changes
 
-#### 1. `PipelineSettingsSection.tsx` — Default `email_trigger_type = 'stage_entry'`
+#### 1. New Edge Function: `send-assignment-otp`
 
-In the rule initialization `useEffect`, change the default for new rules from `email_trigger_type: null` to `email_trigger_type: 'stage_entry'`. Also update `is_active: true` for new rules so they are saved.
+Accepts: `{ token: string, email: string }`
 
-This means every stage, when first seen, will default to having the email trigger enabled. The toggle in the UI will show ON for all stages by default.
+Logic:
+- Fetch `assignment_instances` by `secure_token = token` (with joined candidate email)
+- Normalise both emails to lowercase and compare
+- If **no match**: return `{ error: 'This assignment has not been assigned to you.', notAssigned: true }` (HTTP 403)
+- If **match**: generate a 6-digit OTP, insert into `otp_codes` table (exactly as `send-otp` does), send email via Resend with a simple "Your assignment verification code: XXXXXX" template
+- Rate-limit: same as existing `send-otp` (3 per email per hour)
 
-Also add a **"Generate Email Templates" button** in the pipeline card header area that calls the new edge function to bulk-generate AI templates for all stages in that pipeline that don't yet have one.
+#### 2. New Edge Function: `verify-assignment-otp`
 
-#### 2. New Edge Function: `supabase/functions/generate-stage-email-templates/index.ts`
+Accepts: `{ token: string, email: string, code: string }`
 
-Accepts:
-```json
-{
-  "organization_id": "...",
-  "stages": [
-    { "stage_id": "uuid", "stage_name": "Applied", "pipeline_name": "Default Pipeline" },
-    ...
-  ],
-  "company_name": "Acme Corp"
-}
-```
+Logic:
+- Re-verify the assignment belongs to this email (double-check)
+- Look up `otp_codes` by `email + verified=false`, check expiry and code match
+- On success: mark OTP as `verified = true`, return `{ verified: true }`
+- On failure: increment `failed_attempts`, return error
 
-- For each stage, calls Lovable AI with a tailored prompt to generate:
-  - `name`: Template name (e.g., "Application Received")
-  - `subject`: Email subject line
-  - `body`: Plain-text email body (using `{{candidate_name}}`, `{{job_title}}`, `{{company_name}}` variables)
-- Uses tool calling to get structured output per stage
-- Inserts all templates into `hiring_email_templates` with `organization_id`, `stage_id`, `template_type = 'stage_entry'`, `is_active = true`
-- Skips stages that already have a template for their `stage_id`
+These two functions are **separate from the login OTP** functions — they don't create sessions or affect auth. They are purely an identity gate for the public assignment page.
 
-**Stage-specific AI prompts examples:**
-- **Applied**: "Thank you for applying" confirmation email
-- **Screening**: "We're reviewing your application" status update  
-- **Assignment**: "Please complete this assignment" with next steps
-- **Interview 1/2/3**: "You've been selected for an interview" scheduling email
-- **Offer**: "We're pleased to offer you" offer notification
-- **Hired**: "Welcome to the team" onboarding email
+#### 3. `AssignmentSubmission.tsx` — Add OTP Gate UI
 
-#### 3. `PipelineCard.tsx` — Add "Generate Templates" Button
-
-Add a button in the `PipelineCard` header (next to the Save button) labelled **"Generate Email Templates"** with a Sparkles icon. It:
-- Is visible when at least one stage in the pipeline has `effectiveTrigger` set but no matched template
-- Shows loading state while calling the edge function
-- On completion, invalidates the `['hiring', 'email-templates']` query so templates appear instantly
-
-#### 4. `PipelineSettingsSection.tsx` — Auto-save rules on initialization
-
-When stage rules are initialized with defaults (step 1), trigger `saveMutation` automatically so the `email_trigger_type = 'stage_entry'` is persisted to the DB, not just local state.
-
----
-
-### UI Flow After Change
+Replace the current "show assignment immediately" behaviour with a **3-state flow**:
 
 ```
-[Pipeline: Default Pipeline]  [Generate Email Templates ✨]  [Save Rules]
+State 1 — EMAIL_ENTRY (default)
+  ┌──────────────────────────────────────────────────────┐
+  │  🔒  Verify your identity                            │
+  │  Enter the email address this assignment was         │
+  │  sent to.                                            │
+  │                                                      │
+  │  [Email address ____________________]                │
+  │  [Send Verification Code]                            │
+  └──────────────────────────────────────────────────────┘
 
-  ▼ Applied         ● Email  ● Assign  ...
-  ▼ Screening       ● Email  ...
-  ▼ Assignment      ● Email  ...
-  ...
+State 2 — OTP_ENTRY (after sending OTP)
+  ┌──────────────────────────────────────────────────────┐
+  │  📧  Check your email                                │
+  │  We sent a 6-digit code to j***@example.com          │
+  │                                                      │
+  │  [_ _ _ _ _ _]  (OTP input)                         │
+  │  [Verify Code]          [← Back]                     │
+  │  Didn't get it? [Resend]                             │
+  └──────────────────────────────────────────────────────┘
 
-When "Generate Email Templates" is clicked:
-  → Loading spinner
-  → AI generates 8 templates in one call
-  → Templates appear instantly in each stage accordion
-  → Toast: "Email templates generated for all stages"
+State 3 — VERIFIED (show assignment)
+  → Normal assignment page content renders
 ```
+
+**Error case** (wrong email): Show inline error message — "This assignment has not been assigned to you. Please check your email and try again."
+
+The `token` from `useParams` is still used to load the assignment data, but only **after** OTP is verified. The query for `useAssignmentByToken` is gated: `enabled: verified`.
+
+#### 4. Update `send-hiring-notification` Template Variable
+
+Add `{{assignment_link}}` and `{{assignment_instructions}}` to the variable replacement map in `send-hiring-notification/index.ts`:
+
+```
+{{assignment_link}}         → https://globalyos.lovable.app/assignment/{secure_token}
+{{assignment_instructions}} → "Visit the link and enter your email to receive a verification code, then enter it to access your assignment."
+```
+
+These will be fetched when `assignment_id` is present in the notification payload. The `assignment_sent` stage email template body already exists and can be updated by users in the Email Automation settings to include these variables.
+
+Also update the default AI-generated "Assignment" stage template body (in `generate-stage-email-templates`) to include these variables automatically.
 
 ---
 
@@ -102,22 +107,42 @@ When "Generate Email Templates" is clicked:
 
 | File | Change |
 |---|---|
-| `supabase/functions/generate-stage-email-templates/index.ts` | **New** edge function using Lovable AI |
-| `src/components/hiring/PipelineCard.tsx` | Add "Generate Email Templates" button + handler prop |
-| `src/components/hiring/PipelineSettingsSection.tsx` | Default `email_trigger_type: 'stage_entry'` on init; pass handler to PipelineCard; auto-save when new rules are defaulted |
+| `supabase/functions/send-assignment-otp/index.ts` | **New** — validates email vs assignment, sends OTP |
+| `supabase/functions/verify-assignment-otp/index.ts` | **New** — verifies OTP code for assignment access |
+| `supabase/functions/send-hiring-notification/index.ts` | Add `{{assignment_link}}` + `{{assignment_instructions}}` variable substitution when `assignment_id` is present |
+| `src/pages/AssignmentSubmission.tsx` | Add 3-state OTP gate UI before showing assignment |
+| `supabase/config.toml` | Register 2 new edge functions with `verify_jwt = false` |
 
-No DB migration needed — the `stage_id` column already exists from the previous change.
+No database migration needed — the existing `otp_codes` table is reused as-is.
 
 ---
 
-### AI Prompt Strategy (inside edge function)
+### Security Considerations
 
-Uses a single AI call with tool calling to generate all stage templates at once, passing all stage names in one request. This is faster and cheaper than one call per stage.
+- The OTP check is **server-side** (edge function compares emails) — the client cannot bypass it by passing a different email
+- The `secure_token` in the URL is long and random (already generated with `generateSecureToken()`), so guessing URLs is infeasible
+- Rate limiting is applied per email (3 OTP requests/hour) to prevent abuse
+- OTPs expire in 10 minutes and are deleted after successful verification
+- The assignment data query (`useAssignmentByToken`) only runs **after** OTP is verified client-side — but even if called without verification, the existing RLS on `assignment_instances` protects the DB
+
+---
+
+### Email Template Variable Example
+
+After the change, users can put this in their Assignment stage email template body:
 
 ```
-System: You are an HR communications expert writing professional candidate-facing emails.
-User: Generate email templates for these hiring pipeline stages for {{company_name}}: [Applied, Screening, Assignment, Interview 1, Offer, Hired]. 
-      Use {{candidate_name}}, {{job_title}}, {{company_name}} as variables.
-      Keep each email 80-120 words, warm, professional, and encouraging.
-Tool: generate_stage_templates → returns array of { stage_name, name, subject, body }
+Hi {{candidate_name}},
+
+Please complete the assessment for the {{job_title}} position:
+
+👉 {{assignment_link}}
+
+To access the page:
+1. Click the link above
+2. Enter your email: {{candidate_email}}
+3. Enter the verification code sent to your inbox
+4. Complete and submit the assignment before {{deadline}}
+
+{{assignment_instructions}}
 ```
