@@ -323,3 +323,9 @@ verify_jwt = false
 
 [functions.generate-stage-email-templates]
 verify_jwt = false
+
+[functions.send-assignment-otp]
+verify_jwt = false
+
+[functions.verify-assignment-otp]
+verify_jwt = false

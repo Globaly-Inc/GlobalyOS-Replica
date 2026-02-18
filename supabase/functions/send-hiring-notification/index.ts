@@ -121,6 +121,25 @@ const handler = async (req: Request): Promise<Response> => {
       job = data?.job;
     }
 
+    // Get assignment details if applicable
+    let assignmentInstance = null;
+    if (body.assignment_id) {
+      const { data } = await supabase
+        .from("assignment_instances")
+        .select("secure_token, title, deadline")
+        .eq("id", body.assignment_id)
+        .single();
+      assignmentInstance = data;
+    }
+
+    const siteUrl = Deno.env.get("SITE_URL") || "https://globalyos.lovable.app";
+    const assignmentLink = assignmentInstance?.secure_token
+      ? `${siteUrl}/assignment/${assignmentInstance.secure_token}`
+      : "";
+    const assignmentInstructions = assignmentInstance
+      ? `To access your assignment:\n1. Click the link above\n2. Enter your email address\n3. Enter the verification code sent to your inbox\n4. Complete and submit your assignment before the deadline`
+      : "";
+
     // Replace template variables
     const replacements: Record<string, string> = {
       "{{candidate_name}}": candidate.name || "Candidate",
@@ -128,7 +147,9 @@ const handler = async (req: Request): Promise<Response> => {
       "{{candidate_email}}": candidate.email,
       "{{job_title}}": job?.title || "the position",
       "{{company_name}}": org?.name || "our company",
-      "{{application_link}}": `${Deno.env.get("SITE_URL") || "https://globalyos.lovable.app"}/careers/${org?.slug || organization_id}`,
+      "{{application_link}}": `${siteUrl}/careers/${org?.slug || organization_id}`,
+      "{{assignment_link}}": assignmentLink,
+      "{{assignment_instructions}}": assignmentInstructions,
     };
 
     let subject = template.subject;

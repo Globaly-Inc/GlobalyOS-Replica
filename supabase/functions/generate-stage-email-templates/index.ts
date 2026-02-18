@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
 For each stage, write a unique email appropriate to that stage in the hiring process:
 - Applied / Application Received: warm "thank you for applying" confirmation
 - Screening / Phone Screen: "we're reviewing your application" status update  
-- Assignment / Take-home: "please complete this assignment" with encouragement
+- Assignment / Take-home: "please complete this assignment" with a link to access it. Include {{assignment_link}} prominently so the candidate can click it. After the link, add {{assignment_instructions}} on its own line to explain how to access the assignment with OTP verification.
 - Interview 1 / Interview 2 / Interview 3: "you've been selected for an interview" scheduling email
 - Offer: "we're pleased to extend an offer" notification
 - Hired / Welcome: "welcome to the team" onboarding email
