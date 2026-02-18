@@ -60,6 +60,7 @@ import {
   useCreateEmailTemplate,
   useUpdateEmailTemplate,
 } from '@/services/useHiringMutations';
+import { PlaceholderDropdown } from '@/components/hiring/PlaceholderDropdown';
 import {
   DndContext,
   closestCenter,
@@ -200,6 +201,26 @@ function EmailTemplateDialog({ open, onClose, triggerType, stageId, existingTemp
   const bodyValue = watch('body');
   const bodyRef = useAutoResize(bodyValue ?? '');
   const { ref: registerBodyRef, ...registerBodyProps } = register('body');
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const handleInsertPlaceholder = (key: string) => {
+    const el = textareaRef.current;
+    if (!el) {
+      // fallback: append
+      setValue('body', (bodyValue ?? '') + key);
+      return;
+    }
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? 0;
+    const current = bodyValue ?? '';
+    const next = current.slice(0, start) + key + current.slice(end);
+    setValue('body', next);
+    // restore cursor after inserted text
+    setTimeout(() => {
+      el.focus();
+      el.setSelectionRange(start + key.length, start + key.length);
+    }, 0);
+  };
 
   const handleOpenChange = (val: boolean) => {
     if (!val) {
@@ -268,11 +289,6 @@ function EmailTemplateDialog({ open, onClose, triggerType, stageId, existingTemp
             {errors.subject && (
               <p className="text-xs text-destructive">{errors.subject.message}</p>
             )}
-            <p className="text-xs text-muted-foreground">
-              Use <code className="bg-muted px-1 rounded text-[10px]">{'{{candidate_name}}'}</code>,{' '}
-              <code className="bg-muted px-1 rounded text-[10px]">{'{{job_title}}'}</code>,{' '}
-              <code className="bg-muted px-1 rounded text-[10px]">{'{{company_name}}'}</code> for dynamic values.
-            </p>
           </div>
 
           {/* Body */}
@@ -284,6 +300,7 @@ function EmailTemplateDialog({ open, onClose, triggerType, stageId, existingTemp
               ref={(el) => {
                 registerBodyRef(el);
                 (bodyRef as React.MutableRefObject<HTMLTextAreaElement | null>).current = el;
+                textareaRef.current = el;
               }}
               placeholder={`Dear {{candidate_name}},\n\nThank you for applying...`}
               style={{ minHeight: '80px', maxHeight: '480px', overflowY: 'hidden' }}
@@ -291,14 +308,17 @@ function EmailTemplateDialog({ open, onClose, triggerType, stageId, existingTemp
             />
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isEdit ? 'Save Changes' : 'Create Template'}
-            </Button>
+          <DialogFooter className="flex items-center justify-between gap-2">
+            <PlaceholderDropdown onInsert={handleInsertPlaceholder} />
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isPending}>
+                {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                {isEdit ? 'Save Changes' : 'Create Template'}
+              </Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>
