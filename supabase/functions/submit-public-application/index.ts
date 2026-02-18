@@ -171,10 +171,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Step 2: Verify job exists, is open, and is public
+    // Step 2: Verify job exists, is open, and visible for the appropriate channel
+    const isInternalApplication = sourceOfApplication === 'internal';
     const { data: job, error: jobError } = await supabase
       .from('jobs')
-      .select('id, title, status, is_public_visible')
+      .select('id, title, status, is_public_visible, is_internal_visible, is_internal_apply')
       .eq('id', jobId)
       .eq('organization_id', org.id)
       .single();
@@ -194,11 +195,28 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!job.is_public_visible) {
-      return new Response(
-        JSON.stringify({ error: 'This position is not available for public applications' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (isInternalApplication) {
+      // For internal applications, job must be visible and open for internal apply
+      if (!job.is_internal_visible) {
+        return new Response(
+          JSON.stringify({ error: 'This position is not available for internal applications' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (!job.is_internal_apply) {
+        return new Response(
+          JSON.stringify({ error: 'Internal applications are not enabled for this position' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else {
+      // For public applications, job must be publicly visible
+      if (!job.is_public_visible) {
+        return new Response(
+          JSON.stringify({ error: 'This position is not available for public applications' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Step 3: Check if candidate already exists by email
