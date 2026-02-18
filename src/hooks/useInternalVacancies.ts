@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 
 export interface InternalVacancy {
   id: string;
@@ -18,6 +19,8 @@ export interface InternalVacancy {
 export const useInternalVacancies = () => {
   const { currentOrg } = useOrganization();
   const orgId = currentOrg?.id;
+  const { data: employee } = useCurrentEmployee();
+  const employeeId = employee?.id;
 
   const { data: vacancies = [], isLoading } = useQuery({
     queryKey: ['internal-vacancies', orgId],
@@ -42,5 +45,26 @@ export const useInternalVacancies = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  return { vacancies, isLoading };
+  // Fetch job IDs the current employee has already applied to
+  const { data: appliedJobIds = [] } = useQuery({
+    queryKey: ['internal-vacancies-applied', orgId, employeeId],
+    queryFn: async () => {
+      if (!orgId || !employeeId) return [];
+      const { data, error } = await supabase
+        .from('candidate_applications')
+        .select('job_id, candidates!inner(employee_id)')
+        .eq('organization_id', orgId)
+        .eq('candidates.employee_id', employeeId);
+
+      if (error) {
+        console.error('Error fetching applied jobs:', error);
+        return [];
+      }
+      return (data ?? []).map((row: any) => row.job_id as string);
+    },
+    enabled: !!orgId && !!employeeId,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  return { vacancies, isLoading, appliedJobIds };
 };

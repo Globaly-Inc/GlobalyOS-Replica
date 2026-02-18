@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useCurrentEmployee } from '@/services/useCurrentEmployee';
 import { useOrganization } from '@/hooks/useOrganization';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface InternalApplyDialogProps {
   open: boolean;
@@ -28,6 +29,7 @@ const MAX_SIZE = 25 * 1024 * 1024;
 export const InternalApplyDialog = ({ open, onOpenChange, vacancy }: InternalApplyDialogProps) => {
   const { data: employee } = useCurrentEmployee();
   const { currentOrg } = useOrganization();
+  const queryClient = useQueryClient();
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -72,6 +74,7 @@ export const InternalApplyDialog = ({ open, onOpenChange, vacancy }: InternalApp
       if (data?.error) throw new Error(data.error);
 
       toast.success('Application submitted successfully!');
+      queryClient.invalidateQueries({ queryKey: ['internal-vacancies-applied'] });
       onOpenChange(false);
       setResumeFile(null);
     } catch (err: any) {
