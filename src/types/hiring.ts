@@ -506,6 +506,7 @@ export interface CreateCandidateInput {
 export interface CreateApplicationInput {
   candidate_id: string;
   job_id: string;
+  stage?: ApplicationStage;
   cv_file_path?: string | null;
   cover_letter?: string | null;
   application_answers?: Record<string, unknown>;

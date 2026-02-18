@@ -38,6 +38,7 @@ import type { JobStatus, ApplicationStage } from '@/types/hiring';
 import { getJobStatusLabel, getJobStatusColor, APPLICATION_STAGE_LABELS, APPLICATION_STAGE_COLORS } from '@/types/hiring';
 import { countryToFlag } from '@/utils/countryFlag';
 import { HiringKanbanBoard } from '@/components/hiring/pipeline/HiringKanbanBoard';
+import { AddCandidateToPipelineDialog } from '@/components/hiring/pipeline/AddCandidateToPipelineDialog';
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
@@ -84,11 +85,13 @@ export default function JobDetail() {
   const isDraft = job?.status === 'draft';
   const [activeTab, setActiveTab] = useState<string | undefined>(undefined);
   const resolvedTab = activeTab ?? (isDraft ? 'description' : 'pipeline');
+  const [pipelineStage, setPipelineStage] = useState<ApplicationStage>('applied');
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [addCandidateOpen, setAddCandidateOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<AssignmentTemplateForPosition | null>(null);
 
   const handleStatusChange = async (newStatus: JobStatus) => {
@@ -410,11 +413,19 @@ export default function JobDetail() {
 
       {/* Tabs */}
       <Tabs value={resolvedTab} onValueChange={setActiveTab}>
-        <TabsList>
-          {!isDraft && <TabsTrigger value="pipeline">Pipeline</TabsTrigger>}
-          <TabsTrigger value="description">Description</TabsTrigger>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between gap-3">
+          <TabsList>
+            {!isDraft && <TabsTrigger value="pipeline">Pipeline</TabsTrigger>}
+            <TabsTrigger value="description">Description</TabsTrigger>
+            <TabsTrigger value="activity">Activity</TabsTrigger>
+          </TabsList>
+          {resolvedTab === 'pipeline' && !isDraft && (
+            <Button size="sm" onClick={() => setAddCandidateOpen(true)}>
+              <UserPlus className="h-4 w-4" />
+              Add Candidate
+            </Button>
+          )}
+        </div>
 
         {!isDraft && (
           <TabsContent value="pipeline" className="mt-6">
@@ -427,9 +438,21 @@ export default function JobDetail() {
                 jobId={job.id}
                 applications={applications || []}
                 stages={stages || []}
+                onStageChange={setPipelineStage}
               />
             )}
           </TabsContent>
+        )}
+
+        {job && (
+          <AddCandidateToPipelineDialog
+            open={addCandidateOpen}
+            onOpenChange={setAddCandidateOpen}
+            jobId={job.id}
+            stages={stages || []}
+            defaultStage={pipelineStage}
+            existingCandidateIds={(applications || []).map(a => a.candidate_id)}
+          />
         )}
 
         <TabsContent value="description" className="mt-6">

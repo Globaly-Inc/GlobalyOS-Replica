@@ -17,6 +17,7 @@ interface HiringKanbanBoardProps {
   jobId: string;
   applications: CandidateApplicationWithRelations[];
   stages: JobStage[];
+  onStageChange?: (stage: ApplicationStage) => void;
 }
 
 const DEFAULT_STAGES: ApplicationStage[] = [
@@ -30,7 +31,7 @@ const DEFAULT_STAGES: ApplicationStage[] = [
   'hired',
 ];
 
-export function HiringKanbanBoard({ jobId, applications, stages }: HiringKanbanBoardProps) {
+export function HiringKanbanBoard({ jobId, applications, stages, onStageChange }: HiringKanbanBoardProps) {
   const updateStage = useUpdateApplicationStage();
   const [draggedApp, setDraggedApp] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
@@ -46,6 +47,11 @@ export function HiringKanbanBoard({ jobId, applications, stages }: HiringKanbanB
   const [selectedStage, setSelectedStage] = useState<ApplicationStage>(
     (firstWithCandidates as ApplicationStage) || 'applied'
   );
+
+  const handleStageChange = (stage: ApplicationStage) => {
+    setSelectedStage(stage);
+    onStageChange?.(stage);
+  };
 
   const applicationsByStage = displayStages.reduce((acc, stage) => {
     acc[stage] = applications.filter(app => app.stage === stage);
@@ -93,7 +99,7 @@ export function HiringKanbanBoard({ jobId, applications, stages }: HiringKanbanB
         stage: newStage,
       });
       toast.success(`Moved to ${APPLICATION_STAGE_LABELS[newStage]}`);
-      setSelectedStage(newStage);
+      handleStageChange(newStage);
     } catch (error) {
       toast.error('Failed to update stage');
     }
@@ -120,7 +126,7 @@ export function HiringKanbanBoard({ jobId, applications, stages }: HiringKanbanB
                 ${isDropHover && draggedApp ? 'ring-2 ring-primary ring-inset bg-primary/5' : ''}
               `}
               style={{ borderLeftColor: borderColor }}
-              onClick={() => setSelectedStage(stage as ApplicationStage)}
+              onClick={() => handleStageChange(stage as ApplicationStage)}
               onDragOver={(e) => handleStageDragOver(e, stage)}
               onDragLeave={handleStageDragLeave}
               onDrop={(e) => handleStageDrop(e, stage as ApplicationStage)}
