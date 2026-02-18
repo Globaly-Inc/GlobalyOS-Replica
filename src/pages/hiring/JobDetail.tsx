@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { DatePicker } from '@/components/ui/date-picker';
 import { InternalApplyDialog } from '@/components/hiring/InternalApplyDialog';
 import { ShareVacancyDialog } from '@/components/hiring/ShareVacancyDialog';
 import { useParams } from 'react-router-dom';
@@ -93,6 +94,37 @@ export default function JobDetail() {
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [addCandidateOpen, setAddCandidateOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<AssignmentTemplateForPosition | null>(null);
+  const [reopenDialogOpen, setReopenDialogOpen] = useState(false);
+  const [reopenStartDate, setReopenStartDate] = useState('');
+  const [reopenCloseDate, setReopenCloseDate] = useState('');
+  const [isReopening, setIsReopening] = useState(false);
+
+  const handleReopenClick = () => {
+    setReopenStartDate((job as any)?.target_start_date?.split('T')[0] || '');
+    setReopenCloseDate((job as any)?.application_close_date?.split('T')[0] || '');
+    setReopenDialogOpen(true);
+  };
+
+  const handleReopenConfirm = async () => {
+    if (!job) return;
+    setIsReopening(true);
+    try {
+      await updateJob.mutateAsync({
+        jobId: job.id,
+        input: {
+          status: 'open',
+          target_start_date: reopenStartDate || null,
+          application_close_date: reopenCloseDate || null,
+        },
+      });
+      toast.success('Vacancy reopened successfully');
+      setReopenDialogOpen(false);
+    } catch {
+      toast.error('Failed to reopen vacancy');
+    } finally {
+      setIsReopening(false);
+    }
+  };
 
   const handleStatusChange = async (newStatus: JobStatus) => {
     if (!job) return;
@@ -274,6 +306,18 @@ export default function JobDetail() {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Close vacancy</TooltipContent>
+              </Tooltip>
+            )}
+
+            {isClosed && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button size="sm" variant="outline" onClick={handleReopenClick}>
+                    <Play className="h-4 w-4" />
+                    Reopen
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Reopen vacancy</TooltipContent>
               </Tooltip>
             )}
 
@@ -577,6 +621,47 @@ export default function JobDetail() {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Reopen Vacancy Dialog */}
+      <Dialog open={reopenDialogOpen} onOpenChange={setReopenDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reopen Vacancy</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Set new dates for the reopened vacancy. Both dates are optional.
+          </p>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Start Date</label>
+              <DatePicker
+                value={reopenStartDate}
+                onChange={setReopenStartDate}
+                placeholder="Select start date"
+                clearable
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Application Closing Date</label>
+              <DatePicker
+                value={reopenCloseDate}
+                onChange={setReopenCloseDate}
+                placeholder="Select closing date"
+                clearable
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setReopenDialogOpen(false)} disabled={isReopening}>
+              Cancel
+            </Button>
+            <Button onClick={handleReopenConfirm} disabled={isReopening}>
+              {isReopening && <Loader2 className="h-4 w-4 animate-spin" />}
+              Reopen Vacancy
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
