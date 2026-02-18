@@ -1,30 +1,12 @@
 /**
  * Pipeline Settings Section
- * 1. Pipeline management (add/edit/delete pipelines & stages)
- * 2. Per-stage automation rules (auto-assignments, auto-reject, notifications)
+ * Unified pipeline management with per-stage inline automation rules.
  */
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   APPLICATION_STAGE_LABELS,
   APPLICATION_STAGE_COLORS,
@@ -34,9 +16,10 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Save, Zap, Clock, Bell, Loader2, Plus } from 'lucide-react';
-import { PipelineCard, type Pipeline, type PipelineStage } from './PipelineCard';
+import { Plus } from 'lucide-react';
+import { PipelineCard, type Pipeline, type StageRule, type Employee } from './PipelineCard';
 import { useOrgPipelines } from '@/hooks/useOrgPipelines';
+import { useHiringEmailTemplates } from '@/services/useHiring';
 
 // ── constants ──────────────────────────────────────────────────
 
@@ -46,14 +29,12 @@ const PIPELINE_STAGES: ApplicationStage[] = [
   'offer', 'hired',
 ];
 
-const DEFAULT_STAGES: { stage_key: ApplicationStage; name: string }[] = PIPELINE_STAGES.map((k, i) => ({
+const DEFAULT_STAGES: { stage_key: ApplicationStage; name: string }[] = PIPELINE_STAGES.map(k => ({
   stage_key: k,
   name: APPLICATION_STAGE_LABELS[k],
 }));
 
 // ── hooks ──────────────────────────────────────────────────────
-
-// useOrgPipelines is now imported from @/hooks/useOrgPipelines
 
 function usePipelineStageRules(orgId: string | undefined) {
   return useQuery({
@@ -84,23 +65,10 @@ function useOrgEmployees(orgId: string | undefined) {
         .eq('status', 'active')
         .order('full_name');
       if (error) throw error;
-      return data || [];
+      return (data || []) as Employee[];
     },
     enabled: !!orgId,
   });
-}
-
-// ── stage rule type ────────────────────────────────────────────
-
-interface StageRule {
-  id?: string;
-  stage_key: string;
-  auto_assignment_template_id: string | null;
-  auto_assign_enabled: boolean;
-  auto_reject_after_hours: number | null;
-  auto_reject_on_deadline: boolean;
-  notify_employee_ids: string[];
-  is_active: boolean;
 }
 
 // ── component ──────────────────────────────────────────────────
@@ -112,7 +80,8 @@ export function PipelineSettingsSection() {
 
   const { data: pipelines, isLoading: pipelinesLoading } = useOrgPipelines(orgId);
   const { data: existingRules, isLoading: rulesLoading } = usePipelineStageRules(orgId);
-  const { data: employees } = useOrgEmployees(orgId);
+  const { data: employees = [] } = useOrgEmployees(orgId);
+  const { data: emailTemplates = [] } = useHiringEmailTemplates();
 
   const [stageRules, setStageRules] = useState<Record<string, StageRule>>({});
   const [initialized, setInitialized] = useState(false);
@@ -164,6 +133,7 @@ export function PipelineSettingsSection() {
             auto_reject_after_hours: existing.auto_reject_after_hours,
             auto_reject_on_deadline: existing.auto_reject_on_deadline,
             notify_employee_ids: existing.notify_employee_ids || [],
+            email_trigger_type: (existing as any).email_trigger_type ?? null,
             is_active: existing.is_active,
           }
         : {
@@ -173,6 +143,7 @@ export function PipelineSettingsSection() {
             auto_reject_after_hours: null,
             auto_reject_on_deadline: false,
             notify_employee_ids: [],
+            email_trigger_type: null,
             is_active: false,
           };
     }
@@ -320,6 +291,7 @@ export function PipelineSettingsSection() {
           auto_reject_after_hours: r.auto_reject_after_hours || null,
           auto_reject_on_deadline: r.auto_reject_on_deadline,
           notify_employee_ids: r.notify_employee_ids,
+          email_trigger_type: r.email_trigger_type || null,
           is_active: r.is_active,
         }));
       if (upserts.length === 0) return;
@@ -329,10 +301,10 @@ export function PipelineSettingsSection() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success('Pipeline settings saved');
+      toast.success('Pipeline rules saved');
       queryClient.invalidateQueries({ queryKey: ['pipeline-stage-rules'] });
     },
-    onError: () => toast.error('Failed to save pipeline settings'),
+    onError: () => toast.error('Failed to save pipeline rules'),
   });
 
   // ── loading state ──
@@ -341,16 +313,23 @@ export function PipelineSettingsSection() {
     return <Skeleton className="h-96" />;
   }
 
-  const activeCount = Object.values(stageRules).filter(r => r.is_active).length;
+  // Flatten email templates to match expected shape
+  const flatTemplates = (emailTemplates as any[]).map(t => ({
+    id: t.id,
+    name: t.name,
+    template_type: t.template_type,
+    is_active: t.is_active,
+  }));
 
   return (
     <div className="space-y-6">
-      {/* ── Pipeline Management ── */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle>Pipelines</CardTitle>
-            <CardDescription>Create and customize hiring pipelines with custom stages</CardDescription>
+            <CardDescription>
+              Create and customize hiring pipelines. Expand each stage to configure automation rules, notifications, and email triggers.
+            </CardDescription>
           </div>
           <Button onClick={() => addPipelineMutation.mutate()} disabled={addPipelineMutation.isPending} size="sm">
             <Plus className="h-4 w-4 mr-1" /> Add Pipeline
@@ -361,128 +340,22 @@ export function PipelineSettingsSection() {
             <PipelineCard
               key={pipeline.id}
               pipeline={pipeline}
+              stageRules={stageRules}
+              employees={employees}
+              emailTemplates={flatTemplates}
               onRenamePipeline={(id, name) => renamePipelineMutation.mutate({ id, name })}
               onDeletePipeline={id => deletePipelineMutation.mutate(id)}
               onRenameStage={(id, name) => renameStageMutation.mutate({ id, name })}
               onDeleteStage={id => deleteStageMutation.mutate(id)}
               onAddStage={(pipelineId, stageKey, name) => addStageMutation.mutate({ pipelineId, stageKey, name })}
               onReorderStages={(pipelineId, orderedStageIds) => reorderStagesMutation.mutate({ pipelineId, orderedStageIds })}
+              onRuleChange={updateRule}
+              onSaveRules={() => saveMutation.mutate()}
+              isSavingRules={saveMutation.isPending}
               canDeletePipeline={!pipeline.is_default}
-              canDeleteStage={() => true /* TODO: check candidate_applications */}
+              canDeleteStage={() => true}
             />
           ))}
-        </CardContent>
-      </Card>
-
-      {/* ── Pipeline Stage Rules (automation) ── */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Pipeline Stage Rules</CardTitle>
-            <CardDescription>
-              Configure automation for each hiring stage — auto-assignments, rejection rules, and notifications
-            </CardDescription>
-          </div>
-          <div className="flex items-center gap-2">
-            {activeCount > 0 && <Badge variant="secondary">{activeCount} active</Badge>}
-            <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
-              {saveMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-              Save Changes
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Accordion type="multiple" className="space-y-2">
-            {PIPELINE_STAGES.map(stage => {
-              const rule = stageRules[stage];
-              if (!rule) return null;
-              const color = APPLICATION_STAGE_COLORS[stage];
-              return (
-                <AccordionItem key={stage} value={stage} className="border rounded-lg px-4">
-                  <AccordionTrigger className="hover:no-underline py-3">
-                    <div className="flex items-center gap-3 w-full">
-                      <div className="w-1 h-6 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                      <span className="font-medium text-sm">{APPLICATION_STAGE_LABELS[stage]}</span>
-                      {rule.is_active && (
-                        <Badge variant="default" className="text-[10px] px-1.5 py-0 ml-auto mr-4">Active</Badge>
-                      )}
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="pb-4">
-                    <div className="space-y-5 pt-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Zap className="h-4 w-4 text-muted-foreground" />
-                          <Label className="text-sm font-medium">Enable automation for this stage</Label>
-                        </div>
-                        <Switch checked={rule.is_active} onCheckedChange={checked => updateRule(stage, { is_active: checked })} />
-                      </div>
-                      {rule.is_active && (
-                        <>
-                          <div className="flex items-center justify-between pl-6 border-l-2 border-muted ml-2">
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <Zap className="h-3.5 w-3.5 text-muted-foreground" />
-                                <Label className="text-sm font-medium">Auto-assign assignment</Label>
-                              </div>
-                              <p className="text-xs text-muted-foreground mt-0.5 ml-5.5">
-                                Automatically send the linked assignment when a candidate enters this stage
-                              </p>
-                            </div>
-                            <Switch checked={rule.auto_assign_enabled} onCheckedChange={checked => updateRule(stage, { auto_assign_enabled: checked })} />
-                          </div>
-                          <div className="space-y-3 pl-6 border-l-2 border-muted ml-2">
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                              <Label className="text-sm">Auto-Reject Rules</Label>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <Switch checked={rule.auto_reject_on_deadline} onCheckedChange={checked => updateRule(stage, { auto_reject_on_deadline: checked })} />
-                              <Label className="text-sm text-muted-foreground">Auto-reject when assignment deadline passes</Label>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <Label className="text-sm text-muted-foreground whitespace-nowrap">Auto-reject after</Label>
-                              <Input type="number" min={0} className="w-20" placeholder="—" value={rule.auto_reject_after_hours ?? ''} onChange={e => updateRule(stage, { auto_reject_after_hours: e.target.value ? parseInt(e.target.value) : null })} />
-                              <Label className="text-sm text-muted-foreground">hours in this stage</Label>
-                            </div>
-                          </div>
-                          <div className="space-y-2 pl-6 border-l-2 border-muted ml-2">
-                            <div className="flex items-center gap-2">
-                              <Bell className="h-3.5 w-3.5 text-muted-foreground" />
-                              <Label className="text-sm">Stage Notifications</Label>
-                            </div>
-                            <Select value="placeholder" onValueChange={empId => { if (empId === 'placeholder') return; if (!rule.notify_employee_ids.includes(empId)) { updateRule(stage, { notify_employee_ids: [...rule.notify_employee_ids, empId] }); } }}>
-                              <SelectTrigger className="w-full"><SelectValue placeholder="Add team member to notify..." /></SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="placeholder" disabled>Select a team member...</SelectItem>
-                                {employees?.filter((e: any) => !rule.notify_employee_ids.includes(e.id)).map((e: any) => (
-                                  <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            {rule.notify_employee_ids.length > 0 && (
-                              <div className="flex flex-wrap gap-1.5 mt-1">
-                                {rule.notify_employee_ids.map(empId => {
-                                  const emp = employees?.find((e: any) => e.id === empId);
-                                  return (
-                                    <Badge key={empId} variant="secondary" className="cursor-pointer hover:bg-destructive/20 transition-colors" onClick={() => updateRule(stage, { notify_employee_ids: rule.notify_employee_ids.filter(id => id !== empId) })}>
-                                      {emp ? emp.full_name : empId.slice(0, 8)}
-                                      <span className="ml-1 text-muted-foreground">×</span>
-                                    </Badge>
-                                  );
-                                })}
-                              </div>
-                            )}
-                            <p className="text-xs text-muted-foreground">These team members will be notified when a candidate enters this stage. Click a name to remove.</p>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              );
-            })}
-          </Accordion>
         </CardContent>
       </Card>
     </div>
