@@ -216,12 +216,12 @@ function EmailTemplateDialog({ open, onClose, triggerType, stageId, existingTemp
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-3xl min-h-[70vh]">
+      <DialogContent className="max-w-3xl h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit Email Template' : 'Create Email Template'}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0 gap-4">
           {/* Name */}
           <div className="space-y-1.5">
             <Label htmlFor="tpl-name">
@@ -260,13 +260,13 @@ function EmailTemplateDialog({ open, onClose, triggerType, stageId, existingTemp
           </div>
 
           {/* Body */}
-          <div className="space-y-1.5">
+          <div className="flex flex-col flex-1 min-h-0 space-y-1.5">
             <Label htmlFor="tpl-body">Email Body</Label>
             <Textarea
               id="tpl-body"
               {...register('body')}
               placeholder={`Dear {{candidate_name}},\n\nThank you for applying...`}
-              className="min-h-[140px] resize-y font-mono text-sm"
+              className="flex-1 min-h-0 resize-none font-mono text-sm"
             />
           </div>
 
