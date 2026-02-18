@@ -927,12 +927,19 @@ export function PipelineCard({
   };
 
   const handleAddStage = () => {
-    if (newStageKey && newStageName.trim()) {
-      onAddStage(pipeline.id, newStageKey, newStageName.trim());
-      setNewStageKey('');
-      setNewStageName('');
-      setAddingStage(false);
-    }
+    const trimmedName = newStageName.trim();
+    if (!trimmedName) return;
+    // Auto-generate a unique stage key from the display name
+    const generatedKey = trimmedName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_|_$/g, '');
+    const uniqueKey = usedStageKeys.has(generatedKey as ApplicationStage)
+      ? `${generatedKey}_${Date.now()}`
+      : generatedKey;
+    onAddStage(pipeline.id, uniqueKey, trimmedName);
+    setNewStageName('');
+    setAddingStage(false);
   };
 
   const usedStageKeys = new Set(activeStages.map(s => s.stage_key));
@@ -1077,27 +1084,12 @@ export function PipelineCard({
         {/* Add stage */}
         {addingStage ? (
           <div className="mt-3 flex items-center gap-2">
-            <Select
-              value={newStageKey}
-              onValueChange={v => {
-                setNewStageKey(v);
-                setNewStageName(APPLICATION_STAGE_LABELS[v as ApplicationStage] || v);
-              }}
-            >
-              <SelectTrigger className="h-8 w-40 text-sm">
-                <SelectValue placeholder="Stage type" />
-              </SelectTrigger>
-              <SelectContent>
-                {ALL_STAGE_KEYS.filter(k => !usedStageKeys.has(k)).map(k => (
-                  <SelectItem key={k} value={k}>{APPLICATION_STAGE_LABELS[k]}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <Input
               value={newStageName}
               onChange={e => setNewStageName(e.target.value)}
-              placeholder="Display name"
+              placeholder="Stage name"
               className="h-8 text-sm flex-1"
+              autoFocus
               onKeyDown={e => {
                 if (e.key === 'Enter') handleAddStage();
                 if (e.key === 'Escape') setAddingStage(false);
@@ -1108,7 +1100,7 @@ export function PipelineCard({
               variant="default"
               className="h-8"
               onClick={handleAddStage}
-              disabled={!newStageKey || !newStageName.trim()}
+              disabled={!newStageName.trim()}
             >
               Add
             </Button>
