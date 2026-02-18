@@ -7,6 +7,7 @@ import { useInternalVacancies, InternalVacancy } from '@/hooks/useInternalVacanc
 import { useRelativeTime } from '@/hooks/useRelativeTime';
 import { InternalApplyDialog } from '@/components/hiring/InternalApplyDialog';
 import { ShareVacancyDialog } from '@/components/hiring/ShareVacancyDialog';
+import { VacancyPreviewDialog } from '@/components/hiring/VacancyPreviewDialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const MAX_DISPLAY = 3;
@@ -14,6 +15,7 @@ const MAX_DISPLAY = 3;
 export const InternalVacanciesCard = () => {
   const { vacancies, isLoading } = useInternalVacancies();
   const { getShortRelativeTime } = useRelativeTime();
+  const [previewVacancy, setPreviewVacancy] = useState<InternalVacancy | null>(null);
   const [applyVacancy, setApplyVacancy] = useState<InternalVacancy | null>(null);
   const [shareVacancy, setShareVacancy] = useState<InternalVacancy | null>(null);
 
@@ -41,9 +43,9 @@ export const InternalVacanciesCard = () => {
             return (
               <div key={vacancy.id} className="group rounded-lg p-2.5 -mx-1 transition-colors hover:bg-muted">
                 <div className="flex items-start justify-between gap-2">
-                  <OrgLink
-                    to={`/hiring/vacancies/${vacancy.id}`}
-                    className="flex-1 min-w-0"
+                  <button
+                    onClick={() => setPreviewVacancy(vacancy)}
+                    className="flex-1 min-w-0 text-left"
                   >
                     <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors truncate">
                       {vacancy.title}
@@ -60,7 +62,7 @@ export const InternalVacanciesCard = () => {
                         </span>
                       )}
                     </div>
-                  </OrgLink>
+                  </button>
 
                   <div className="flex items-center gap-0.5 flex-shrink-0 mt-0.5">
                     {vacancy.is_internal_apply && (
@@ -122,6 +124,16 @@ export const InternalVacanciesCard = () => {
           </OrgLink>
         )}
       </Card>
+
+      {previewVacancy && (
+        <VacancyPreviewDialog
+          open={!!previewVacancy}
+          onOpenChange={(open) => !open && setPreviewVacancy(null)}
+          vacancy={previewVacancy}
+          onApply={() => { setApplyVacancy(previewVacancy); setPreviewVacancy(null); }}
+          onShare={() => { setShareVacancy(previewVacancy); setPreviewVacancy(null); }}
+        />
+      )}
 
       {applyVacancy && (
         <InternalApplyDialog
