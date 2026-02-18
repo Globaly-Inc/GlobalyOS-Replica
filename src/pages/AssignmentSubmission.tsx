@@ -14,6 +14,8 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { 
   Clock, 
@@ -33,7 +35,7 @@ import { format, isPast, formatDistanceToNow } from 'date-fns';
 import { HelmetProvider, Helmet } from 'react-helmet-async';
 import DOMPurify from 'dompurify';
 import { AssignmentFileUpload } from '@/components/hiring/AssignmentFileUpload';
-import type { SubmissionData } from '@/types/hiring';
+import type { SubmissionData, AssignmentQuestion } from '@/types/hiring';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -361,7 +363,7 @@ export default function AssignmentSubmission() {
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
           <CardContent className="pt-6 text-center">
-            <CheckCircle2 className="h-16 w-16 mx-auto text-green-500 mb-4" />
+            <CheckCircle2 className="h-16 w-16 mx-auto text-primary mb-4" />
             <h2 className="text-2xl font-semibold mb-2">Assignment Submitted!</h2>
             <p className="text-muted-foreground">
               Thank you for completing the assignment. The team will review your submission and get back to you soon.
@@ -486,6 +488,102 @@ export default function AssignmentSubmission() {
                       />
                     </div>
                   )}
+
+                  {/* Questions */}
+                  {(assignment?.expected_deliverables?.questions ?? []).map((q: AssignmentQuestion, idx: number) => {
+                    const answer = submissionData.text_answers.find(a => a.question === q.id)?.answer ?? '';
+                    const setAnswer = (val: string) => {
+                      setSubmissionData(prev => {
+                        const existing = prev.text_answers.findIndex(a => a.question === q.id);
+                        if (existing >= 0) {
+                          const updated = [...prev.text_answers];
+                          updated[existing] = { question: q.id, answer: val };
+                          return { ...prev, text_answers: updated };
+                        }
+                        return { ...prev, text_answers: [...prev.text_answers, { question: q.id, answer: val }] };
+                      });
+                    };
+
+                    return (
+                      <div key={q.id} className="space-y-3 rounded-lg border border-border/60 p-4 bg-muted/10">
+                        <Label className="text-sm font-medium leading-relaxed">
+                          {idx + 1}. {q.text || `Question ${idx + 1}`}
+                          {q.required && <span className="text-destructive ml-1">*</span>}
+                        </Label>
+
+                        {q.type === 'paragraph' && (
+                          <Textarea
+                            placeholder="Your answer…"
+                            value={answer}
+                            onChange={(e) => setAnswer(e.target.value)}
+                            disabled={isOverdue}
+                            rows={3}
+                            className="resize-none"
+                          />
+                        )}
+
+                        {q.type === 'multiple_choice' && q.options && (
+                          <RadioGroup
+                            value={answer}
+                            onValueChange={setAnswer}
+                            disabled={isOverdue}
+                            className="space-y-2"
+                          >
+                            {q.options.map((opt, oIdx) => (
+                              <div key={oIdx} className="flex items-center space-x-2">
+                                <RadioGroupItem value={opt} id={`q${q.id}-o${oIdx}`} />
+                                <Label htmlFor={`q${q.id}-o${oIdx}`} className="font-normal cursor-pointer">{opt}</Label>
+                              </div>
+                            ))}
+                          </RadioGroup>
+                        )}
+
+                        {q.type === 'file_upload' && (
+                          <AssignmentFileUpload
+                            assignmentId={assignment.id}
+                            token={token || ''}
+                            maxFiles={q.max_files ?? 5}
+                            maxSizeMB={q.max_size_mb ?? 25}
+                            disabled={isOverdue}
+                            onFilesChange={(files) => {
+                              // Store per-question file URLs in text_answers as JSON
+                              setAnswer(JSON.stringify(files.map(f => ({ name: f.name, url: f.url }))));
+                            }}
+                          />
+                        )}
+
+                        {q.type === 'url_input' && (() => {
+                          const isInvalid = answer.length > 0 && !/^https?:\/\//i.test(answer);
+                          return (
+                            <div className="space-y-1.5">
+                              <div className="relative">
+                                <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                  type="url"
+                                  placeholder={q.url_placeholder || 'https://'}
+                                  value={answer}
+                                  onChange={(e) => setAnswer(e.target.value)}
+                                  disabled={isOverdue}
+                                  className={`pl-9 ${isInvalid ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                                />
+                              </div>
+                              {isInvalid && (
+                                <p className="text-xs text-destructive flex items-center gap-1">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  Must be a valid URL starting with https://
+                                </p>
+                              )}
+                              {!isInvalid && (
+                                <p className="text-xs text-muted-foreground">
+                                  Must be a valid URL (https://…)
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    );
+                  })}
                 </CardContent>
               </Card>
 

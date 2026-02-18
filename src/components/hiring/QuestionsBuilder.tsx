@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { Plus, Trash2, ChevronDown, ChevronRight, GripVertical, X } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronRight, X, Upload, Link as LinkIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,6 +18,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { AssignmentQuestion } from '@/types/hiring';
+
+const TYPE_LABELS: Record<AssignmentQuestion['type'], string> = {
+  paragraph: 'Paragraph',
+  multiple_choice: 'Multiple Choice',
+  file_upload: 'File Upload',
+  url_input: 'URL Input',
+};
 
 interface QuestionsBuilderProps {
   questions: AssignmentQuestion[];
@@ -142,8 +149,8 @@ export function QuestionsBuilder({ questions, onChange }: QuestionsBuilderProps)
               <span className="flex-1 text-sm truncate">
                 {q.text || 'Untitled question'}
               </span>
-              <span className="text-xs text-muted-foreground capitalize">
-                {q.type === 'multiple_choice' ? 'Multiple Choice' : 'Paragraph'}
+              <span className="text-xs text-muted-foreground">
+                {TYPE_LABELS[q.type] ?? q.type}
               </span>
               <Button
                 type="button"
@@ -172,12 +179,26 @@ export function QuestionsBuilder({ questions, onChange }: QuestionsBuilderProps)
                     <Label className="text-xs">Type</Label>
                     <Select
                       value={q.type}
-                      onValueChange={(v) =>
-                        updateQuestion(q.id, {
-                          type: v as 'multiple_choice' | 'paragraph',
-                          options: v === 'multiple_choice' ? (q.options?.length ? q.options : ['']) : [],
-                        })
-                      }
+                      onValueChange={(v) => {
+                        const newType = v as AssignmentQuestion['type'];
+                        const patch: Partial<AssignmentQuestion> = { type: newType };
+                        // Clear stale fields when switching
+                        if (newType !== 'multiple_choice') patch.options = [];
+                        if (newType !== 'file_upload') {
+                          patch.max_files = undefined;
+                          patch.max_size_mb = undefined;
+                          patch.accept_all_types = undefined;
+                        }
+                        if (newType !== 'url_input') patch.url_placeholder = undefined;
+                        // Seed defaults for new type
+                        if (newType === 'multiple_choice' && !q.options?.length) patch.options = [''];
+                        if (newType === 'file_upload') {
+                          patch.max_files = q.max_files ?? 5;
+                          patch.max_size_mb = q.max_size_mb ?? 25;
+                          patch.accept_all_types = q.accept_all_types ?? true;
+                        }
+                        updateQuestion(q.id, patch);
+                      }}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -185,6 +206,8 @@ export function QuestionsBuilder({ questions, onChange }: QuestionsBuilderProps)
                       <SelectContent>
                         <SelectItem value="paragraph">Paragraph</SelectItem>
                         <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
+                        <SelectItem value="file_upload">File Upload</SelectItem>
+                        <SelectItem value="url_input">URL Input</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -199,6 +222,7 @@ export function QuestionsBuilder({ questions, onChange }: QuestionsBuilderProps)
                   </div>
                 </div>
 
+                {/* Multiple Choice options */}
                 {q.type === 'multiple_choice' && (
                   <div className="space-y-2">
                     <Label className="text-xs">Options</Label>
@@ -234,6 +258,76 @@ export function QuestionsBuilder({ questions, onChange }: QuestionsBuilderProps)
                       <Plus className="h-3 w-3 mr-1" />
                       Add Option
                     </Button>
+                  </div>
+                )}
+
+                {/* File Upload config */}
+                {q.type === 'file_upload' && (
+                  <div className="space-y-3 rounded-md border border-border/60 bg-muted/20 p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Upload className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-xs font-medium text-muted-foreground">File Upload Settings</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Max Files</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={20}
+                          value={q.max_files ?? 5}
+                          onChange={(e) => updateQuestion(q.id, { max_files: Math.min(20, Math.max(1, Number(e.target.value))) })}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Max Size per File</Label>
+                        <Select
+                          value={String(q.max_size_mb ?? 25)}
+                          onValueChange={(v) => updateQuestion(q.id, { max_size_mb: Number(v) })}
+                        >
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="5">5 MB</SelectItem>
+                            <SelectItem value="10">10 MB</SelectItem>
+                            <SelectItem value="25">25 MB</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={q.accept_all_types ?? true}
+                        onCheckedChange={(v) => updateQuestion(q.id, { accept_all_types: v })}
+                      />
+                      <Label className="text-xs text-muted-foreground">
+                        Accept all file types (PDF, images, docs, etc.)
+                      </Label>
+                    </div>
+                  </div>
+                )}
+
+                {/* URL Input config */}
+                {q.type === 'url_input' && (
+                  <div className="space-y-2 rounded-md border border-border/60 bg-muted/20 p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <LinkIcon className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-xs font-medium text-muted-foreground">URL Input Settings</span>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Placeholder hint (optional)</Label>
+                      <Input
+                        value={q.url_placeholder ?? ''}
+                        onChange={(e) => updateQuestion(q.id, { url_placeholder: e.target.value })}
+                        placeholder="https://github.com/your-repo"
+                        className="text-sm"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Link validation is always enforced: must start with http:// or https://
+                    </p>
                   </div>
                 )}
               </CardContent>

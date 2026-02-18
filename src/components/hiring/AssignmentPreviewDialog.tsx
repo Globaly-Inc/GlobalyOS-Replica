@@ -225,6 +225,32 @@ function AssignmentViewPreview({ formData }: { formData: FormData }) {
               {q.type === 'paragraph' && (
                 <Textarea placeholder="Candidate's answer will appear here…" disabled className="opacity-60 resize-none" rows={3} />
               )}
+              {q.type === 'file_upload' && (
+                <div className="border-2 border-dashed border-border rounded-lg p-6 text-center bg-muted/20">
+                  <Upload className="h-7 w-7 mx-auto text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">Drop files here or click to upload</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Up to {q.max_files ?? 5} file{(q.max_files ?? 5) !== 1 ? 's' : ''} · Max {q.max_size_mb ?? 25} MB each
+                    {q.accept_all_types !== false ? ' · All file types accepted' : ''}
+                  </p>
+                </div>
+              )}
+              {q.type === 'url_input' && (
+                <div className="space-y-1.5">
+                  <div className="relative">
+                    <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="url"
+                      placeholder={q.url_placeholder || 'https://your-url-here'}
+                      disabled
+                      className="pl-9 opacity-60"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <span className="text-primary">✓</span> Must be a valid URL (https://…)
+                  </p>
+                </div>
+              )}
             </div>
           ))}
 
