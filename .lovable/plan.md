@@ -1,106 +1,44 @@
 
-# Add Candidate Directly from Pipeline View
+## Fix URL Fields Input — Tag-based Input
 
-## What's Being Built
+### Problem
+The current URL fields input is a single text `<Input>` that joins all fields with commas and re-splits on change. The issue is that while typing, the split/join causes the cursor to jump or the comma to be consumed before the user finishes typing a label. It also doesn't feel like a multi-value input — there's no visual feedback of individual tags.
 
-A new **"Add Candidate"** button on the Pipeline tab of the Job Detail page that opens a Dialog allowing the recruiter to:
-1. **Search existing candidates** in the org (by name or email) — to link them to this job without re-entering data
-2. **Or add a brand new candidate** (name, email, phone) and immediately apply them
+### Solution
+Replace the single `<Input>` with a **tag-based input** pattern directly in `AssignmentTemplateEditor.tsx`:
 
-The dialog pre-selects the **currently viewed stage** in the Kanban board as the initial stage, but lets the user change it via a dropdown.
+- Each existing URL field renders as a **pill/badge** with a remove (×) button
+- A plain `<Input>` at the end of the pills lets the user type the next field name
+- Pressing **comma** or **Enter** commits the current typed value as a new tag
+- Pressing **Backspace** on an empty input removes the last tag
 
----
+This is a self-contained change — no new component needed, just replace the `<Input>` block at lines 234–252.
 
-## Approach
+### Technical Details
 
-### Where the button lives
-The button goes in `JobDetail.tsx` — on the same row as the `<TabsList>` for the Pipeline/Description/Activity tabs. It only shows when the Pipeline tab is active (and the job is not a draft).
+**State**: Add a local `urlFieldInput` state string (the in-progress text being typed).
 
-### New Component: `AddCandidateToPipelineDialog`
-A new Dialog component at `src/components/hiring/pipeline/AddCandidateToPipelineDialog.tsx`.
-
-**Step 1 — Search or create:**
-- Search input that queries existing candidates via `useCandidates()` filtered by org, showing name + email results in a dropdown list
-- "New candidate" mode toggled when the user types a name that doesn't match any existing candidate, or clicks "+ Create new candidate"
-
-**Step 2 — Stage selection:**
-- Dropdown showing all pipeline stages for this job (uses the `stages` prop already passed to `HiringKanbanBoard`)
-- Defaults to the currently selected stage in the Kanban board
-
-**On submit:**
-- If **existing candidate** selected: calls `useCreateApplication` with `{ candidate_id, job_id, stage }`
-- If **new candidate**: calls `useCreateCandidate` first, then `useCreateApplication` with the new candidate's ID and chosen stage
-
-**Note:** `useCreateApplication` currently inserts without a `stage` field. We'll pass stage in the mutation so the application starts at the correct stage (the `candidate_applications` table has a `stage` column).
-
----
-
-## Files to Create
-
-### `src/components/hiring/pipeline/AddCandidateToPipelineDialog.tsx`
-- Props: `open`, `onOpenChange`, `jobId`, `stages`, `defaultStage`
-- State: `mode` (`search` | `create`), `searchQuery`, `selectedCandidate`, `newCandidateName/Email/Phone`, `selectedStage`
-- Uses: `useCandidates` (filtered search), `useCreateCandidate`, `useCreateApplication`
-- Layout:
-  ```
-  [Dialog Header: Add Candidate to Pipeline]
-  
-  Stage: [dropdown — Applied / Screening / Assignment ...]
-  
-  --- Search existing ---
-  [Search input: name or email]
-  [Results list — click to select]
-  
-  --- Or ---
-  [+ Create new candidate]
-    Name *, Email *, Phone (optional)
-  
-  [Cancel]  [Add Candidate →]
-  ```
-
----
-
-## Files to Modify
-
-### `src/pages/hiring/JobDetail.tsx`
-- Import the new `AddCandidateToPipelineDialog`
-- Add `addCandidateOpen` state
-- Wrap `<TabsList>` and the button in a `flex items-center justify-between` row
-- The button: `<Button size="sm"><UserPlus /> Add Candidate</Button>` — only shown when `resolvedTab === 'pipeline' && !isDraft`
-- Pass `job.id`, `stages`, and the currently viewed stage from `HiringKanbanBoard` as `defaultStage`
-
-### `src/components/hiring/pipeline/HiringKanbanBoard.tsx`
-- Since `JobDetail` needs to know the currently selected stage (to pre-fill the dialog), expose it via an `onStageChange` callback prop: `onStageChange?: (stage: ApplicationStage) => void`
-- Call it inside `setSelectedStage`
-
-### `src/services/useHiringMutations.ts` (`useCreateApplication`)
-- The `CreateApplicationInput` interface already has no `stage` field — add `stage?: ApplicationStage` to `CreateApplicationInput` in `src/types/hiring.ts` and pass it through in the mutation insert
-
----
-
-## Technical Details
-
-### Stage pre-selection flow
-```
-JobDetail
-  ├── tracks selectedStage via onStageChange callback from HiringKanbanBoard
-  └── passes it as defaultStage to AddCandidateToPipelineDialog
-
-AddCandidateToPipelineDialog
-  ├── initializes its own stage state from defaultStage
-  └── user can change before submitting
-```
-
-### Candidate search
-- Uses `useCandidates({ search: query })` — the existing hook already supports search filtering
-- Only shows candidates who are **not already** in this job (filters out `applications.map(a => a.candidate_id)`)
-- Debounced 300ms
-
-### Mutation sequence for new candidate
+**Key handler on the input**:
 ```typescript
-1. const candidate = await createCandidate.mutateAsync({ name, email, phone })
-2. await createApplication.mutateAsync({ candidate_id: candidate.id, job_id, stage })
+onKeyDown={(e) => {
+  if (e.key === ',' || e.key === 'Enter') {
+    e.preventDefault();
+    const val = urlFieldInput.trim();
+    if (val && !url_fields.includes(val)) {
+      setFormData({ ...formData, expected_deliverables: { ...formData.expected_deliverables, url_fields: [...url_fields, val] } });
+    }
+    setUrlFieldInput('');
+  }
+  if (e.key === 'Backspace' && urlFieldInput === '') {
+    // remove last tag
+    setFormData({ ...formData, expected_deliverables: { ...formData.expected_deliverables, url_fields: url_fields.slice(0, -1) } });
+  }
+}}
 ```
 
-### No database migration needed
-The `candidate_applications` table already has a `stage` column. We just need to include `stage` in the insert payload (currently the mutation omits it, defaulting to `'applied'`). Adding `stage` to `CreateApplicationInput` is a TypeScript-only change.
+**Visual layout**: A rounded border container that wraps the pill badges + the input inside it, looking like a multi-select field.
+
+### Files Changed
+- **`src/pages/hiring/AssignmentTemplateEditor.tsx`**: Replace the single `<Input>` block (lines 234–252) with the tag-based input. Add `urlFieldInput` local state. Import `X` from lucide-react for the remove icon on badges.
+
+No database changes, no new files needed.
