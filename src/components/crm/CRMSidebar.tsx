@@ -1,5 +1,6 @@
-import { Users, Building2, UserCheck, UserPlus, Archive, Inbox } from 'lucide-react';
+import { Users, Building2, UserCheck, UserPlus, Archive, Inbox, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { OrgLink } from '@/components/OrgLink';
 import type { CRMSidebarCategory, CRMView } from '@/types/crm';
 
 interface CRMSidebarProps {
@@ -77,6 +78,19 @@ export const CRMSidebar = ({ view, category, onViewChange, onCategoryChange }: C
           </button>
         </div>
       )}
+
+      {/* Settings link */}
+      <div className="mt-auto">
+        <OrgLink
+          to="/crm/settings"
+          className={cn(
+            'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors text-muted-foreground hover:bg-muted hover:text-foreground w-full'
+          )}
+        >
+          <Settings className="h-4 w-4 shrink-0" />
+          CRM Settings
+        </OrgLink>
+      </div>
     </div>
   );
 };

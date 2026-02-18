@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Plus, MoreHorizontal, Flame, Handshake, Snowflake, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Flame, Handshake, Snowflake, ChevronLeft, ChevronRight, Tag, X, Tags } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -7,8 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useCRMContacts, useDeleteCRMContact, useUpdateCRMContact } from '@/services/useCRM';
+import { useCRMTags } from '@/services/useCRMTags';
 import { AddContactDialog } from './AddContactDialog';
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import type { CRMContact, CRMSidebarCategory } from '@/types/crm';
@@ -31,13 +33,17 @@ export const ContactListView = ({ category }: Props) => {
   const [perPage, setPerPage] = useState(20);
   const [addOpen, setAddOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [bulkTagOpen, setBulkTagOpen] = useState(false);
   const { navigateOrg } = useOrgNavigation();
+  const { data: orgTags = [] } = useCRMTags();
 
   const filters = {
     search: search || undefined,
     is_archived: category === 'archived' ? true : false,
     rating: category === 'enquiries' ? undefined : category === 'prospects' ? 'warm' : category === 'clients' ? 'hot' : undefined,
     source: category === 'enquiries' ? 'enquiry' : undefined,
+    tags: tagFilter ? [tagFilter] : undefined,
     page,
     per_page: perPage,
   };
@@ -57,6 +63,10 @@ export const ContactListView = ({ category }: Props) => {
     });
   };
 
+  const toggleSelectAll = (checked: boolean) => {
+    setSelected(checked ? new Set(contacts.map(c => c.id)) : new Set());
+  };
+
   const handleArchive = (contact: CRMContact) => {
     updateMutation.mutate(
       { id: contact.id, is_archived: !contact.is_archived },
@@ -67,6 +77,35 @@ export const ContactListView = ({ category }: Props) => {
   const handleDelete = (id: string) => {
     deleteMutation.mutate(id, { onSuccess: () => toast.success('Contact deleted') });
   };
+
+  const handleBulkAddTag = (tagName: string) => {
+    const selectedContacts = contacts.filter(c => selected.has(c.id));
+    let done = 0;
+    selectedContacts.forEach(c => {
+      const existingTags = c.tags || [];
+      if (existingTags.includes(tagName)) { done++; if (done === selectedContacts.length) toast.success('Tags updated'); return; }
+      updateMutation.mutate(
+        { id: c.id, tags: [...existingTags, tagName] },
+        { onSuccess: () => { done++; if (done === selectedContacts.length) toast.success('Tags updated'); } }
+      );
+    });
+    setBulkTagOpen(false);
+  };
+
+  const handleBulkRemoveTag = (tagName: string) => {
+    const selectedContacts = contacts.filter(c => selected.has(c.id));
+    let done = 0;
+    selectedContacts.forEach(c => {
+      const existingTags = c.tags || [];
+      updateMutation.mutate(
+        { id: c.id, tags: existingTags.filter(t => t !== tagName) },
+        { onSuccess: () => { done++; if (done === selectedContacts.length) toast.success('Tags removed'); } }
+      );
+    });
+    setBulkTagOpen(false);
+  };
+
+  const getTagColor = (name: string) => orgTags.find(t => t.name === name)?.color || undefined;
 
   return (
     <div className="flex flex-col h-full">
@@ -80,8 +119,8 @@ export const ContactListView = ({ category }: Props) => {
       </div>
 
       {/* Search & Filters */}
-      <div className="flex items-center gap-3 px-6 py-3 border-b border-border">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex items-center gap-3 px-6 py-3 border-b border-border flex-wrap">
+        <div className="relative flex-1 min-w-[180px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search contacts..."
@@ -90,7 +129,113 @@ export const ContactListView = ({ category }: Props) => {
             className="pl-9"
           />
         </div>
+
+        {/* Tag Filter */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <Tag className="h-3.5 w-3.5" />
+              {tagFilter ? (
+                <span className="flex items-center gap-1">
+                  {tagFilter}
+                  <X
+                    className="h-3 w-3 text-muted-foreground hover:text-foreground"
+                    onClick={(e) => { e.stopPropagation(); setTagFilter(null); setPage(1); }}
+                  />
+                </span>
+              ) : 'Filter by Tag'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-48 p-2" align="start">
+            {orgTags.length === 0 ? (
+              <p className="text-xs text-muted-foreground px-2 py-1">No tags defined yet.</p>
+            ) : (
+              <div className="space-y-1">
+                {tagFilter && (
+                  <button
+                    className="w-full text-left px-2 py-1 text-xs rounded hover:bg-muted text-muted-foreground"
+                    onClick={() => { setTagFilter(null); setPage(1); }}
+                  >
+                    Clear filter
+                  </button>
+                )}
+                {orgTags.map((tag) => (
+                  <button
+                    key={tag.id}
+                    className="w-full text-left px-2 py-1 text-xs rounded hover:bg-muted flex items-center gap-2"
+                    onClick={() => { setTagFilter(tag.name); setPage(1); }}
+                  >
+                    {tag.color && <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: tag.color }} />}
+                    {tag.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </PopoverContent>
+        </Popover>
       </div>
+
+      {/* Bulk Action Toolbar */}
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 px-6 py-2 bg-primary/5 border-b border-border">
+          <span className="text-sm font-medium text-primary">{selected.size} selected</span>
+          <Popover open={bulkTagOpen} onOpenChange={setBulkTagOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5 h-7">
+                <Tags className="h-3.5 w-3.5" />
+                Add Tag
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-48 p-2" align="start">
+              {orgTags.length === 0 ? (
+                <p className="text-xs text-muted-foreground px-2 py-1">No tags defined yet.</p>
+              ) : (
+                <div className="space-y-1">
+                  {orgTags.map((tag) => (
+                    <button
+                      key={tag.id}
+                      className="w-full text-left px-2 py-1 text-xs rounded hover:bg-muted flex items-center gap-2"
+                      onClick={() => handleBulkAddTag(tag.name)}
+                    >
+                      {tag.color && <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: tag.color }} />}
+                      {tag.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5 h-7">
+                <X className="h-3.5 w-3.5" />
+                Remove Tag
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-48 p-2" align="start">
+              {orgTags.length === 0 ? (
+                <p className="text-xs text-muted-foreground px-2 py-1">No tags defined yet.</p>
+              ) : (
+                <div className="space-y-1">
+                  {orgTags.map((tag) => (
+                    <button
+                      key={tag.id}
+                      className="w-full text-left px-2 py-1 text-xs rounded hover:bg-muted flex items-center gap-2"
+                      onClick={() => handleBulkRemoveTag(tag.name)}
+                    >
+                      {tag.color && <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: tag.color }} />}
+                      {tag.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
+          <Button variant="ghost" size="sm" className="h-7 text-xs ml-auto" onClick={() => setSelected(new Set())}>
+            Clear selection
+          </Button>
+        </div>
+      )}
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
@@ -100,16 +245,14 @@ export const ContactListView = ({ category }: Props) => {
               <TableHead className="w-10">
                 <Checkbox
                   checked={contacts.length > 0 && selected.size === contacts.length}
-                  onCheckedChange={(checked) => {
-                    setSelected(checked ? new Set(contacts.map(c => c.id)) : new Set());
-                  }}
+                  onCheckedChange={(checked) => toggleSelectAll(!!checked)}
                 />
               </TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Phone</TableHead>
               <TableHead>Company</TableHead>
-              <TableHead>Source</TableHead>
+              <TableHead>Tags</TableHead>
               <TableHead>Rating</TableHead>
               <TableHead className="w-10"></TableHead>
             </TableRow>
@@ -156,9 +299,21 @@ export const ContactListView = ({ category }: Props) => {
                   <TableCell className="text-sm">{contact.phone || '—'}</TableCell>
                   <TableCell className="text-sm">{contact.company?.name || '—'}</TableCell>
                   <TableCell>
-                    {contact.source ? (
-                      <Badge variant="secondary" className="text-xs">{contact.source}</Badge>
-                    ) : '—'}
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {(contact.tags || []).slice(0, 2).map(tag => (
+                        <Badge
+                          key={tag}
+                          variant="secondary"
+                          className="text-[10px] px-1.5 py-0"
+                          style={getTagColor(tag) ? { backgroundColor: getTagColor(tag) + '20', borderColor: getTagColor(tag), color: getTagColor(tag) } : undefined}
+                        >
+                          {tag}
+                        </Badge>
+                      ))}
+                      {(contact.tags || []).length > 2 && (
+                        <span className="text-xs text-muted-foreground">+{(contact.tags || []).length - 2}</span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell><RatingIcon rating={contact.rating} /></TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
