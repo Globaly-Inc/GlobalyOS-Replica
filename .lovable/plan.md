@@ -1,111 +1,59 @@
 
-## Remove Hardcoded Email Triggers — Per-Stage Email Configuration
+## Simplify Email Trigger — Always "Stage Entry", No Picker
 
-### The Root Problem
+### What the User Wants
 
-The current design uses a hardcoded constant `DEFAULT_EMAIL_TRIGGERS` to map stage keys → email trigger types. This has multiple deep flaws:
+The email trigger for every stage is always and only "Stage Entry Email" — when a candidate enters the stage, an email fires. There's no need to choose a trigger type. The UI should be simplified to:
 
-- Custom stages (any stage not in the hardcoded list) get `effectiveTrigger = null`, hiding the entire email UI
-- Two stages that share the same trigger type (e.g. `applied` and `screening` both mapping to `application_received`) share ONE template globally — editing one changes the other
-- Adding a new built-in stage requires a code change every time
+1. A toggle (Switch) in the Email Trigger header — always visible, not conditional on `effectiveTrigger` being set
+2. When the toggle is turned **ON** → immediately set `email_trigger_type = 'stage_entry'` on the rule AND open the email template dialog if no template exists yet (or show the template card if one already exists)
+3. When the toggle is turned **OFF** → clear `email_trigger_type` to null
+4. Remove the entire "Choose a trigger type" picker (the `<Select>` + "Set Trigger" button block)
+5. Remove `TRIGGER_TYPE_OPTIONS`, `pendingTriggerType` state, `setPendingTriggerType`, `handleSetTrigger`
+6. Remove `getTriggerLabel` (no longer needed since there's only one trigger type)
 
-The correct architecture is: **each stage owns its own email trigger** stored as `email_trigger_type` in `StageRule` (the field already exists in the DB), and templates are matched per stage — not per trigger type globally.
-
----
-
-### Architecture After the Fix
+### New UI Flow
 
 ```text
-Stage (org_pipeline_stages)
-  └── StageRule (org_pipeline_stage_rules)
-        └── email_trigger_type  ← stage picks its own trigger label
-              └── HiringEmailTemplate matched by (org + template_type + stage_id)
-```
-
-Since `hiring_email_templates` currently matches by `template_type` globally (not by stage), we need to either:
-
-**Option A (simpler, no migration):** Store the email template `id` directly on the `StageRule` — the stage points to a specific template record.  
-**Option B (requires migration):** Add a `stage_id` column to `hiring_email_templates` so templates are scoped per stage.
-
-**We will use Option B** — it's cleaner, allows the existing template editing flow to work, and properly isolates per-stage templates. A small migration adds `stage_id` (nullable, for backwards compat) to `hiring_email_templates`.
-
----
-
-### Changes Required
-
-#### 1. Database Migration
-Add `stage_id uuid REFERENCES org_pipeline_stages(id) ON DELETE CASCADE` (nullable) to `hiring_email_templates`.
-
-This is backwards compatible — existing templates (created from the Email Automation tab) have `stage_id = null` and continue working.
-
-#### 2. `PipelineCard.tsx` — Remove `DEFAULT_EMAIL_TRIGGERS`, use per-stage logic
-
-- **Delete** `DEFAULT_EMAIL_TRIGGERS` constant and `ALL_STAGE_KEYS` (no longer needed)
-- **Change** `effectiveTrigger` to use `rule?.email_trigger_type ?? null` instead of `DEFAULT_EMAIL_TRIGGERS[stageKey]`
-- **Change** template matching to filter by `stage_id = stage.id` (not by `template_type` globally)
-- **Add** a trigger type selector in the email section: when no trigger is set, show a simple `<Select>` or `<Input>` letting the user pick/name a trigger type (e.g. "Stage Entry Email"), then save it to `StageRule.email_trigger_type` via `onRuleChange`
-- The `EmailTemplateDialog` will pass `stage_id` when creating a new template
-
-#### 3. `EmailTemplateDialog` — Accept and persist `stage_id`
-
-- Add `stageId: string` prop
-- Pass it to `useCreateEmailTemplate` so the created template is scoped to this stage
-
-#### 4. `useHiringMutations.ts` — Update `createEmailTemplate` to accept `stage_id`
-
-- Include `stage_id` in the insert payload
-
-#### 5. `PipelineSettingsSection.tsx` — Pass `stage_id`-scoped templates per stage
-
-- Instead of passing all `emailTemplates` flat to every `PipelineCard`, filter templates by `stage_id` per stage accordion, or pass all and let each stage filter by its own `stage.id`
-
-#### 6. `src/types/hiring.ts` — The `EmailTrigger` union type becomes less relevant
-
-- The `template_type` stored on per-stage templates will just be the stage's `email_trigger_type` string (can be any string like `"stage_entry"` or the user-set value)
-- Existing `EmailTrigger` type stays for the global Email Automation tab; per-stage templates use a freeform string
-
----
-
-### UI Flow After Fix
-
-**For any stage (built-in or custom), when expanded:**
-
-```
-✉ Email Trigger                          [toggle — disabled until trigger set]
+✉ Email Trigger                        [● ON / ○ OFF toggle — always visible]
   Automatically send an email when a candidate enters this stage.
 
-  [No trigger set]
+  [Toggle OFF — nothing shown below]
+
+  [Toggle ON, no template yet — dialog opens automatically, or show card:]
   ┌─────────────────────────────────────────────────┐
-  │ Choose a trigger type to enable email sending   │
-  │ [Stage Entry ▾]          [Set Trigger]          │
+  │ ○  No template configured                       │
+  │    Create a template to send emails             │
+  │                                  [+ Create]     │
   └─────────────────────────────────────────────────┘
 
-  [After trigger is set, no template yet]
+  [Toggle ON, template exists:]
   ┌─────────────────────────────────────────────────┐
-  │ ○  Stage Entry                                  │
-  │    No template configured — create one          │
-  │                               [+ Create]        │
-  └─────────────────────────────────────────────────┘
-
-  [After template created]
-  ┌─────────────────────────────────────────────────┐
-  │ ●  Application Confirmation                     │
+  │ ●  Welcome Email                                │
   │    Subject: Thank you for applying...           │
   │    Active — will send automatically  [Edit]     │
   └─────────────────────────────────────────────────┘
 ```
 
----
-
 ### Files to Change
 
-| File | Change |
-|---|---|
-| DB migration | Add `stage_id` column to `hiring_email_templates` |
-| `src/components/hiring/PipelineCard.tsx` | Remove `DEFAULT_EMAIL_TRIGGERS`; use `rule?.email_trigger_type`; add trigger-type picker UI; pass `stage_id` to dialog |
-| `src/components/hiring/PipelineCard.tsx` (`EmailTemplateDialog`) | Accept `stageId` prop; pass to create mutation |
-| `src/services/useHiringMutations.ts` | Update `createEmailTemplate` to accept `stage_id` |
-| `src/components/hiring/PipelineSettingsSection.tsx` | Pass templates filtered (or all, filtered in accordion) by `stage_id` |
-| `src/types/hiring.ts` | Add `stage_id?: string | null` to `HiringEmailTemplate` interface |
+Only **`src/components/hiring/PipelineCard.tsx`** needs changes — no DB migration, no type changes, no mutation changes.
 
-No breaking changes to existing global email templates (stage_id stays null for them).
+### Specific Changes in `PipelineCard.tsx`
+
+1. **Remove** `TRIGGER_TYPE_OPTIONS` constant (lines 137-145)
+2. **Remove** `getTriggerLabel` function (lines 147-153) — or simplify to just return "Stage Entry Email" always
+3. **Remove** `pendingTriggerType` / `setPendingTriggerType` state from `SortableStageAccordion` (line 377)
+4. **Remove** `handleSetTrigger` function (lines 443-445)
+5. **Update the Email Trigger header Switch**: Always render it. `checked` = `!!effectiveTrigger` (whether trigger is set). On toggle ON → call `onRuleChange(stageKey, { email_trigger_type: 'stage_entry', is_active: true })` and if no template exists, open `templateDialogOpen`. On toggle OFF → call `onRuleChange(stageKey, { email_trigger_type: null })`.
+6. **Remove** the "No trigger set" picker block (`!effectiveTrigger` branch, lines 771-799)
+7. **Update** the body to only show content when `effectiveTrigger` is set (toggle is ON), otherwise show nothing (or just the description text). The two remaining states are: template exists → show template card; no template → show "Create" card.
+8. **Update** `EmailTemplateDialog` call (line 886): remove the `{effectiveTrigger && ...}` guard — always render it but keep `open` state controlling visibility; `triggerType` is always `'stage_entry'`.
+
+### Summary of Removed Elements
+- `TRIGGER_TYPE_OPTIONS` array
+- `getTriggerLabel()` function  
+- `pendingTriggerType` state + `setPendingTriggerType`
+- `handleSetTrigger` handler
+- The entire "Choose a trigger type" picker UI block (Select + Set Trigger button)
+- Conditional guard `{effectiveTrigger && <Switch>}` → Switch is always shown
