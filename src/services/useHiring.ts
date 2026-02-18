@@ -713,13 +713,10 @@ export function usePublicJob(orgSlug: string | undefined, jobSlug: string | unde
         .eq('organization_id', org.id)
         .eq('slug', jobSlug)
         .eq('status', 'open')
-        .eq('is_public_visible', true)
-        .single();
+        .maybeSingle();
 
-      if (error) {
-        if (error.code === 'PGRST116') return null;
-        throw error;
-      }
+      if (error) throw error;
+      if (!data) return null;
       return { ...data, organization: { name: org.name, slug: org.slug, logo_url: (org as any).logo_url, website: (org as any).website } } as unknown as Job;
     },
     enabled: !!orgSlug && !!jobSlug,
