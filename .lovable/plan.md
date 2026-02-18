@@ -1,146 +1,141 @@
 
-## Redesigned Pipeline Settings: Unified Stage Cards with Inline Automation + Email
+## Remove Email Automation Tab Dependency — Inline Template Management in Pipeline Card
 
 ### What the user wants
-The selected area is the stage list inside a `PipelineCard`. The request is to:
-1. Make the text larger and more readable
-2. Match the visual design of the "Pipeline Stage Rules" accordion (color dot, bolder labels)
-3. Keep drag-and-drop but improve it visually
-4. Consolidate all automation rules (auto-assign, auto-reject, notifications) **into each stage row** — eliminating the separate "Pipeline Stage Rules" card below
-5. Consolidate **email automation** settings per stage as well — so each stage accordion shows what email gets triggered when a candidate enters it
+The "Email Trigger" section inside each pipeline stage accordion currently shows a dropdown that lists existing templates from the separate "Email Automation" tab. If no template exists for a trigger type, it shows "No template". The user wants to:
 
-The result is a single, unified "Pipelines" card where each stage row is an expandable accordion with:
-- Drag handle + color dot + stage name (larger)
-- Automation sub-section (auto-assign, auto-reject, idle hours)
-- Notifications sub-section (team members to notify)
-- Email trigger sub-section (which email template fires on entry to this stage)
-
-The separate "Pipeline Stage Rules" card and the standalone "Email Automation" tab are removed/merged.
+1. **Remove the dependency on the Email Automation tab** — users should not need to leave the pipeline settings to manage email templates
+2. **Add a "Create Template" popup directly inside the Email Trigger section** — so when a trigger type is selected that has no template, or the user wants to create/edit one, they can do it inline via a dialog
 
 ---
 
-### Architecture
-
-#### Current state (3 disconnected sections):
+### Current flow (broken UX)
 ```text
-[Pipeline Settings tab]
-  ├── Card: Pipelines
-  │     └── PipelineCard (small text, stage list, drag)
-  └── Card: Pipeline Stage Rules (separate accordion, separate save button)
-
-[Email Automation tab]
-  └── Table of email templates (completely separate)
+User wants email on "Applied" stage
+  → Opens Pipeline Settings
+  → Selects "Application Received" trigger
+  → Sees "No template" badge
+  → Has to go to Email Automation tab → create template → come back
 ```
 
-#### New state (unified, per-stage):
+### New flow (unified UX)
 ```text
-[Pipeline Settings tab]
-  └── Card: Pipelines
-        └── PipelineCard (redesigned)
-              ├── Stage 1 row [drag handle | color dot | STAGE NAME | badges | expand chevron]
-              │     └── Expanded panel:
-              │           ├── [Automation] auto-assign toggle + template picker
-              │           ├── [Rejection]  auto-reject on deadline + idle hours input
-              │           ├── [Notify]     team member multi-select badges
-              │           └── [Email]      email trigger dropdown (which template fires on entry)
-              ├── Stage 2 row ...
-              └── + Add Stage
+User wants email on "Applied" stage
+  → Opens Pipeline Settings
+  → Expands the "Applied" stage
+  → Selects "Application Received" trigger from dropdown (or sees it pre-selected)
+  → Sees "No template" badge + "Create Template" button right there
+  → Clicks "Create Template" → dialog opens pre-filled with trigger type
+  → Fills Name, Subject, Body → saves → badge updates to "Active"
+  OR
+  → Existing template shows "Edit" pencil icon to edit inline
 ```
 
-Email Automation tab stays but just shows global templates for editing — the "which template fires on stage entry" is now also surfaced inline within the pipeline card.
+---
+
+### Changes required
+
+#### 1. New component: `EmailTemplateDialog` (inline in `PipelineCard.tsx`)
+A self-contained dialog component that handles both create and edit of a single `hiring_email_templates` record. It will:
+- Accept: `triggerType` (pre-filled), `existingTemplate` (optional, for edit mode), `open`, `onClose`, `onSaved`
+- Call `useCreateEmailTemplate` / `useUpdateEmailTemplate` mutations directly
+- Fields: Name, Trigger (pre-locked to the stage's chosen trigger), Subject, Body, Active toggle
+- Auto-populate the `Name` field with the trigger label (e.g., "Application Received") when creating
+
+#### 2. Update `SortableStageAccordion` Email Trigger UI
+Replace the current simple dropdown + status badge with a richer control:
+
+**When no trigger selected:**
+```
+[No email trigger ▾]   (dropdown)
+```
+
+**When trigger selected, no template exists:**
+```
+[Application Received ▾]   [● No template]   [+ Create Template]
+```
+
+**When trigger selected and template exists:**
+```
+[Application Received ▾]   [● Active]   [✎ Edit]
+```
+
+The "Create Template" and "Edit" buttons open the `EmailTemplateDialog` dialog.
+
+#### 3. Imports & hooks in `PipelineCard.tsx`
+Add:
+- `useCreateEmailTemplate` and `useUpdateEmailTemplate` from `src/services/useHiringMutations`
+- `useHiringEmailTemplates` (already available via props — we'll keep using props so no double fetch)
+- But the dialog will call mutations directly — after save, mutations already invalidate `['hiring', 'email-templates']`, which causes `PipelineSettingsSection` to refetch and update `emailTemplates` prop automatically
+
+#### 4. Pass `onTemplateCreated` callback up (optional)
+Since `PipelineSettingsSection` already uses `useHiringEmailTemplates()` and the mutations invalidate the same query key, the template list in the dropdown will automatically refresh after creation/edit — no extra callback needed.
+
+---
+
+### UI Design for the Email Trigger section
+
+```
+╔══════════════════════════════════════════════════════════╗
+║ ✉ Email Trigger                                          ║
+║   Automatically send an email when a candidate enters    ║
+║   this stage.                                            ║
+║                                                          ║
+║   [Application Received          ▾]                      ║
+║                                                          ║
+║   ┌─────────────────────────────────────────────────┐   ║
+║   │ ● Active  "Application Received"        [✎ Edit] │   ║
+║   └─────────────────────────────────────────────────┘   ║
+║                                                   (or)   ║
+║   ┌─────────────────────────────────────────────────┐   ║
+║   │ ○ No template configured          [+ Create]    │   ║
+║   └─────────────────────────────────────────────────┘   ║
+╚══════════════════════════════════════════════════════════╝
+```
+
+**Create/Edit Dialog:**
+```
+╔════════════════════════════════════════════╗
+║ Create Email Template                  [×] ║
+╠════════════════════════════════════════════╣
+║ Template Name *                            ║
+║ [Application Received              ]       ║
+║                                            ║
+║ Trigger (locked)                           ║
+║ [Application Received        ▾ locked]     ║
+║                                            ║
+║ Subject *                                  ║
+║ [Thank you for applying to {{job_title}}]  ║
+║ Use {{candidate_name}}, {{job_title}},     ║
+║ {{company_name}} for dynamic values        ║
+║                                            ║
+║ Email Body                                 ║
+║ ┌────────────────────────────────────┐     ║
+║ │ Dear {{candidate_name}},          │     ║
+║ │                                   │     ║
+║ │ Thank you for applying...         │     ║
+║ └────────────────────────────────────┘     ║
+║                                            ║
+║ [○ Active]                                 ║
+╠════════════════════════════════════════════╣
+║              [Cancel]  [Save Template]     ║
+╚════════════════════════════════════════════╝
+```
 
 ---
 
 ### Files to change
 
-#### 1. `src/components/hiring/PipelineCard.tsx` — Full redesign
-- **SortableStageRow** becomes a full **SortableStageAccordion** component
-- Each row renders:
-  - Larger text (`text-sm` → `text-base`, number label bigger)
-  - Active automation badges (e.g. "Auto-assign", "2 notified") as compact chips visible without expanding
-  - Chevron to expand the automation panel inline
-- Accepts new props: `stageRule`, `onRuleChange`, `employees`, `emailTemplates`
-- Inline save per stage (or keep global Save Changes button at top of card)
-- Remove the separate `PipelineCard` props for just rename/delete; add full rule props
-
-#### 2. `src/components/hiring/PipelineSettingsSection.tsx` — Merge data and remove separate card
-- Pass `stageRules`, `employees`, `emailTemplates` down into each `PipelineCard`
-- Remove the second `Card` block ("Pipeline Stage Rules") entirely
-- The `saveMutation` now fires per-stage on change (auto-save with debounce) OR keep a single "Save Rules" button inside each PipelineCard header
-- Email templates are passed as read-only reference so each stage can pick which template fires on entry
-
-#### 3. `src/pages/hiring/HiringSettings.tsx` — Keep Email Automation tab
-- Email Automation tab stays for editing template content (subject, body, variables)
-- Remove the "Pipeline Stage Rules" tab concept (it no longer exists separately)
-- No structural tab changes needed; just the pipeline tab now contains the unified view
-
----
-
-### UI Design Details
-
-**Stage row (collapsed):**
-```
-[≡] [●] Applied                    [Auto-assign ✓] [3 notified] [v]
-```
-
-**Stage row (expanded):**
-```
-[≡] [●] Applied                    [Auto-assign ✓] [3 notified] [^]
-  ┌──────────────────────────────────────────────────────────────┐
-  │ ⚡ Automation                                                 │
-  │   Auto-assign assignment    [OFF ──]                         │
-  │                                                              │
-  │ ⏱ Rejection Rules                                            │
-  │   Auto-reject on deadline   [OFF ──]                         │
-  │   Auto-reject after         [___] hours in this stage        │
-  │                                                              │
-  │ 🔔 Notify on Entry                                           │
-  │   [+ Add team member ▾]                                      │
-  │   [Sarah K. ×] [John D. ×]                                   │
-  │                                                              │
-  │ ✉ Email Trigger                                              │
-  │   Send email when candidate enters:                          │
-  │   [Application Received ▾]  [Active ●]                       │
-  └──────────────────────────────────────────────────────────────┘
-```
-
-**Stage row sizing:**
-- Number: `text-sm font-bold text-muted-foreground`
-- Stage name: `text-base font-semibold`
-- Color dot: `w-3 h-3` (up from `w-2 h-2`)
-- Grip: `h-5 w-5` (up from `h-3.5`)
-- Row padding: `py-3` (up from default)
-
-**Email trigger mapping per stage** (sensible defaults to pre-populate):
-| Stage | Default email trigger |
-|-------|----------------------|
-| applied | application_received |
-| screening | — |
-| assignment | assignment_sent |
-| interview_1 | interview_scheduled |
-| interview_2 | interview_scheduled |
-| interview_3 | interview_scheduled |
-| offer | offer_sent |
-| hired | offer_accepted |
-
-This mapping will be stored in `pipeline_stage_rules.email_trigger_type` — a new nullable column.
-
----
-
-### Database change needed
-Add one column to `pipeline_stage_rules`:
-```sql
-ALTER TABLE pipeline_stage_rules 
-  ADD COLUMN IF NOT EXISTS email_trigger_type TEXT;
-```
-This stores which `EmailTrigger` (e.g., `'assignment_sent'`) fires when a candidate enters the stage. NULL = no email.
-
----
-
-### Summary of changes
 | File | Change |
 |------|--------|
-| `pipeline_stage_rules` table | Add `email_trigger_type TEXT` column |
-| `src/components/hiring/PipelineCard.tsx` | Full redesign: stage accordion with inline automation + email |
-| `src/components/hiring/PipelineSettingsSection.tsx` | Pass rules/employees/templates to PipelineCard, remove separate Rules card |
-| `src/pages/hiring/HiringSettings.tsx` | No tab changes; Email Automation tab remains for template editing |
+| `src/components/hiring/PipelineCard.tsx` | Add `EmailTemplateDialog` component inline; update `SortableStageAccordion` Email Trigger section to show create/edit buttons |
+
+That's the only file that needs to change. The mutations and queries already exist and work. The Email Automation tab in `HiringSettings.tsx` remains for power users who want a full list view — it is not removed, just no longer the only way to create templates.
+
+---
+
+### Key technical notes
+- The dialog calls `useCreateEmailTemplate` / `useUpdateEmailTemplate` which invalidate `['hiring', 'email-templates']`
+- `PipelineSettingsSection` fetches templates with `useHiringEmailTemplates()` using that same key, so the template list auto-refreshes after save
+- The trigger dropdown in the dialog is pre-locked to the selected stage's trigger type — no mis-selection possible
+- Subject placeholder suggestions are shown as helper text
