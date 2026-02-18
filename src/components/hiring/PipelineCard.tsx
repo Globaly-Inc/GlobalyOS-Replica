@@ -147,13 +147,16 @@ interface PipelineCardProps {
 }
 
 // ── Auto-resize hook ─────────────────────────────────────────
+const MAX_BODY_HEIGHT = 480; // ~20 lines
 const useAutoResize = (value: string) => {
   const ref = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     el.style.height = 'auto';
-    el.style.height = `${el.scrollHeight}px`;
+    const newHeight = Math.min(el.scrollHeight, MAX_BODY_HEIGHT);
+    el.style.height = `${newHeight}px`;
+    el.style.overflowY = el.scrollHeight > MAX_BODY_HEIGHT ? 'auto' : 'hidden';
   }, [value]);
   return ref;
 };
@@ -196,6 +199,7 @@ function EmailTemplateDialog({ open, onClose, triggerType, stageId, existingTemp
   const isActive = watch('is_active');
   const bodyValue = watch('body');
   const bodyRef = useAutoResize(bodyValue ?? '');
+  const { ref: registerBodyRef, ...registerBodyProps } = register('body');
 
   const handleOpenChange = (val: boolean) => {
     if (!val) {
@@ -274,22 +278,17 @@ function EmailTemplateDialog({ open, onClose, triggerType, stageId, existingTemp
           {/* Body */}
           <div className="space-y-1.5">
             <Label htmlFor="tpl-body">Email Body</Label>
-            {(() => {
-              const { ref: registerRef, ...bodyProps } = register('body');
-              return (
-                <Textarea
-                  id="tpl-body"
-                  {...bodyProps}
-                  ref={(el) => {
-                    registerRef(el);
-                    (bodyRef as React.MutableRefObject<HTMLTextAreaElement | null>).current = el;
-                  }}
-                  placeholder={`Dear {{candidate_name}},\n\nThank you for applying...`}
-                  style={{ minHeight: '80px', maxHeight: '480px', overflowY: 'auto' }}
-                  className="resize-none font-mono text-sm"
-                />
-              );
-            })()}
+            <Textarea
+              id="tpl-body"
+              {...registerBodyProps}
+              ref={(el) => {
+                registerBodyRef(el);
+                (bodyRef as React.MutableRefObject<HTMLTextAreaElement | null>).current = el;
+              }}
+              placeholder={`Dear {{candidate_name}},\n\nThank you for applying...`}
+              style={{ minHeight: '80px', maxHeight: '480px', overflowY: 'hidden' }}
+              className="resize-none font-mono text-sm"
+            />
           </div>
 
           <DialogFooter>
