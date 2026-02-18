@@ -270,17 +270,6 @@ function EmailTemplateDialog({ open, onClose, triggerType, stageId, existingTemp
             />
           </div>
 
-          {/* Active toggle */}
-          <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/30">
-            <div>
-              <p className="text-sm font-medium">Active</p>
-              <p className="text-xs text-muted-foreground">Send this email automatically when triggered</p>
-            </div>
-            <Switch
-              checked={isActive}
-              onCheckedChange={val => setValue('is_active', val)}
-            />
-          </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
