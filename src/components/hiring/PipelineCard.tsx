@@ -133,6 +133,7 @@ const ALL_STAGE_KEYS: ApplicationStage[] = [
 // Default email triggers per stage key
 const DEFAULT_EMAIL_TRIGGERS: Partial<Record<ApplicationStage, EmailTrigger>> = {
   applied: 'application_received',
+  screening: 'application_received',
   assignment: 'assignment_sent',
   interview_1: 'interview_scheduled',
   interview_2: 'interview_scheduled',
@@ -742,11 +743,11 @@ function SortableStageAccordion({
                         <Mail className="h-3.5 w-3.5" />
                       </div>
                       <span className="text-sm font-semibold flex-1">Email Trigger</span>
-                      {matchedTpl && (
+                      {effectiveTrigger && (
                         <Switch
-                          checked={matchedTpl.is_active}
-                          onCheckedChange={active => handleEmailActiveToggle(matchedTpl, active)}
-                          disabled={updateTemplateMutation.isPending}
+                          checked={!!matchedTpl?.is_active}
+                          onCheckedChange={active => matchedTpl && handleEmailActiveToggle(matchedTpl, active)}
+                          disabled={!matchedTpl || updateTemplateMutation.isPending}
                         />
                       )}
                     </div>
