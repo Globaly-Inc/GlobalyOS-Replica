@@ -266,9 +266,15 @@ export interface CandidateApplicationWithRelations extends CandidateApplication 
 export interface AssignmentQuestion {
   id: string;
   text: string;
-  type: 'multiple_choice' | 'paragraph';
-  options?: string[];
+  type: 'multiple_choice' | 'paragraph' | 'file_upload' | 'url_input';
+  options?: string[];       // for multiple_choice
   required: boolean;
+  // file_upload config
+  max_files?: number;          // default 5
+  max_size_mb?: number;        // default 25
+  accept_all_types?: boolean;  // default true
+  // url_input config
+  url_placeholder?: string;    // e.g. "https://github.com/your-repo"
 }
 
 export interface ExpectedDeliverables {
