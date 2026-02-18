@@ -4991,6 +4991,7 @@ export type Database = {
           is_default: boolean | null
           name: string
           organization_id: string
+          stage_id: string | null
           subject: string
           template_type: string
           updated_at: string | null
@@ -5005,6 +5006,7 @@ export type Database = {
           is_default?: boolean | null
           name: string
           organization_id: string
+          stage_id?: string | null
           subject: string
           template_type: string
           updated_at?: string | null
@@ -5019,6 +5021,7 @@ export type Database = {
           is_default?: boolean | null
           name?: string
           organization_id?: string
+          stage_id?: string | null
           subject?: string
           template_type?: string
           updated_at?: string | null
@@ -5044,6 +5047,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hiring_email_templates_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "org_pipeline_stages"
             referencedColumns: ["id"]
           },
         ]

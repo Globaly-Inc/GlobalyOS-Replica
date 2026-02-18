@@ -1087,6 +1087,7 @@ export function useCreateEmailTemplate() {
       subject: string;
       body: string;
       is_active: boolean;
+      stage_id?: string | null;
     }) => {
       if (!currentOrg?.id) throw new Error('No organization selected');
 
