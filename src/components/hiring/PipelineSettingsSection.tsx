@@ -60,7 +60,7 @@ function useOrgEmployees(orgId: string | undefined) {
       if (!orgId) return [];
       const { data, error } = await supabase
         .from('employee_directory')
-        .select('id, full_name, email')
+        .select('id, full_name, email, office_name')
         .eq('organization_id', orgId)
         .eq('status', 'active')
         .order('full_name');
