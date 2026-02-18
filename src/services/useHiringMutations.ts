@@ -424,8 +424,9 @@ export function useUpdateApplicationStage() {
 
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['hiring', 'applications'] });
+      queryClient.invalidateQueries({ queryKey: ['hiring', 'application'] });
       queryClient.invalidateQueries({ queryKey: ['hiring', 'candidates'] });
     },
     onError: (error) => {
@@ -518,6 +519,7 @@ export function useAssignAssignment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hiring', 'assignment-instances'] });
       queryClient.invalidateQueries({ queryKey: ['hiring', 'applications'] });
+      queryClient.invalidateQueries({ queryKey: ['hiring', 'application'] });
       toast.success('Assignment sent to candidate');
     },
     onError: (error) => {
@@ -625,6 +627,7 @@ export function useReviewAssignment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hiring', 'assignment-instances'] });
       queryClient.invalidateQueries({ queryKey: ['hiring', 'applications'] });
+      queryClient.invalidateQueries({ queryKey: ['hiring', 'application'] });
       toast.success('Assignment reviewed successfully');
     },
     onError: (error) => {
@@ -681,6 +684,7 @@ export function useScheduleInterview() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hiring', 'interviews'] });
       queryClient.invalidateQueries({ queryKey: ['hiring', 'upcoming-interviews'] });
+      queryClient.invalidateQueries({ queryKey: ['hiring', 'application'] });
       toast.success('Interview scheduled successfully');
     },
     onError: (error) => {
@@ -781,6 +785,7 @@ export function useCreateOffer() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hiring', 'offer'] });
       queryClient.invalidateQueries({ queryKey: ['hiring', 'applications'] });
+      queryClient.invalidateQueries({ queryKey: ['hiring', 'application'] });
       toast.success('Offer created successfully');
     },
     onError: (error) => {
@@ -826,6 +831,7 @@ export function useApproveOffer() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hiring', 'offer'] });
+      queryClient.invalidateQueries({ queryKey: ['hiring', 'application'] });
       toast.success('Offer approved successfully');
     },
     onError: (error) => {
@@ -877,6 +883,7 @@ export function useRespondToOffer() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['hiring', 'offer'] });
       queryClient.invalidateQueries({ queryKey: ['hiring', 'applications'] });
+      queryClient.invalidateQueries({ queryKey: ['hiring', 'application'] });
       toast.success(data.status === 'accepted' ? 'Offer accepted!' : 'Offer declined');
     },
     onError: (error) => {
