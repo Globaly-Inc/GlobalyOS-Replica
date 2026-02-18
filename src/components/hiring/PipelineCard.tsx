@@ -121,6 +121,7 @@ export interface Employee {
   id: string;
   full_name: string;
   email?: string;
+  office_name?: string | null;
 }
 
 const ALL_STAGE_KEYS: ApplicationStage[] = [
@@ -371,6 +372,8 @@ function SortableStageAccordion({
   // Notify on Entry toggle — preserve employee list in a ref when toggled off
   const [notifyEnabled, setNotifyEnabled] = useState(() => (rule?.notify_employee_ids?.length ?? 0) > 0);
   const preservedNotifyIds = useRef<string[]>(rule?.notify_employee_ids ?? []);
+  const [notifySearch, setNotifySearch] = useState('');
+  const [notifyDropdownOpen, setNotifyDropdownOpen] = useState(false);
 
   const handleNotifyToggle = (enabled: boolean) => {
     setNotifyEnabled(enabled);
@@ -636,31 +639,63 @@ function SortableStageAccordion({
                 </div>
                 {notifyEnabled && (
                   <div className="pl-8 space-y-2">
-                    <Select
-                      value="__placeholder__"
-                      onValueChange={empId => {
-                        if (empId === '__placeholder__') return;
-                        const current = rule?.notify_employee_ids ?? [];
-                        if (!current.includes(empId)) {
-                          onRuleChange(stageKey, {
-                            notify_employee_ids: [...current, empId],
-                            is_active: true,
-                          });
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="h-9 text-sm">
-                        <SelectValue placeholder="+ Add team member to notify…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__placeholder__" disabled>Select a team member…</SelectItem>
-                        {employees
-                          .filter(e => !(rule?.notify_employee_ids ?? []).includes(e.id))
-                          .map(e => (
-                            <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
+                    {/* Searchable employee picker */}
+                    {(() => {
+                      const selectedIds = rule?.notify_employee_ids ?? [];
+                      const availableEmployees = employees.filter(e => !selectedIds.includes(e.id));
+                      const filtered = notifySearch.trim()
+                        ? availableEmployees.filter(e =>
+                            e.full_name.toLowerCase().includes(notifySearch.toLowerCase()) ||
+                            (e.office_name ?? '').toLowerCase().includes(notifySearch.toLowerCase()),
+                          )
+                        : availableEmployees;
+
+                      return (
+                        <div className="relative">
+                          <Input
+                            value={notifySearch}
+                            onChange={e => { setNotifySearch(e.target.value); setNotifyDropdownOpen(true); }}
+                            onFocus={() => setNotifyDropdownOpen(true)}
+                            onBlur={() => setTimeout(() => setNotifyDropdownOpen(false), 150)}
+                            placeholder="Search team member to notify…"
+                            className="h-9 text-sm"
+                          />
+                          {notifyDropdownOpen && (
+                            <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg overflow-hidden">
+                              <div className="max-h-52 overflow-y-auto">
+                                {filtered.length === 0 ? (
+                                  <p className="px-3 py-2 text-sm text-muted-foreground">No members found</p>
+                                ) : (
+                                  filtered.map(emp => (
+                                    <button
+                                      key={emp.id}
+                                      type="button"
+                                      className="flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+                                      onMouseDown={e => {
+                                        e.preventDefault();
+                                        onRuleChange(stageKey, {
+                                          notify_employee_ids: [...selectedIds, emp.id],
+                                          is_active: true,
+                                        });
+                                        setNotifySearch('');
+                                        setNotifyDropdownOpen(false);
+                                      }}
+                                    >
+                                      <span className="font-medium">{emp.full_name}</span>
+                                      {emp.office_name && (
+                                        <span className="text-xs text-muted-foreground ml-2">{emp.office_name}</span>
+                                      )}
+                                    </button>
+                                  ))
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Selected chips */}
                     {(rule?.notify_employee_ids?.length ?? 0) > 0 && (
                       <div className="flex flex-wrap gap-1.5">
                         {rule!.notify_employee_ids.map(empId => {
@@ -674,7 +709,10 @@ function SortableStageAccordion({
                                 notify_employee_ids: rule!.notify_employee_ids.filter(id => id !== empId),
                               })}
                             >
-                              {emp?.full_name ?? empId.slice(0, 8)}
+                              <span>{emp?.full_name ?? empId.slice(0, 8)}</span>
+                              {emp?.office_name && (
+                                <span className="ml-1 text-muted-foreground font-normal">· {emp.office_name}</span>
+                              )}
                               <X className="h-3 w-3 ml-1" />
                             </Badge>
                           );
