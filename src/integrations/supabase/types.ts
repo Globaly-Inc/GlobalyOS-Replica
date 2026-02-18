@@ -3254,9 +3254,12 @@ export type Database = {
           contact_id: string | null
           content: string | null
           created_at: string
+          duration_minutes: number | null
           employee_id: string
           id: string
+          metadata: Json | null
           organization_id: string
+          subject: string | null
           type: string
         }
         Insert: {
@@ -3264,9 +3267,12 @@ export type Database = {
           contact_id?: string | null
           content?: string | null
           created_at?: string
+          duration_minutes?: number | null
           employee_id: string
           id?: string
+          metadata?: Json | null
           organization_id: string
+          subject?: string | null
           type: string
         }
         Update: {
@@ -3274,9 +3280,12 @@ export type Database = {
           contact_id?: string | null
           content?: string | null
           created_at?: string
+          duration_minutes?: number | null
           employee_id?: string
           id?: string
+          metadata?: Json | null
           organization_id?: string
+          subject?: string | null
           type?: string
         }
         Relationships: [
@@ -3326,6 +3335,7 @@ export type Database = {
           address_street: string | null
           created_at: string
           created_by: string | null
+          custom_fields: Json | null
           email: string | null
           id: string
           industry: string | null
@@ -3347,6 +3357,7 @@ export type Database = {
           address_street?: string | null
           created_at?: string
           created_by?: string | null
+          custom_fields?: Json | null
           email?: string | null
           id?: string
           industry?: string | null
@@ -3368,6 +3379,7 @@ export type Database = {
           address_street?: string | null
           created_at?: string
           created_by?: string | null
+          custom_fields?: Json | null
           email?: string | null
           id?: string
           industry?: string | null
@@ -3416,6 +3428,7 @@ export type Database = {
           company_id: string | null
           created_at: string
           created_by: string | null
+          custom_fields: Json | null
           date_of_birth: string | null
           email: string | null
           first_name: string
@@ -3441,6 +3454,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           created_by?: string | null
+          custom_fields?: Json | null
           date_of_birth?: string | null
           email?: string | null
           first_name: string
@@ -3466,6 +3480,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           created_by?: string | null
+          custom_fields?: Json | null
           date_of_birth?: string | null
           email?: string | null
           first_name?: string
@@ -3505,6 +3520,85 @@ export type Database = {
           },
           {
             foreignKeyName: "crm_contacts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_custom_fields: {
+        Row: {
+          created_at: string | null
+          entity_type: string
+          field_key: string
+          field_name: string
+          field_type: string
+          id: string
+          is_required: boolean | null
+          options: Json | null
+          organization_id: string
+          sort_order: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          entity_type: string
+          field_key: string
+          field_name: string
+          field_type: string
+          id?: string
+          is_required?: boolean | null
+          options?: Json | null
+          organization_id: string
+          sort_order?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          entity_type?: string
+          field_key?: string
+          field_name?: string
+          field_type?: string
+          id?: string
+          is_required?: boolean | null
+          options?: Json | null
+          organization_id?: string
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_custom_fields_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_tags: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          id: string
+          name: string
+          organization_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          organization_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_tags_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
