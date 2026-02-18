@@ -85,6 +85,7 @@ export function PipelineSettingsSection() {
 
   const [stageRules, setStageRules] = useState<Record<string, StageRule>>({});
   const [initialized, setInitialized] = useState(false);
+  const [generatingPipelineId, setGeneratingPipelineId] = useState<string | null>(null);
 
   // ── seed default pipeline if none exist ──
   const seedDefaultPipeline = useMutation({
@@ -143,8 +144,8 @@ export function PipelineSettingsSection() {
             auto_reject_after_hours: null,
             auto_reject_on_deadline: false,
             notify_employee_ids: [],
-            email_trigger_type: null,
-            is_active: false,
+            email_trigger_type: 'stage_entry',
+            is_active: true,
           };
     }
     setStageRules(rules);
@@ -307,6 +308,49 @@ export function PipelineSettingsSection() {
     onError: () => toast.error('Failed to save pipeline rules'),
   });
 
+  // ── generate AI email templates ──
+
+  const handleGenerateTemplates = async (pipeline: Pipeline) => {
+    if (!orgId) return;
+    setGeneratingPipelineId(pipeline.id);
+    try {
+      const stages = pipeline.stages
+        .filter(s => s.is_active)
+        .map(s => ({ stage_id: s.id, stage_name: s.name, pipeline_name: pipeline.name }));
+
+      const { data, error } = await supabase.functions.invoke('generate-stage-email-templates', {
+        body: {
+          organization_id: orgId,
+          stages,
+          company_name: currentOrg?.name || 'Our Company',
+        },
+      });
+
+      if (error) throw error;
+
+      const result = data as { message?: string; generated?: number; error?: string };
+      if (result.error) throw new Error(result.error);
+
+      queryClient.invalidateQueries({ queryKey: ['hiring', 'email-templates'] });
+      toast.success(
+        result.generated === 0
+          ? 'All stages already have email templates'
+          : `Generated ${result.generated} email template${result.generated !== 1 ? 's' : ''} successfully`,
+      );
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to generate templates';
+      if (msg.includes('Rate limit') || msg.includes('429')) {
+        toast.error('Rate limit exceeded — please try again in a moment');
+      } else if (msg.includes('credits') || msg.includes('402')) {
+        toast.error('AI credits required — please add credits to your workspace');
+      } else {
+        toast.error(msg);
+      }
+    } finally {
+      setGeneratingPipelineId(null);
+    }
+  };
+
   // ── loading state ──
 
   if (pipelinesLoading || rulesLoading || !initialized) {
@@ -357,6 +401,8 @@ export function PipelineSettingsSection() {
               isSavingRules={saveMutation.isPending}
               canDeletePipeline={!pipeline.is_default}
               canDeleteStage={() => true}
+              onGenerateTemplates={handleGenerateTemplates}
+              isGeneratingTemplates={generatingPipelineId === pipeline.id}
             />
           ))}
         </CardContent>

@@ -54,6 +54,7 @@ import {
   Save,
   Loader2,
   Lock,
+  Sparkles,
 } from 'lucide-react';
 import {
   useCreateEmailTemplate,
@@ -141,6 +142,8 @@ interface PipelineCardProps {
   isSavingRules: boolean;
   canDeletePipeline: boolean;
   canDeleteStage: (stageId: string) => boolean;
+  onGenerateTemplates?: (pipeline: Pipeline) => void;
+  isGeneratingTemplates?: boolean;
 }
 
 // ── Email Template Dialog ─────────────────────────────────────
@@ -815,6 +818,8 @@ export function PipelineCard({
   isSavingRules,
   canDeletePipeline,
   canDeleteStage,
+  onGenerateTemplates,
+  isGeneratingTemplates = false,
 }: PipelineCardProps) {
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(pipeline.name);
@@ -932,6 +937,20 @@ export function PipelineCard({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {onGenerateTemplates && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1.5"
+              onClick={() => onGenerateTemplates(pipeline)}
+              disabled={isGeneratingTemplates}
+            >
+              {isGeneratingTemplates
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                : <Sparkles className="h-3.5 w-3.5" />}
+              Generate Templates
+            </Button>
+          )}
           <Button
             size="sm"
             variant="outline"
