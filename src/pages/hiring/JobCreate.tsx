@@ -371,8 +371,8 @@ export default function JobCreate() {
                 </div>
               </div>
 
-              {/* Pipeline selector */}
-              <div className="grid gap-4 md:grid-cols-2">
+              {/* Pipeline + Dates row */}
+              <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
                   <Label>Hiring Pipeline</Label>
                   <Select
@@ -391,9 +391,6 @@ export default function JobCreate() {
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Application Close Date</Label>
                   <Popover>
