@@ -504,7 +504,7 @@ function SortableStageAccordion({
               </div>
 
               {/* Hover actions */}
-              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0">
+              <div className="flex items-center gap-0.5 shrink-0">
                 <Button
                   size="icon"
                   variant="ghost"
