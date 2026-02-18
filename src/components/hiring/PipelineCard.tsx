@@ -3,7 +3,7 @@
  * Each stage row includes inline automation rules, rejection settings, notifications, and email trigger.
  */
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -367,6 +367,41 @@ function SortableStageAccordion({
 }: SortableStageAccordionProps) {
   const [open, setOpen] = useState(false);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+
+  // Notify on Entry toggle — preserve employee list in a ref when toggled off
+  const [notifyEnabled, setNotifyEnabled] = useState(() => (rule?.notify_employee_ids?.length ?? 0) > 0);
+  const preservedNotifyIds = useRef<string[]>(rule?.notify_employee_ids ?? []);
+
+  const handleNotifyToggle = (enabled: boolean) => {
+    setNotifyEnabled(enabled);
+    if (!enabled) {
+      // Preserve the current list, then clear it
+      preservedNotifyIds.current = rule?.notify_employee_ids ?? [];
+      onRuleChange(stageKey, { notify_employee_ids: [] });
+    } else {
+      // Restore the preserved list
+      onRuleChange(stageKey, { notify_employee_ids: preservedNotifyIds.current, is_active: true });
+    }
+  };
+
+  // Email Trigger toggle — immediately persists is_active on the template
+  const updateTemplateMutation = useUpdateEmailTemplate();
+
+  const handleEmailActiveToggle = (
+    template: { id: string; name: string; subject?: string; body?: string; is_active: boolean },
+    active: boolean,
+  ) => {
+    updateTemplateMutation.mutate({
+      id: template.id,
+      input: {
+        name: template.name,
+        subject: template.subject ?? '',
+        body: template.body ?? '',
+        is_active: active,
+      },
+    });
+  };
+
   const {
     attributes,
     listeners,
@@ -593,68 +628,92 @@ function SortableStageAccordion({
                   <div className="flex items-center justify-center w-6 h-6 rounded-md bg-secondary text-secondary-foreground shrink-0">
                     <Bell className="h-3.5 w-3.5" />
                   </div>
-                  <span className="text-sm font-semibold">Notify on Entry</span>
+                  <span className="text-sm font-semibold flex-1">Notify on Entry</span>
+                  <Switch
+                    checked={notifyEnabled}
+                    onCheckedChange={handleNotifyToggle}
+                  />
                 </div>
-                <div className="pl-8 space-y-2">
-                  <Select
-                    value="__placeholder__"
-                    onValueChange={empId => {
-                      if (empId === '__placeholder__') return;
-                      const current = rule?.notify_employee_ids ?? [];
-                      if (!current.includes(empId)) {
-                        onRuleChange(stageKey, {
-                          notify_employee_ids: [...current, empId],
-                          is_active: true,
-                        });
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="h-9 text-sm">
-                      <SelectValue placeholder="+ Add team member to notify…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__placeholder__" disabled>Select a team member…</SelectItem>
-                      {employees
-                        .filter(e => !(rule?.notify_employee_ids ?? []).includes(e.id))
-                        .map(e => (
-                          <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                  {(rule?.notify_employee_ids?.length ?? 0) > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {rule!.notify_employee_ids.map(empId => {
-                        const emp = employees.find(e => e.id === empId);
-                        return (
-                          <Badge
-                            key={empId}
-                            variant="secondary"
-                            className="cursor-pointer hover:bg-destructive/20 hover:text-destructive transition-colors pr-1"
-                            onClick={() => onRuleChange(stageKey, {
-                              notify_employee_ids: rule!.notify_employee_ids.filter(id => id !== empId),
-                            })}
-                          >
-                            {emp?.full_name ?? empId.slice(0, 8)}
-                            <X className="h-3 w-3 ml-1" />
-                          </Badge>
-                        );
-                      })}
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    These team members will be notified when a candidate enters this stage.
-                  </p>
-                </div>
+                {notifyEnabled && (
+                  <div className="pl-8 space-y-2">
+                    <Select
+                      value="__placeholder__"
+                      onValueChange={empId => {
+                        if (empId === '__placeholder__') return;
+                        const current = rule?.notify_employee_ids ?? [];
+                        if (!current.includes(empId)) {
+                          onRuleChange(stageKey, {
+                            notify_employee_ids: [...current, empId],
+                            is_active: true,
+                          });
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="h-9 text-sm">
+                        <SelectValue placeholder="+ Add team member to notify…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__placeholder__" disabled>Select a team member…</SelectItem>
+                        {employees
+                          .filter(e => !(rule?.notify_employee_ids ?? []).includes(e.id))
+                          .map(e => (
+                            <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    {(rule?.notify_employee_ids?.length ?? 0) > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {rule!.notify_employee_ids.map(empId => {
+                          const emp = employees.find(e => e.id === empId);
+                          return (
+                            <Badge
+                              key={empId}
+                              variant="secondary"
+                              className="cursor-pointer hover:bg-destructive/20 hover:text-destructive transition-colors pr-1"
+                              onClick={() => onRuleChange(stageKey, {
+                                notify_employee_ids: rule!.notify_employee_ids.filter(id => id !== empId),
+                              })}
+                            >
+                              {emp?.full_name ?? empId.slice(0, 8)}
+                              <X className="h-3 w-3 ml-1" />
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      These team members will be notified when a candidate enters this stage.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* ── Email Trigger ────────────────────────────── */}
               <div className="space-y-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-md bg-accent text-accent-foreground shrink-0">
-                    <Mail className="h-3.5 w-3.5" />
-                  </div>
-                  <span className="text-sm font-semibold">Email Trigger</span>
-                </div>
+                {(() => {
+                  const effectiveTrigger = DEFAULT_EMAIL_TRIGGERS[stageKey] ?? null;
+                  const matchedTpl = effectiveTrigger
+                    ? emailTemplates.find(t => t.template_type === effectiveTrigger) as
+                        | { id: string; name: string; template_type: string; is_active: boolean; subject?: string; body?: string }
+                        | undefined
+                    : undefined;
+
+                  return (
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center justify-center w-6 h-6 rounded-md bg-accent text-accent-foreground shrink-0">
+                        <Mail className="h-3.5 w-3.5" />
+                      </div>
+                      <span className="text-sm font-semibold flex-1">Email Trigger</span>
+                      {matchedTpl && (
+                        <Switch
+                          checked={matchedTpl.is_active}
+                          onCheckedChange={active => handleEmailActiveToggle(matchedTpl, active)}
+                          disabled={updateTemplateMutation.isPending}
+                        />
+                      )}
+                    </div>
+                  );
+                })()}
                 <div className="pl-8 space-y-3">
                   <p className="text-xs text-muted-foreground">
                     Automatically send an email when a candidate enters this stage.
