@@ -612,6 +612,12 @@ export interface HiringMetrics {
   source_of_hire: Record<CandidateSource, number>;
   assignment_completion_rate: number;
   avg_assignment_rating: number | null;
+  // Enriched analytics fields
+  source_breakdown: { name: string; value: number }[];
+  applications_trend: { week: string; count: number }[];
+  applications_by_job: { title: string; count: number }[];
+  on_time_submission_rate: number | null;
+  avg_review_time_days: number | null;
 }
 
 export interface PipelineFunnel {
