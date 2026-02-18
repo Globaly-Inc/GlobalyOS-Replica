@@ -318,6 +318,8 @@ export function PipelineSettingsSection() {
     id: t.id,
     name: t.name,
     template_type: t.template_type,
+    subject: t.subject ?? '',
+    body: t.body ?? '',
     is_active: t.is_active,
   }));
 

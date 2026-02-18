@@ -4,12 +4,21 @@
  */
 
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,7 +63,12 @@ import {
   Mail,
   Save,
   Loader2,
+  Lock,
 } from 'lucide-react';
+import {
+  useCreateEmailTemplate,
+  useUpdateEmailTemplate,
+} from '@/services/useHiringMutations';
 import {
   DndContext,
   closestCenter,
@@ -126,11 +140,20 @@ const DEFAULT_EMAIL_TRIGGERS: Partial<Record<ApplicationStage, EmailTrigger>> = 
   hired: 'offer_accepted',
 };
 
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  template_type: string;
+  subject: string;
+  body: string;
+  is_active: boolean;
+}
+
 interface PipelineCardProps {
   pipeline: Pipeline;
   stageRules: Record<string, StageRule>;
   employees: Employee[];
-  emailTemplates: { id: string; name: string; template_type: string; is_active: boolean }[];
+  emailTemplates: EmailTemplate[];
   onRenamePipeline: (pipelineId: string, newName: string) => void;
   onDeletePipeline: (pipelineId: string) => void;
   onRenameStage: (stageId: string, newName: string) => void;
@@ -144,7 +167,168 @@ interface PipelineCardProps {
   canDeleteStage: (stageId: string) => boolean;
 }
 
+// ── Email Template Dialog ─────────────────────────────────────
+
+interface EmailTemplateDialogProps {
+  open: boolean;
+  onClose: () => void;
+  triggerType: string;
+  existingTemplate?: { id: string; name: string; subject: string; body: string; is_active: boolean } | null;
+  onSaved?: () => void;
+}
+
+interface TemplateFormValues {
+  name: string;
+  subject: string;
+  body: string;
+  is_active: boolean;
+}
+
+function EmailTemplateDialog({ open, onClose, triggerType, existingTemplate, onSaved }: EmailTemplateDialogProps) {
+  const isEdit = !!existingTemplate;
+  const triggerLabel = EMAIL_TRIGGER_LABELS[triggerType as EmailTrigger] ?? triggerType;
+
+  const createMutation = useCreateEmailTemplate();
+  const updateMutation = useUpdateEmailTemplate();
+  const isPending = createMutation.isPending || updateMutation.isPending;
+
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<TemplateFormValues>({
+    defaultValues: {
+      name: existingTemplate?.name ?? triggerLabel,
+      subject: existingTemplate?.subject ?? '',
+      body: existingTemplate?.body ?? '',
+      is_active: existingTemplate?.is_active ?? true,
+    },
+  });
+
+  const isActive = watch('is_active');
+
+  // Reset form when dialog opens
+  const handleOpenChange = (val: boolean) => {
+    if (!val) {
+      onClose();
+    } else {
+      reset({
+        name: existingTemplate?.name ?? triggerLabel,
+        subject: existingTemplate?.subject ?? '',
+        body: existingTemplate?.body ?? '',
+        is_active: existingTemplate?.is_active ?? true,
+      });
+    }
+  };
+
+  const onSubmit = async (values: TemplateFormValues) => {
+    try {
+      if (isEdit && existingTemplate) {
+        await updateMutation.mutateAsync({ id: existingTemplate.id, input: values });
+      } else {
+        await createMutation.mutateAsync({ ...values, template_type: triggerType });
+      }
+      onSaved?.();
+      onClose();
+    } catch {
+      // error handled in mutation
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? 'Edit Email Template' : 'Create Email Template'}</DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {/* Name */}
+          <div className="space-y-1.5">
+            <Label htmlFor="tpl-name">
+              Template Name <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="tpl-name"
+              {...register('name', { required: 'Name is required' })}
+              placeholder="e.g. Application Received"
+            />
+            {errors.name && (
+              <p className="text-xs text-destructive">{errors.name.message}</p>
+            )}
+          </div>
+
+          {/* Trigger (locked) */}
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-1.5">
+              Trigger
+              <span className="inline-flex items-center gap-1 text-[10px] font-normal text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                <Lock className="h-2.5 w-2.5" /> Locked to stage
+              </span>
+            </Label>
+            <Input
+              value={triggerLabel}
+              disabled
+              className="bg-muted text-muted-foreground cursor-not-allowed"
+            />
+          </div>
+
+          {/* Subject */}
+          <div className="space-y-1.5">
+            <Label htmlFor="tpl-subject">
+              Subject <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="tpl-subject"
+              {...register('subject', { required: 'Subject is required' })}
+              placeholder="Thank you for applying to {{job_title}}"
+            />
+            {errors.subject && (
+              <p className="text-xs text-destructive">{errors.subject.message}</p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Use <code className="bg-muted px-1 rounded text-[10px]">{'{{candidate_name}}'}</code>,{' '}
+              <code className="bg-muted px-1 rounded text-[10px]">{'{{job_title}}'}</code>,{' '}
+              <code className="bg-muted px-1 rounded text-[10px]">{'{{company_name}}'}</code> for dynamic values.
+            </p>
+          </div>
+
+          {/* Body */}
+          <div className="space-y-1.5">
+            <Label htmlFor="tpl-body">Email Body</Label>
+            <Textarea
+              id="tpl-body"
+              {...register('body')}
+              placeholder={`Dear {{candidate_name}},\n\nThank you for applying...`}
+              className="min-h-[140px] resize-y font-mono text-sm"
+            />
+          </div>
+
+          {/* Active toggle */}
+          <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/30">
+            <div>
+              <p className="text-sm font-medium">Active</p>
+              <p className="text-xs text-muted-foreground">Send this email automatically when triggered</p>
+            </div>
+            <Switch
+              checked={isActive}
+              onCheckedChange={val => setValue('is_active', val)}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              {isEdit ? 'Save Changes' : 'Create Template'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Sortable Stage Accordion ──────────────────────────────────
+
 
 interface SortableStageAccordionProps {
   stage: PipelineStage;
@@ -182,6 +366,7 @@ function SortableStageAccordion({
   onRuleChange,
 }: SortableStageAccordionProps) {
   const [open, setOpen] = useState(false);
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const {
     attributes,
     listeners,
@@ -469,67 +654,87 @@ function SortableStageAccordion({
                   </div>
                   <span className="text-sm font-semibold">Email Trigger</span>
                 </div>
-                <div className="pl-8 space-y-2">
+                <div className="pl-8 space-y-3">
                   <p className="text-xs text-muted-foreground">
                     Automatically send an email when a candidate enters this stage.
                   </p>
-                  <div className="flex items-center gap-3">
-                    <Select
-                      value={rule?.email_trigger_type ?? '__none__'}
-                      onValueChange={val => onRuleChange(stageKey, {
-                        email_trigger_type: val === '__none__' ? null : val,
-                        is_active: val !== '__none__' || (rule?.is_active ?? false),
-                      })}
-                    >
-                      <SelectTrigger className="h-9 flex-1 text-sm">
-                        <SelectValue placeholder="No email trigger…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">No email trigger</SelectItem>
-                        {Object.entries(EMAIL_TRIGGER_LABELS).map(([key, label]) => {
-                          const template = emailTemplates.find(t => t.template_type === key);
-                          return (
-                            <SelectItem key={key} value={key}>
-                              <span className="flex items-center gap-2">
-                                {label}
-                                {template && (
-                                  <span className={cn(
-                                    'text-[10px] px-1 rounded',
-                                    template.is_active
-                                      ? 'bg-primary/10 text-primary'
-                                      : 'bg-muted text-muted-foreground',
-                                  )}>
-                                    {template.is_active ? 'Active' : 'Inactive'}
-                                  </span>
-                                )}
-                                {!template && (
-                                  <span className="text-[10px] px-1 rounded bg-muted text-muted-foreground">
-                                    No template
-                                  </span>
-                                )}
-                              </span>
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                    {rule?.email_trigger_type && (
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {(() => {
-                          const template = emailTemplates.find(t => t.template_type === rule.email_trigger_type);
-                          return template?.is_active ? (
-                            <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] px-1.5 py-0 h-5">
-                              ● Active
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 text-muted-foreground">
-                              ○ Inactive
-                            </Badge>
-                          );
-                        })()}
-                      </div>
-                    )}
-                  </div>
+
+                  {/* Trigger type selector */}
+                  <Select
+                    value={rule?.email_trigger_type ?? '__none__'}
+                    onValueChange={val => onRuleChange(stageKey, {
+                      email_trigger_type: val === '__none__' ? null : val,
+                      is_active: val !== '__none__' || (rule?.is_active ?? false),
+                    })}
+                  >
+                    <SelectTrigger className="h-9 w-full text-sm">
+                      <SelectValue placeholder="No email trigger…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">No email trigger</SelectItem>
+                      {Object.entries(EMAIL_TRIGGER_LABELS).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {/* Template status card */}
+                  {rule?.email_trigger_type && (() => {
+                    const selectedTemplate = emailTemplates.find(
+                      t => t.template_type === rule.email_trigger_type,
+                    );
+                    const fullTemplate = selectedTemplate as
+                      | { id: string; name: string; template_type: string; is_active: boolean; subject?: string; body?: string }
+                      | undefined;
+
+                    if (fullTemplate) {
+                      return (
+                        <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2.5">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium truncate">{fullTemplate.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {fullTemplate.is_active ? 'Active — will send automatically' : 'Inactive — will not send'}
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-7 shrink-0 gap-1.5 ml-2"
+                            onClick={() => setTemplateDialogOpen(true)}
+                          >
+                            <Pencil className="h-3 w-3" />
+                            Edit
+                          </Button>
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div className="flex items-center justify-between rounded-lg border border-dashed bg-muted/20 px-3 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-muted-foreground/40 shrink-0" />
+                            <div>
+                              <p className="text-sm font-medium text-muted-foreground">No template configured</p>
+                              <p className="text-xs text-muted-foreground">Create one to enable automated sending</p>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="default"
+                            className="h-7 shrink-0 gap-1.5 ml-2"
+                            onClick={() => setTemplateDialogOpen(true)}
+                          >
+                            <Plus className="h-3 w-3" />
+                            Create Template
+                          </Button>
+                        </div>
+                      );
+                    }
+                  })()}
                 </div>
               </div>
 
@@ -537,6 +742,24 @@ function SortableStageAccordion({
           </div>
         </CollapsibleContent>
       </Collapsible>
+
+      {/* Email Template Dialog */}
+      {rule?.email_trigger_type && (
+        <EmailTemplateDialog
+          open={templateDialogOpen}
+          onClose={() => setTemplateDialogOpen(false)}
+          triggerType={rule.email_trigger_type}
+          existingTemplate={
+            (() => {
+              const t = emailTemplates.find(x => x.template_type === rule.email_trigger_type) as
+                | { id: string; name: string; template_type: string; is_active: boolean; subject?: string; body?: string }
+                | undefined;
+              if (!t) return null;
+              return { id: t.id, name: t.name, subject: t.subject ?? '', body: t.body ?? '', is_active: t.is_active };
+            })()
+          }
+        />
+      )}
     </div>
   );
 }
