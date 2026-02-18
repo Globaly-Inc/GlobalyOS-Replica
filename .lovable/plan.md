@@ -1,80 +1,125 @@
 
-## Preview Button for Assignment Template Editor
+## Add File Upload & URL Input Question Types to Questions Builder
 
-### What's Being Built
+### What's Being Added
 
-A "Preview" button will be added next to "Cancel" and "Save Changes" in the `AssignmentTemplateEditor` header. Clicking it opens a large dialog that renders the assignment exactly as a candidate sees it on the public `/assignment/:token` page — including the OTP gate screens (simulated), the instruction panel, deliverables form, and questions. A "Copy Public Link" button will also be shown (only in edit mode, since a real token requires a saved instance).
+Two new question answer types in `QuestionsBuilder.tsx`:
 
-### Where the User Clicked
+1. **File Upload** — candidate can upload multiple files (up to 25MB each, any file type)
+2. **URL Input** — candidate enters a URL with live validation (must start with `http://` or `https://`)
 
-The user selected the action buttons `div` at line 133 of `AssignmentTemplateEditor.tsx`:
-```
-<div className="flex items-center gap-2">
-  <Button variant="outline" onClick={goBack}>Cancel</Button>
-  <Button onClick={handleSave}>Save Changes</Button>
-</div>
-```
-
-A "Preview" button with an `Eye` icon will be inserted between Cancel and Save.
+These will appear as new options in the "Type" dropdown alongside "Paragraph" and "Multiple Choice".
 
 ---
 
-### New Component: `AssignmentPreviewDialog`
+### Type System Changes
 
-A new file `src/components/hiring/AssignmentPreviewDialog.tsx` will be created.
+#### `src/types/hiring.ts`
 
-**Dialog specs:**
-- Size: `max-w-4xl`, full height using `h-[90vh]` with internal scroll
-- Layout: 3 tabs at the top for the 3 states — **Email Gate**, **Assignment View**, **Success Screen** — so the recruiter can explore all states
-- Content mirrors `AssignmentSubmission.tsx` exactly (same structure, same styles), but:
-  - Data comes from the `formData` prop (template fields), not from a DB query
-  - It's read-only / non-interactive (inputs are disabled/displayed for illustration)
-  - Shows "PREVIEW" watermark badge in corner so it's clearly not the live page
+Extend `AssignmentQuestion.type` from:
+```ts
+type: 'multiple_choice' | 'paragraph'
+```
+to:
+```ts
+type: 'multiple_choice' | 'paragraph' | 'file_upload' | 'url_input'
+```
 
-**Preview Tab 1 — "Email Gate" preview:**
-- Renders the `email_entry` card exactly as a candidate would see it (Lock icon, email input, Send button)
-- All inputs are disabled — this is a visual preview only
-
-**Preview Tab 2 — "Assignment" preview:**
-- Header card: Shows the template `name` as title, a mock deadline badge ("3 days from now" calculated from `default_deadline_hours`)
-- `recommended_effort` shown if set (with a clock icon)
-- Instructions panel: renders the rich text `instructions` HTML via `DOMPurify.sanitize` + `dangerouslySetInnerHTML` exactly as `AssignmentSubmission.tsx` does
-- Submission section:
-  - URL fields rendered as disabled inputs (one per label in `url_fields`)
-  - File upload area shown if `files = true`
-  - Questions shown as disabled form fields (radio group for MC, textarea for paragraph)
-- Submit button shown but disabled
-
-**Preview Tab 3 — "Success" preview:**
-- The green `CheckCircle2` success card with the "Assignment Submitted!" message
-
-**Copy Link section (edit mode only):**
-- Below the tabs, a "Public Assignment Link" info note explains that actual public links are generated per candidate when assignments are dispatched
-- In edit mode, shows a gray info card: "Links are generated when you assign this template to a candidate" 
-- In cases where a `secure_token` is passed (optional prop for future use), shows the full URL with a Copy button using the `Copy` Lucide icon + `navigator.clipboard.writeText()`
+Add optional config fields to `AssignmentQuestion`:
+```ts
+interface AssignmentQuestion {
+  id: string;
+  text: string;
+  type: 'multiple_choice' | 'paragraph' | 'file_upload' | 'url_input';
+  options?: string[];       // for multiple_choice
+  required: boolean;
+  // New optional config fields:
+  max_files?: number;       // for file_upload (default 5)
+  max_size_mb?: number;     // for file_upload (default 25)
+  accept_all_types?: boolean; // for file_upload (default true)
+  url_placeholder?: string; // for url_input (e.g. "https://github.com/your-repo")
+}
+```
 
 ---
 
-### Changes to `AssignmentTemplateEditor.tsx`
+### `QuestionsBuilder.tsx` Changes
 
-1. Import `Eye` from lucide-react and import the new `AssignmentPreviewDialog` component
-2. Add `previewOpen` state: `const [previewOpen, setPreviewOpen] = useState(false)`
-3. Add the Preview button between Cancel and Save:
-```tsx
-<Button variant="outline" onClick={() => setPreviewOpen(true)} className="gap-2">
-  <Eye className="h-4 w-4" />
-  Preview
-</Button>
+#### 1. Dropdown — add 2 new types
 ```
-4. Render the dialog:
-```tsx
-<AssignmentPreviewDialog
-  open={previewOpen}
-  onOpenChange={setPreviewOpen}
-  formData={formData}
-  isEditMode={isEditMode}
-/>
+Paragraph
+Multiple Choice
+File Upload       ← new
+URL Input         ← new
 ```
+
+#### 2. Type label in collapsed header row
+Show the correct label for all 4 types in the collapsed card header.
+
+#### 3. Expanded config panels for new types
+
+**File Upload config panel** (shown when `type === 'file_upload'`):
+```
+┌─────────────────────────────────────────────────────┐
+│  Max Files:  [5 ▾]    Max Size per File:  [25 MB ▾] │
+│  ✓ Accept all file types (PDF, images, docs, etc.)  │
+└─────────────────────────────────────────────────────┘
+```
+- Max Files: numeric input (1–20), default 5
+- Max Size: select dropdown: 5 MB / 10 MB / 25 MB, default 25
+- Accept all types toggle: enabled by default
+
+**URL Input config panel** (shown when `type === 'url_input'`):
+```
+┌──────────────────────────────────────────────────────┐
+│  Placeholder hint  [https://github.com/your-repo __ ] │
+└──────────────────────────────────────────────────────┘
+```
+- Optional placeholder text to guide the candidate (e.g. "https://your-portfolio.com")
+- Link validation is always enforced: must start with `http://` or `https://`
+
+#### 4. When switching types — clear irrelevant fields
+- Switching away from `multiple_choice` → clears `options`
+- Switching away from `file_upload` → clears `max_files`, `max_size_mb`, `accept_all_types`
+- Switching away from `url_input` → clears `url_placeholder`
+
+---
+
+### `AssignmentPreviewDialog.tsx` Changes
+
+In `AssignmentViewPreview`, add two new rendered states in the questions loop:
+
+**`file_upload` preview:**
+```
+┌─ Question text * ────────────────────────────────────┐
+│                                                      │
+│  ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐  │
+│     📤 Drop files here or click to upload            │
+│     Up to 5 files • Max 25 MB each                  │
+│  └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘  │
+└──────────────────────────────────────────────────────┘
+```
+
+**`url_input` preview:**
+```
+┌─ Question text * ────────────────────────────────────┐
+│  🔗  [https://your-url-here ________________ ]       │
+│      ✓ Must be a valid URL (https://...)             │
+└──────────────────────────────────────────────────────┘
+```
+
+---
+
+### `AssignmentSubmission.tsx` Changes (live candidate page)
+
+The questions rendering section (currently missing from the live page but present in the preview) needs to be added and updated to handle the new types. Currently the live page only renders URL fields and file uploads from `expected_deliverables` — the questions within `expected_deliverables.questions` aren't rendered at all.
+
+- Add the questions render block after the file upload section
+- Handle `file_upload` type: render `AssignmentFileUpload` component inline (per-question, with its `max_files`/`max_size_mb` config)
+- Handle `url_input` type: render an `<Input type="url">` with a `pattern` attribute and inline validation feedback showing "Must be a valid URL starting with https://"
+- Handle `paragraph` type: render `<Textarea>`
+- Handle `multiple_choice` type: render `<RadioGroup>`
+- Wire answers back into `submissionData.text_answers`
 
 ---
 
@@ -82,18 +127,9 @@ A new file `src/components/hiring/AssignmentPreviewDialog.tsx` will be created.
 
 | File | Change |
 |---|---|
-| `src/pages/hiring/AssignmentTemplateEditor.tsx` | Add Preview button + state + render dialog |
-| `src/components/hiring/AssignmentPreviewDialog.tsx` | **New** — full preview dialog with 3 tabs |
+| `src/types/hiring.ts` | Extend `AssignmentQuestion.type` union + add optional config fields |
+| `src/components/hiring/QuestionsBuilder.tsx` | Add File Upload & URL Input to type dropdown + config panels |
+| `src/components/hiring/AssignmentPreviewDialog.tsx` | Render new question types in preview |
+| `src/pages/AssignmentSubmission.tsx` | Render questions (all 4 types) on the live candidate page |
 
-No backend changes, no DB migrations, no edge functions needed.
-
----
-
-### UX Details
-
-- The dialog header has a clear "Preview" label with a subtitle: "This is how candidates experience this assignment"
-- A subtle amber `PREVIEW MODE` pill badge is shown in the top-right of the dialog to make it unmistakably a preview
-- Tabs use standard pill-style navigation consistent with GlobalyOS patterns
-- The content area is scrollable independently so the tab bar and dialog header stay fixed
-- For the Copy Link feature: in edit mode, show a note explaining that links are per-candidate; offer a "Learn more" tooltip explaining the OTP flow
-- Smooth fade-in animation via the existing Dialog component
+No backend/DB changes needed — the `expected_deliverables` JSONB column already stores questions, and the new fields (`max_files`, `max_size_mb`, `url_placeholder`) are just additional JSON properties.
