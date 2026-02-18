@@ -649,41 +649,68 @@ export function useHiringMetrics() {
 // PUBLIC QUERIES (for careers site)
 // ============================================
 
+// ---- Exported pure query functions (testable without React context) ----
+
+export async function fetchPublicJobs(orgSlug: string): Promise<Job[]> {
+  const { data: org, error: orgError } = await supabase
+    .from('organizations')
+    .select('id')
+    .eq('slug', orgSlug)
+    .single();
+
+  if (orgError || !org) return [];
+
+  const { data, error } = await supabase
+    .from('jobs')
+    .select(`
+      id, slug, title, location, work_model, employment_type,
+      salary_min, salary_max, salary_currency, salary_visible,
+      description, requirements, benefits, published_at,
+      application_close_date,
+      department:departments(id, name),
+      office:offices(id, name, city, country)
+    `)
+    .eq('organization_id', org.id)
+    .eq('status', 'open')
+    .eq('is_public_visible', true)
+    .order('published_at', { ascending: false });
+
+  if (error) throw error;
+  return (data || []) as unknown as Job[];
+}
+
+export async function fetchPublicJob(orgSlug: string, jobSlug: string): Promise<Job | null> {
+  const { data: org, error: orgError } = await supabase
+    .from('organizations')
+    .select('id, name, slug, logo_url, website')
+    .eq('slug', orgSlug)
+    .single();
+
+  if (orgError || !org) return null;
+
+  const { data, error } = await supabase
+    .from('jobs')
+    .select(`
+      *,
+      department:departments(id, name),
+      office:offices(id, name, city, country)
+    `)
+    .eq('organization_id', org.id)
+    .eq('slug', jobSlug)
+    .eq('status', 'open')
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+  return { ...data, organization: { name: org.name, slug: org.slug, logo_url: (org as any).logo_url, website: (org as any).website } } as unknown as Job;
+}
+
+// ---- Hooks (thin wrappers around the pure functions above) ----
+
 export function usePublicJobs(orgSlug: string | undefined) {
   return useQuery({
     queryKey: ['public', 'jobs', orgSlug],
-    queryFn: async (): Promise<Job[]> => {
-      if (!orgSlug) return [];
-
-      // First get org by slug
-      const { data: org, error: orgError } = await supabase
-        .from('organizations')
-        .select('id')
-        .eq('slug', orgSlug)
-        .single();
-
-      if (orgError || !org) return [];
-
-      const { data, error } = await supabase
-        .from('jobs')
-        .select(`
-          id, slug, title, location, work_model, employment_type,
-          salary_min, salary_max, salary_currency, salary_visible,
-          description, requirements, benefits, published_at,
-          application_close_date,
-          salary_min, salary_max, salary_currency, salary_visible,
-          description, requirements, benefits, published_at,
-          department:departments(id, name),
-          office:offices(id, name, city, country)
-        `)
-        .eq('organization_id', org.id)
-        .eq('status', 'open')
-        .eq('is_public_visible', true)
-        .order('published_at', { ascending: false });
-
-      if (error) throw error;
-      return (data || []) as unknown as Job[];
-    },
+    queryFn: () => fetchPublicJobs(orgSlug!),
     enabled: !!orgSlug,
   });
 }
@@ -691,34 +718,7 @@ export function usePublicJobs(orgSlug: string | undefined) {
 export function usePublicJob(orgSlug: string | undefined, jobSlug: string | undefined) {
   return useQuery({
     queryKey: ['public', 'job', orgSlug, jobSlug],
-    queryFn: async (): Promise<Job | null> => {
-      if (!orgSlug || !jobSlug) return null;
-
-      // First get org by slug
-      const { data: org, error: orgError } = await supabase
-        .from('organizations')
-        .select('id, name, slug, logo_url, website')
-        .eq('slug', orgSlug)
-        .single();
-
-      if (orgError || !org) return null;
-
-      const { data, error } = await supabase
-        .from('jobs')
-        .select(`
-          *,
-          department:departments(id, name),
-          office:offices(id, name, city, country)
-        `)
-        .eq('organization_id', org.id)
-        .eq('slug', jobSlug)
-        .eq('status', 'open')
-        .maybeSingle();
-
-      if (error) throw error;
-      if (!data) return null;
-      return { ...data, organization: { name: org.name, slug: org.slug, logo_url: (org as any).logo_url, website: (org as any).website } } as unknown as Job;
-    },
+    queryFn: () => fetchPublicJob(orgSlug!, jobSlug!),
     enabled: !!orgSlug && !!jobSlug,
   });
 }
