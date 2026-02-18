@@ -29,6 +29,8 @@ export const PLACEHOLDERS = [
   { key: '{{company_name}}', description: 'Company name' },
   { key: '{{stage_name}}', description: 'Current stage' },
   { key: '{{application_date}}', description: 'Date applied' },
+  { key: '{{assignment_link}}', description: 'Link to candidate assignment' },
+  { key: '{{position_public_page_link}}', description: 'Public job posting URL' },
 ];
 
 interface PlaceholderDropdownProps {
