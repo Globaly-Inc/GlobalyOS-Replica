@@ -1,81 +1,42 @@
 
-## Remove Trigger Dropdown — Auto-assign Default Email Template Per Stage
+## Add On/Off Switches to "Notify on Entry" and "Email Trigger" Sections
 
-### What changes
-
-The "Email Trigger" section currently has two steps:
-1. A dropdown to pick *which* trigger type to use
-2. Then a status card showing the template (or "No template" + Create button)
-
-The user wants to eliminate step 1 entirely. Each stage should simply show its email template directly — pre-populated with the stage's natural default trigger type — with an inline "Edit" button to open the dialog. No dropdown selection needed.
+### What the user wants
+Each section in the stage accordion should have a top-level on/off `Switch` so the feature can be enabled or disabled without opening a dialog or removing data.
 
 ---
 
-### Design
+### Current state
 
-**Before:**
-```
-[Email Trigger]
-  Automatically send an email when...
-  [Application Received ▾]   ← dropdown
-  ┌────────────────────────────────────┐
-  │ ● Active "App Received"  [✎ Edit] │
-  └────────────────────────────────────┘
-```
+**Notify on Entry** — has a dropdown to add team members and a list of chip badges. No on/off toggle. Adding members implicitly activates the rule; removing all of them is the only way to "disable" it.
 
-**After:**
-```
-[Email Trigger]
-  Automatically send an email when a candidate enters this stage.
-  ┌────────────────────────────────────┐
-  │ Application Received               │
-  │ Subject: Thank you for applying... │
-  │ [Active ●]              [✎ Edit]  │
-  └────────────────────────────────────┘
-```
-Or if no template exists yet for this stage's trigger:
-```
-  ┌────────────────────────────────────┐
-  │ No email configured for this stage │
-  │                      [+ Create]   │
-  └────────────────────────────────────┘
-```
+**Email Trigger** — shows a template card with a dot indicator (green = active, grey = inactive). Toggling `is_active` on the template requires clicking "Edit" and using the switch inside the dialog.
 
 ---
 
-### Logic changes
+### Proposed changes
 
-Each stage has a **fixed** default trigger based on `DEFAULT_EMAIL_TRIGGERS` (already defined in the file):
-```ts
-const DEFAULT_EMAIL_TRIGGERS = {
-  applied:      'application_received',
-  assignment:   'assignment_sent',
-  interview_1:  'interview_scheduled',
-  interview_2:  'interview_scheduled',
-  interview_3:  'interview_scheduled',
-  offer:        'offer_sent',
-  hired:        'offer_accepted',
-};
-```
+#### 1. Notify on Entry — add a section-level toggle
 
-Stages without a natural trigger (e.g., `screening`) will show the section with "No email trigger for this stage type" — or we can still allow the user to create a template with a generic type.
+Add a `Switch` in the section header row, next to the "Notify on Entry" label. The switch controls `notify_employee_ids` being active: when toggled OFF, the dropdown and chips are hidden/greyed out (but the saved employee list is preserved in state so re-enabling restores it).
 
-When rendering the Email section:
-1. Resolve `triggerType = DEFAULT_EMAIL_TRIGGERS[stageKey] ?? null`
-2. Find matching template: `emailTemplates.find(t => t.template_type === triggerType)`
-3. If template exists → show template card with name, subject preview, active badge, Edit button
-4. If no template → show "No template" dashed card with "+ Create Template" button
-5. No dropdown rendered at all
+The simplest approach: track a local `notifyEnabled` derived from whether `notify_employee_ids.length > 0`. But to have a proper on/off independent of the list count, we can use a local state `notifyEnabled` that:
+- Defaults to `true` if `rule.notify_employee_ids.length > 0`
+- When turned off: calls `onRuleChange` with `notify_employee_ids: []` (clears from DB on save) — but also keeps the previous list in local state to restore on re-enable
 
-The `email_trigger_type` on the rule still gets set automatically (to the default trigger for the stage) when saving, so the DB column still holds the value — we just don't expose the selection UI to the user.
+Actually the simpler, cleaner approach matching the existing `is_active` pattern already on `StageRule`:
+- Add a `notify_enabled` boolean to `StageRule` (local state only, not a new DB column — we derive it from whether `notify_employee_ids` is non-empty, but the switch itself directly calls `onRuleChange` to set `notify_employee_ids: []` when turned off)
+- The switch lives in the section header; the dropdown/chips are only shown when the switch is ON
 
----
+**Implementation**: Use a local `useState<boolean>` inside `SortableStageAccordion` for `notifyEnabled`, initialized from `(rule?.notify_employee_ids?.length ?? 0) > 0`. When toggled off, store the current list in a ref and clear `notify_employee_ids`. When toggled on, restore the list from the ref.
 
-### Auto-set rule on mount / on save
+#### 2. Email Trigger — add a section-level toggle
 
-When the stage accordion is shown, if `rule?.email_trigger_type` is null but the stage has a default trigger, we auto-set it via `onRuleChange` so saving still works correctly. This can be done in a `useEffect` or simply at save time in `PipelineSettingsSection`.
+Add a `Switch` next to the "Email Trigger" section header. This switch directly maps to the template's `is_active` field. It calls `useUpdateEmailTemplate` to persist the toggle immediately (no dialog needed).
 
-The simpler approach: derive `effectiveTrigger` purely from `DEFAULT_EMAIL_TRIGGERS[stageKey]` in the render logic — don't rely on `rule.email_trigger_type` at all for the display. When the user clicks "Create" or "Edit" and saves via the dialog, the trigger type is already baked into the `EmailTemplateDialog` (it's pre-locked to the stage's trigger). The `onRuleChange` call to persist `email_trigger_type` happens when saving the stage rule.
+- If a template **exists**: Switch reflects `matchedTemplate.is_active`. Toggling it calls `updateMutation.mutateAsync({ id: template.id, input: { ...template, is_active: newValue } })` inline.
+- If **no template**: Switch is disabled/hidden (can't enable what doesn't exist). The "Create" button is still visible.
+- The switch provides immediate visual feedback with an optimistic state update.
 
 ---
 
@@ -83,34 +44,44 @@ The simpler approach: derive `effectiveTrigger` purely from `DEFAULT_EMAIL_TRIGG
 
 | File | Change |
 |------|--------|
-| `src/components/hiring/PipelineCard.tsx` | Remove the `<Select>` trigger dropdown in the Email Trigger section. Replace with a direct template card that reads from `DEFAULT_EMAIL_TRIGGERS[stageKey]` and finds the matching template from `emailTemplates`. Show Edit or Create Template button accordingly. |
+| `src/components/hiring/PipelineCard.tsx` | 1. Add a `Switch` + label in the "Notify on Entry" section header row. Manage local `notifyEnabled` state with a ref to preserve the employee list when toggled off. 2. Add a `Switch` in the "Email Trigger" section header row that directly calls `useUpdateEmailTemplate` to toggle `is_active` on the matched template. |
 
-No other files need to change. The `EmailTemplateDialog` already handles create/edit and the trigger type passed to it will now always be the stage's default (not user-selected).
-
----
-
-### Stages without a default trigger
-
-For `screening` (which has no entry in `DEFAULT_EMAIL_TRIGGERS`), the Email section will show a simple message: *"No email trigger defined for this stage type."* — keeping it clean without empty dropdowns.
+No DB schema changes needed — `notify_employee_ids` is already how the notification list is persisted, and `is_active` already exists on `hiring_email_templates`.
 
 ---
 
-### Summary of the UI section after the change
+### UI After the Change
 
+**Notify on Entry** section header:
 ```
-✉ Email Trigger
-  Automatically send an email when a candidate enters this stage.
+🔔 Notify on Entry          [○ OFF]
+```
+When ON:
+```
+🔔 Notify on Entry          [● ON]
+   [+ Add team member ▾]
+   [Alice ×]  [Bob ×]
+   These team members will be notified...
+```
+When OFF:
+```
+🔔 Notify on Entry          [○ OFF]
+   (dropdown hidden, members preserved in state)
+```
 
-  [Template card]
-    ┌───────────────────────────────────────────┐
-    │ ● Application Received                    │
-    │   Subject: Thank you for applying to...   │
-    │   Active — will send automatically  [Edit]│
-    └───────────────────────────────────────────┘
-  OR
-    ┌───────────────────────────────────────────┐
-    │ ○ No template configured                  │
-    │   Create one to enable automated sending  │
-    │                              [+ Create]   │
-    └───────────────────────────────────────────┘
+**Email Trigger** section header:
 ```
+✉ Email Trigger             [● ON]   ← toggles is_active on the template
+```
+No template exists:
+```
+✉ Email Trigger             (no switch — greyed, template must be created first)
+```
+
+---
+
+### Technical notes
+- `notifyEnabled` local state in `SortableStageAccordion` uses a `useRef` to hold the previous employee list when toggled off, so it can be restored when toggled back on.
+- Email toggle uses `useUpdateEmailTemplate` (already imported at the top of `PipelineCard.tsx`) and updates immediately on toggle — no "Save Rules" button needed for this specific toggle since it's a template property, not a stage rule property.
+- The collapsed row badge for `notifyCount` will still only show when there are employees configured (no change to badge logic).
+- The email section `hasEmail` badge in the collapsed header already reflects template `is_active` — no change needed there.
