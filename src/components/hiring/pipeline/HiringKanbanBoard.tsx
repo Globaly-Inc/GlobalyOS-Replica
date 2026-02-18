@@ -1,8 +1,11 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { OrgLink } from '@/components/OrgLink';
 import { useUpdateApplicationStage } from '@/services/useHiringMutations';
+import { useOrganization } from '@/hooks/useOrganization';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   ApplicationStage, 
   APPLICATION_STAGE_LABELS,
@@ -20,6 +23,27 @@ interface HiringKanbanBoardProps {
   onStageChange?: (stage: ApplicationStage) => void;
 }
 
+function useOrgMemberEmails() {
+  const { currentOrg } = useOrganization();
+  return useQuery({
+    queryKey: ['org-member-emails', currentOrg?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('employee_directory')
+        .select('email, status')
+        .eq('organization_id', currentOrg!.id);
+      if (error) throw error;
+      const map: Record<string, string> = {};
+      for (const emp of data || []) {
+        if (emp.email) map[emp.email.toLowerCase()] = emp.status;
+      }
+      return map;
+    },
+    enabled: !!currentOrg?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 const DEFAULT_STAGES: ApplicationStage[] = [
   'applied',
   'screening',
@@ -33,6 +57,7 @@ const DEFAULT_STAGES: ApplicationStage[] = [
 
 export function HiringKanbanBoard({ jobId, applications, stages, onStageChange }: HiringKanbanBoardProps) {
   const updateStage = useUpdateApplicationStage();
+  const { data: memberEmailMap } = useOrgMemberEmails();
   const [draggedApp, setDraggedApp] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
 
@@ -155,6 +180,7 @@ export function HiringKanbanBoard({ jobId, applications, stages, onStageChange }
               const email = app.candidate?.email || '';
               const phone = app.candidate?.phone || '';
               const contactLine = [email, phone].filter(Boolean).join(' · ');
+              const memberStatus = email ? memberEmailMap?.[email.toLowerCase()] : undefined;
 
               return (
                 <Card
@@ -167,12 +193,24 @@ export function HiringKanbanBoard({ jobId, applications, stages, onStageChange }
                   onDragEnd={handleDragEnd}
                 >
                   <CardContent className="p-4 space-y-1">
-                    <OrgLink
-                      to={`/hiring/applications/${app.id}`}
-                      className="font-medium text-sm hover:text-primary block truncate"
-                    >
-                      {name}
-                    </OrgLink>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <OrgLink
+                        to={`/hiring/applications/${app.id}`}
+                        className="font-medium text-sm hover:text-primary truncate"
+                      >
+                        {name}
+                      </OrgLink>
+                      {(memberStatus === 'active' || memberStatus === 'invited') && (
+                        <Badge className="text-[10px] px-1.5 py-0 h-4 bg-emerald-100 text-emerald-700 border border-emerald-200 shrink-0">
+                          Internal
+                        </Badge>
+                      )}
+                      {memberStatus === 'inactive' && (
+                        <Badge className="text-[10px] px-1.5 py-0 h-4 bg-amber-100 text-amber-700 border border-amber-200 shrink-0">
+                          Past Member
+                        </Badge>
+                      )}
+                    </div>
                     {contactLine && (
                       <p className="text-xs text-muted-foreground truncate">
                         {contactLine}
