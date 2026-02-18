@@ -229,7 +229,7 @@ function ConfigurationSection() {
         .update({
           careers_page_title: title || 'Join Our Team',
           careers_page_subtitle: subtitle || null,
-          careers_header_color: headerColor || null,
+          careers_header_color: headerColor || '#2563eb',
         } as any)
         .eq('id', currentOrg.id);
       if (error) throw error;
@@ -283,17 +283,17 @@ function ConfigurationSection() {
               <Input
                 value={headerColor}
                 onChange={(e) => setHeaderColor(e.target.value)}
-                placeholder="#2563eb (leave empty for default)"
+                placeholder="#2563eb"
                 className="flex-1"
               />
               {headerColor && (
-                <Button variant="ghost" size="sm" onClick={() => setHeaderColor('')}>
+                <Button variant="ghost" size="sm" onClick={() => setHeaderColor('#2563eb')}>
                   Reset
                 </Button>
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Sets the hero section background color. Leave empty to use default theme color.
+              Sets the hero section background color on your public careers page.
             </p>
           </div>
 
@@ -302,7 +302,7 @@ function ConfigurationSection() {
             <Label>Preview</Label>
             <div
               className="rounded-lg p-8 text-center text-white"
-              style={{ backgroundColor: headerColor || 'hsl(var(--primary))' }}
+              style={{ backgroundColor: headerColor || '#2563eb' }}
             >
               <h2 className="text-2xl font-bold mb-2">{title || 'Join Our Team'}</h2>
               <p className="text-sm opacity-90 max-w-md mx-auto">

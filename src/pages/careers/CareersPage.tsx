@@ -103,7 +103,7 @@ export default function CareersPage() {
         {/* Hero Section */}
         <div
           className="py-16 text-white"
-          style={{ backgroundColor: (org as any)?.careers_header_color || 'hsl(var(--primary))' }}
+          style={{ backgroundColor: (org as any)?.careers_header_color || '#2563eb' }}
         >
           <div className="container mx-auto px-4 text-center">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">
