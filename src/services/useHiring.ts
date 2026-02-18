@@ -564,8 +564,15 @@ export function useHiringMetrics() {
           source_of_hire: {} as Record<string, number>,
           assignment_completion_rate: 0,
           avg_assignment_rating: null,
+          source_breakdown: [],
+          applications_trend: [],
+          applications_by_job: [],
+          on_time_submission_rate: null,
+          avg_review_time_days: null,
         };
       }
+
+      const eightWeeksAgo = new Date(Date.now() - 8 * 7 * 24 * 60 * 60 * 1000).toISOString();
 
       // Parallel queries for metrics
       const [
@@ -575,6 +582,9 @@ export function useHiringMetrics() {
         hires30Result,
         hires90Result,
         assignmentsResult,
+        sourceResult,
+        trendResult,
+        jobsForCountResult,
       ] = await Promise.all([
         supabase
           .from('jobs')
@@ -604,8 +614,27 @@ export function useHiringMetrics() {
           .gte('hired_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()),
         supabase
           .from('assignment_instances')
-          .select('status, rating')
+          .select('status, rating, submitted_at, deadline, reviewed_at')
           .eq('organization_id', currentOrg.id),
+        // Source of application breakdown
+        supabase
+          .from('candidate_applications')
+          .select('source_of_application')
+          .eq('organization_id', currentOrg.id),
+        // Applications trend over last 8 weeks
+        supabase
+          .from('candidate_applications')
+          .select('created_at')
+          .eq('organization_id', currentOrg.id)
+          .gte('created_at', eightWeeksAgo)
+          .order('created_at', { ascending: true }),
+        // Jobs with their application counts
+        supabase
+          .from('jobs')
+          .select('title, candidate_applications(count)')
+          .eq('organization_id', currentOrg.id)
+          .order('created_at', { ascending: false })
+          .limit(10),
       ]);
 
       // Calculate candidates by stage
@@ -619,6 +648,9 @@ export function useHiringMetrics() {
       // Calculate assignment metrics
       let assignmentCompletionRate = 0;
       let avgAssignmentRating: number | null = null;
+      let onTimeSubmissionRate: number | null = null;
+      let avgReviewTimeDays: number | null = null;
+
       if (assignmentsResult.data?.length) {
         const submitted = assignmentsResult.data.filter(
           (a) => a.status === 'submitted' || a.status === 'reviewed'
@@ -631,7 +663,65 @@ export function useHiringMetrics() {
         if (ratings.length > 0) {
           avgAssignmentRating = ratings.reduce((sum, r) => sum + r, 0) / ratings.length;
         }
+
+        // On-time submission: submitted_at <= deadline
+        const submittedAssignments = assignmentsResult.data.filter((a) => a.submitted_at);
+        if (submittedAssignments.length > 0) {
+          const onTime = submittedAssignments.filter(
+            (a) => new Date(a.submitted_at!) <= new Date(a.deadline)
+          ).length;
+          onTimeSubmissionRate = (onTime / submittedAssignments.length) * 100;
+        }
+
+        // Avg review time: reviewed_at - submitted_at (in days)
+        const reviewed = assignmentsResult.data.filter((a) => a.reviewed_at && a.submitted_at);
+        if (reviewed.length > 0) {
+          const totalMs = reviewed.reduce((sum, a) => {
+            return sum + (new Date(a.reviewed_at!).getTime() - new Date(a.submitted_at!).getTime());
+          }, 0);
+          avgReviewTimeDays = totalMs / reviewed.length / (1000 * 60 * 60 * 24);
+        }
       }
+
+      // Source breakdown
+      const sourceMap: Record<string, number> = {};
+      if (sourceResult.data) {
+        for (const app of sourceResult.data) {
+          const src = app.source_of_application || 'Other';
+          sourceMap[src] = (sourceMap[src] || 0) + 1;
+        }
+      }
+      const sourceBreakdown = Object.entries(sourceMap)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+
+      // Applications trend by week
+      const weekMap: Record<string, number> = {};
+      if (trendResult.data) {
+        for (const app of trendResult.data) {
+          const d = new Date(app.created_at);
+          // Week start (Monday)
+          const day = d.getDay();
+          const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+          const weekStart = new Date(d);
+          weekStart.setDate(diff);
+          const weekKey = weekStart.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+          weekMap[weekKey] = (weekMap[weekKey] || 0) + 1;
+        }
+      }
+      const applicationsTrend = Object.entries(weekMap).map(([week, count]) => ({ week, count }));
+
+      // Applications by job
+      const applicationsByJob = (jobsForCountResult.data || [])
+        .map((job: any) => ({
+          title: job.title,
+          count: Array.isArray(job.candidate_applications)
+            ? (job.candidate_applications[0]?.count ?? 0)
+            : 0,
+        }))
+        .filter((j) => j.count > 0)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 8);
 
       return {
         open_jobs: jobsResult.count || 0,
@@ -643,6 +733,11 @@ export function useHiringMetrics() {
         source_of_hire: {} as any,
         assignment_completion_rate: assignmentCompletionRate,
         avg_assignment_rating: avgAssignmentRating,
+        source_breakdown: sourceBreakdown,
+        applications_trend: applicationsTrend,
+        applications_by_job: applicationsByJob,
+        on_time_submission_rate: onTimeSubmissionRate,
+        avg_review_time_days: avgReviewTimeDays,
       };
     },
     enabled: !!currentOrg?.id,

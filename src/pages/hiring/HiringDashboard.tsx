@@ -41,43 +41,16 @@ import {
   Search,
   X
 } from 'lucide-react';
-import { JobStatus } from '@/types/hiring';
+import { JobStatus, APPLICATION_STAGE_LABELS } from '@/types/hiring';
 
 // Lazy load tab content components
 const JobsList = lazy(() => import('./JobsList'));
 const CandidatesList = lazy(() => import('./CandidatesList'));
 
-const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', 'hsl(var(--muted))', '#8884d8', '#82ca9d'];
-
-// Mock data for charts - will be replaced with real data
-const stageData = [
-  { name: 'Applied', count: 45 },
-  { name: 'Screening', count: 32 },
-  { name: 'Assignment', count: 18 },
-  { name: 'Interview 1', count: 12 },
-  { name: 'Interview 2', count: 8 },
-  { name: 'Offer', count: 4 },
-  { name: 'Hired', count: 3 },
-];
-
-const sourceData = [
-  { name: 'Careers Site', value: 35 },
-  { name: 'LinkedIn', value: 25 },
-  { name: 'Referral', value: 20 },
-  { name: 'Job Board', value: 15 },
-  { name: 'Other', value: 5 },
-];
-
-const timeToFillData = [
-  { month: 'Jan', days: 28 },
-  { month: 'Feb', days: 32 },
-  { month: 'Mar', days: 25 },
-  { month: 'Apr', days: 22 },
-  { month: 'May', days: 30 },
-  { month: 'Jun', days: 24 },
-];
+const COLORS = ['hsl(var(--primary))', '#60A5FA', '#34D399', '#FBBF24', '#A78BFA', '#F472B6', '#22D3EE', '#FB923C'];
 
 type TabType = 'analytics' | 'jobs' | 'candidates';
+
 
 export default function HiringDashboard() {
   const { currentOrg } = useOrganization();
@@ -361,22 +334,34 @@ export default function HiringDashboard() {
 
           {/* Charts Row 1 */}
           <div className="grid gap-6 lg:grid-cols-2">
-            {/* Funnel Chart */}
+            {/* Hiring Funnel */}
             <Card>
               <CardHeader>
                 <CardTitle>Hiring Funnel</CardTitle>
-                <CardDescription>Candidates by pipeline stage</CardDescription>
+                <CardDescription>Active candidates by pipeline stage</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={stageData} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                    <XAxis type="number" />
-                    <YAxis dataKey="name" type="category" width={80} />
-                    <Tooltip />
-                    <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                {(() => {
+                  const stageData = Object.entries(metrics?.candidates_by_stage || {})
+                    .filter(([, count]) => count > 0)
+                    .map(([stage, count]) => ({
+                      name: APPLICATION_STAGE_LABELS[stage as keyof typeof APPLICATION_STAGE_LABELS] || stage,
+                      count,
+                    }));
+                  return stageData.length === 0 ? (
+                    <div className="flex h-[300px] items-center justify-center text-muted-foreground text-sm">No active candidates</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={stageData} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                        <XAxis type="number" allowDecimals={false} />
+                        <YAxis dataKey="name" type="category" width={90} tick={{ fontSize: 12 }} />
+                        <Tooltip />
+                        <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  );
+                })()}
               </CardContent>
             </Card>
 
@@ -387,61 +372,69 @@ export default function HiringDashboard() {
                 <CardDescription>Where candidates come from</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={sourceData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={100}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {sourceData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
+                {!metrics?.source_breakdown?.length ? (
+                  <div className="flex h-[300px] items-center justify-center text-muted-foreground text-sm">No application source data</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={metrics.source_breakdown}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => percent > 0.05 ? `${name} ${(percent * 100).toFixed(0)}%` : ''}
+                        outerRadius={100}
+                        dataKey="value"
+                      >
+                        {metrics.source_breakdown.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
               </CardContent>
             </Card>
           </div>
 
           {/* Charts Row 2 */}
           <div className="grid gap-6 lg:grid-cols-2">
-            {/* Time to Fill Trend */}
+            {/* Applications Trend */}
             <Card>
               <CardHeader>
-                <CardTitle>Time to Fill Trend</CardTitle>
-                <CardDescription>Average days to fill positions over time</CardDescription>
+                <CardTitle>Applications Trend</CardTitle>
+                <CardDescription>New applications per week (last 8 weeks)</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={timeToFillData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip />
-                    <Line 
-                      type="monotone" 
-                      dataKey="days" 
-                      stroke="hsl(var(--primary))" 
-                      strokeWidth={2}
-                      dot={{ fill: 'hsl(var(--primary))' }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                {!metrics?.applications_trend?.length ? (
+                  <div className="flex h-[300px] items-center justify-center text-muted-foreground text-sm">No recent application data</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={metrics.applications_trend}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="week" tick={{ fontSize: 11 }} />
+                      <YAxis allowDecimals={false} />
+                      <Tooltip />
+                      <Line 
+                        type="monotone" 
+                        dataKey="count" 
+                        name="Applications"
+                        stroke="hsl(var(--primary))" 
+                        strokeWidth={2}
+                        dot={{ fill: 'hsl(var(--primary))' }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
               </CardContent>
             </Card>
 
-            {/* Assignment Metrics */}
+            {/* Assignment Performance */}
             <Card>
               <CardHeader>
                 <CardTitle>Assignment Performance</CardTitle>
-                <CardDescription>Take-home task completion rates</CardDescription>
+                <CardDescription>Take-home task completion stats</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -450,33 +443,62 @@ export default function HiringDashboard() {
                       <p className="font-medium">Completion Rate</p>
                       <p className="text-sm text-muted-foreground">Candidates who submitted</p>
                     </div>
-                    <div className="text-2xl font-bold">{((metrics?.assignment_completion_rate || 0) * 100).toFixed(0)}%</div>
+                    <div className="text-2xl font-bold">{(metrics?.assignment_completion_rate || 0).toFixed(0)}%</div>
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">Average Rating</p>
                       <p className="text-sm text-muted-foreground">Out of 5 stars</p>
                     </div>
-                    <div className="text-2xl font-bold">{metrics?.avg_assignment_rating?.toFixed(1) || 'N/A'}</div>
+                    <div className="text-2xl font-bold">{metrics?.avg_assignment_rating?.toFixed(1) || '—'}</div>
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">On-Time Submission</p>
-                      <p className="text-sm text-muted-foreground">Before deadline</p>
+                      <p className="text-sm text-muted-foreground">Submitted before deadline</p>
                     </div>
-                    <div className="text-2xl font-bold">85%</div>
+                    <div className="text-2xl font-bold">
+                      {metrics?.on_time_submission_rate != null ? `${metrics.on_time_submission_rate.toFixed(0)}%` : '—'}
+                    </div>
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">Avg. Review Time</p>
-                      <p className="text-sm text-muted-foreground">Time to rate submission</p>
+                      <p className="text-sm text-muted-foreground">Days to rate after submission</p>
                     </div>
-                    <div className="text-2xl font-bold">2.3 days</div>
+                    <div className="text-2xl font-bold">
+                      {metrics?.avg_review_time_days != null ? `${metrics.avg_review_time_days.toFixed(1)}d` : '—'}
+                    </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
+
+          {/* Charts Row 3 — Applications by Job */}
+          {metrics?.applications_by_job?.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Applications by Job</CardTitle>
+                <CardDescription>Total applicants per vacancy</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={Math.max(200, metrics.applications_by_job.length * 44)}>
+                  <BarChart data={metrics.applications_by_job} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                    <XAxis type="number" allowDecimals={false} />
+                    <YAxis dataKey="title" type="category" width={160} tick={{ fontSize: 12 }} />
+                    <Tooltip />
+                    <Bar dataKey="count" name="Applicants" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]}>
+                      {metrics.applications_by_job.map((_, index) => (
+                        <Cell key={`cell-job-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
 
