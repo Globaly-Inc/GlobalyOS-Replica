@@ -1,105 +1,80 @@
 
-## Assignment Page OTP Gate — Candidate Email Verification
+## Preview Button for Assignment Template Editor
 
 ### What's Being Built
 
-The public assignment page (`/assignment/:token`) currently lets anyone who has the URL open and submit the assignment with no identity check. We need to add a **one-time password (OTP) email gate**: when a candidate visits the link, they must enter their email, receive a 6-digit OTP, and verify it before seeing the assignment. Anyone who isn't the assigned candidate sees a clear rejection message.
+A "Preview" button will be added next to "Cancel" and "Save Changes" in the `AssignmentTemplateEditor` header. Clicking it opens a large dialog that renders the assignment exactly as a candidate sees it on the public `/assignment/:token` page — including the OTP gate screens (simulated), the instruction panel, deliverables form, and questions. A "Copy Public Link" button will also be shown (only in edit mode, since a real token requires a saved instance).
 
-Separately, the **email template** for the "Assignment Sent" pipeline stage (or `assignment_sent` trigger) will be updated to include the direct assignment link and OTP access instructions as template variables.
+### Where the User Clicked
+
+The user selected the action buttons `div` at line 133 of `AssignmentTemplateEditor.tsx`:
+```
+<div className="flex items-center gap-2">
+  <Button variant="outline" onClick={goBack}>Cancel</Button>
+  <Button onClick={handleSave}>Save Changes</Button>
+</div>
+```
+
+A "Preview" button with an `Eye` icon will be inserted between Cancel and Save.
 
 ---
 
-### Architecture
+### New Component: `AssignmentPreviewDialog`
 
-```text
-Candidate receives email:
-  └── "Complete your assessment" + link + instructions
-        └── Visits /assignment/:token
-              └── Step 1: Email gate
-                    ├── Enter email
-                    ├── POST /send-assignment-otp (new edge function)
-                    │     ├── Look up assignment_instances by secure_token
-                    │     ├── Get candidate email from joined candidate_applications → candidates
-                    │     ├── If email MATCHES → generate 6-digit OTP, store in otp_codes, send email
-                    │     └── If NOT matched → return 403 "not assigned to you"
-                    └── Step 2: OTP entry
-                          └── POST /verify-assignment-otp (new edge function)
-                                ├── Verify code from otp_codes (reuse same table, scoped by email)
-                                └── Return { verified: true, candidateEmail } → show assignment
-```
+A new file `src/components/hiring/AssignmentPreviewDialog.tsx` will be created.
+
+**Dialog specs:**
+- Size: `max-w-4xl`, full height using `h-[90vh]` with internal scroll
+- Layout: 3 tabs at the top for the 3 states — **Email Gate**, **Assignment View**, **Success Screen** — so the recruiter can explore all states
+- Content mirrors `AssignmentSubmission.tsx` exactly (same structure, same styles), but:
+  - Data comes from the `formData` prop (template fields), not from a DB query
+  - It's read-only / non-interactive (inputs are disabled/displayed for illustration)
+  - Shows "PREVIEW" watermark badge in corner so it's clearly not the live page
+
+**Preview Tab 1 — "Email Gate" preview:**
+- Renders the `email_entry` card exactly as a candidate would see it (Lock icon, email input, Send button)
+- All inputs are disabled — this is a visual preview only
+
+**Preview Tab 2 — "Assignment" preview:**
+- Header card: Shows the template `name` as title, a mock deadline badge ("3 days from now" calculated from `default_deadline_hours`)
+- `recommended_effort` shown if set (with a clock icon)
+- Instructions panel: renders the rich text `instructions` HTML via `DOMPurify.sanitize` + `dangerouslySetInnerHTML` exactly as `AssignmentSubmission.tsx` does
+- Submission section:
+  - URL fields rendered as disabled inputs (one per label in `url_fields`)
+  - File upload area shown if `files = true`
+  - Questions shown as disabled form fields (radio group for MC, textarea for paragraph)
+- Submit button shown but disabled
+
+**Preview Tab 3 — "Success" preview:**
+- The green `CheckCircle2` success card with the "Assignment Submitted!" message
+
+**Copy Link section (edit mode only):**
+- Below the tabs, a "Public Assignment Link" info note explains that actual public links are generated per candidate when assignments are dispatched
+- In edit mode, shows a gray info card: "Links are generated when you assign this template to a candidate" 
+- In cases where a `secure_token` is passed (optional prop for future use), shows the full URL with a Copy button using the `Copy` Lucide icon + `navigator.clipboard.writeText()`
 
 ---
 
-### What Changes
+### Changes to `AssignmentTemplateEditor.tsx`
 
-#### 1. New Edge Function: `send-assignment-otp`
-
-Accepts: `{ token: string, email: string }`
-
-Logic:
-- Fetch `assignment_instances` by `secure_token = token` (with joined candidate email)
-- Normalise both emails to lowercase and compare
-- If **no match**: return `{ error: 'This assignment has not been assigned to you.', notAssigned: true }` (HTTP 403)
-- If **match**: generate a 6-digit OTP, insert into `otp_codes` table (exactly as `send-otp` does), send email via Resend with a simple "Your assignment verification code: XXXXXX" template
-- Rate-limit: same as existing `send-otp` (3 per email per hour)
-
-#### 2. New Edge Function: `verify-assignment-otp`
-
-Accepts: `{ token: string, email: string, code: string }`
-
-Logic:
-- Re-verify the assignment belongs to this email (double-check)
-- Look up `otp_codes` by `email + verified=false`, check expiry and code match
-- On success: mark OTP as `verified = true`, return `{ verified: true }`
-- On failure: increment `failed_attempts`, return error
-
-These two functions are **separate from the login OTP** functions — they don't create sessions or affect auth. They are purely an identity gate for the public assignment page.
-
-#### 3. `AssignmentSubmission.tsx` — Add OTP Gate UI
-
-Replace the current "show assignment immediately" behaviour with a **3-state flow**:
-
+1. Import `Eye` from lucide-react and import the new `AssignmentPreviewDialog` component
+2. Add `previewOpen` state: `const [previewOpen, setPreviewOpen] = useState(false)`
+3. Add the Preview button between Cancel and Save:
+```tsx
+<Button variant="outline" onClick={() => setPreviewOpen(true)} className="gap-2">
+  <Eye className="h-4 w-4" />
+  Preview
+</Button>
 ```
-State 1 — EMAIL_ENTRY (default)
-  ┌──────────────────────────────────────────────────────┐
-  │  🔒  Verify your identity                            │
-  │  Enter the email address this assignment was         │
-  │  sent to.                                            │
-  │                                                      │
-  │  [Email address ____________________]                │
-  │  [Send Verification Code]                            │
-  └──────────────────────────────────────────────────────┘
-
-State 2 — OTP_ENTRY (after sending OTP)
-  ┌──────────────────────────────────────────────────────┐
-  │  📧  Check your email                                │
-  │  We sent a 6-digit code to j***@example.com          │
-  │                                                      │
-  │  [_ _ _ _ _ _]  (OTP input)                         │
-  │  [Verify Code]          [← Back]                     │
-  │  Didn't get it? [Resend]                             │
-  └──────────────────────────────────────────────────────┘
-
-State 3 — VERIFIED (show assignment)
-  → Normal assignment page content renders
+4. Render the dialog:
+```tsx
+<AssignmentPreviewDialog
+  open={previewOpen}
+  onOpenChange={setPreviewOpen}
+  formData={formData}
+  isEditMode={isEditMode}
+/>
 ```
-
-**Error case** (wrong email): Show inline error message — "This assignment has not been assigned to you. Please check your email and try again."
-
-The `token` from `useParams` is still used to load the assignment data, but only **after** OTP is verified. The query for `useAssignmentByToken` is gated: `enabled: verified`.
-
-#### 4. Update `send-hiring-notification` Template Variable
-
-Add `{{assignment_link}}` and `{{assignment_instructions}}` to the variable replacement map in `send-hiring-notification/index.ts`:
-
-```
-{{assignment_link}}         → https://globalyos.lovable.app/assignment/{secure_token}
-{{assignment_instructions}} → "Visit the link and enter your email to receive a verification code, then enter it to access your assignment."
-```
-
-These will be fetched when `assignment_id` is present in the notification payload. The `assignment_sent` stage email template body already exists and can be updated by users in the Email Automation settings to include these variables.
-
-Also update the default AI-generated "Assignment" stage template body (in `generate-stage-email-templates`) to include these variables automatically.
 
 ---
 
@@ -107,42 +82,18 @@ Also update the default AI-generated "Assignment" stage template body (in `gener
 
 | File | Change |
 |---|---|
-| `supabase/functions/send-assignment-otp/index.ts` | **New** — validates email vs assignment, sends OTP |
-| `supabase/functions/verify-assignment-otp/index.ts` | **New** — verifies OTP code for assignment access |
-| `supabase/functions/send-hiring-notification/index.ts` | Add `{{assignment_link}}` + `{{assignment_instructions}}` variable substitution when `assignment_id` is present |
-| `src/pages/AssignmentSubmission.tsx` | Add 3-state OTP gate UI before showing assignment |
-| `supabase/config.toml` | Register 2 new edge functions with `verify_jwt = false` |
+| `src/pages/hiring/AssignmentTemplateEditor.tsx` | Add Preview button + state + render dialog |
+| `src/components/hiring/AssignmentPreviewDialog.tsx` | **New** — full preview dialog with 3 tabs |
 
-No database migration needed — the existing `otp_codes` table is reused as-is.
+No backend changes, no DB migrations, no edge functions needed.
 
 ---
 
-### Security Considerations
+### UX Details
 
-- The OTP check is **server-side** (edge function compares emails) — the client cannot bypass it by passing a different email
-- The `secure_token` in the URL is long and random (already generated with `generateSecureToken()`), so guessing URLs is infeasible
-- Rate limiting is applied per email (3 OTP requests/hour) to prevent abuse
-- OTPs expire in 10 minutes and are deleted after successful verification
-- The assignment data query (`useAssignmentByToken`) only runs **after** OTP is verified client-side — but even if called without verification, the existing RLS on `assignment_instances` protects the DB
-
----
-
-### Email Template Variable Example
-
-After the change, users can put this in their Assignment stage email template body:
-
-```
-Hi {{candidate_name}},
-
-Please complete the assessment for the {{job_title}} position:
-
-👉 {{assignment_link}}
-
-To access the page:
-1. Click the link above
-2. Enter your email: {{candidate_email}}
-3. Enter the verification code sent to your inbox
-4. Complete and submit the assignment before {{deadline}}
-
-{{assignment_instructions}}
-```
+- The dialog header has a clear "Preview" label with a subtitle: "This is how candidates experience this assignment"
+- A subtle amber `PREVIEW MODE` pill badge is shown in the top-right of the dialog to make it unmistakably a preview
+- Tabs use standard pill-style navigation consistent with GlobalyOS patterns
+- The content area is scrollable independently so the tab bar and dialog header stay fixed
+- For the Copy Link feature: in edit mode, show a note explaining that links are per-candidate; offer a "Learn more" tooltip explaining the OTP flow
+- Smooth fade-in animation via the existing Dialog component
