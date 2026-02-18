@@ -328,7 +328,7 @@ export function PipelineSettingsSection() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Pipelines</CardTitle>
+            <CardTitle>Hiring Pipeline</CardTitle>
             <CardDescription>
               Create and customize hiring pipelines. Expand each stage to configure automation rules, notifications, and email triggers.
             </CardDescription>
