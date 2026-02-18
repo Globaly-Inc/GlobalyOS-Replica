@@ -87,12 +87,13 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   closed: { label: 'Closed', className: 'bg-muted text-muted-foreground border-border' },
 };
 
-function QuickInfoCard({ job }: { job: import('@/types/hiring').JobWithRelations | null | undefined }) {
+function QuickInfoCard({ job, pipelines }: { job: import('@/types/hiring').JobWithRelations | null | undefined; pipelines: { id: string; name: string; is_default: boolean }[] }) {
   const { formatDateTime } = useFormattedDate();
 
   if (!job) return null;
 
   const statusCfg = STATUS_CONFIG[job.status] ?? STATUS_CONFIG.draft;
+  const selectedPipeline = pipelines.find((p) => p.id === (job as any).pipeline_id);
 
   return (
     <Card>
@@ -114,6 +115,10 @@ function QuickInfoCard({ job }: { job: import('@/types/hiring').JobWithRelations
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Created By</span>
           <span className="font-medium">{job.creator?.profiles?.full_name ?? '—'}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground">Pipeline</span>
+          <span className="font-medium">{selectedPipeline ? selectedPipeline.name : '—'}</span>
         </div>
       </CardContent>
     </Card>
@@ -892,7 +897,7 @@ export default function JobEdit() {
         {/* Right Column - Publishing + Preview (1/3) */}
         <div className="hidden lg:block space-y-6">
           {/* Quick Info */}
-          <QuickInfoCard job={job} />
+          <QuickInfoCard job={job} pipelines={pipelines} />
 
           {/* Publishing Options */}
           <Card>
