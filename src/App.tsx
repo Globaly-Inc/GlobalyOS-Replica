@@ -83,6 +83,7 @@ const Tasks = lazy(() => import('./pages/Tasks'));
 const CRM = lazy(() => import('./pages/CRM'));
 const CRMContactProfile = lazy(() => import('./pages/CRMContactProfile'));
 const CRMCompanyProfile = lazy(() => import('./pages/CRMCompanyProfile'));
+const CRMSettings = lazy(() => import('./pages/CRMSettings'));
 const Payroll = lazy(() => import('./pages/Payroll'));
 const MyPayslips = lazy(() => import('./pages/MyPayslips'));
 const Workflows = lazy(() => import('./pages/Workflows'));
@@ -263,6 +264,7 @@ const App = () => <QueryClientProvider client={queryClient}>
                   <Route path="crm" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CRM /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="crm/contacts/:id" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CRMContactProfile /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="crm/companies/:id" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CRMCompanyProfile /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                  <Route path="crm/settings" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CRMSettings /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="payroll" element={<OrgProtectedRoute><FeatureProtectedRoute feature="payroll"><Payroll /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="workflows" element={<OrgProtectedRoute><FeatureProtectedRoute feature="workflows"><Workflows /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="workflows/:workflowId" element={<OrgProtectedRoute><FeatureProtectedRoute feature="workflows"><ApplicationDetail /></FeatureProtectedRoute></OrgProtectedRoute>} />

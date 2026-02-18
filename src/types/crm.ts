@@ -19,6 +19,7 @@ export interface CRMCompany {
   notes: string | null;
   rating: 'hot' | 'warm' | 'cold' | null;
   source: string | null;
+  custom_fields: Record<string, any> | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -46,6 +47,7 @@ export interface CRMContact {
   is_archived: boolean;
   tags: string[] | null;
   date_of_birth: string | null;
+  custom_fields: Record<string, any> | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -60,6 +62,9 @@ export interface CRMActivity {
   employee_id: string;
   type: 'note' | 'call' | 'email' | 'meeting' | 'task';
   content: string | null;
+  subject: string | null;
+  duration_minutes: number | null;
+  metadata: Record<string, any> | null;
   created_at: string;
   employee?: {
     id: string;
@@ -69,12 +74,21 @@ export interface CRMActivity {
   };
 }
 
+export interface CRMTag {
+  id: string;
+  organization_id: string;
+  name: string;
+  color: string | null;
+  created_at: string;
+}
+
 export interface CRMContactFilters {
   search?: string;
   rating?: string;
   source?: string;
   is_archived?: boolean;
   company_id?: string;
+  tags?: string[];
   page?: number;
   per_page?: number;
 }

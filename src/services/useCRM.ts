@@ -31,6 +31,9 @@ export const useCRMContacts = (filters: CRMContactFilters = {}) => {
       if (filters.source) query = query.eq('source', filters.source);
       if (filters.is_archived !== undefined) query = query.eq('is_archived', filters.is_archived);
       if (filters.company_id) query = query.eq('company_id', filters.company_id);
+      if (filters.tags && filters.tags.length > 0) {
+        query = query.contains('tags', filters.tags);
+      }
 
       const page = filters.page || 1;
       const perPage = filters.per_page || 20;
