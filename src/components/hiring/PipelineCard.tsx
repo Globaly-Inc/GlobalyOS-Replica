@@ -386,7 +386,8 @@ function SortableStageAccordion({
   // Summary badges for collapsed view
   const hasAutoAssign = rule?.auto_assign_enabled;
   const notifyCount = rule?.notify_employee_ids?.length ?? 0;
-  const hasEmail = !!rule?.email_trigger_type;
+  const effectiveTrigger = DEFAULT_EMAIL_TRIGGERS[stageKey] ?? null;
+  const hasEmail = !!effectiveTrigger && emailTemplates.some(t => t.template_type === effectiveTrigger);
   const hasAutoReject = rule?.auto_reject_on_deadline || !!rule?.auto_reject_after_hours;
 
   return (
@@ -659,43 +660,41 @@ function SortableStageAccordion({
                     Automatically send an email when a candidate enters this stage.
                   </p>
 
-                  {/* Trigger type selector */}
-                  <Select
-                    value={rule?.email_trigger_type ?? '__none__'}
-                    onValueChange={val => onRuleChange(stageKey, {
-                      email_trigger_type: val === '__none__' ? null : val,
-                      is_active: val !== '__none__' || (rule?.is_active ?? false),
-                    })}
-                  >
-                    <SelectTrigger className="h-9 w-full text-sm">
-                      <SelectValue placeholder="No email trigger…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">No email trigger</SelectItem>
-                      {Object.entries(EMAIL_TRIGGER_LABELS).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>{label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {/* Template card — derived from stage's default trigger, no dropdown */}
+                  {(() => {
+                    const effectiveTrigger = DEFAULT_EMAIL_TRIGGERS[stageKey] ?? null;
 
-                  {/* Template status card */}
-                  {rule?.email_trigger_type && (() => {
-                    const selectedTemplate = emailTemplates.find(
-                      t => t.template_type === rule.email_trigger_type,
-                    );
-                    const fullTemplate = selectedTemplate as
-                      | { id: string; name: string; template_type: string; is_active: boolean; subject?: string; body?: string }
-                      | undefined;
+                    if (!effectiveTrigger) {
+                      return (
+                        <p className="text-xs text-muted-foreground italic">
+                          No email trigger defined for this stage type.
+                        </p>
+                      );
+                    }
 
-                    if (fullTemplate) {
+                    const matchedTemplate = emailTemplates.find(
+                      t => t.template_type === effectiveTrigger,
+                    ) as { id: string; name: string; template_type: string; is_active: boolean; subject?: string; body?: string } | undefined;
+
+                    const triggerLabel = EMAIL_TRIGGER_LABELS[effectiveTrigger as EmailTrigger] ?? effectiveTrigger;
+
+                    if (matchedTemplate) {
                       return (
                         <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2.5">
                           <div className="flex items-center gap-2 min-w-0">
-                            <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
+                            <div className={cn(
+                              'w-2 h-2 rounded-full shrink-0',
+                              matchedTemplate.is_active ? 'bg-primary' : 'bg-muted-foreground/40',
+                            )} />
                             <div className="min-w-0">
-                              <p className="text-sm font-medium truncate">{fullTemplate.name}</p>
+                              <p className="text-sm font-medium truncate">{matchedTemplate.name}</p>
+                              {matchedTemplate.subject && (
+                                <p className="text-xs text-muted-foreground truncate">
+                                  Subject: {matchedTemplate.subject}
+                                </p>
+                              )}
                               <p className="text-xs text-muted-foreground">
-                                {fullTemplate.is_active ? 'Active — will send automatically' : 'Inactive — will not send'}
+                                {matchedTemplate.is_active ? 'Active — will send automatically' : 'Inactive — will not send'}
                               </p>
                             </div>
                           </div>
@@ -717,8 +716,8 @@ function SortableStageAccordion({
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-muted-foreground/40 shrink-0" />
                             <div>
-                              <p className="text-sm font-medium text-muted-foreground">No template configured</p>
-                              <p className="text-xs text-muted-foreground">Create one to enable automated sending</p>
+                              <p className="text-sm font-medium text-muted-foreground">{triggerLabel}</p>
+                              <p className="text-xs text-muted-foreground">No template configured — create one to enable automated sending</p>
                             </div>
                           </div>
                           <Button
@@ -729,7 +728,7 @@ function SortableStageAccordion({
                             onClick={() => setTemplateDialogOpen(true)}
                           >
                             <Plus className="h-3 w-3" />
-                            Create Template
+                            Create
                           </Button>
                         </div>
                       );
@@ -744,14 +743,14 @@ function SortableStageAccordion({
       </Collapsible>
 
       {/* Email Template Dialog */}
-      {rule?.email_trigger_type && (
+      {effectiveTrigger && (
         <EmailTemplateDialog
           open={templateDialogOpen}
           onClose={() => setTemplateDialogOpen(false)}
-          triggerType={rule.email_trigger_type}
+          triggerType={effectiveTrigger}
           existingTemplate={
             (() => {
-              const t = emailTemplates.find(x => x.template_type === rule.email_trigger_type) as
+              const t = emailTemplates.find(x => x.template_type === effectiveTrigger) as
                 | { id: string; name: string; template_type: string; is_active: boolean; subject?: string; body?: string }
                 | undefined;
               if (!t) return null;
