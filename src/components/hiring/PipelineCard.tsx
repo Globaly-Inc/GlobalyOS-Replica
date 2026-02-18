@@ -216,7 +216,7 @@ function EmailTemplateDialog({ open, onClose, triggerType, stageId, existingTemp
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit Email Template' : 'Create Email Template'}</DialogTitle>
         </DialogHeader>
