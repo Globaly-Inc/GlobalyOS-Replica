@@ -30,8 +30,10 @@ import {
   GitBranch,
   Plus,
   Pencil,
+  Eye,
 } from 'lucide-react';
 import { PipelineSettingsSection } from '@/components/hiring/PipelineSettingsSection';
+import { AssignmentPreviewDialog } from '@/components/hiring/AssignmentPreviewDialog';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { ASSIGNMENT_TYPE_LABELS } from '@/types/hiring';
@@ -102,6 +104,7 @@ function AssignmentTemplatesSection() {
   const { data: allPositions = [] } = usePositions();
   const navigate = useNavigate();
   const { currentOrg } = useOrganization();
+  const [previewTemplate, setPreviewTemplate] = useState<any | null>(null);
 
   const handleCreate = () => {
     navigate(`/org/${currentOrg?.slug}/hiring/settings/assignments/new`);
@@ -110,6 +113,19 @@ function AssignmentTemplatesSection() {
   const handleEdit = (template: any) => {
     navigate(`/org/${currentOrg?.slug}/hiring/settings/assignments/${template.id}/edit`);
   };
+
+  const buildFormData = (template: any) => ({
+    name: template.name || '',
+    type: template.type || '',
+    instructions: template.instructions || '',
+    default_deadline_hours: template.default_deadline_hours || 72,
+    recommended_effort: template.recommended_effort || '',
+    expected_deliverables: {
+      files: template.expected_deliverables?.files ?? false,
+      url_fields: template.expected_deliverables?.url_fields ?? [],
+      questions: template.expected_deliverables?.questions ?? [],
+    },
+  });
 
   if (isLoading) {
     return <Skeleton className="h-96" />;
@@ -138,7 +154,7 @@ function AssignmentTemplatesSection() {
                 <TableHead>Type</TableHead>
                 <TableHead>Deadline</TableHead>
                 <TableHead>Positions</TableHead>
-                <TableHead className="w-20">Actions</TableHead>
+                <TableHead className="w-28">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -172,13 +188,24 @@ function AssignmentTemplatesSection() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      onClick={() => handleEdit(template)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setPreviewTemplate(template)}
+                        title="Preview"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => handleEdit(template)}
+                        title="Edit"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -194,6 +221,15 @@ function AssignmentTemplatesSection() {
           </div>
         )}
       </CardContent>
+
+      {previewTemplate && (
+        <AssignmentPreviewDialog
+          open={!!previewTemplate}
+          onOpenChange={(open) => { if (!open) setPreviewTemplate(null); }}
+          formData={buildFormData(previewTemplate)}
+          isEditMode={false}
+        />
+      )}
     </Card>
   );
 }
