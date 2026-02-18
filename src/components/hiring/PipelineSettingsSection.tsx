@@ -313,7 +313,7 @@ export function PipelineSettingsSection() {
     return <Skeleton className="h-96" />;
   }
 
-  // Flatten email templates to match expected shape
+  // Flatten email templates to match expected shape (include stage_id for per-stage matching)
   const flatTemplates = (emailTemplates as any[]).map(t => ({
     id: t.id,
     name: t.name,
@@ -321,6 +321,7 @@ export function PipelineSettingsSection() {
     subject: t.subject ?? '',
     body: t.body ?? '',
     is_active: t.is_active,
+    stage_id: t.stage_id ?? null,
   }));
 
   return (

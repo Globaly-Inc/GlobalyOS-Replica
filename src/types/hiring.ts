@@ -440,12 +440,13 @@ export interface HiringEmailTemplate {
   id: string;
   organization_id: string;
   name: string;
-  template_type: EmailTrigger;
+  template_type: string;
   subject: string;
   body: string;
   variables: string[];
   is_default: boolean;
   is_active: boolean;
+  stage_id?: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

@@ -43,7 +43,6 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import {
-  APPLICATION_STAGE_LABELS,
   APPLICATION_STAGE_COLORS,
   EMAIL_TRIGGER_LABELS,
   type ApplicationStage,
@@ -124,24 +123,6 @@ export interface Employee {
   office_name?: string | null;
 }
 
-const ALL_STAGE_KEYS: ApplicationStage[] = [
-  'applied', 'screening', 'assignment',
-  'interview_1', 'interview_2', 'interview_3',
-  'offer', 'hired',
-];
-
-// Default email triggers per stage key
-const DEFAULT_EMAIL_TRIGGERS: Partial<Record<ApplicationStage, EmailTrigger>> = {
-  applied: 'application_received',
-  screening: 'application_received',
-  assignment: 'assignment_sent',
-  interview_1: 'interview_scheduled',
-  interview_2: 'interview_scheduled',
-  interview_3: 'interview_scheduled',
-  offer: 'offer_sent',
-  hired: 'offer_accepted',
-};
-
 export interface EmailTemplate {
   id: string;
   name: string;
@@ -149,6 +130,26 @@ export interface EmailTemplate {
   subject: string;
   body: string;
   is_active: boolean;
+  stage_id?: string | null;
+}
+
+// Predefined trigger label options a user can pick from
+const TRIGGER_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'stage_entry', label: 'Stage Entry Email' },
+  { value: 'application_received', label: 'Application Received' },
+  { value: 'application_rejected', label: 'Application Rejected' },
+  { value: 'interview_scheduled', label: 'Interview Scheduled' },
+  { value: 'assignment_sent', label: 'Assignment Sent' },
+  { value: 'offer_sent', label: 'Offer Sent' },
+  { value: 'offer_accepted', label: 'Offer Accepted' },
+];
+
+function getTriggerLabel(triggerType: string): string {
+  return (
+    TRIGGER_TYPE_OPTIONS.find(o => o.value === triggerType)?.label ??
+    EMAIL_TRIGGER_LABELS[triggerType as EmailTrigger] ??
+    triggerType
+  );
 }
 
 interface PipelineCardProps {
@@ -175,6 +176,7 @@ interface EmailTemplateDialogProps {
   open: boolean;
   onClose: () => void;
   triggerType: string;
+  stageId: string;
   existingTemplate?: { id: string; name: string; subject: string; body: string; is_active: boolean } | null;
   onSaved?: () => void;
 }
@@ -186,9 +188,9 @@ interface TemplateFormValues {
   is_active: boolean;
 }
 
-function EmailTemplateDialog({ open, onClose, triggerType, existingTemplate, onSaved }: EmailTemplateDialogProps) {
+function EmailTemplateDialog({ open, onClose, triggerType, stageId, existingTemplate, onSaved }: EmailTemplateDialogProps) {
   const isEdit = !!existingTemplate;
-  const triggerLabel = EMAIL_TRIGGER_LABELS[triggerType as EmailTrigger] ?? triggerType;
+  const triggerLabel = getTriggerLabel(triggerType);
 
   const createMutation = useCreateEmailTemplate();
   const updateMutation = useUpdateEmailTemplate();
@@ -205,7 +207,6 @@ function EmailTemplateDialog({ open, onClose, triggerType, existingTemplate, onS
 
   const isActive = watch('is_active');
 
-  // Reset form when dialog opens
   const handleOpenChange = (val: boolean) => {
     if (!val) {
       onClose();
@@ -224,7 +225,11 @@ function EmailTemplateDialog({ open, onClose, triggerType, existingTemplate, onS
       if (isEdit && existingTemplate) {
         await updateMutation.mutateAsync({ id: existingTemplate.id, input: values });
       } else {
-        await createMutation.mutateAsync({ ...values, template_type: triggerType });
+        await createMutation.mutateAsync({
+          ...values,
+          template_type: triggerType,
+          stage_id: stageId,
+        });
       }
       onSaved?.();
       onClose();
@@ -339,7 +344,7 @@ interface SortableStageAccordionProps {
   deletable: boolean;
   rule: StageRule | undefined;
   employees: Employee[];
-  emailTemplates: { id: string; name: string; template_type: string; is_active: boolean }[];
+  emailTemplates: EmailTemplate[];
   editingStageId: string | null;
   stageNameValue: string;
   setStageNameValue: (v: string) => void;
@@ -369,6 +374,7 @@ function SortableStageAccordion({
 }: SortableStageAccordionProps) {
   const [open, setOpen] = useState(false);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [pendingTriggerType, setPendingTriggerType] = useState('stage_entry');
 
   // Notify on Entry toggle — preserve employee list in a ref when toggled off
   const [notifyEnabled, setNotifyEnabled] = useState(() => (rule?.notify_employee_ids?.length ?? 0) > 0);
@@ -379,11 +385,9 @@ function SortableStageAccordion({
   const handleNotifyToggle = (enabled: boolean) => {
     setNotifyEnabled(enabled);
     if (!enabled) {
-      // Preserve the current list, then clear it
       preservedNotifyIds.current = rule?.notify_employee_ids ?? [];
       onRuleChange(stageKey, { notify_employee_ids: [] });
     } else {
-      // Restore the preserved list
       onRuleChange(stageKey, { notify_employee_ids: preservedNotifyIds.current, is_active: true });
     }
   };
@@ -422,12 +426,27 @@ function SortableStageAccordion({
 
   const stageKey = stage.stage_key as ApplicationStage;
 
+  // Per-stage: effectiveTrigger comes from the stage rule, not from a hardcoded map
+  const effectiveTrigger = rule?.email_trigger_type ?? null;
+
+  // Match template by stage_id (preferred) or fall back to template_type for legacy global templates
+  const matchedTpl = emailTemplates.find(t => t.stage_id === stage.id) as
+    | (EmailTemplate & { subject?: string; body?: string })
+    | undefined;
+
   // Summary badges for collapsed view
   const hasAutoAssign = rule?.auto_assign_enabled;
   const notifyCount = rule?.notify_employee_ids?.length ?? 0;
-  const effectiveTrigger = DEFAULT_EMAIL_TRIGGERS[stageKey] ?? null;
-  const hasEmail = !!effectiveTrigger && emailTemplates.some(t => t.template_type === effectiveTrigger);
+  const hasEmail = !!effectiveTrigger && !!matchedTpl;
   const hasAutoReject = rule?.auto_reject_on_deadline || !!rule?.auto_reject_after_hours;
+
+  const handleSetTrigger = () => {
+    onRuleChange(stageKey, { email_trigger_type: pendingTriggerType, is_active: true });
+  };
+
+  const handleRemoveTrigger = () => {
+    onRuleChange(stageKey, { email_trigger_type: null });
+  };
 
   return (
     <div
@@ -729,109 +748,132 @@ function SortableStageAccordion({
 
               {/* ── Email Trigger ────────────────────────────── */}
               <div className="space-y-3">
-                {(() => {
-                  const effectiveTrigger = DEFAULT_EMAIL_TRIGGERS[stageKey] ?? null;
-                  const matchedTpl = effectiveTrigger
-                    ? emailTemplates.find(t => t.template_type === effectiveTrigger) as
-                        | { id: string; name: string; template_type: string; is_active: boolean; subject?: string; body?: string }
-                        | undefined
-                    : undefined;
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-md bg-accent text-accent-foreground shrink-0">
+                    <Mail className="h-3.5 w-3.5" />
+                  </div>
+                  <span className="text-sm font-semibold flex-1">Email Trigger</span>
+                  {/* Show switch only when a trigger is configured; disabled until a template exists */}
+                  {effectiveTrigger && (
+                    <Switch
+                      checked={!!matchedTpl?.is_active}
+                      onCheckedChange={active => matchedTpl && handleEmailActiveToggle(matchedTpl, active)}
+                      disabled={!matchedTpl || updateTemplateMutation.isPending}
+                    />
+                  )}
+                </div>
 
-                  return (
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="flex items-center justify-center w-6 h-6 rounded-md bg-accent text-accent-foreground shrink-0">
-                        <Mail className="h-3.5 w-3.5" />
-                      </div>
-                      <span className="text-sm font-semibold flex-1">Email Trigger</span>
-                      {effectiveTrigger && (
-                        <Switch
-                          checked={!!matchedTpl?.is_active}
-                          onCheckedChange={active => matchedTpl && handleEmailActiveToggle(matchedTpl, active)}
-                          disabled={!matchedTpl || updateTemplateMutation.isPending}
-                        />
-                      )}
-                    </div>
-                  );
-                })()}
                 <div className="pl-8 space-y-3">
                   <p className="text-xs text-muted-foreground">
                     Automatically send an email when a candidate enters this stage.
                   </p>
 
-                  {/* Template card — derived from stage's default trigger, no dropdown */}
-                  {(() => {
-                    const effectiveTrigger = DEFAULT_EMAIL_TRIGGERS[stageKey] ?? null;
-
-                    if (!effectiveTrigger) {
-                      return (
-                        <p className="text-xs text-muted-foreground italic">
-                          No email trigger defined for this stage type.
-                        </p>
-                      );
-                    }
-
-                    const matchedTemplate = emailTemplates.find(
-                      t => t.template_type === effectiveTrigger,
-                    ) as { id: string; name: string; template_type: string; is_active: boolean; subject?: string; body?: string } | undefined;
-
-                    const triggerLabel = EMAIL_TRIGGER_LABELS[effectiveTrigger as EmailTrigger] ?? effectiveTrigger;
-
-                    if (matchedTemplate) {
-                      return (
-                        <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2.5">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div className={cn(
-                              'w-2 h-2 rounded-full shrink-0',
-                              matchedTemplate.is_active ? 'bg-primary' : 'bg-muted-foreground/40',
-                            )} />
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium truncate">{matchedTemplate.name}</p>
-                              {matchedTemplate.subject && (
-                                <p className="text-xs text-muted-foreground truncate">
-                                  Subject: {matchedTemplate.subject}
-                                </p>
-                              )}
-                              <p className="text-xs text-muted-foreground">
-                                {matchedTemplate.is_active ? 'Active — will send automatically' : 'Inactive — will not send'}
-                              </p>
-                            </div>
-                          </div>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="h-7 shrink-0 gap-1.5 ml-2"
-                            onClick={() => setTemplateDialogOpen(true)}
-                          >
-                            <Pencil className="h-3 w-3" />
-                            Edit
-                          </Button>
+                  {!effectiveTrigger ? (
+                    /* ── No trigger set: show picker ── */
+                    <div className="rounded-lg border border-dashed bg-muted/20 px-3 py-3 space-y-3">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Choose a trigger type to enable email sending for this stage.
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Select value={pendingTriggerType} onValueChange={setPendingTriggerType}>
+                          <SelectTrigger className="h-8 text-sm flex-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {TRIGGER_TYPE_OPTIONS.map(opt => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-8 shrink-0"
+                          onClick={handleSetTrigger}
+                        >
+                          Set Trigger
+                        </Button>
+                      </div>
+                    </div>
+                  ) : matchedTpl ? (
+                    /* ── Trigger set + template exists ── */
+                    <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className={cn(
+                          'w-2 h-2 rounded-full shrink-0',
+                          matchedTpl.is_active ? 'bg-primary' : 'bg-muted-foreground/40',
+                        )} />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{matchedTpl.name}</p>
+                          {matchedTpl.subject && (
+                            <p className="text-xs text-muted-foreground truncate">
+                              Subject: {matchedTpl.subject}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            {matchedTpl.is_active ? 'Active — will send automatically' : 'Inactive — will not send'}
+                          </p>
                         </div>
-                      );
-                    } else {
-                      return (
-                        <div className="flex items-center justify-between rounded-lg border border-dashed bg-muted/20 px-3 py-2.5">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-muted-foreground/40 shrink-0" />
-                            <div>
-                              <p className="text-sm font-medium text-muted-foreground">{triggerLabel}</p>
-                              <p className="text-xs text-muted-foreground">No template configured — create one to enable automated sending</p>
-                            </div>
-                          </div>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="default"
-                            className="h-7 shrink-0 gap-1.5 ml-2"
-                            onClick={() => setTemplateDialogOpen(true)}
-                          >
-                            <Plus className="h-3 w-3" />
-                            Create
-                          </Button>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-7 gap-1.5"
+                          onClick={() => setTemplateDialogOpen(true)}
+                        >
+                          <Pencil className="h-3 w-3" />
+                          Edit
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-muted-foreground hover:text-destructive"
+                          onClick={handleRemoveTrigger}
+                          title="Remove trigger"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* ── Trigger set but no template yet ── */
+                    <div className="flex items-center justify-between rounded-lg border border-dashed bg-muted/20 px-3 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-muted-foreground/40 shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">{getTriggerLabel(effectiveTrigger)}</p>
+                          <p className="text-xs text-muted-foreground">No template configured — create one to enable automated sending</p>
                         </div>
-                      );
-                    }
-                  })()}
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="default"
+                          className="h-7 gap-1.5"
+                          onClick={() => setTemplateDialogOpen(true)}
+                        >
+                          <Plus className="h-3 w-3" />
+                          Create
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-muted-foreground hover:text-destructive"
+                          onClick={handleRemoveTrigger}
+                          title="Remove trigger"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -840,20 +882,17 @@ function SortableStageAccordion({
         </CollapsibleContent>
       </Collapsible>
 
-      {/* Email Template Dialog */}
+      {/* Email Template Dialog — only when trigger is set */}
       {effectiveTrigger && (
         <EmailTemplateDialog
           open={templateDialogOpen}
           onClose={() => setTemplateDialogOpen(false)}
           triggerType={effectiveTrigger}
+          stageId={stage.id}
           existingTemplate={
-            (() => {
-              const t = emailTemplates.find(x => x.template_type === effectiveTrigger) as
-                | { id: string; name: string; template_type: string; is_active: boolean; subject?: string; body?: string }
-                | undefined;
-              if (!t) return null;
-              return { id: t.id, name: t.name, subject: t.subject ?? '', body: t.body ?? '', is_active: t.is_active };
-            })()
+            matchedTpl
+              ? { id: matchedTpl.id, name: matchedTpl.name, subject: matchedTpl.subject ?? '', body: matchedTpl.body ?? '', is_active: matchedTpl.is_active }
+              : null
           }
         />
       )}
@@ -885,7 +924,6 @@ export function PipelineCard({
   const [editingStageId, setEditingStageId] = useState<string | null>(null);
   const [stageNameValue, setStageNameValue] = useState('');
   const [addingStage, setAddingStage] = useState(false);
-  const [newStageKey, setNewStageKey] = useState('');
   const [newStageName, setNewStageName] = useState('');
 
   const activeStages = pipeline.stages.filter(s => s.is_active).sort((a, b) => a.sort_order - b.sort_order);
@@ -926,10 +964,11 @@ export function PipelineCard({
     setEditingStageId(null);
   };
 
+  const usedStageKeys = new Set(activeStages.map(s => s.stage_key));
+
   const handleAddStage = () => {
     const trimmedName = newStageName.trim();
     if (!trimmedName) return;
-    // Auto-generate a unique stage key from the display name
     const generatedKey = trimmedName
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '_')
@@ -941,8 +980,6 @@ export function PipelineCard({
     setNewStageName('');
     setAddingStage(false);
   };
-
-  const usedStageKeys = new Set(activeStages.map(s => s.stage_key));
 
   // Count active automations for this pipeline
   const activeAutomationCount = activeStages.filter(s => {
