@@ -237,20 +237,7 @@ function EmailTemplateDialog({ open, onClose, triggerType, stageId, existingTemp
             )}
           </div>
 
-          {/* Trigger (locked) */}
-          <div className="space-y-1.5">
-            <Label className="flex items-center gap-1.5">
-              Trigger
-              <span className="inline-flex items-center gap-1 text-[10px] font-normal text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                <Lock className="h-2.5 w-2.5" /> Locked to stage
-              </span>
-            </Label>
-            <Input
-              value={triggerLabel}
-              disabled
-              className="bg-muted text-muted-foreground cursor-not-allowed"
-            />
-          </div>
+
 
           {/* Subject */}
           <div className="space-y-1.5">
