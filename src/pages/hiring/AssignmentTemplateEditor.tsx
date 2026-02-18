@@ -6,7 +6,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, X, Eye } from 'lucide-react';
+import { ArrowLeft, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,7 +38,6 @@ export default function AssignmentTemplateEditor() {
   const updateTemplate = useUpdateAssignmentTemplate();
 
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [urlFieldInput, setUrlFieldInput] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     type: 'coding',
@@ -214,105 +213,6 @@ export default function AssignmentTemplateEditor() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Expected Deliverables</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-2">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={formData.expected_deliverables.files}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        expected_deliverables: {
-                          ...formData.expected_deliverables,
-                          files: e.target.checked,
-                        },
-                      })
-                    }
-                    className="rounded"
-                  />
-                  <span className="text-sm">File uploads</span>
-                </label>
-                {formData.expected_deliverables.files && (
-                  <div className="ml-6 space-y-1 text-xs text-muted-foreground">
-                    <p><span className="font-medium">Accepted types:</span> PDF, DOC, DOCX, JPG, JPEG, PNG, GIF, WEBP</p>
-                    <p><span className="font-medium">Max file size:</span> 25MB per file</p>
-                    <p><span className="font-medium">Multiple uploads:</span> Supported</p>
-                  </div>
-                )}
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">URL Fields</Label>
-                <div
-                  className="flex flex-wrap gap-1.5 min-h-10 w-full rounded-md border border-input bg-background px-3 py-2 cursor-text"
-                  onClick={() => document.getElementById('url-field-input')?.focus()}
-                >
-                  {formData.expected_deliverables.url_fields.map((field) => (
-                    <span
-                      key={field}
-                      className="inline-flex items-center gap-1 rounded-full bg-secondary text-secondary-foreground text-xs px-2 py-0.5"
-                    >
-                      {field}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setFormData({
-                            ...formData,
-                            expected_deliverables: {
-                              ...formData.expected_deliverables,
-                              url_fields: formData.expected_deliverables.url_fields.filter((f) => f !== field),
-                            },
-                          });
-                        }}
-                        className="hover:text-destructive"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  ))}
-                  <input
-                    id="url-field-input"
-                    value={urlFieldInput}
-                    onChange={(e) => setUrlFieldInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      const url_fields = formData.expected_deliverables.url_fields;
-                      if (e.key === ',' || e.key === 'Enter') {
-                        e.preventDefault();
-                        const val = urlFieldInput.trim();
-                        if (val && !url_fields.includes(val)) {
-                          setFormData({
-                            ...formData,
-                            expected_deliverables: {
-                              ...formData.expected_deliverables,
-                              url_fields: [...url_fields, val],
-                            },
-                          });
-                        }
-                        setUrlFieldInput('');
-                      }
-                      if (e.key === 'Backspace' && urlFieldInput === '') {
-                        setFormData({
-                          ...formData,
-                          expected_deliverables: {
-                            ...formData.expected_deliverables,
-                            url_fields: url_fields.slice(0, -1),
-                          },
-                        });
-                      }
-                    }}
-                    placeholder={formData.expected_deliverables.url_fields.length === 0 ? 'e.g., GitHub Repo, Live Demo' : ''}
-                    className="flex-1 min-w-24 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">Press comma or Enter to add a field</p>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         {/* RIGHT CONTENT (2/3) */}

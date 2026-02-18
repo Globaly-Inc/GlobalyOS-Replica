@@ -168,42 +168,12 @@ function AssignmentViewPreview({ formData }: { formData: FormData }) {
           <CardTitle className="text-base">Your Submission</CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
-          {/* URL Fields */}
-          {formData.expected_deliverables.url_fields.map((label, idx) => (
-            <div key={idx} className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <LinkIcon className="h-4 w-4" />
-                {label}
-              </Label>
-              <Input type="url" placeholder="https://..." disabled className="opacity-70" />
-            </div>
-          ))}
-
-          {/* File Upload */}
-          {formData.expected_deliverables.files && (
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Upload className="h-4 w-4" />
-                File Upload
-              </Label>
-              <div className="border-2 border-dashed border-border rounded-lg p-8 text-center bg-muted/20">
-                <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  Drop files here or click to upload
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">PDF, DOC, DOCX, images — max 25MB each</p>
-              </div>
-            </div>
+          {/* No questions placeholder */}
+          {formData.expected_deliverables.questions.length === 0 && (
+            <p className="text-sm text-muted-foreground italic text-center py-4">
+              No submission fields configured yet.
+            </p>
           )}
-
-          {/* No deliverables placeholder */}
-          {!formData.expected_deliverables.files &&
-            formData.expected_deliverables.url_fields.length === 0 &&
-            formData.expected_deliverables.questions.length === 0 && (
-              <p className="text-sm text-muted-foreground italic text-center py-4">
-                No submission fields configured yet.
-              </p>
-            )}
 
           {/* Questions */}
           {formData.expected_deliverables.questions.map((q, idx) => (
