@@ -185,6 +185,10 @@ export function useCandidates(filters?: CandidateFilters) {
           employee:employees(
             id, position, department, user_id,
             profiles:profiles(full_name, avatar_url)
+          ),
+          candidate_applications(
+            id, job_id, stage, status, cv_file_path, created_at,
+            job:jobs(id, title, slug)
           )
         `)
         .eq('organization_id', currentOrg.id)
