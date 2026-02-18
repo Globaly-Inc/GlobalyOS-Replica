@@ -300,38 +300,36 @@ export function AssignmentPreviewDialog({
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="px-6 pt-4 shrink-0">
-          <Tabs defaultValue="email-gate" className="w-full">
-            <TabsList className="w-full grid grid-cols-3 mb-0">
-              <TabsTrigger value="email-gate" className="gap-1.5 text-xs sm:text-sm">
-                <Lock className="h-3.5 w-3.5" />
-                <span>Email Gate</span>
-              </TabsTrigger>
-              <TabsTrigger value="assignment" className="gap-1.5 text-xs sm:text-sm">
-                <FileText className="h-3.5 w-3.5" />
-                <span>Assignment</span>
-              </TabsTrigger>
-              <TabsTrigger value="success" className="gap-1.5 text-xs sm:text-sm">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                <span>Success</span>
-              </TabsTrigger>
-            </TabsList>
+        {/* Tabs — takes all remaining height */}
+        <Tabs defaultValue="email-gate" className="flex flex-col flex-1 min-h-0 px-6 pt-4">
+          <TabsList className="w-full grid grid-cols-3 shrink-0">
+            <TabsTrigger value="email-gate" className="gap-1.5 text-xs sm:text-sm">
+              <Lock className="h-3.5 w-3.5" />
+              <span>Email Gate</span>
+            </TabsTrigger>
+            <TabsTrigger value="assignment" className="gap-1.5 text-xs sm:text-sm">
+              <FileText className="h-3.5 w-3.5" />
+              <span>Assignment</span>
+            </TabsTrigger>
+            <TabsTrigger value="success" className="gap-1.5 text-xs sm:text-sm">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              <span>Success</span>
+            </TabsTrigger>
+          </TabsList>
 
-            {/* Scrollable tab content */}
-            <div className="overflow-y-auto" style={{ maxHeight: 'calc(92vh - 230px)' }}>
-              <TabsContent value="email-gate" className="mt-4">
-                <EmailGatePreview />
-              </TabsContent>
-              <TabsContent value="assignment" className="mt-4">
-                <AssignmentViewPreview formData={formData} />
-              </TabsContent>
-              <TabsContent value="success" className="mt-4">
-                <SuccessPreview />
-              </TabsContent>
-            </div>
-          </Tabs>
-        </div>
+          {/* Scrollable tab content — fills remaining space */}
+          <div className="flex-1 overflow-y-auto min-h-0 pb-2">
+            <TabsContent value="email-gate" className="mt-4">
+              <EmailGatePreview />
+            </TabsContent>
+            <TabsContent value="assignment" className="mt-4">
+              <AssignmentViewPreview formData={formData} />
+            </TabsContent>
+            <TabsContent value="success" className="mt-4">
+              <SuccessPreview />
+            </TabsContent>
+          </div>
+        </Tabs>
 
         {/* Fixed Footer — Copy Link section */}
         <div className="mt-auto px-6 py-4 border-t border-border/60 shrink-0 bg-muted/20">
