@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Briefcase, MapPin, ArrowRight, Send, UserPlus } from 'lucide-react';
+import { Briefcase, MapPin, ArrowRight, Send, UserPlus, CheckCircle2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { OrgLink } from '@/components/OrgLink';
@@ -13,7 +13,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 const MAX_DISPLAY = 3;
 
 export const InternalVacanciesCard = () => {
-  const { vacancies, isLoading } = useInternalVacancies();
+  const { vacancies, isLoading, appliedJobIds } = useInternalVacancies();
   const { getShortRelativeTime } = useRelativeTime();
   const [previewVacancy, setPreviewVacancy] = useState<InternalVacancy | null>(null);
   const [applyVacancy, setApplyVacancy] = useState<InternalVacancy | null>(null);
@@ -40,6 +40,7 @@ export const InternalVacanciesCard = () => {
         <div className="space-y-1">
           {displayVacancies.map((vacancy) => {
             const locationLabel = vacancy.office?.city || vacancy.office?.name || vacancy.location;
+            const hasApplied = appliedJobIds.includes(vacancy.id);
             return (
               <div key={vacancy.id} className="group rounded-lg p-2.5 -mx-1 transition-colors hover:bg-muted">
                 <div className="flex items-start justify-between gap-2">
@@ -69,13 +70,22 @@ export const InternalVacanciesCard = () => {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button
-                            onClick={(e) => { e.stopPropagation(); setApplyVacancy(vacancy); }}
-                            className="p-1.5 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                            onClick={(e) => { e.stopPropagation(); if (!hasApplied) setApplyVacancy(vacancy); }}
+                            className={`p-1.5 rounded-md transition-colors ${
+                              hasApplied
+                                ? 'text-green-600 cursor-default'
+                                : 'hover:bg-primary/10 text-muted-foreground hover:text-primary'
+                            }`}
                           >
-                            <UserPlus className="h-3.5 w-3.5" />
+                            {hasApplied
+                              ? <CheckCircle2 className="h-3.5 w-3.5" />
+                              : <UserPlus className="h-3.5 w-3.5" />
+                            }
                           </button>
                         </TooltipTrigger>
-                        <TooltipContent side="top"><p>Apply</p></TooltipContent>
+                        <TooltipContent side="top">
+                          <p>{hasApplied ? 'You have already applied for this position' : 'Apply'}</p>
+                        </TooltipContent>
                       </Tooltip>
                     )}
                     <Tooltip>
