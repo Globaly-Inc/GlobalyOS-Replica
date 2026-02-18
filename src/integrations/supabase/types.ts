@@ -8912,6 +8912,7 @@ export type Database = {
           auto_reject_after_hours: number | null
           auto_reject_on_deadline: boolean
           created_at: string
+          email_trigger_type: string | null
           id: string
           is_active: boolean
           job_id: string | null
@@ -8926,6 +8927,7 @@ export type Database = {
           auto_reject_after_hours?: number | null
           auto_reject_on_deadline?: boolean
           created_at?: string
+          email_trigger_type?: string | null
           id?: string
           is_active?: boolean
           job_id?: string | null
@@ -8940,6 +8942,7 @@ export type Database = {
           auto_reject_after_hours?: number | null
           auto_reject_on_deadline?: boolean
           created_at?: string
+          email_trigger_type?: string | null
           id?: string
           is_active?: boolean
           job_id?: string | null
