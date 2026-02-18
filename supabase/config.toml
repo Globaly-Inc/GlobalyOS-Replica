@@ -320,3 +320,6 @@ verify_jwt = false
 
 [functions.send-referral-email]
 verify_jwt = false
+
+[functions.generate-stage-email-templates]
+verify_jwt = false
