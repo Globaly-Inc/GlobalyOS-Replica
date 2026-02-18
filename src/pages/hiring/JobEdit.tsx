@@ -946,12 +946,12 @@ export default function JobEdit() {
             </CardContent>
           </Card>
 
-          <VacancyAssignmentCard jobTitle={formData.title} />
-
           <ApplicationFormSettings
             config={formData.application_form_config}
             onChange={(config) => handleChange('application_form_config', config)}
           />
+
+          <VacancyAssignmentCard jobTitle={formData.title} />
 
         </div>
       </div>
