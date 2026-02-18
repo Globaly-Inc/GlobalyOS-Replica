@@ -512,64 +512,6 @@ function SortableStageAccordion({
           <div className="px-4 pb-4 border-t">
             <div className="pt-4 grid grid-cols-1 gap-6">
 
-              {/* ── Automation ─────────────────────────────── */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-md bg-primary/10 text-primary shrink-0">
-                    <Zap className="h-3.5 w-3.5" />
-                  </div>
-                  <span className="text-sm font-semibold">Automation</span>
-                </div>
-                <div className="pl-8 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">Auto-assign assignment</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Automatically send the linked assignment when a candidate enters this stage
-                      </p>
-                    </div>
-                    <Switch
-                      checked={rule?.auto_assign_enabled ?? false}
-                      onCheckedChange={checked => onRuleChange(stageKey, { auto_assign_enabled: checked, is_active: checked || (rule?.is_active ?? false) })}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* ── Rejection Rules ─────────────────────────── */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-md bg-destructive/10 text-destructive shrink-0">
-                    <Clock className="h-3.5 w-3.5" />
-                  </div>
-                  <span className="text-sm font-semibold">Rejection Rules</span>
-                </div>
-                <div className="pl-8 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium">Auto-reject when assignment deadline passes</p>
-                    <Switch
-                      checked={rule?.auto_reject_on_deadline ?? false}
-                      onCheckedChange={checked => onRuleChange(stageKey, { auto_reject_on_deadline: checked, is_active: checked || (rule?.is_active ?? false) })}
-                    />
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <p className="text-sm text-muted-foreground whitespace-nowrap">Auto-reject after</p>
-                    <Input
-                      type="number"
-                      min={0}
-                      className="w-20 h-8"
-                      placeholder="—"
-                      value={rule?.auto_reject_after_hours ?? ''}
-                      onChange={e => onRuleChange(stageKey, {
-                        auto_reject_after_hours: e.target.value ? parseInt(e.target.value) : null,
-                        is_active: !!e.target.value || (rule?.is_active ?? false),
-                      })}
-                    />
-                    <p className="text-sm text-muted-foreground">hours in this stage</p>
-                  </div>
-                </div>
-              </div>
-
               {/* ── Notifications ───────────────────────────── */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2 mb-1">
@@ -752,6 +694,64 @@ function SortableStageAccordion({
                       </div>
                     )
                   )}
+                </div>
+              </div>
+
+              {/* ── Auto Assignment ─────────────────────────────── */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-md bg-primary/10 text-primary shrink-0">
+                    <Zap className="h-3.5 w-3.5" />
+                  </div>
+                  <span className="text-sm font-semibold">Auto Assignment</span>
+                </div>
+                <div className="pl-8 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">Auto-assign assignment</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Automatically send the linked assignment when a candidate enters this stage
+                      </p>
+                    </div>
+                    <Switch
+                      checked={rule?.auto_assign_enabled ?? false}
+                      onCheckedChange={checked => onRuleChange(stageKey, { auto_assign_enabled: checked, is_active: checked || (rule?.is_active ?? false) })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Rejection Rules ─────────────────────────── */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-md bg-destructive/10 text-destructive shrink-0">
+                    <Clock className="h-3.5 w-3.5" />
+                  </div>
+                  <span className="text-sm font-semibold">Rejection Rules</span>
+                </div>
+                <div className="pl-8 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">Auto-reject when assignment deadline passes</p>
+                    <Switch
+                      checked={rule?.auto_reject_on_deadline ?? false}
+                      onCheckedChange={checked => onRuleChange(stageKey, { auto_reject_on_deadline: checked, is_active: checked || (rule?.is_active ?? false) })}
+                    />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <p className="text-sm text-muted-foreground whitespace-nowrap">Auto-reject after</p>
+                    <Input
+                      type="number"
+                      min={0}
+                      className="w-20 h-8"
+                      placeholder="—"
+                      value={rule?.auto_reject_after_hours ?? ''}
+                      onChange={e => onRuleChange(stageKey, {
+                        auto_reject_after_hours: e.target.value ? parseInt(e.target.value) : null,
+                        is_active: !!e.target.value || (rule?.is_active ?? false),
+                      })}
+                    />
+                    <p className="text-sm text-muted-foreground">hours in this stage</p>
+                  </div>
                 </div>
               </div>
 
