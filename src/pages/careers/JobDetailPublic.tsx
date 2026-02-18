@@ -530,7 +530,7 @@ export default function JobDetailPublic() {
 
                         {/* Dynamic fields from config */}
                         {(() => {
-                          const rawConfig = (job as any).application_form_config as ApplicationFormConfig | undefined;
+                          const rawConfig = job ? (job as any).application_form_config as ApplicationFormConfig | undefined : undefined;
                           const formConfig = rawConfig ? migrateApplicationFormConfig(rawConfig) : undefined;
                           const customFields = formConfig?.custom_fields ?? [];
 
