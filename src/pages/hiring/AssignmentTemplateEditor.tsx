@@ -6,7 +6,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, X } from 'lucide-react';
+import { ArrowLeft, X, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,7 @@ import { PageBody } from '@/components/ui/page-body';
 import { AssignmentTypeCombobox } from '@/components/hiring/AssignmentTypeCombobox';
 import { PositionMultiSelect } from '@/components/hiring/PositionMultiSelect';
 import { QuestionsBuilder } from '@/components/hiring/QuestionsBuilder';
+import { AssignmentPreviewDialog } from '@/components/hiring/AssignmentPreviewDialog';
 import { useAssignmentTemplates } from '@/services/useHiring';
 import {
   useCreateAssignmentTemplate,
@@ -36,6 +37,7 @@ export default function AssignmentTemplateEditor() {
   const createTemplate = useCreateAssignmentTemplate();
   const updateTemplate = useUpdateAssignmentTemplate();
 
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [urlFieldInput, setUrlFieldInput] = useState('');
   const [formData, setFormData] = useState({
     name: '',
@@ -134,11 +136,22 @@ export default function AssignmentTemplateEditor() {
           <Button variant="outline" onClick={goBack}>
             Cancel
           </Button>
+          <Button variant="outline" onClick={() => setPreviewOpen(true)} className="gap-2">
+            <Eye className="h-4 w-4" />
+            Preview
+          </Button>
           <Button onClick={handleSave} disabled={isSaving}>
             {isSaving ? 'Saving...' : isEditMode ? 'Save Changes' : 'Create Template'}
           </Button>
         </div>
       </div>
+
+      <AssignmentPreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        formData={formData}
+        isEditMode={isEditMode}
+      />
 
       {/* Form: Left sidebar (1/3) + Right content (2/3) */}
       <div className="grid gap-6 md:grid-cols-3">
