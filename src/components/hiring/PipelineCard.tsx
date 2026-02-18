@@ -3,7 +3,7 @@
  * Each stage row includes inline automation rules, rejection settings, notifications, and email trigger.
  */
 
-import { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -146,6 +146,18 @@ interface PipelineCardProps {
   isGeneratingTemplates?: boolean;
 }
 
+// ── Auto-resize hook ─────────────────────────────────────────
+const useAutoResize = (value: string) => {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+  return ref;
+};
+
 // ── Email Template Dialog ─────────────────────────────────────
 
 interface EmailTemplateDialogProps {
@@ -182,6 +194,8 @@ function EmailTemplateDialog({ open, onClose, triggerType, stageId, existingTemp
   });
 
   const isActive = watch('is_active');
+  const bodyValue = watch('body');
+  const bodyRef = useAutoResize(bodyValue ?? '');
 
   const handleOpenChange = (val: boolean) => {
     if (!val) {
@@ -216,12 +230,12 @@ function EmailTemplateDialog({ open, onClose, triggerType, stageId, existingTemp
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-3xl h-[85vh] flex flex-col">
+      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit Email Template' : 'Create Email Template'}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0 gap-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 overflow-y-auto">
           {/* Name */}
           <div className="space-y-1.5">
             <Label htmlFor="tpl-name">
@@ -236,8 +250,6 @@ function EmailTemplateDialog({ open, onClose, triggerType, stageId, existingTemp
               <p className="text-xs text-destructive">{errors.name.message}</p>
             )}
           </div>
-
-
 
           {/* Subject */}
           <div className="space-y-1.5">
@@ -260,16 +272,25 @@ function EmailTemplateDialog({ open, onClose, triggerType, stageId, existingTemp
           </div>
 
           {/* Body */}
-          <div className="flex flex-col flex-1 min-h-0 space-y-1.5">
+          <div className="space-y-1.5">
             <Label htmlFor="tpl-body">Email Body</Label>
-            <Textarea
-              id="tpl-body"
-              {...register('body')}
-              placeholder={`Dear {{candidate_name}},\n\nThank you for applying...`}
-              className="flex-1 min-h-0 resize-none font-mono text-sm"
-            />
+            {(() => {
+              const { ref: registerRef, ...bodyProps } = register('body');
+              return (
+                <Textarea
+                  id="tpl-body"
+                  {...bodyProps}
+                  ref={(el) => {
+                    registerRef(el);
+                    (bodyRef as React.MutableRefObject<HTMLTextAreaElement | null>).current = el;
+                  }}
+                  placeholder={`Dear {{candidate_name}},\n\nThank you for applying...`}
+                  style={{ minHeight: '80px', maxHeight: '480px', overflowY: 'auto' }}
+                  className="resize-none font-mono text-sm"
+                />
+              );
+            })()}
           </div>
-
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
