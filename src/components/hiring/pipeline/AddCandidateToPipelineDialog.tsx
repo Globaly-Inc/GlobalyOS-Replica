@@ -6,15 +6,20 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Search, UserPlus, Check, X } from 'lucide-react';
+import { Search, UserPlus, Check, X, Paperclip, FileText, Upload } from 'lucide-react';
 import { useCandidates } from '@/services/useHiring';
 import { useCreateCandidate, useCreateApplication } from '@/services/useHiringMutations';
 import { APPLICATION_STAGE_LABELS, type ApplicationStage, type JobStage, type Candidate } from '@/types/hiring';
+import { useOrganization } from '@/hooks/useOrganization';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const DEFAULT_STAGES: ApplicationStage[] = [
   'applied', 'screening', 'assignment', 'interview_1', 'interview_2', 'interview_3', 'offer', 'hired',
 ];
+
+const ACCEPTED_RESUME_TYPES = '.pdf,.doc,.docx,.jpg,.jpeg,.png';
+const MAX_RESUME_SIZE_MB = 25;
 
 interface AddCandidateToPipelineDialogProps {
   open: boolean;
@@ -33,6 +38,7 @@ export function AddCandidateToPipelineDialog({
   defaultStage,
   existingCandidateIds,
 }: AddCandidateToPipelineDialogProps) {
+  const { currentOrg } = useOrganization();
   const [mode, setMode] = useState<'search' | 'create'>('search');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -41,7 +47,10 @@ export function AddCandidateToPipelineDialog({
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newPhone, setNewPhone] = useState('');
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const createCandidate = useCreateCandidate();
   const createApplication = useCreateApplication();
@@ -61,6 +70,7 @@ export function AddCandidateToPipelineDialog({
       setNewName('');
       setNewEmail('');
       setNewPhone('');
+      setResumeFile(null);
     }
   }, [open, defaultStage]);
 
@@ -79,19 +89,44 @@ export function AddCandidateToPipelineDialog({
     c => !existingCandidateIds.includes(c.id)
   );
 
-  const isSubmitting = createCandidate.isPending || createApplication.isPending;
+  const handleResumeSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_RESUME_SIZE_MB * 1024 * 1024) {
+      toast.error(`File must be under ${MAX_RESUME_SIZE_MB}MB`);
+      return;
+    }
+    setResumeFile(file);
+  };
+
+  const uploadResume = async (candidateId: string): Promise<string | null> => {
+    if (!resumeFile || !currentOrg?.id) return null;
+    const ext = resumeFile.name.split('.').pop();
+    const path = `${currentOrg.id}/${candidateId}/${Date.now()}-${resumeFile.name}`;
+    const { error } = await supabase.storage
+      .from('hiring-documents')
+      .upload(path, resumeFile, { upsert: false });
+    if (error) {
+      toast.error('Failed to upload resume');
+      return null;
+    }
+    return path;
+  };
+
+  const isSubmitting = createCandidate.isPending || createApplication.isPending || isUploading;
 
   const handleSubmit = async () => {
     try {
       if (mode === 'search') {
-        if (!selectedCandidate) {
-          toast.error('Please select a candidate');
-          return;
-        }
+        if (!selectedCandidate) { toast.error('Please select a candidate'); return; }
+        setIsUploading(true);
+        const cvPath = await uploadResume(selectedCandidate.id);
+        setIsUploading(false);
         await createApplication.mutateAsync({
           candidate_id: selectedCandidate.id,
           job_id: jobId,
           stage: selectedStage,
+          ...(cvPath ? { cv_file_path: cvPath } : {}),
         });
       } else {
         if (!newName.trim()) { toast.error('Name is required'); return; }
@@ -101,14 +136,19 @@ export function AddCandidateToPipelineDialog({
           email: newEmail.trim(),
           phone: newPhone.trim() || null,
         });
+        setIsUploading(true);
+        const cvPath = await uploadResume(candidate.id);
+        setIsUploading(false);
         await createApplication.mutateAsync({
           candidate_id: candidate.id,
           job_id: jobId,
           stage: selectedStage,
+          ...(cvPath ? { cv_file_path: cvPath } : {}),
         });
       }
       onOpenChange(false);
     } catch {
+      setIsUploading(false);
       // errors are shown by the mutations themselves
     }
   };
@@ -145,7 +185,7 @@ export function AddCandidateToPipelineDialog({
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => { setMode('search'); setSelectedCandidate(null); }}
+              onClick={() => { setMode('search'); setSelectedCandidate(null); setResumeFile(null); }}
               className={`flex-1 py-1.5 text-sm rounded-md border transition-colors ${
                 mode === 'search'
                   ? 'bg-primary text-primary-foreground border-primary'
@@ -156,7 +196,7 @@ export function AddCandidateToPipelineDialog({
             </button>
             <button
               type="button"
-              onClick={() => { setMode('create'); setSelectedCandidate(null); }}
+              onClick={() => { setMode('create'); setSelectedCandidate(null); setResumeFile(null); }}
               className={`flex-1 py-1.5 text-sm rounded-md border transition-colors ${
                 mode === 'create'
                   ? 'bg-primary text-primary-foreground border-primary'
@@ -177,7 +217,7 @@ export function AddCandidateToPipelineDialog({
                   </div>
                   <button
                     type="button"
-                    onClick={() => setSelectedCandidate(null)}
+                    onClick={() => { setSelectedCandidate(null); setResumeFile(null); }}
                     className="text-muted-foreground hover:text-foreground"
                   >
                     <X className="h-4 w-4" />
@@ -196,7 +236,7 @@ export function AddCandidateToPipelineDialog({
                     />
                   </div>
                   {debouncedQuery.length >= 2 && (
-                    <div className="border rounded-md divide-y max-h-48 overflow-y-auto">
+                    <div className="border rounded-md divide-y max-h-40 overflow-y-auto">
                       {filteredResults.length === 0 ? (
                         <div className="p-3 text-sm text-muted-foreground text-center">
                           No candidates found
@@ -267,6 +307,48 @@ export function AddCandidateToPipelineDialog({
               </div>
             </div>
           )}
+
+          {/* Resume upload — shown in both modes once a candidate is selected / in create mode */}
+          {(mode === 'create' || selectedCandidate) && (
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5">
+                <Paperclip className="h-3.5 w-3.5" />
+                Resume <span className="text-muted-foreground text-xs">(optional · PDF, DOC, DOCX, JPG, PNG · max {MAX_RESUME_SIZE_MB}MB)</span>
+              </Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={ACCEPTED_RESUME_TYPES}
+                className="hidden"
+                onChange={handleResumeSelect}
+              />
+              {resumeFile ? (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-md border bg-muted/40 text-sm">
+                  <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="flex-1 truncate">{resumeFile.name}</span>
+                  <span className="text-xs text-muted-foreground shrink-0">
+                    {(resumeFile.size / 1024 / 1024).toFixed(1)} MB
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => { setResumeFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                    className="text-muted-foreground hover:text-foreground shrink-0"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-md border border-dashed text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                >
+                  <Upload className="h-4 w-4" />
+                  Click to attach resume
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         <DialogFooter className="mt-2">
@@ -274,7 +356,7 @@ export function AddCandidateToPipelineDialog({
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? 'Adding…' : (
+            {isUploading ? 'Uploading…' : isSubmitting ? 'Adding…' : (
               <>
                 <Check className="h-4 w-4" />
                 Add Candidate
