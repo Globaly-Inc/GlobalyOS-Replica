@@ -1,88 +1,64 @@
 
-## Add "Reopen" Button to Closed Vacancies
+## Replace Mock Data with Real Hiring Analytics
 
-### What the user asked
-When a job has `status === 'closed'`, add a Reopen button in the header toolbar. Clicking it opens a small dialog where the recruiter can set a new **Start Date** and **Closing Date** before re-opening the vacancy.
+### What's wrong today
+All four charts in the Hiring Analytics tab display hardcoded mock values:
+- **Hiring Funnel** — uses a fixed array `stageData` (not `metrics.candidates_by_stage`)
+- **Source of Hire** — uses a fixed array `sourceData` (not real `source_of_application` data)
+- **Time to Fill Trend** — uses `timeToFillData` with made-up monthly figures
+- **Assignment Performance** — "On-Time Submission" (85%) and "Avg. Review Time" (2.3 days) are hardcoded strings
 
-### Why no schema changes are needed
-- `target_start_date` and `application_close_date` already exist on the `jobs` table.
-- `UpdateJobInput` already accepts both fields along with `status`.
-- `useUpdateJob` mutation already handles all writes.
+The summary cards (Total Candidates, Active Vacancies, Hires, Avg Time to Fill) already use real data. Only the charts are broken.
 
-### User flow
+---
 
-```text
-[Closed vacancy page]
-  → Header toolbar shows: [Reopen] [Delete]
-  → Click "Reopen"
-  → Dialog opens:
-      - Title: "Reopen Vacancy"
-      - Date picker: Start Date (optional)
-      - Date picker: Application Closing Date (optional)
-      - [Cancel]  [Reopen Vacancy] buttons
-  → On confirm: status → 'open', dates saved, toast shown
+### What will be fixed
+
+#### 1. Extend `useHiringMetrics` in `src/services/useHiring.ts`
+Add three new parallel queries alongside the existing ones:
+
+- **Source of hire breakdown** — query `candidate_applications` grouped by `source_of_application` (already exists as a column)
+- **Applications trend by week** — query `candidate_applications` grouped by `DATE_TRUNC('week', created_at)` for the last 8 weeks
+- **Applications per job** — query jobs with their applicant count for a new "Applications by Job" bar chart
+- **Assignment on-time + review time** — compute from `assignment_instances` using `submitted_at` vs `deadline` and `updated_at` vs `submitted_at`
+
+The hook will return these enriched fields alongside the existing ones.
+
+#### 2. Update `HiringMetrics` type in `src/types/hiring.ts`
+Add fields:
+```
+source_breakdown: { name: string; value: number }[];
+applications_trend: { week: string; count: number }[];
+applications_by_job: { title: string; count: number }[];
+on_time_submission_rate: number | null;
+avg_review_time_days: number | null;
 ```
 
-### Technical plan
+#### 3. Replace all mock chart data in `HiringDashboard.tsx`
 
-**File changed: `src/pages/hiring/JobDetail.tsx`**
+| Chart | Before | After |
+|-------|--------|-------|
+| Hiring Funnel | `stageData` (hardcoded) | `metrics.candidates_by_stage` mapped to stage labels |
+| Source of Hire | `sourceData` (hardcoded) | `metrics.source_breakdown` from real query |
+| Time to Fill Trend | `timeToFillData` (made-up months) | `metrics.applications_trend` (real weekly application count) — renamed to "Applications Trend" since there are no completed hires yet |
+| Assignment Performance | "85%" / "2.3 days" hardcoded | `metrics.on_time_submission_rate` and `metrics.avg_review_time_days` computed from real `assignment_instances` |
 
-1. Add new state variables:
-   ```ts
-   const [reopenDialogOpen, setReopenDialogOpen] = useState(false);
-   const [reopenStartDate, setReopenStartDate] = useState('');
-   const [reopenCloseDate, setReopenCloseDate] = useState('');
-   const [isReopening, setIsReopening] = useState(false);
-   ```
+#### 4. Add one new chart — "Applications by Job"
+A horizontal bar chart showing how many candidates have applied per job vacancy. This is genuinely useful and is derivable from real data already being fetched.
 
-2. Pre-populate dates when dialog opens — seed from existing job values so the recruiter can see and tweak them:
-   ```ts
-   const handleReopenClick = () => {
-     setReopenStartDate((job as any).target_start_date?.split('T')[0] || '');
-     setReopenCloseDate((job as any).application_close_date?.split('T')[0] || '');
-     setReopenDialogOpen(true);
-   };
-   ```
+---
 
-3. Submit handler calls the existing mutation:
-   ```ts
-   const handleReopenConfirm = async () => {
-     setIsReopening(true);
-     await updateJob.mutateAsync({
-       jobId: job.id,
-       input: {
-         status: 'open',
-         target_start_date: reopenStartDate || null,
-         application_close_date: reopenCloseDate || null,
-       },
-     });
-     setReopenDialogOpen(false);
-   };
-   ```
+### Technical approach
 
-4. Add the **Reopen** button to the header toolbar — visible only when `isClosed`:
-   ```tsx
-   {isClosed && (
-     <Tooltip>
-       <TooltipTrigger asChild>
-         <Button size="sm" variant="outline" onClick={handleReopenClick}>
-           <Play className="h-4 w-4" />
-           Reopen
-         </Button>
-       </TooltipTrigger>
-       <TooltipContent>Reopen vacancy</TooltipContent>
-     </Tooltip>
-   )}
-   ```
+**Stage label mapping** — the DB stores slugs (`applied`, `interview_1`). We'll map them to readable labels using the existing `APPLICATION_STAGE_LABELS` constant from `src/types/hiring.ts`.
 
-5. Add the dialog at the bottom of the JSX (alongside the existing Delete dialog):
-   - Uses the existing `Dialog` / `DialogContent` components already imported
-   - Uses the existing `DatePicker` component from `@/components/ui/date-picker`
-   - Two date pickers stacked vertically with labels
-   - Cancel and "Reopen Vacancy" buttons
+**Empty state handling** — with a small dataset (10 applications, no hires yet), charts will show real zeroes gracefully with an empty-state message for charts that have no data at all.
 
-### What is NOT changing
-- No database migrations
-- No new hooks
-- No changes to the public career page or candidates list
-- The `Edit` button remains hidden when `isClosed` (existing behaviour stays)
+**No new DB tables or migrations needed** — all data is computed from existing tables: `candidate_applications`, `assignment_instances`, `jobs`.
+
+---
+
+### Files to change
+1. `src/types/hiring.ts` — extend `HiringMetrics` interface
+2. `src/services/useHiring.ts` — extend `useHiringMetrics` query function with 3 additional parallel DB calls and computed fields
+3. `src/pages/hiring/HiringDashboard.tsx` — replace all 4 mock data arrays with `metrics.*` fields, add "Applications by Job" chart, remove the `// Mock data` comment block
