@@ -11,31 +11,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { OrgLink } from '@/components/OrgLink';
-import { useHiringEmailTemplates, useAssignmentTemplates } from '@/services/useHiring';
-import { 
-  useCreateEmailTemplate, 
-  useUpdateEmailTemplate,
-} from '@/services/useHiringMutations';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { useAssignmentTemplates } from '@/services/useHiring';
 import {
   Table,
   TableBody,
@@ -46,7 +25,6 @@ import {
 } from '@/components/ui/table';
 import { 
   ArrowLeft, 
-  Mail, 
   ClipboardList, 
   Settings2,
   GitBranch,
@@ -56,8 +34,7 @@ import {
 import { PipelineSettingsSection } from '@/components/hiring/PipelineSettingsSection';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { EMAIL_TRIGGER_LABELS, ASSIGNMENT_TYPE_LABELS } from '@/types/hiring';
-import type { EmailTrigger } from '@/types/hiring';
+import { ASSIGNMENT_TYPE_LABELS } from '@/types/hiring';
 import { usePositions } from '@/hooks/usePositions';
 import { useNavigate } from 'react-router-dom';
 import { useOrganization } from '@/hooks/useOrganization';
@@ -79,7 +56,7 @@ export default function HiringSettings() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Hiring Settings</h1>
           <p className="text-muted-foreground">
-            Manage email templates, assignment templates, and configuration
+            Manage pipelines, assignment templates, and configuration
           </p>
         </div>
       </div>
@@ -89,10 +66,6 @@ export default function HiringSettings() {
           <TabsTrigger value="pipeline" className="flex items-center gap-2">
             <GitBranch className="h-4 w-4" />
             Pipeline Settings
-          </TabsTrigger>
-          <TabsTrigger value="templates" className="flex items-center gap-2">
-            <Mail className="h-4 w-4" />
-            Email Automation
           </TabsTrigger>
           <TabsTrigger value="assignments" className="flex items-center gap-2">
             <ClipboardList className="h-4 w-4" />
@@ -108,10 +81,6 @@ export default function HiringSettings() {
           <PipelineSettingsSection />
         </TabsContent>
 
-        <TabsContent value="templates" className="mt-6">
-          <EmailTemplatesSection />
-        </TabsContent>
-
         <TabsContent value="assignments" className="mt-6">
           <AssignmentTemplatesSection />
         </TabsContent>
@@ -121,235 +90,6 @@ export default function HiringSettings() {
         </TabsContent>
       </Tabs>
     </div>
-  );
-}
-
-// ============================================
-// EMAIL TEMPLATES SECTION
-// ============================================
-
-function EmailTemplatesSection() {
-  const { data: templates, isLoading } = useHiringEmailTemplates();
-  const createTemplate = useCreateEmailTemplate();
-  const updateTemplate = useUpdateEmailTemplate();
-  
-  const [editingTemplate, setEditingTemplate] = useState<any>(null);
-  const [showDialog, setShowDialog] = useState(false);
-
-  const [formData, setFormData] = useState({
-    name: '',
-    template_type: '' as string,
-    subject: '',
-    body: '',
-    is_active: true,
-  });
-
-  const handleEdit = (template: any) => {
-    setFormData({
-      name: template.name,
-      template_type: template.template_type,
-      subject: template.subject,
-      body: template.body,
-      is_active: template.is_active,
-    });
-    setEditingTemplate(template);
-    setShowDialog(true);
-  };
-
-  const handleCreate = () => {
-    setFormData({
-      name: '',
-      template_type: '',
-      subject: '',
-      body: '',
-      is_active: true,
-    });
-    setEditingTemplate(null);
-    setShowDialog(true);
-  };
-
-  const handleSave = async () => {
-    if (!formData.name || !formData.template_type || !formData.subject) {
-      toast.error('Please fill all required fields');
-      return;
-    }
-
-    try {
-      if (editingTemplate) {
-        await updateTemplate.mutateAsync({
-          id: editingTemplate.id,
-          input: formData as any,
-        });
-      } else {
-        await createTemplate.mutateAsync(formData as any);
-      }
-      setShowDialog(false);
-    } catch (error) {
-      // Error handled by mutation
-    }
-  };
-
-
-  if (isLoading) {
-    return <Skeleton className="h-96" />;
-  }
-
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle>Email Automation</CardTitle>
-          <CardDescription>
-            Customize automated emails sent during the hiring process
-          </CardDescription>
-        </div>
-        <Dialog open={showDialog} onOpenChange={setShowDialog}>
-          <DialogTrigger asChild>
-            <Button onClick={handleCreate}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Template
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {editingTemplate ? 'Edit Email Template' : 'Create Email Template'}
-              </DialogTitle>
-              <DialogDescription>
-                Configure when and what emails are sent to candidates
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Name *</Label>
-                  <Input
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="e.g., Application Received"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Trigger *</Label>
-                  <Select
-                    value={formData.template_type}
-                    onValueChange={(v) => setFormData({ ...formData, template_type: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select trigger..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(EMAIL_TRIGGER_LABELS).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>{label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Subject *</Label>
-                <Input
-                  value={formData.subject}
-                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                  placeholder="e.g., Thank you for applying to {{job_title}}"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Use {"{{candidate_name}}"}, {"{{job_title}}"}, {"{{company_name}}"} for dynamic values
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Body</Label>
-                <Textarea
-                  value={formData.body}
-                  onChange={(e) => setFormData({ ...formData, body: e.target.value })}
-                  rows={10}
-                  placeholder="Dear {{candidate_name}},&#10;&#10;Thank you for applying..."
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={formData.is_active}
-                  onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
-                />
-                <Label>Active</Label>
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowDialog(false)}>
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleSave}
-                disabled={createTemplate.isPending || updateTemplate.isPending}
-              >
-                {createTemplate.isPending || updateTemplate.isPending ? 'Saving...' : 'Save Template'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </CardHeader>
-      <CardContent>
-        {templates && templates.length > 0 ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Trigger</TableHead>
-                <TableHead>Subject</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-20">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {templates.map((template) => (
-                <TableRow key={template.id}>
-                  <TableCell className="font-medium">{template.name}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {EMAIL_TRIGGER_LABELS[(template as any).template_type as keyof typeof EMAIL_TRIGGER_LABELS] || (template as any).template_type}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="max-w-[200px] truncate">
-                    {template.subject}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={template.is_active ? 'default' : 'secondary'}>
-                      {template.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      onClick={() => handleEdit(template)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        ) : (
-          <div className="text-center py-12">
-            <Mail className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No email templates yet</h3>
-            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              Create custom email templates for your hiring process, or they'll be auto-generated when your organization is set up.
-            </p>
-            <Button variant="outline" onClick={handleCreate}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Template
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
   );
 }
 
