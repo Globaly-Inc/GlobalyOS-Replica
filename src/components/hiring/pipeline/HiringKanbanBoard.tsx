@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { OrgLink } from '@/components/OrgLink';
+import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { useUpdateApplicationStage } from '@/services/useHiringMutations';
 import { useOrganization } from '@/hooks/useOrganization';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,6 +15,7 @@ import {
 } from '@/types/hiring';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+
 
 interface HiringKanbanBoardProps {
   jobId: string;
@@ -58,6 +59,7 @@ const DEFAULT_STAGES: ApplicationStage[] = [
 export function HiringKanbanBoard({ jobId, applications, stages, onStageChange }: HiringKanbanBoardProps) {
   const updateStage = useUpdateApplicationStage();
   const { data: memberEmailMap } = useOrgMemberEmails();
+  const { navigateOrg } = useOrgNavigation();
   const [draggedApp, setDraggedApp] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
 
@@ -185,21 +187,21 @@ export function HiringKanbanBoard({ jobId, applications, stages, onStageChange }
               return (
                 <Card
                   key={app.id}
-                  className={`cursor-grab active:cursor-grabbing transition-all ${
-                    draggedApp === app.id ? 'opacity-50 scale-95' : 'hover:shadow-md'
+                  className={`transition-all ${
+                    draggedApp === app.id ? 'opacity-50 scale-95 cursor-grabbing' : 'hover:shadow-md cursor-pointer'
                   }`}
                   draggable
                   onDragStart={(e) => handleDragStart(e, app.id)}
                   onDragEnd={handleDragEnd}
+                  onClick={(e) => {
+                    // Don't navigate if the user just finished dragging
+                    if (draggedApp) return;
+                    navigateOrg(`/hiring/applications/${app.id}`);
+                  }}
                 >
                   <CardContent className="p-4 space-y-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <OrgLink
-                        to={`/hiring/applications/${app.id}`}
-                        className="font-medium text-sm hover:text-primary truncate"
-                      >
-                        {name}
-                      </OrgLink>
+                      <span className="font-medium text-sm truncate">{name}</span>
                       {(memberStatus === 'active' || memberStatus === 'invited') && (
                         <Badge className="text-[10px] px-1.5 py-0 h-4 bg-emerald-100 text-emerald-700 border border-emerald-200 shrink-0">
                           Internal
