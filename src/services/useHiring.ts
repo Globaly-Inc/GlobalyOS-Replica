@@ -182,7 +182,7 @@ export function useCandidates(filters?: CandidateFilters) {
         .from('candidates')
         .select(`
           *,
-          employee:employees(
+          employee:employees!candidates_employee_id_fkey(
             id, position, department, user_id,
             profiles:profiles(full_name, avatar_url)
           ),
