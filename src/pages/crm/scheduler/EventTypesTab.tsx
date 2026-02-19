@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Copy, ExternalLink, MoreHorizontal, Pencil, Power, Trash2, Users, UserCheck, Users2, Shuffle, Clock, MapPin, Video, Phone, Building } from 'lucide-react';
+import { Copy, ExternalLink, MoreHorizontal, Pencil, Power, Trash2, Users, UserCheck, Users2, Shuffle, Clock, MapPin, Video, Phone, Building, CopyPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useSchedulerEventTypes, useToggleEventTypeActive, useDeleteEventType } from '@/services/useScheduler';
+import { useSchedulerEventTypes, useToggleEventTypeActive, useDeleteEventType, useDuplicateEventType } from '@/services/useScheduler';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -71,6 +71,7 @@ export function EventTypesTab({ onEdit, onNew }: Props) {
   const { orgCode } = useParams<{ orgCode: string }>();
   const toggleActive = useToggleEventTypeActive();
   const deleteEvent = useDeleteEventType();
+  const duplicateEvent = useDuplicateEventType();
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const siteUrl = window.location.origin;
@@ -122,6 +123,7 @@ export function EventTypesTab({ onEdit, onNew }: Props) {
             onCopyLink={() => copyLink(et.slug)}
             onToggleActive={() => toggleActive.mutate({ id: et.id, is_active: !et.is_active })}
             onDelete={() => setDeleteId(et.id)}
+            onDuplicate={() => duplicateEvent.mutate(et.id)}
           />
         ))}
       </div>
@@ -156,9 +158,10 @@ interface CardProps {
   onCopyLink: () => void;
   onToggleActive: () => void;
   onDelete: () => void;
+  onDuplicate: () => void;
 }
 
-function EventTypeCard({ eventType, bookingLink, onEdit, onCopyLink, onToggleActive, onDelete }: CardProps) {
+function EventTypeCard({ eventType, bookingLink, onEdit, onCopyLink, onToggleActive, onDelete, onDuplicate }: CardProps) {
   const TypeIcon = EVENT_TYPE_ICONS[eventType.type] || UserCheck;
   const LocationIcon = LOCATION_ICON[eventType.location_type] || Video;
   const typeLabel = EVENT_TYPE_LABELS[eventType.type] || eventType.type;
@@ -182,6 +185,9 @@ function EventTypeCard({ eventType, bookingLink, onEdit, onCopyLink, onToggleAct
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuItem onClick={onEdit}>
               <Pencil className="h-4 w-4 mr-2" /> Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onDuplicate}>
+              <CopyPlus className="h-4 w-4 mr-2" /> Duplicate
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onCopyLink}>
               <Copy className="h-4 w-4 mr-2" /> Copy link
