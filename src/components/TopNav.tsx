@@ -6,7 +6,6 @@ import { useFeatureFlags, FeatureName } from '@/hooks/useFeatureFlags';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useTotalUnreadCount } from '@/services/chat';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 
 interface TopNavProps {
   isAdmin: boolean;
@@ -15,7 +14,7 @@ interface TopNavProps {
 interface NavItem {
   name: string;
   href: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{className?: string;}>;
   adminOnly: boolean;
   ownerOnly?: boolean;
   hrAllowed?: boolean;
@@ -24,24 +23,24 @@ interface NavItem {
 }
 
 const mainNavItems: NavItem[] = [
-  { name: 'Home', href: '/', icon: Home, adminOnly: false },
-  { name: 'Team', href: '/team', icon: Users, adminOnly: false },
-  { name: 'KPIs', href: '/kpi-dashboard', icon: Target, adminOnly: false },
-  { name: 'Wiki', href: '/wiki', icon: BookOpen, adminOnly: false },
-  { name: 'Chat', href: '/chat', icon: MessageSquare, adminOnly: false, featureFlag: 'chat' },
-  { name: 'Tasks', href: '/tasks', icon: CheckSquare, adminOnly: false, featureFlag: 'tasks' },
-   { name: 'CRM', href: '/crm', icon: Briefcase, adminOnly: false, featureFlag: 'crm' },
-];
+{ name: 'Home', href: '/', icon: Home, adminOnly: false },
+{ name: 'Team', href: '/team', icon: Users, adminOnly: false },
+{ name: 'KPIs', href: '/kpi-dashboard', icon: Target, adminOnly: false },
+{ name: 'Wiki', href: '/wiki', icon: BookOpen, adminOnly: false },
+{ name: 'Chat', href: '/chat', icon: MessageSquare, adminOnly: false, featureFlag: 'chat' },
+{ name: 'Tasks', href: '/tasks', icon: CheckSquare, adminOnly: false, featureFlag: 'tasks' },
+{ name: 'CRM', href: '/crm', icon: Briefcase, adminOnly: false, featureFlag: 'crm' }];
+
 
 export const TopNav = ({ isAdmin }: TopNavProps) => {
   const { isEnabled } = useFeatureFlags();
   const { isOwner, isHR } = useUserRole();
   const location = useLocation();
-  const { orgCode } = useParams<{ orgCode: string }>();
+  const { orgCode } = useParams<{orgCode: string;}>();
   const { data: chatUnreadCount = 0 } = useTotalUnreadCount();
 
   // Filter items based on feature flags, admin-only, and owner-only
-  const visibleItems = mainNavItems.filter(item => {
+  const visibleItems = mainNavItems.filter((item) => {
     // If owner only, check owner status
     if (item.ownerOnly && !isOwner) {
       return false;
@@ -52,7 +51,7 @@ export const TopNav = ({ isAdmin }: TopNavProps) => {
     }
     // If admin only, check admin status (or HR if hrAllowed)
     if (item.adminOnly) {
-      const hasAccess = isAdmin || (item.hrAllowed && isHR);
+      const hasAccess = isAdmin || item.hrAllowed && isHR;
       if (!hasAccess) {
         return false;
       }
@@ -63,7 +62,7 @@ export const TopNav = ({ isAdmin }: TopNavProps) => {
   const isActive = (href: string) => {
     const basePath = orgCode ? `/org/${orgCode}` : '';
     const fullPath = href === '/' ? basePath || '/' : `${basePath}${href}`;
-    
+
     if (href === '/') {
       // Home is active only for root path
       return location.pathname === basePath || location.pathname === `${basePath}/`;
@@ -71,70 +70,51 @@ export const TopNav = ({ isAdmin }: TopNavProps) => {
     if (href === '/team') {
       // Team is active for /team/*, /calendar, etc. (not KPIs - they have their own nav item now)
       return location.pathname.startsWith(`${basePath}/team`) ||
-             location.pathname === `${basePath}/calendar` ||
-             location.pathname === `${basePath}/leave-history` ||
-             location.pathname === `${basePath}/attendance-history` ||
-             location.pathname === `${basePath}/payroll` ||
-             location.pathname.startsWith(`${basePath}/payroll/`);
+      location.pathname === `${basePath}/calendar` ||
+      location.pathname === `${basePath}/leave-history` ||
+      location.pathname === `${basePath}/attendance-history` ||
+      location.pathname === `${basePath}/payroll` ||
+      location.pathname.startsWith(`${basePath}/payroll/`);
     }
-     if (href === '/settings') {
-       return location.pathname.startsWith(`${basePath}/settings`);
-     }
+    if (href === '/settings') {
+      return location.pathname.startsWith(`${basePath}/settings`);
+    }
     if (href === '/kpi-dashboard') {
       return location.pathname === `${basePath}/kpi-dashboard` ||
-             location.pathname.startsWith(`${basePath}/kpi-dashboard/`);
+      location.pathname.startsWith(`${basePath}/kpi-dashboard/`);
     }
     return location.pathname === fullPath || location.pathname.startsWith(`${fullPath}/`);
   };
 
   return (
-    <TooltipProvider delayDuration={100}>
-      <nav className="flex items-center space-x-0.5 tour-feature-overview">
-        {visibleItems.map((item) => {
-          const active = isActive(item.href);
-          const link = (
-            <OrgLink
-              key={item.name}
-              to={item.href}
-              className={cn(
-                'flex items-center rounded-lg text-sm font-medium transition-colors',
-                active
-                  ? 'gap-2 bg-secondary text-foreground px-3 py-2'
-                  : 'h-9 w-9 justify-center bg-muted/50 text-muted-foreground hover:bg-secondary hover:text-foreground relative',
-                item.isStatic && 'opacity-70',
-                item.name === 'Team' && 'tour-team-directory',
-                item.name === 'Wiki' && 'tour-wiki-nav',
-                item.name === 'Chat' && 'tour-chat-nav'
-              )}
-            >
-              <item.icon className="h-4 w-4" />
-              {active && item.name}
-              {item.name === 'Chat' && chatUnreadCount > 0 && (
-                <Badge
-                  variant="destructive"
-                  className={cn(
-                    "h-5 min-w-[20px] px-1.5 text-[10px] font-semibold",
-                    !active && "absolute -top-1 -right-1"
-                  )}
-                >
-                  {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
-                </Badge>
-              )}
-            </OrgLink>
-          );
+    <nav className="flex items-center space-x-0.5 tour-feature-overview">
+      {visibleItems.map((item) =>
+      <OrgLink
+        key={item.name}
+        to={item.href}
+        className={cn("flex items-center rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground gap-[10px]",
 
-          if (active) return <span key={item.name}>{link}</span>;
+        item.isStatic && 'opacity-70',
+        isActive(item.href) && 'bg-secondary text-foreground',
+        item.name === 'Team' && 'tour-team-directory',
+        item.name === 'Wiki' && 'tour-wiki-nav',
+        item.name === 'Chat' && 'tour-chat-nav'
+        )}>
 
-          return (
-            <Tooltip key={item.name}>
-              <TooltipTrigger asChild>{link}</TooltipTrigger>
-              <TooltipContent>{item.name}</TooltipContent>
-            </Tooltip>
-          );
-        })}
-      </nav>
-    </TooltipProvider>
-  );
+          <item.icon className="h-4 w-4" />
+          {item.name}
+          {item.name === 'Chat' && chatUnreadCount > 0 &&
+        <Badge
+          variant="destructive"
+          className="h-5 min-w-[20px] px-1.5 text-[10px] font-semibold">
+
+              {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+            </Badge>
+        }
+        </OrgLink>
+      )}
+    </nav>);
+
 };
 
 export { mainNavItems };
