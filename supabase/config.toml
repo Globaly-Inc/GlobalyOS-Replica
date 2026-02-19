@@ -374,3 +374,9 @@ verify_jwt = false
 
 [functions.wa-send]
 verify_jwt = false
+
+[functions.sb-auth]
+verify_jwt = false
+
+[functions.sb-sync-user]
+verify_jwt = false

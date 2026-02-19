@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { OrganizationProvider } from '@/hooks/useOrganization';
 import { AuthProvider } from '@/hooks/useAuth';
 import { FeatureFlagsProvider } from '@/hooks/useFeatureFlags';
+import { SendbirdCallsProvider } from '@/providers/SendbirdCallsProvider';
 import { TimezoneProvider } from '@/hooks/useTimezone';
 import { useServiceWorkerUpdate } from '@/hooks/useServiceWorkerUpdate';
 import { UpdatePrompt } from '@/components/ui/UpdatePrompt';
@@ -112,6 +113,10 @@ const WhatsAppFlowsPage = lazy(() => import('./pages/crm/whatsapp/WhatsAppFlowsP
 const WhatsAppSettingsPage = lazy(() => import('./pages/crm/whatsapp/WhatsAppSettingsPage'));
 const WhatsAppSequencesPage = lazy(() => import('./pages/crm/whatsapp/WhatsAppSequencesPage'));
 const Payroll = lazy(() => import('./pages/Payroll'));
+
+// Sendbird Calls UI (lazy)
+const CallOverlayGlobal = lazy(() => import('./components/chat/CallOverlay'));
+const IncomingCallDialogGlobal = lazy(() => import('./components/chat/IncomingCallDialog'));
 const MyPayslips = lazy(() => import('./pages/MyPayslips'));
 const Workflows = lazy(() => import('./pages/Workflows'));
 const ApplicationDetail = lazy(() => import('./pages/ApplicationDetail'));
@@ -199,6 +204,7 @@ const App = () => <QueryClientProvider client={queryClient}>
           <TimezoneProvider>
             <OrganizationProvider>
               <FeatureFlagsProvider>
+              <SendbirdCallsProvider>
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 {/* Public website routes */}
@@ -413,6 +419,9 @@ const App = () => <QueryClientProvider client={queryClient}>
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
+            <CallOverlayGlobal />
+            <IncomingCallDialogGlobal />
+            </SendbirdCallsProvider>
             </FeatureFlagsProvider>
           </OrganizationProvider>
         </TimezoneProvider>
