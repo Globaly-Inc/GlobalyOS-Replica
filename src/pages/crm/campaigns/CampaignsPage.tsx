@@ -153,17 +153,23 @@ export default function CampaignsPage() {
       ) : (
         <div className="bg-card rounded-xl border border-border overflow-hidden">
           <table className="w-full">
-            <thead>
+          <thead>
               <tr className="border-b border-border bg-muted/30">
                 <th className="text-left text-xs font-medium text-muted-foreground px-4 py-3">Name</th>
                 <th className="text-left text-xs font-medium text-muted-foreground px-4 py-3">Status</th>
                 <th className="text-right text-xs font-medium text-muted-foreground px-4 py-3">Recipients</th>
+                <th className="text-right text-xs font-medium text-muted-foreground px-4 py-3 hidden md:table-cell">Open %</th>
+                <th className="text-right text-xs font-medium text-muted-foreground px-4 py-3 hidden md:table-cell">Click %</th>
                 <th className="text-left text-xs font-medium text-muted-foreground px-4 py-3">Created</th>
                 <th className="w-10" />
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {campaigns.map(campaign => (
+              {campaigns.map(campaign => {
+                const rc = campaign.recipient_count || 0;
+                const openRate = rc > 0 && campaign.status === 'sent' ? '—' : null;
+                const clickRate = rc > 0 && campaign.status === 'sent' ? '—' : null;
+                return (
                 <tr
                   key={campaign.id}
                   className="hover:bg-muted/30 transition-colors cursor-pointer"
@@ -178,6 +184,22 @@ export default function CampaignsPage() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <span className="text-sm text-muted-foreground">{campaign.recipient_count.toLocaleString()}</span>
+                  </td>
+                  <td className="px-4 py-3 text-right hidden md:table-cell">
+                    {campaign.status === 'sent' ? (
+                      <a
+                        href={`/org/${orgCode}/crm/campaigns/${campaign.id}/report`}
+                        onClick={e => { e.stopPropagation(); navigate(`/org/${orgCode}/crm/campaigns/${campaign.id}/report`); }}
+                        className="text-sm text-primary hover:underline"
+                      >
+                        View
+                      </a>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right hidden md:table-cell">
+                    <span className="text-sm text-muted-foreground">—</span>
                   </td>
                   <td className="px-4 py-3">
                     <span className="text-xs text-muted-foreground">{format(new Date(campaign.created_at), 'dd MMM yyyy')}</span>
@@ -213,7 +235,8 @@ export default function CampaignsPage() {
                     </DropdownMenu>
                   </td>
                 </tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
         </div>
