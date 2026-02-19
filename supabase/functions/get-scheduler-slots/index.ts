@@ -123,7 +123,7 @@ const handler = async (req: Request): Promise<Response> => {
         *,
         hosts:scheduler_event_hosts(
           *,
-          employee:employees(id, first_name, last_name, avatar_url, job_title)
+          employee:employees(id, user_id, position, profiles(full_name, avatar_url))
         )
       `)
       .eq("organization_id", org.id)
@@ -189,6 +189,13 @@ const handler = async (req: Request): Promise<Response> => {
       inviteeTimezone
     );
 
+    // Normalize hosts to consistent shape for public page
+    const hosts = (eventType.hosts || []).map((h: any) => ({
+      full_name: h.employee?.profiles?.full_name || null,
+      avatar_url: h.employee?.profiles?.avatar_url || null,
+      position: h.employee?.position || null,
+    }));
+
     return new Response(
       JSON.stringify({
         slots,
@@ -202,7 +209,7 @@ const handler = async (req: Request): Promise<Response> => {
           location_value: eventType.location_value,
           type: eventType.type,
           config_json: eventType.config_json,
-          hosts: eventType.hosts,
+          hosts,
         },
         org_name: org.name,
       }),

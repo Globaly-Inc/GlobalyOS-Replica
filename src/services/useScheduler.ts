@@ -33,7 +33,7 @@ export const useSchedulerEventTypes = () => {
           *,
           hosts:scheduler_event_hosts(
             *,
-            employee:employees(id, first_name, last_name, avatar_url, job_title)
+            employee:employees(id, user_id, position, profiles(full_name, avatar_url))
           )
         `)
         .eq('organization_id', currentOrg.id)
@@ -60,7 +60,7 @@ export const useSchedulerEventType = (id: string | null) => {
           *,
           hosts:scheduler_event_hosts(
             *,
-            employee:employees(id, first_name, last_name, avatar_url, job_title)
+            employee:employees(id, user_id, position, profiles(full_name, avatar_url))
           )
         `)
         .eq('id', id)
