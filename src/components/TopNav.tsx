@@ -6,6 +6,7 @@ import { useFeatureFlags, FeatureName } from '@/hooks/useFeatureFlags';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useTotalUnreadCount } from '@/services/chat';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 
 interface TopNavProps {
   isAdmin: boolean;
@@ -87,33 +88,47 @@ export const TopNav = ({ isAdmin }: TopNavProps) => {
   };
 
   return (
-    <nav className="flex items-center space-x-0.5 tour-feature-overview">
-      {visibleItems.map((item) => (
-        <OrgLink
-          key={item.name}
-          to={item.href}
-          className={cn(
-            'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground',
-            item.isStatic && 'opacity-70',
-            isActive(item.href) && 'bg-secondary text-foreground',
-            item.name === 'Team' && 'tour-team-directory',
-            item.name === 'Wiki' && 'tour-wiki-nav',
-            item.name === 'Chat' && 'tour-chat-nav'
-          )}
-        >
-          <item.icon className="h-4 w-4" />
-          {item.name}
-          {item.name === 'Chat' && chatUnreadCount > 0 && (
-            <Badge 
-              variant="destructive" 
-              className="h-5 min-w-[20px] px-1.5 text-[10px] font-semibold"
+    <TooltipProvider delayDuration={100}>
+      <nav className="flex items-center space-x-0.5 tour-feature-overview">
+        {visibleItems.map((item) => {
+          const active = isActive(item.href);
+          const link = (
+            <OrgLink
+              key={item.name}
+              to={item.href}
+              className={cn(
+                'flex items-center gap-2 rounded-lg text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground',
+                active ? 'bg-secondary text-foreground px-3 py-2' : 'px-2 py-2',
+                item.isStatic && 'opacity-70',
+                item.name === 'Team' && 'tour-team-directory',
+                item.name === 'Wiki' && 'tour-wiki-nav',
+                item.name === 'Chat' && 'tour-chat-nav'
+              )}
             >
-              {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
-            </Badge>
-          )}
-        </OrgLink>
-      ))}
-    </nav>
+              <item.icon className="h-4 w-4" />
+              {active && item.name}
+              {item.name === 'Chat' && chatUnreadCount > 0 && (
+                <Badge
+                  variant="destructive"
+                  className="h-5 min-w-[20px] px-1.5 text-[10px] font-semibold"
+                >
+                  {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                </Badge>
+              )}
+            </OrgLink>
+          );
+
+          if (active) return <span key={item.name}>{link}</span>;
+
+          return (
+            <Tooltip key={item.name}>
+              <TooltipTrigger asChild>{link}</TooltipTrigger>
+              <TooltipContent>{item.name}</TooltipContent>
+            </Tooltip>
+          );
+        })}
+      </nav>
+    </TooltipProvider>
   );
 };
 
