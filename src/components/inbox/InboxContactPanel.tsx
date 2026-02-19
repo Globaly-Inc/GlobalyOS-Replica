@@ -1,7 +1,7 @@
 import { ChannelBadge } from './ChannelBadge';
 import { InboxTagManager } from './InboxTagManager';
+import { InboxActivityTimeline } from './InboxActivityTimeline';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -111,23 +111,11 @@ export const InboxContactPanel = ({ conversation, onUpdateStatus, onAssign, onUp
           </div>
 
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1 text-xs"
-              onClick={() => onUpdateStatus('closed')}
-            >
-              <XCircle className="h-3.5 w-3.5 mr-1" />
-              Resolve
+            <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => onUpdateStatus('closed')}>
+              <XCircle className="h-3.5 w-3.5 mr-1" /> Resolve
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1 text-xs"
-              onClick={() => onUpdateStatus('snoozed')}
-            >
-              <Pause className="h-3.5 w-3.5 mr-1" />
-              Snooze
+            <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => onUpdateStatus('snoozed')}>
+              <Pause className="h-3.5 w-3.5 mr-1" /> Snooze
             </Button>
           </div>
         </div>
@@ -137,10 +125,7 @@ export const InboxContactPanel = ({ conversation, onUpdateStatus, onAssign, onUp
         {/* Tags */}
         <div className="space-y-2">
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tags</h4>
-          <InboxTagManager
-            tags={conversation.tags || []}
-            onUpdate={(tags) => onUpdateTags?.(tags)}
-          />
+          <InboxTagManager tags={conversation.tags || []} onUpdate={(tags) => onUpdateTags?.(tags)} />
         </div>
 
         <Separator />
@@ -167,6 +152,11 @@ export const InboxContactPanel = ({ conversation, onUpdateStatus, onAssign, onUp
             )}
           </div>
         </div>
+
+        <Separator />
+
+        {/* Activity timeline */}
+        <InboxActivityTimeline conversationId={conversation.id} />
 
         {/* Consent */}
         {contact?.consent && Object.keys(contact.consent).length > 0 && (

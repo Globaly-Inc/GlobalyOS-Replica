@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Search, Filter, ChevronDown } from 'lucide-react';
+import { Search, Filter, ChevronDown, Eye } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -12,6 +11,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
@@ -26,6 +26,10 @@ interface InboxConversationListProps {
   onChannelFilterChange: (c: InboxChannelType | undefined) => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
+  assigneeFilter?: string | undefined;
+  onAssigneeFilterChange?: (a: string | undefined) => void;
+  unreadOnly?: boolean;
+  onUnreadOnlyChange?: (v: boolean) => void;
 }
 
 const statusTabs: { label: string; value: InboxConversationStatus | undefined }[] = [
@@ -52,15 +56,24 @@ export const InboxConversationList = ({
   onChannelFilterChange,
   searchQuery,
   onSearchChange,
+  assigneeFilter,
+  onAssigneeFilterChange,
+  unreadOnly,
+  onUnreadOnlyChange,
 }: InboxConversationListProps) => {
-  // Client-side search filter
+  // Client-side filters
   const filtered = conversations.filter((c) => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    const name = c.inbox_contacts?.name?.toLowerCase() || '';
-    const phone = c.inbox_contacts?.phone?.toLowerCase() || '';
-    const email = c.inbox_contacts?.email?.toLowerCase() || '';
-    return name.includes(q) || phone.includes(q) || email.includes(q);
+    // Search
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const name = c.inbox_contacts?.name?.toLowerCase() || '';
+      const phone = c.inbox_contacts?.phone?.toLowerCase() || '';
+      const email = c.inbox_contacts?.email?.toLowerCase() || '';
+      if (!name.includes(q) && !phone.includes(q) && !email.includes(q)) return false;
+    }
+    // Unread
+    if (unreadOnly && (c.unread_count || 0) === 0) return false;
+    return true;
   });
 
   return (
@@ -95,7 +108,7 @@ export const InboxConversationList = ({
           </button>
         ))}
 
-        {/* Channel filter */}
+        {/* Filters dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="ml-auto h-7 gap-1 text-xs">
@@ -107,7 +120,8 @@ export const InboxConversationList = ({
               <ChevronDown className="h-3 w-3" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="w-48">
+            {/* Channel filter */}
             <DropdownMenuItem onClick={() => onChannelFilterChange(undefined)}>
               All channels
             </DropdownMenuItem>
@@ -116,9 +130,52 @@ export const InboxConversationList = ({
                 <ChannelBadge channel={ch.value} size="sm" showLabel />
               </DropdownMenuItem>
             ))}
+
+            <DropdownMenuSeparator />
+
+            {/* Assignee filter */}
+            <DropdownMenuItem onClick={() => onAssigneeFilterChange?.(undefined)}>
+              All assignees
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onAssigneeFilterChange?.('me')}>
+              Assigned to me
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onAssigneeFilterChange?.('unassigned')}>
+              Unassigned
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+
+            {/* Unread toggle */}
+            <DropdownMenuItem onClick={() => onUnreadOnlyChange?.(!unreadOnly)}>
+              <Eye className="h-3.5 w-3.5 mr-2" />
+              {unreadOnly ? 'Show all' : 'Unread only'}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {/* Active filters badge */}
+      {(assigneeFilter || unreadOnly) && (
+        <div className="flex items-center gap-1 px-3 py-1.5 border-b border-border">
+          {assigneeFilter && (
+            <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+              {assigneeFilter === 'me' ? 'Assigned to me' : 'Unassigned'}
+            </span>
+          )}
+          {unreadOnly && (
+            <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+              Unread only
+            </span>
+          )}
+          <button
+            onClick={() => { onAssigneeFilterChange?.(undefined); onUnreadOnlyChange?.(false); }}
+            className="text-[10px] text-muted-foreground hover:text-foreground ml-auto"
+          >
+            Clear
+          </button>
+        </div>
+      )}
 
       {/* Conversation list */}
       <ScrollArea className="flex-1">

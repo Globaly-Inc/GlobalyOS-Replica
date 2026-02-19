@@ -35,7 +35,12 @@ export function useInboxConversations(filters?: {
       if (filters?.channelType) {
         query = query.eq('channel_type', filters.channelType);
       }
-      if (filters?.assignedTo) {
+      if (filters?.assignedTo === '__UNASSIGNED__') {
+        query = query.is('assigned_to', null);
+      } else if (filters?.assignedTo === 'CURRENT_USER') {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) query = query.eq('assigned_to', user.id);
+      } else if (filters?.assignedTo) {
         query = query.eq('assigned_to', filters.assignedTo);
       }
 
