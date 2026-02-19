@@ -134,6 +134,11 @@ interface ConfirmedData {
 export default function PublicBookingPage() {
   const { orgCode, eventSlug } = useParams<{ orgCode: string; eventSlug: string }>();
 
+  // Read pre-fill params from URL (e.g. ?email=...&name=...)
+  const searchParams = new URLSearchParams(window.location.search);
+  const prefillEmail = searchParams.get('email') || '';
+  const prefillName = searchParams.get('name') || '';
+
   const [step, setStep] = useState<BookingStep>('time');
   const [eventType, setEventType] = useState<PublicEventType | null>(null);
   const [orgName, setOrgName] = useState('');
@@ -150,9 +155,9 @@ export default function PublicBookingPage() {
     Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
   );
 
-  // Form state
-  const [inviteeName, setInviteeName] = useState('');
-  const [inviteeEmail, setInviteeEmail] = useState('');
+  // Form state — pre-fill from URL params if provided
+  const [inviteeName, setInviteeName] = useState(prefillName);
+  const [inviteeEmail, setInviteeEmail] = useState(prefillEmail);
   const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [confirmed, setConfirmed] = useState<ConfirmedData | null>(null);

@@ -6,9 +6,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Mail, Phone, MapPin, Building, Calendar, Globe, Flame, Handshake, Snowflake, User } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { ArrowLeft, Mail, Phone, MapPin, Building, Calendar, Globe, Flame, Handshake, Snowflake, User, CalendarPlus, Copy, ExternalLink, Clock, Video } from 'lucide-react';
 import { useCRMContact, useCRMActivities, useUpdateCRMContact } from '@/services/useCRM';
 import { useCRMDuplicateContacts } from '@/services/useCRMDuplicates';
+import { useSchedulerEventTypes } from '@/services/useScheduler';
+import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { PageBody } from '@/components/ui/page-body';
@@ -44,6 +47,9 @@ const CRMContactProfile = () => {
   const { data: activities = [] } = useCRMActivities(id || null, null);
   const updateContact = useUpdateCRMContact();
   const { data: duplicates = [] } = useCRMDuplicateContacts(contact);
+  const { data: eventTypes = [] } = useSchedulerEventTypes();
+  const { orgCode } = useOrgNavigation();
+  const [scheduleMeetingOpen, setScheduleMeetingOpen] = useState(false);
 
   const updateField = async (field: string, value: string) => {
     if (!id) return;
@@ -97,7 +103,90 @@ const CRMContactProfile = () => {
               <span className="sm:hidden">Back</span>
             </Button>
           </OrgLink>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setScheduleMeetingOpen(true)}
+            disabled={eventTypes.filter(e => e.is_active).length === 0}
+          >
+            <CalendarPlus className="mr-2 h-4 w-4" />
+            Schedule Meeting
+          </Button>
         </div>
+
+        {/* Schedule Meeting Dialog */}
+        <Dialog open={scheduleMeetingOpen} onOpenChange={setScheduleMeetingOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Schedule a Meeting</DialogTitle>
+              <DialogDescription>
+                Pick an event type to generate a pre-filled booking link for{' '}
+                <span className="font-medium text-foreground">{contact?.first_name}</span>.
+                {contact?.email && (
+                  <span className="block text-xs mt-1 text-muted-foreground">
+                    Contact email: <span className="font-mono">{contact.email}</span>
+                  </span>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2 py-2">
+              {eventTypes.filter(e => e.is_active).length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  No active event types. Create one in the Scheduler.
+                </p>
+              ) : (
+                eventTypes.filter(e => e.is_active).map(et => {
+                  const bookingUrl = `${window.location.origin}/s/${orgCode}/scheduler/${et.slug}${contact?.email ? `?email=${encodeURIComponent(contact.email)}&name=${encodeURIComponent([contact.first_name, contact.last_name].filter(Boolean).join(' '))}` : ''}`;
+                  return (
+                    <div
+                      key={et.id}
+                      className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{et.name}</p>
+                        <div className="flex items-center gap-3 mt-0.5">
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            {et.duration_minutes} min
+                          </span>
+                          {et.location_type === 'google_meet' && (
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Video className="h-3 w-3" />
+                              Google Meet
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          onClick={() => {
+                            navigator.clipboard.writeText(bookingUrl);
+                            toast.success('Booking link copied!');
+                          }}
+                          title="Copy link"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          onClick={() => window.open(bookingUrl, '_blank', 'noopener,noreferrer')}
+                          title="Open booking page"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Top Card */}
         <Card className="p-4 overflow-hidden">
