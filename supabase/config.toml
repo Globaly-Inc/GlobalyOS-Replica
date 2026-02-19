@@ -365,3 +365,12 @@ verify_jwt = false
 
 [functions.google-calendar-proxy]
 verify_jwt = false
+
+[functions.wa-connect]
+verify_jwt = false
+
+[functions.wa-webhook]
+verify_jwt = false
+
+[functions.wa-send]
+verify_jwt = false
