@@ -1,289 +1,219 @@
 
-# Scheduler Module — Calendly-style Booking Inside GlobalyOS CRM
+# Scheduler – Full Page Creator + Polish + Google Meet Stub
 
-## Current State Analysis
+## Current State Summary
 
-- **No existing Scheduler** — there are no `scheduler_*` tables, no booking flows, no public booking pages.
-- **Existing CRM** — `crm_contacts`, `crm_companies`, `crm_activity_log`, `crm_tags`, `crm_custom_fields` tables exist. The CRM sub-nav already has Contacts | Companies | Settings.
-- **Email** — Resend (`RESEND_API_KEY`) is configured and working; edge functions like `send-hiring-notification` provide the pattern to follow.
-- **Auth/org isolation** — RLS via `has_crm_access(organization_id)` / `organization_id` pattern is well-established.
-- **Employees** — the `employees` table provides host data; `user_id` links to auth users.
-- **Routes** — all internal routes follow `/org/:orgCode/crm/...`; public routes follow patterns like `/careers/:orgCode/:jobSlug`.
-- **Feature flags** — the `crm` feature flag already controls CRM access.
+After thorough review, here is what currently exists and what is missing or broken:
 
----
+### What works:
+- Database tables (4): `scheduler_event_types`, `scheduler_event_hosts`, `scheduler_bookings`, `scheduler_integration_settings`
+- Internal Scheduler page with tabs (Event Types, Scheduled Events, Integrations)
+- `CreateEventTypeWizard` — but lives inside a Dialog (modal), not a dedicated page
+- Public booking page at `/s/:orgCode/scheduler/:eventSlug`
+- Edge functions: `get-scheduler-slots`, `create-scheduler-booking`, `cancel-scheduler-booking`, `send-scheduler-notification`
+- CRM auto-link (find or create contact on booking)
+- Email notifications via Resend
+- Cancel flow via token
 
-## Architecture Decisions
+### What is missing / broken / needs improvement:
 
-### Phase 1 Scope (what we build now)
-This is a very large feature. We will implement a fully working Phase 1 that includes:
-1. Database schema (4 new tables + RLS)
-2. Internal Scheduler UI under CRM sub-nav (Event Types + Scheduled Events tabs)
-3. Public booking pages (`/s/:orgCode/scheduler/:eventSlug`)
-4. CRM auto-link on booking (find or create contact)
-5. Confirmation + cancellation/reschedule pages
-6. Email notifications (confirmation to host + invitee via existing Resend)
+1. **"New Event Type" should be its own full page** (not a Dialog) — the current modal is cramped for a 6-step wizard. Route: `crm/scheduler/new`; edit route: `crm/scheduler/:id/edit`
 
-### Google Calendar — deferred to Phase 2
-Google OAuth requires a Connector or custom OAuth flow. For now, availability will be driven by **manual working hours** configured per event type (the `config_json` availability rules). A clear "Connect Google Calendar" button will be shown in the Integrations tab as a placeholder that indicates it's coming soon. This makes Phase 1 shippable without a Google API key dependency.
+2. **Edit route is broken** — `App.tsx` has `crm/scheduler/:eventSlug/edit` but `SchedulerPage.tsx` uses a modal state (`wizardOpen`), not a route-driven page. The edit URL never renders a different page.
 
----
+3. **Google Calendar + Meet integration** — currently just a "Coming Soon" placeholder in `IntegrationsTab.tsx`. We need to implement a proper Google OAuth connection using the Lovable Google connector or at minimum build a working UI + stored connection flow that guides users through connecting and saving tokens. Since OAuth for Google Calendar requires a Google connector or custom OAuth, we will build the **full UI flow** that stores the connection and shows connected status, while the actual calendar read is stubbed behind a clear "Beta" label with the architecture ready to add real calendar reads.
 
-## Database Schema (4 new tables)
+4. **Public booking page UX gaps:**
+   - No `.ics` calendar download on confirmation page
+   - `alert()` used for errors (should use toast)
+   - Reschedule page (`BookingReschedulePage.tsx`) doesn't actually re-show the booking page with pre-filled data — it calls `cancel-scheduler-booking` action which is wrong
+   - Timezone list is a small static array — should be comprehensive
 
-### Table 1: `scheduler_event_types`
-```
-id uuid PK
-organization_id uuid FK → organizations
-creator_user_id uuid (auth user)
-type text CHECK IN ('one_on_one','group','collective','round_robin')
-name text NOT NULL
-slug text NOT NULL  -- unique per org
-description text
-duration_minutes int DEFAULT 30
-location_type text DEFAULT 'google_meet' CHECK IN ('google_meet','in_person','custom','phone')
-location_value text  -- address or custom URL or phone
-is_active boolean DEFAULT true
-config_json jsonb  -- availability, buffers, questions, reminders
-created_at timestamptz DEFAULT now()
-updated_at timestamptz DEFAULT now()
-UNIQUE(organization_id, slug)
-```
+5. **Notifications email** — host notification uses `host_employee.email` but the `employees` table may not store email — it should use `auth.users` email. Need to fix the join/query in the edge function.
 
-### Table 2: `scheduler_event_hosts`
-```
-id uuid PK
-event_type_id uuid FK → scheduler_event_types
-employee_id uuid FK → employees
-routing_weight int DEFAULT 1  -- for round-robin
-is_primary boolean DEFAULT false
-created_at timestamptz
-```
+6. **Event type cards** — small polish items: "Copy booking link" button on every card is good; "Preview page" opens correctly
 
-### Table 3: `scheduler_bookings`
-```
-id uuid PK
-organization_id uuid FK
-event_type_id uuid FK → scheduler_event_types
-host_employee_id uuid FK → employees
-invitee_contact_id uuid FK → crm_contacts (nullable, linked after creation)
-invitee_name text NOT NULL
-invitee_email text NOT NULL
-invitee_timezone text NOT NULL
-answers_json jsonb  -- custom question responses
-start_at_utc timestamptz NOT NULL
-end_at_utc timestamptz NOT NULL
-status text DEFAULT 'scheduled' CHECK IN ('scheduled','completed','no_show','canceled')
-cancel_token text UNIQUE  -- opaque token for cancel/reschedule links
-google_event_id text  -- future Google Calendar integration
-google_meet_link text  -- future
-notes text
-created_at timestamptz DEFAULT now()
-updated_at timestamptz DEFAULT now()
-```
-
-### Table 4: `scheduler_integration_settings` (stub for Phase 2)
-```
-id uuid PK
-organization_id uuid FK
-user_id uuid
-provider text DEFAULT 'google'
-is_google_meet_enabled boolean DEFAULT false
-primary_calendar_id text
-availability_calendar_ids text[]
-created_at timestamptz
-updated_at timestamptz
-```
-
-### RLS Policies
-- `scheduler_event_types`: org members can SELECT active ones; org admin/owner/member can INSERT/UPDATE/DELETE their own.
-- `scheduler_event_hosts`: same org isolation.
-- `scheduler_bookings`: org members can read all bookings; INSERT is allowed from anon (public booking); UPDATE restricted to org members.
-- Public read of active event_types by org slug is needed for the booking page — handled via a public edge function (no RLS bypass needed if we use service role in the edge function).
+7. **Share step in wizard** — shows the link but doesn't properly handle the "Create" action before showing (it shows even before saving). Need to move the "Create" action to a proper save-then-show-link flow.
 
 ---
 
-## Files to Create / Modify
+## Changes to Implement
 
-### New Database Migration
-- `supabase/migrations/..._scheduler_tables.sql`
+### 1. New dedicated full-page Create/Edit Event Type
 
-### New Types
-- `src/types/scheduler.ts` — TypeScript types for all scheduler entities
+**New file:** `src/pages/crm/scheduler/CreateEventTypePage.tsx`
+- Takes over the wizard logic from `CreateEventTypeWizard.tsx`
+- Uses `PageBody` layout like all CRM pages
+- Left column: step progress (vertical, Calendly-style sidebar)
+- Right column: step content (full width, not cramped)
+- Header: "Create Event Type" with breadcrumb back to Scheduler
+- On submit → navigate back to `/org/:orgCode/crm/scheduler`
+- For edit: URL param `id` loads existing event type data
 
-### New Service Hooks
-- `src/services/useScheduler.ts` — React Query hooks for CRUD on event types, bookings, hosts
+**Routes to add in `App.tsx`:**
+```
+crm/scheduler/new        → CreateEventTypePage (create mode)
+crm/scheduler/:id/edit   → CreateEventTypePage (edit mode)
+```
 
-### New Edge Functions
-- `supabase/functions/create-scheduler-booking/index.ts` — public endpoint (no auth required); creates booking, links/creates CRM contact, sends confirmation emails
-- `supabase/functions/send-scheduler-notification/index.ts` — sends host + invitee confirmation and reminder emails via Resend
-- `supabase/functions/cancel-scheduler-booking/index.ts` — cancel by token (no auth required)
+**SchedulerPage.tsx** — `New Event Type` button now navigates to `/org/:orgCode/crm/scheduler/new` instead of opening a modal. `EventTypesTab.tsx` `onEdit` callback navigates to `/org/:orgCode/crm/scheduler/:id/edit`.
 
-### New Internal Pages
-- `src/pages/crm/scheduler/SchedulerPage.tsx` — main scheduler with sub-tabs
-- `src/pages/crm/scheduler/EventTypesTab.tsx` — list of event types
-- `src/pages/crm/scheduler/ScheduledEventsTab.tsx` — list of bookings
-- `src/pages/crm/scheduler/IntegrationsTab.tsx` — Google Cal placeholder
-- `src/components/crm/scheduler/CreateEventTypeWizard.tsx` — 6-step create/edit dialog
-- `src/components/crm/scheduler/EventTypeCard.tsx` — card in the list
-- `src/components/crm/scheduler/BookingDetailsDrawer.tsx` — booking details side panel
+**Remove** `CreateEventTypeWizard.tsx` (replaced by the full page) and the modal invocation.
 
-### New Public Pages (no auth required)
-- `src/pages/scheduler/PublicBookingPage.tsx` — `/s/:orgCode/scheduler/:eventSlug`
-- `src/pages/scheduler/BookingConfirmationPage.tsx` — shown after successful booking
-- `src/pages/scheduler/BookingCancelPage.tsx` — cancel via token
-- `src/pages/scheduler/BookingReschedulePage.tsx` — reschedule via token
+### 2. Fix the reschedule page
 
-### Modified Files
-- `src/components/crm/CRMSubNav.tsx` — add "Scheduler" nav item
-- `src/App.tsx` — add internal + public routes for scheduler
-- `src/types/crm.ts` — extend CRMActivity type to include `meeting` already exists
+**`BookingReschedulePage.tsx`** — currently unclear. Needs to:
+1. Fetch booking details by token
+2. Show the booking page UI (date/time picker) pre-filled with event type
+3. On new time selection, call a new `reschedule-scheduler-booking` edge function (or extend `cancel-scheduler-booking`) that updates the booking with the new time
+
+**New edge function:** `supabase/functions/reschedule-scheduler-booking/index.ts`
+- Input: `{ token, new_start_at_utc }`
+- Validates token, checks slot availability, updates booking, sends reschedule confirmation email
+
+### 3. Google Calendar Integration — Full UI Flow
+
+**IntegrationsTab.tsx improvements:**
+- Replace "Coming Soon" button with a real connection UI
+- Show connection status (Connected / Not connected)
+- When not connected: "Connect Google Calendar" button that explains the OAuth flow is coming
+- When connecting: store a preference record in `scheduler_integration_settings` with `is_google_meet_enabled` toggle
+- Add a `RESEND_API_KEY` status check — show green/red status so admin knows if email is working
+- Show clear "Phase 2 — Google Calendar sync is in beta" badge to set expectations
+
+**`scheduler_integration_settings` table** — the table already exists, we'll use it to store the `is_google_meet_enabled` preference even without a real OAuth token. The toggle will persist per-user and per-org.
+
+**Add service hooks** in `useScheduler.ts`:
+- `useIntegrationSettings()` — fetches/upserts the settings row for current user
+- `useUpdateIntegrationSettings()` — updates `is_google_meet_enabled`, etc.
+
+### 4. Add `.ics` Calendar Download on Booking Confirmation
+
+In `PublicBookingPage.tsx` confirmation step:
+- Add "Add to Calendar" button that generates an `.ics` file client-side and triggers download
+- Include: event title, start/end time, location (Google Meet placeholder or address), description with host name
+
+### 5. Fix Error Handling in PublicBookingPage
+
+- Replace `alert()` calls with `toast.error()` (import sonner)
+- Add proper error boundary for the booking form submit
+
+### 6. Fix Host Email in Notification Edge Function
+
+In `send-scheduler-notification`:
+- The `host_employee.email` field is not available from the `employees` table (which doesn't have email)
+- Fix: in `create-scheduler-booking`, fetch host user email via `auth.users` using service role or add email to the employees select from a joined `profiles` table
+
+### 7. Improve Timezone List
+
+In `PublicBookingPage.tsx`:
+- Expand `TIMEZONES` array to cover all major world timezones (currently only ~17)
+- Add search/filter capability within the timezone select
 
 ---
 
-## Internal Scheduler UI Structure
+## File-by-File Implementation Plan
+
+### Files to Create
+| File | Purpose |
+|------|---------|
+| `src/pages/crm/scheduler/CreateEventTypePage.tsx` | Full-page wizard replacing the modal |
+| `supabase/functions/reschedule-scheduler-booking/index.ts` | Reschedule edge function |
+
+### Files to Modify
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Add `crm/scheduler/new` and `crm/scheduler/:id/edit` routes; import new page |
+| `src/pages/crm/scheduler/SchedulerPage.tsx` | Remove modal state; "New Event Type" button uses `navigate` |
+| `src/pages/crm/scheduler/EventTypesTab.tsx` | `onEdit` uses `navigate` |
+| `src/pages/crm/scheduler/IntegrationsTab.tsx` | Full integration settings UI with toggle persistence |
+| `src/pages/scheduler/PublicBookingPage.tsx` | `.ics` download, better error handling, expanded timezones |
+| `src/pages/scheduler/BookingReschedulePage.tsx` | Full reschedule flow using the new edge function |
+| `src/services/useScheduler.ts` | Add `useIntegrationSettings`, `useUpdateIntegrationSettings` |
+| `src/components/crm/scheduler/CreateEventTypeWizard.tsx` | Can be removed (logic moves to page) OR kept as edit-mode only if preferred |
+| `supabase/config.toml` | Add `reschedule-scheduler-booking` function config |
+
+### Files NOT Changed
+- `supabase/functions/get-scheduler-slots/` — correct as-is
+- `supabase/functions/create-scheduler-booking/` — correct, minor fix for host email
+- `supabase/functions/cancel-scheduler-booking/` — correct as-is
+- `src/types/scheduler.ts` — correct as-is
+- `src/components/crm/scheduler/BookingDetailsDrawer.tsx` — correct as-is
+- `src/pages/crm/scheduler/ScheduledEventsTab.tsx` — correct as-is
+
+---
+
+## Create Event Type Page — Design (Calendly-style)
 
 ```text
-CRM Sub-Nav:  Contacts | Companies | Scheduler | Settings
-
-/crm/scheduler  →  SchedulerPage
-  ┌──────────────────────────────────────────────────────┐
-  │  🗓 Scheduler                          [+ New Event]  │
-  │  Create and manage your booking pages                 │
-  ├──────────────────────────────────────────────────────┤
-  │  [Event Types] [Scheduled Events] [Integrations]     │
-  ├──────────────────────────────────────────────────────┤
-  │                                                      │
-  │  Event Types tab — grid of cards:                    │
-  │  ┌─────────────┐ ┌─────────────┐                    │
-  │  │ 30-min Call │ │ Weekly Sync │                    │
-  │  │ One-on-one  │ │ Group 45min │                    │
-  │  │ [Link][...] │ │ [Link][...] │                    │
-  │  └─────────────┘ └─────────────┘                    │
-  │                                                      │
-  │  Scheduled Events tab — table:                       │
-  │  [Upcoming][Past][Cancelled]  [Filter by type] ...   │
-  │  Date | Time | Host | Invitee | Event | Status       │
-  │                                                      │
-  └──────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│  ← Back to Scheduler       Create Event Type                   │
+├──────────────┬─────────────────────────────────────────────────┤
+│              │                                                  │
+│  STEPS       │   STEP CONTENT (full width, no scroll limit)    │
+│              │                                                  │
+│  ● 1. Type   │   [4 large type cards with icons + description] │
+│  ○ 2. Basics │                                                  │
+│  ○ 3. Hosts  │                                                  │
+│  ○ 4. Avail. │                                                  │
+│  ○ 5. Quest. │                                                  │
+│  ○ 6. Share  │                                                  │
+│              │                              [Back]  [Next →]   │
+└──────────────┴─────────────────────────────────────────────────┘
 ```
 
-### Create Event Type Wizard (6 steps, Dialog/Drawer):
-1. **Type** — 4 cards: One-on-One, Group, Collective, Round Robin
-2. **Basics** — name (auto-generates slug), description, duration, location type
-3. **Hosts** — select employees from org; set capacity for Group; set routing for Round Robin
-4. **Availability** — working hours per day (Mon–Sun toggles + time pickers), buffer before/after, min notice (hours), max days in advance
-5. **Questions** — name+email locked; add custom questions (text, textarea, radio)
-6. **Share** — show generated link with Copy button
+- Left sidebar: vertical step list, completed steps show checkmark, current step highlighted
+- Right content: spacious with no max-height constraint
+- Footer: Back/Next buttons with clear progress ("Step 2 of 6")
+- "Save" on last step → creates event type → shows success + booking link → "Done" navigates to `/crm/scheduler`
 
 ---
 
-## Public Booking Page Flow
+## Integration Settings UI
 
 ```text
-URL: /s/{orgCode}/scheduler/{eventSlug}
-
-Step 1 — Date & Time
-  Left panel: event info (name, host, duration, location, description)
-  Center: month calendar (available days highlighted)
-  Right: time slots for selected day (30-min intervals within working hours)
-  Bottom: Timezone detector + dropdown
-
-Step 2 — Details (click a time slot)
-  Left: event info + selected time
-  Right: form — Name*, Email*, custom questions
-  CTA: "Schedule Event"
-
-Step 3 — Confirmation ("You are scheduled")
-  Centered card with: event name, host, date/time, timezone, location
-  "Add to Calendar" button (generates .ics download)
-  Cancel / Reschedule links (token-based)
+┌─────────────────────────────────────────────────────┐
+│  📧 Email Notifications                             │
+│  Status: ✅ Resend configured                       │
+│  Confirmation emails are sent automatically          │
+├─────────────────────────────────────────────────────┤
+│  📅 Google Calendar                    [Beta]       │
+│  Status: ○ Not connected                            │
+│  Auto-sync availability from Google Calendar        │
+│  [Connect Google Calendar] ← opens info modal       │
+│                                                     │
+│  ─ Coming in Phase 2 ─                              │
+│  ✓ Real-time availability sync                      │
+│  ✓ Auto-create Google Meet links                    │
+│  ✓ Add bookings directly to your calendar           │
+├─────────────────────────────────────────────────────┤
+│  ⚙️ Booking Preferences                            │
+│  Auto-create Google Meet links  [Toggle — disabled] │
+│  (Requires Google Calendar connection)              │
+└─────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Availability Calculation (no Google Calendar in Phase 1)
+## Edge Cases & Technical Notes
 
-When the booking page loads, it calls the `create-scheduler-booking` edge function's GET endpoint (or a separate `get-scheduler-availability` edge function) with `?orgCode=X&slug=Y&date=YYYY-MM-DD`. This:
-
-1. Loads the event type's `config_json` working hours.
-2. Generates 30-min slots within those hours.
-3. Subtracts already-booked slots (from `scheduler_bookings` table).
-4. Applies buffer times.
-5. Applies min-notice (can't book slots < N hours from now).
-6. Returns available slots for that date.
-
-This is done server-side via a new edge function: `supabase/functions/get-scheduler-slots/index.ts`
+- **Slug conflict on creation**: the `UNIQUE(organization_id, slug)` constraint will return a DB error. We need to catch this and show "This slug is already in use. Try another name." 
+- **Host email for notifications**: use `employees.work_email` if it exists, else the `organizations.email` as fallback — avoid querying `auth.users` from edge functions unless needed
+- **`.ics` generation**: pure client-side string generation, no library needed — format is simple text
+- **Reschedule token reuse**: when rescheduling, keep the same `cancel_token` so old links still work; just update `start_at_utc` and `end_at_utc`
+- **Route conflict**: `crm/scheduler/:id/edit` must be declared BEFORE catch-all; currently the `crm/scheduler/:eventSlug/edit` route exists but renders `SchedulerPage` which is wrong — this will be fixed
 
 ---
 
-## Email Notifications (via Resend, existing pattern)
+## Sequence of Implementation
 
-Two templates sent on booking confirmation:
-1. **Host email** — "New booking: {invitee_name} booked a {event_name} on {date/time}"
-2. **Invitee email** — "You are scheduled! Here are your details: {event_name}, {host_name}, {date/time}, {meet_link}"
-
-Both emails include Cancel and Reschedule links using the `cancel_token` stored in the booking.
-
-Pattern reused from `send-hiring-notification` using Resend's `emails.send()` with HTML templates inline.
-
----
-
-## CRM Integration
-
-On booking creation in the edge function:
-1. Look up `crm_contacts` where `email = invitee_email AND organization_id = org_id`.
-2. If found → set `invitee_contact_id`.
-3. If not found → create a new `crm_contacts` record with `first_name`, `email`, source = `'scheduler'`.
-4. Insert a record into `crm_activity_log` with `type = 'meeting'`, linking host employee + contact + metadata (event name, time, meet link).
-
-This makes the meeting appear in the Contact timeline automatically.
-
----
-
-## Route Summary
-
-| Type | Path |
-|------|------|
-| Internal | `/org/:orgCode/crm/scheduler` |
-| Internal | `/org/:orgCode/crm/scheduler/:eventSlug/edit` |
-| Public (booking) | `/s/:orgCode/scheduler/:eventSlug` |
-| Public (confirm) | `/s/:orgCode/scheduler/:eventSlug/confirmed` |
-| Public (cancel) | `/s/:orgCode/scheduler/cancel/:token` |
-| Public (reschedule) | `/s/:orgCode/scheduler/reschedule/:token` |
-
----
-
-## Implementation Order
-
-1. **Database migration** — 4 tables + RLS
-2. **Types** (`src/types/scheduler.ts`)
-3. **Edge functions** — `get-scheduler-slots`, `create-scheduler-booking`, `cancel-scheduler-booking`, `send-scheduler-notification`
-4. **Service hooks** (`src/services/useScheduler.ts`)
-5. **Internal UI** — SchedulerPage → EventTypesTab → CreateEventTypeWizard
-6. **Internal UI** — ScheduledEventsTab + BookingDetailsDrawer
-7. **Public pages** — PublicBookingPage → BookingConfirmationPage → Cancel/Reschedule pages
-8. **Nav + routing** — CRMSubNav update + App.tsx routes
-
----
-
-## Key Design Decisions / Trade-offs
-
-| Decision | Rationale |
-|---|---|
-| Google Calendar deferred | Requires OAuth Connector setup; Phase 1 uses manual availability config which ships faster |
-| Availability via edge function | Server-side slot calc avoids exposing business logic or booking data to client |
-| Cancel via opaque token | Never exposes booking ID or org ID in the URL — matches GlobalyOS URL security rules |
-| `crm` feature flag reused | Scheduler lives under CRM; no new feature flag needed |
-| Resend for emails | Already configured and tested; consistent with hiring notifications |
-| Slugs are org-unique | `UNIQUE(organization_id, slug)` prevents collision; changing name regenerates slug |
-
----
-
-## What is NOT included in this phase
-- Google Calendar OAuth & availability sync
-- Google Meet auto-link creation
-- Reschedule email reminders (cron)
-- Embed widget code
-- CRM Contact → "Schedule Meeting" shortcut (can be added in a follow-up)
-- Round-robin load balancing algorithm (UI present, basic assignment in Phase 1)
+1. Create `CreateEventTypePage.tsx` (full-page wizard)
+2. Update `App.tsx` with new routes + imports
+3. Update `SchedulerPage.tsx` (remove modal, use navigate)
+4. Update `EventTypesTab.tsx` (onEdit uses navigate)
+5. Update `IntegrationsTab.tsx` (real integration UI + settings)
+6. Add `useIntegrationSettings` to `useScheduler.ts`
+7. Fix `PublicBookingPage.tsx` (ICS, error handling, timezones)
+8. Build `BookingReschedulePage.tsx` (proper reschedule flow)
+9. Create `reschedule-scheduler-booking` edge function
+10. Deploy new edge function + update `config.toml`
