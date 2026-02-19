@@ -242,13 +242,10 @@ export function useCandidate(candidateId: string | undefined) {
         `)
         .eq('organization_id', currentOrg.id)
         .eq('id', candidateId)
-        .single();
+        .maybeSingle();
 
-      if (error) {
-        if (error.code === 'PGRST116') return null;
-        throw error;
-      }
-      return data as unknown as CandidateWithRelations;
+      if (error) throw error;
+      return (data ?? null) as unknown as CandidateWithRelations | null;
     },
     enabled: !!currentOrg?.id && !!candidateId,
   });

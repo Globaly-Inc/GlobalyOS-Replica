@@ -181,6 +181,7 @@ export default function JobDetailPublic() {
   const [phoneCountryCode, setPhoneCountryCode] = useState(() => getDefaultCountryCode());
   const [resumeFiles, setResumeFiles] = useState<File[]>([]);
   const [emailTouched, setEmailTouched] = useState(false);
+  const [nameTouched, setNameTouched] = useState(false);
 
   const emailError = (() => {
     const email = formData.email.trim();
@@ -189,6 +190,16 @@ export default function JobDetailPublic() {
     return '';
   })();
   const hasEmailError = emailTouched && !!emailError;
+
+  const nameError = (() => {
+    const name = formData.name.trim();
+    if (!name) return 'Full name is required';
+    if (name.includes('@')) return 'Please enter your full name, not your email address';
+    const parts = name.split(/\s+/).filter(Boolean);
+    if (parts.length < 2) return 'Please enter both your first and last name';
+    return '';
+  })();
+  const hasNameError = nameTouched && !!nameError;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -214,6 +225,13 @@ export default function JobDetailPublic() {
     
     if (!formData.consent) {
       toast.error('Please accept the privacy policy to continue');
+      return;
+    }
+
+    // Validate full name
+    setNameTouched(true);
+    if (nameError) {
+      toast.error(nameError);
       return;
     }
 
@@ -497,8 +515,14 @@ export default function JobDetailPublic() {
                             id="name"
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            onBlur={() => setNameTouched(true)}
+                            placeholder="First Last"
+                            className={hasNameError ? 'border-destructive focus-visible:ring-destructive' : ''}
                             required
                           />
+                          {hasNameError && (
+                            <p className="text-sm text-destructive">{nameError}</p>
+                          )}
                         </div>
 
                         <div className="space-y-2">
