@@ -32,36 +32,45 @@ export const CompanyListView = () => {
   const totalPages = Math.ceil(totalCount / perPage);
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Standard GlobalyOS Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-6 pt-6 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary/10">
-            <Building2 className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Companies</h1>
-            <p className="text-sm text-muted-foreground">Manage your company accounts</p>
-          </div>
+    <div className="space-y-6 pt-4 md:pt-6">
+      {/* Header — matches Leave History pattern */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <Building2 className="h-6 w-6" />
+            Companies
+          </h1>
+          <p className="text-muted-foreground hidden md:block">Manage your company accounts</p>
         </div>
-        <Button onClick={() => setAddOpen(true)}>
-          <Plus className="h-4 w-4 mr-1" />
-          Add Company
-        </Button>
-      </div>
-
-      {/* Filter bar */}
-      <div className="flex items-center gap-3 px-6 py-3 border-b border-border">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search companies..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="pl-9 h-8" />
+        <div className="flex items-center gap-2">
+          <Button size="sm" onClick={() => setAddOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add Company
+          </Button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto">
+      {/* Filter bar — same sticky pill bar as Leave History */}
+      <div className="sticky top-0 z-10 pb-2 pt-2 rounded-lg">
+        <div className="flex items-center gap-2 flex-wrap bg-muted px-[5px] py-[5px] rounded-lg">
+          {/* Search */}
+          <div className="relative min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search companies..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              className="pl-9 h-9 bg-background"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="rounded-lg border border-border overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="bg-muted/50">
               <TableHead>Company</TableHead>
               <TableHead>Industry</TableHead>
               <TableHead>Phone</TableHead>
@@ -121,8 +130,9 @@ export const CompanyListView = () => {
         </Table>
       </div>
 
+      {/* Pagination */}
       {totalCount > 0 && (
-        <div className="flex items-center justify-between px-6 py-3 border-t border-border">
+        <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">{totalCount} compan{totalCount !== 1 ? 'ies' : 'y'}</span>
           <div className="flex items-center gap-2">
             <Select value={String(perPage)} onValueChange={(v) => { setPerPage(Number(v)); setPage(1); }}>
