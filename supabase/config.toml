@@ -329,3 +329,15 @@ verify_jwt = false
 
 [functions.verify-assignment-otp]
 verify_jwt = false
+
+[functions.get-scheduler-slots]
+verify_jwt = false
+
+[functions.create-scheduler-booking]
+verify_jwt = false
+
+[functions.cancel-scheduler-booking]
+verify_jwt = false
+
+[functions.send-scheduler-notification]
+verify_jwt = false
