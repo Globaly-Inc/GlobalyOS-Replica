@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Plus, MoreHorizontal, Flame, Handshake, Snowflake, ChevronLeft, ChevronRight, Tag, X, Tags, Users, Inbox, UserPlus, UserCheck, Archive, History } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Flame, Handshake, Snowflake, ChevronLeft, ChevronRight, Tag, X, Users, Archive } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -26,9 +26,6 @@ const RatingIcon = ({ rating }: { rating: string | null }) => {
 
 const categoryTabs: { key: CRMSidebarCategory; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { key: 'all', label: 'All Contacts', icon: Users },
-  { key: 'enquiries', label: 'Enquiries', icon: Inbox },
-  { key: 'prospects', label: 'Prospects', icon: UserPlus },
-  { key: 'clients', label: 'Clients', icon: UserCheck },
   { key: 'archived', label: 'Archived', icon: Archive },
 ];
 
@@ -47,8 +44,6 @@ export const ContactListView = () => {
   const filters = {
     search: search || undefined,
     is_archived: category === 'archived' ? true : false,
-    rating: category === 'enquiries' ? undefined : category === 'prospects' ? 'warm' : category === 'clients' ? 'hot' : undefined,
-    source: category === 'enquiries' ? 'enquiry' : undefined,
     tags: tagFilter ? [tagFilter] : undefined,
     page,
     per_page: perPage,
@@ -217,7 +212,7 @@ export const ContactListView = () => {
           <Popover open={bulkTagOpen} onOpenChange={setBulkTagOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="gap-1.5 h-7">
-                <Tags className="h-3.5 w-3.5" />
+                <Tag className="h-3.5 w-3.5" />
                 Add Tag
               </Button>
             </PopoverTrigger>
