@@ -1721,6 +1721,73 @@ export type Database = {
           },
         ]
       }
+      campaign_recipients: {
+        Row: {
+          campaign_id: string
+          contact_id: string | null
+          created_at: string
+          email: string
+          events: Json
+          full_name: string | null
+          id: string
+          organization_id: string
+          provider_message_id: string | null
+          status: string
+          unsubscribe_token: string | null
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          contact_id?: string | null
+          created_at?: string
+          email: string
+          events?: Json
+          full_name?: string | null
+          id?: string
+          organization_id: string
+          provider_message_id?: string | null
+          status?: string
+          unsubscribe_token?: string | null
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          contact_id?: string | null
+          created_at?: string
+          email?: string
+          events?: Json
+          full_name?: string | null
+          id?: string
+          organization_id?: string
+          provider_message_id?: string | null
+          status?: string
+          unsubscribe_token?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_recipients_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "email_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_recipients_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_recipients_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_applications: {
         Row: {
           application_answers: Json | null
@@ -3683,6 +3750,100 @@ export type Database = {
           },
         ]
       }
+      email_campaigns: {
+        Row: {
+          audience_filters: Json | null
+          audience_source: string
+          content_html_cache: string | null
+          content_json: Json | null
+          created_at: string
+          created_by: string | null
+          from_email: string | null
+          from_name: string | null
+          id: string
+          name: string
+          organization_id: string
+          preview_text: string | null
+          recipient_count: number
+          reply_to: string | null
+          schedule_at: string | null
+          sent_at: string | null
+          status: string
+          subject: string | null
+          track_clicks: boolean
+          track_opens: boolean
+          updated_at: string
+        }
+        Insert: {
+          audience_filters?: Json | null
+          audience_source?: string
+          content_html_cache?: string | null
+          content_json?: Json | null
+          created_at?: string
+          created_by?: string | null
+          from_email?: string | null
+          from_name?: string | null
+          id?: string
+          name?: string
+          organization_id: string
+          preview_text?: string | null
+          recipient_count?: number
+          reply_to?: string | null
+          schedule_at?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string | null
+          track_clicks?: boolean
+          track_opens?: boolean
+          updated_at?: string
+        }
+        Update: {
+          audience_filters?: Json | null
+          audience_source?: string
+          content_html_cache?: string | null
+          content_json?: Json | null
+          created_at?: string
+          created_by?: string | null
+          from_email?: string | null
+          from_name?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          preview_text?: string | null
+          recipient_count?: number
+          reply_to?: string | null
+          schedule_at?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string | null
+          track_clicks?: boolean
+          track_opens?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_campaigns_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_campaigns_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_campaigns_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_delivery_log: {
         Row: {
           created_at: string | null
@@ -3743,6 +3904,109 @@ export type Database = {
           },
           {
             foreignKeyName: "email_delivery_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_suppressions: {
+        Row: {
+          campaign_id: string | null
+          created_at: string
+          email: string
+          id: string
+          organization_id: string
+          reason: string | null
+          type: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          organization_id: string
+          reason?: string | null
+          type?: string
+        }
+        Update: {
+          campaign_id?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          organization_id?: string
+          reason?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_suppressions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "email_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_suppressions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_templates: {
+        Row: {
+          category: string
+          content_json: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          organization_id: string
+          thumbnail_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          content_json?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          organization_id: string
+          thumbnail_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          content_json?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          thumbnail_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_templates_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -10725,6 +10989,64 @@ export type Database = {
         }
         Relationships: []
       }
+      sender_identities: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          display_name: string
+          from_email: string
+          id: string
+          is_default: boolean
+          is_verified: boolean
+          organization_id: string
+          reply_to: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          display_name: string
+          from_email: string
+          id?: string
+          is_default?: boolean
+          is_verified?: boolean
+          organization_id: string
+          reply_to?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          display_name?: string
+          from_email?: string
+          id?: string
+          is_default?: boolean
+          is_verified?: boolean
+          organization_id?: string
+          reply_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sender_identities_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sender_identities_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sender_identities_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       social_security_rules: {
         Row: {
           base_type: string
@@ -15838,6 +16160,7 @@ export type Database = {
         }[]
       }
       get_user_crm_org_id: { Args: never; Returns: string }
+      get_user_org_ids: { Args: never; Returns: string[] }
       get_user_organizations: { Args: { _user_id: string }; Returns: string[] }
       get_user_space_ids: {
         Args: { _user_id: string }
@@ -15975,6 +16298,7 @@ export type Database = {
         Args: { _item_id: string; _item_type: string; _new_owner_id: string }
         Returns: boolean
       }
+      user_is_campaign_manager: { Args: { org_id: string }; Returns: boolean }
       validate_qr_and_record_attendance:
         | {
             Args: {
