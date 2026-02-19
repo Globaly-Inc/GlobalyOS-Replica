@@ -1,47 +1,60 @@
 
 
-# TopNav Icon Styling: Square Icons with Lighter Background
+# Dynamic TopNav: Responsive Text/Icon Mode
 
-## Summary
-Update inactive nav items in `TopNav.tsx` to render as square icon buttons with a subtle lighter background, matching the right-side quick action icons.
+## What Changes
 
-## Changes
+The TopNav will automatically detect available horizontal space and switch between two modes:
+
+- **Expanded mode** (enough space): All items show icon + text label (like a traditional nav bar)
+- **Compact mode** (tight space): Inactive items collapse to icon-only square buttons; the active item still shows its text label
+
+This uses a `ResizeObserver` on the nav container to measure available width and decide which mode to use.
+
+## How It Works
+
+```text
+Wide screen (e.g. 1920px):
+  [Home]  [Team]  [KPIs]  [Wiki]  [Chat]  [Tasks]  [CRM]
+   icon+   icon+   icon+   icon+   icon+   icon+    icon+
+   text    text    text    text    text    text     text
+
+Narrow screen (e.g. 1280px with sidebar + right actions taking space):
+  [H] [T] [K] [W] [ Chat ] [T] [C]
+  icon icon icon icon  active  icon icon
+                      (label)
+```
+
+## Technical Details
 
 ### File: `src/components/TopNav.tsx`
 
-Update the `className` logic inside the `OrgLink` (around lines 99-117):
+1. **Add a `useRef` on the `<nav>` element** and a `useState` for `isCompact` (boolean).
 
-**Inactive items** get these classes:
-```
-h-9 w-9 justify-center bg-muted/50 text-muted-foreground hover:bg-secondary hover:text-foreground relative
-```
+2. **Add a `useEffect` with `ResizeObserver`** that watches the nav container width:
+   - Calculate the space needed for expanded mode: roughly `visibleItems.length * 90px` (each item with icon + text + padding + gap).
+   - If the container width is less than the threshold, set `isCompact = true`; otherwise `isCompact = false`.
 
-**Active items** keep:
-```
-gap-2 bg-secondary text-foreground px-3 py-2
-```
+3. **Update the rendering logic**:
+   - When `isCompact` is `false` (expanded): all items show icon + text label with `gap-2 px-3 py-2` and the active item gets `bg-secondary`.
+   - When `isCompact` is `true` (compact): inactive items use the current square icon style (`h-9 w-9 justify-center bg-muted/50`), active item keeps icon + text.
 
-**Shared base** (both):
-```
-flex items-center rounded-lg text-sm font-medium transition-colors
-```
+4. **Add tooltips for compact mode**: Wrap inactive icon-only items in a `Tooltip` so users can hover to see the label (using the existing `Tooltip` component from `@/components/ui/tooltip`).
 
-**Chat badge** gets conditional absolute positioning when inactive:
-```
-className={cn(
-  "h-5 min-w-[20px] px-1.5 text-[10px] font-semibold",
-  !active && "absolute -top-1 -right-1"
-)}
+5. **Chat badge positioning** remains the same -- absolute when icon-only, inline when showing text.
+
+### Threshold Calculation
+
+The threshold will be based on the number of visible items. Each expanded item needs approximately 85-95px (icon 16px + gap 8px + text ~40-50px + padding 24px). A simple formula:
+
+```typescript
+const EXPANDED_ITEM_WIDTH = 90;
+const threshold = visibleItems.length * EXPANDED_ITEM_WIDTH;
 ```
 
-### Specific line changes (lines 99-117)
+The `ResizeObserver` fires on mount and whenever the nav container resizes (e.g., window resize, sidebar toggle), so mode switches happen automatically with no flicker.
 
-Replace the current className and badge block with:
-- Remove `gap-2` from the shared base (only apply on active)
-- Remove `text-muted-foreground` and `hover:bg-secondary hover:text-foreground` from shared (move to inactive branch)
-- Active branch: `gap-2 bg-secondary text-foreground px-3 py-2`
-- Inactive branch: `h-9 w-9 justify-center bg-muted/50 text-muted-foreground hover:bg-secondary hover:text-foreground relative`
-- Badge: add `!active && "absolute -top-1 -right-1"` for proper positioning in icon-only mode
+### No Other File Changes
 
-No other files need changes.
+All changes are contained within `src/components/TopNav.tsx`. The existing `Tooltip`, `TooltipTrigger`, `TooltipContent`, and `TooltipProvider` components from `@/components/ui/tooltip` will be imported and used.
 
