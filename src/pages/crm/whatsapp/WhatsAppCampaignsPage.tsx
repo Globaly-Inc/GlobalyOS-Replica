@@ -93,6 +93,16 @@ const WhatsAppCampaignsPage = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      {c.status === 'sent' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => navigate(`/crm/whatsapp/campaigns/${c.id}`)}
+                        >
+                          <BarChart3 className="h-4 w-4 mr-2" />
+                          Report
+                        </Button>
+                      )}
                       {(c.status === 'draft' || c.status === 'scheduled') && (
                         <Button
                           size="sm"
