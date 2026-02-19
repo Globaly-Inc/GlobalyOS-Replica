@@ -11590,6 +11590,60 @@ export type Database = {
           },
         ]
       }
+      task_lists: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_archived: boolean
+          name: string
+          organization_id: string
+          sort_order: number
+          space_id: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_archived?: boolean
+          name: string
+          organization_id: string
+          sort_order?: number
+          space_id: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_archived?: boolean
+          name?: string
+          organization_id?: string
+          sort_order?: number
+          space_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_lists_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_lists_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "task_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_spaces: {
         Row: {
           color: string | null
@@ -11722,6 +11776,7 @@ export type Database = {
           due_date: string | null
           id: string
           is_archived: boolean | null
+          list_id: string | null
           notification_enabled: boolean | null
           organization_id: string
           priority: string
@@ -11746,6 +11801,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           is_archived?: boolean | null
+          list_id?: string | null
           notification_enabled?: boolean | null
           organization_id: string
           priority?: string
@@ -11770,6 +11826,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           is_archived?: boolean | null
+          list_id?: string | null
           notification_enabled?: boolean | null
           organization_id?: string
           priority?: string
@@ -11805,6 +11862,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "task_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "task_lists"
             referencedColumns: ["id"]
           },
           {
