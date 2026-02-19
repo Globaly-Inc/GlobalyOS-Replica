@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Plus, MoreHorizontal, Flame, Handshake, Snowflake, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Flame, Handshake, Snowflake, ChevronLeft, ChevronRight, Building2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -33,18 +33,28 @@ export const CompanyListView = () => {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-        <h1 className="text-xl font-semibold text-foreground">Companies</h1>
-        <Button onClick={() => setAddOpen(true)} size="sm">
+      {/* Standard GlobalyOS Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-6 pt-6 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-primary/10">
+            <Building2 className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Companies</h1>
+            <p className="text-sm text-muted-foreground">Manage your company accounts</p>
+          </div>
+        </div>
+        <Button onClick={() => setAddOpen(true)}>
           <Plus className="h-4 w-4 mr-1" />
           Add Company
         </Button>
       </div>
 
+      {/* Filter bar */}
       <div className="flex items-center gap-3 px-6 py-3 border-b border-border">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search companies..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="pl-9" />
+          <Input placeholder="Search companies..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="pl-9 h-8" />
         </div>
       </div>
 
