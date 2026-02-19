@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Loader2, MessageSquare, CheckSquare, Briefcase, Flag, GitBranch, Wallet, Bot, UserPlus } from "lucide-react";
+import { Loader2, MessageSquare, CheckSquare, Briefcase, Flag, GitBranch, Wallet, Bot, UserPlus, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useAdminActivityLog } from "@/hooks/useAdminActivityLog";
 
@@ -60,6 +60,12 @@ const AVAILABLE_FEATURES = [
     label: "Hiring & Recruitment", 
     description: "Job vacancies, applicant tracking, and candidate management",
     icon: UserPlus 
+  },
+  { 
+    name: "whatsapp", 
+    label: "WhatsApp Messaging", 
+    description: "WhatsApp inbox, broadcasts, automations, and flows",
+    icon: MessageCircle 
   },
 ];
 
