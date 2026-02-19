@@ -13,8 +13,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 const MAX_DISPLAY = 3;
 
 export const InternalVacanciesCard = () => {
-  const { vacancies, isLoading, appliedJobIds } = useInternalVacancies();
-  const { getShortRelativeTime } = useRelativeTime();
+  const { vacancies, isLoading, appliedJobsMap } = useInternalVacancies();
+  const { getShortRelativeTime, formatRelativeTime } = useRelativeTime();
   const [previewVacancy, setPreviewVacancy] = useState<InternalVacancy | null>(null);
   const [applyVacancy, setApplyVacancy] = useState<InternalVacancy | null>(null);
   const [shareVacancy, setShareVacancy] = useState<InternalVacancy | null>(null);
@@ -40,7 +40,8 @@ export const InternalVacanciesCard = () => {
         <div className="space-y-1">
           {displayVacancies.map((vacancy) => {
             const locationLabel = vacancy.office?.city || vacancy.office?.name || vacancy.location;
-            const hasApplied = appliedJobIds.includes(vacancy.id);
+            const appliedInfo = appliedJobsMap[vacancy.id];
+            const hasApplied = !!appliedInfo;
             return (
               <div key={vacancy.id} className="group rounded-lg p-2.5 -mx-1 transition-colors hover:bg-muted">
                 <div className="flex items-start justify-between gap-2">
@@ -84,7 +85,16 @@ export const InternalVacanciesCard = () => {
                           </button>
                         </TooltipTrigger>
                         <TooltipContent side="top">
-                          <p>{hasApplied ? 'You have already applied for this position' : 'Apply'}</p>
+                          {hasApplied && appliedInfo ? (
+                            <>
+                              <p>Applied {formatRelativeTime(appliedInfo.appliedAt)}</p>
+                              <p className="text-xs opacity-70">
+                                {new Date(appliedInfo.appliedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </p>
+                            </>
+                          ) : (
+                            <p>Apply</p>
+                          )}
                         </TooltipContent>
                       </Tooltip>
                     )}

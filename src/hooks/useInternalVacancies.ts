@@ -16,6 +16,8 @@ export interface InternalVacancy {
   is_internal_apply: boolean;
 }
 
+export type AppliedJobsMap = Record<string, { appliedAt: string }>;
+
 export const useInternalVacancies = () => {
   const { currentOrg } = useOrganization();
   const orgId = currentOrg?.id;
@@ -45,26 +47,29 @@ export const useInternalVacancies = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Fetch job IDs the current employee has already applied to
-  const { data: appliedJobIds = [] } = useQuery({
+  // Fetch jobs the current employee has already applied to, with application date
+  const { data: appliedJobsMap = {} } = useQuery<AppliedJobsMap>({
     queryKey: ['internal-vacancies-applied', orgId, employeeId],
     queryFn: async () => {
-      if (!orgId || !employeeId) return [];
+      if (!orgId || !employeeId) return {};
       const { data, error } = await supabase
         .from('candidate_applications')
-        .select('job_id, candidates!inner(employee_id)')
+        .select('job_id, created_at, candidates!inner(employee_id)')
         .eq('organization_id', orgId)
         .eq('candidates.employee_id', employeeId);
 
       if (error) {
         console.error('Error fetching applied jobs:', error);
-        return [];
+        return {};
       }
-      return (data ?? []).map((row: any) => row.job_id as string);
+      return (data ?? []).reduce<AppliedJobsMap>((acc, row: any) => {
+        acc[row.job_id as string] = { appliedAt: row.created_at as string };
+        return acc;
+      }, {});
     },
     enabled: !!orgId && !!employeeId,
     staleTime: 2 * 60 * 1000,
   });
 
-  return { vacancies, isLoading, appliedJobIds };
+  return { vacancies, isLoading, appliedJobsMap };
 };
