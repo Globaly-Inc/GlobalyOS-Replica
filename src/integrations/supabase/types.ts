@@ -5539,6 +5539,44 @@ export type Database = {
           },
         ]
       }
+      inbox_activity_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          conversation_id: string
+          created_at: string
+          details: Json | null
+          id: string
+          organization_id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          conversation_id: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          organization_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          conversation_id?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbox_activity_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inbox_ai_events: {
         Row: {
           citations: Json
