@@ -10364,6 +10364,257 @@ export type Database = {
           },
         ]
       }
+      scheduler_bookings: {
+        Row: {
+          answers_json: Json | null
+          cancel_token: string
+          created_at: string
+          end_at_utc: string
+          event_type_id: string
+          google_event_id: string | null
+          google_meet_link: string | null
+          host_employee_id: string | null
+          id: string
+          invitee_contact_id: string | null
+          invitee_email: string
+          invitee_name: string
+          invitee_timezone: string
+          notes: string | null
+          organization_id: string
+          start_at_utc: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          answers_json?: Json | null
+          cancel_token?: string
+          created_at?: string
+          end_at_utc: string
+          event_type_id: string
+          google_event_id?: string | null
+          google_meet_link?: string | null
+          host_employee_id?: string | null
+          id?: string
+          invitee_contact_id?: string | null
+          invitee_email: string
+          invitee_name: string
+          invitee_timezone?: string
+          notes?: string | null
+          organization_id: string
+          start_at_utc: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          answers_json?: Json | null
+          cancel_token?: string
+          created_at?: string
+          end_at_utc?: string
+          event_type_id?: string
+          google_event_id?: string | null
+          google_meet_link?: string | null
+          host_employee_id?: string | null
+          id?: string
+          invitee_contact_id?: string | null
+          invitee_email?: string
+          invitee_name?: string
+          invitee_timezone?: string
+          notes?: string | null
+          organization_id?: string
+          start_at_utc?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduler_bookings_event_type_id_fkey"
+            columns: ["event_type_id"]
+            isOneToOne: false
+            referencedRelation: "scheduler_event_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduler_bookings_host_employee_id_fkey"
+            columns: ["host_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduler_bookings_host_employee_id_fkey"
+            columns: ["host_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduler_bookings_invitee_contact_id_fkey"
+            columns: ["invitee_contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduler_bookings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scheduler_event_hosts: {
+        Row: {
+          created_at: string
+          employee_id: string
+          event_type_id: string
+          id: string
+          is_primary: boolean
+          routing_weight: number
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          event_type_id: string
+          id?: string
+          is_primary?: boolean
+          routing_weight?: number
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          event_type_id?: string
+          id?: string
+          is_primary?: boolean
+          routing_weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduler_event_hosts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduler_event_hosts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduler_event_hosts_event_type_id_fkey"
+            columns: ["event_type_id"]
+            isOneToOne: false
+            referencedRelation: "scheduler_event_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scheduler_event_types: {
+        Row: {
+          config_json: Json
+          created_at: string
+          creator_user_id: string
+          description: string | null
+          duration_minutes: number
+          id: string
+          is_active: boolean
+          location_type: string
+          location_value: string | null
+          name: string
+          organization_id: string
+          slug: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          config_json?: Json
+          created_at?: string
+          creator_user_id: string
+          description?: string | null
+          duration_minutes?: number
+          id?: string
+          is_active?: boolean
+          location_type?: string
+          location_value?: string | null
+          name: string
+          organization_id: string
+          slug: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          config_json?: Json
+          created_at?: string
+          creator_user_id?: string
+          description?: string | null
+          duration_minutes?: number
+          id?: string
+          is_active?: boolean
+          location_type?: string
+          location_value?: string | null
+          name?: string
+          organization_id?: string
+          slug?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduler_event_types_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scheduler_integration_settings: {
+        Row: {
+          availability_calendar_ids: string[] | null
+          created_at: string
+          id: string
+          is_google_meet_enabled: boolean
+          organization_id: string
+          primary_calendar_id: string | null
+          provider: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          availability_calendar_ids?: string[] | null
+          created_at?: string
+          id?: string
+          is_google_meet_enabled?: boolean
+          organization_id: string
+          primary_calendar_id?: string | null
+          provider?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          availability_calendar_ids?: string[] | null
+          created_at?: string
+          id?: string
+          is_google_meet_enabled?: boolean
+          organization_id?: string
+          primary_calendar_id?: string | null
+          provider?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduler_integration_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       security_test_results: {
         Row: {
           actual_result: string | null
