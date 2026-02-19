@@ -1,41 +1,33 @@
 
 
-# Compact TopNav: Icon-Only with Active Label
+# TopNav Icon Styling: Square Icons with Lighter Background
 
-## Problem
-With many nav items (Home, Team, KPIs, Wiki, Chat, Tasks, CRM), the top navigation bar runs out of horizontal space, especially on smaller desktop screens.
+## What Changes
+Update inactive nav items in `TopNav.tsx` to render as square icon buttons with a subtle lighter background, matching the visual pattern of the right-side quick action icons (Search, Check-In, Notifications, etc.).
 
-## Solution
-- **Inactive items**: Show icon only (no text label)
-- **Active/selected item**: Show icon + text label (so the user always knows where they are)
-- **Hover**: Show the item name in a tooltip on inactive items
+## Visual Result
 
-## Changes
+```text
+Right-side actions:  [Search] [AI] [Check-In] [Leave] [Bell] [Settings] [Avatar]
+                      ^-- square outlined icon buttons
+
+Top nav (after):     [Home] [Team] [KPIs] [Wiki] [Chat] [Tasks] [CRM]
+                      ^-- similar square buttons with light bg, active one shows label
+```
+
+## Technical Details
 
 ### File: `src/components/TopNav.tsx`
 
-1. Import `Tooltip`, `TooltipTrigger`, `TooltipContent`, and `TooltipProvider` from `@/components/ui/tooltip`
-2. For each nav item:
-   - If **active**: render icon + text label as it does today (with slightly tighter padding)
-   - If **inactive**: wrap the link in a `Tooltip` and hide the text label, showing only the icon. The tooltip displays the item name on hover.
-3. The Chat unread badge continues to show on the Chat icon regardless of active state
-4. Reduce horizontal padding on inactive items (`px-2` instead of `px-3`) to keep them compact
+Changes to the inactive item styling:
+- Add a fixed square size (`h-9 w-9` or `h-8 w-8`) with centered content for inactive icons
+- Apply a light background color like `bg-muted/50` (lighter than the current hover state) so they appear as distinct square "buttons"
+- Remove the `gap-2` and `px-2 py-2` on inactive items; use `p-0 justify-center` to keep icons perfectly centered in the square
+- Keep the active item styling unchanged (icon + label with `bg-secondary`)
+- Chat badge positioning: use `relative` on the link and absolute-position the badge on inactive state
 
-### Visual Result
+Inactive item classes will look like:
+`h-9 w-9 flex items-center justify-center rounded-lg bg-muted/50 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors`
 
-```text
-Before:  [Home] [Team] [KPIs] [Wiki] [Chat 3] [Tasks] [CRM]
-After:   [icon] [icon] [KPIs] [icon] [icon 3] [icon]  [icon]
-                        ^^^^^ active item shows text
-```
-
-Hovering any icon-only item shows a tooltip with the name.
-
-### Technical Details
-
-- Wrap the entire nav in `TooltipProvider` with a short `delayDuration` (e.g., 100ms) for snappy tooltips
-- Each inactive item gets `Tooltip` > `TooltipTrigger asChild` > `OrgLink` with icon only
-- Active items render normally with icon + label, no tooltip needed
-- Tour class names (`tour-team-directory`, etc.) are preserved on the links
-- No other files need changes
+This gives them a square shape with a subtle background tint, similar to the outlined icon buttons on the right side but slightly lighter/softer to differentiate nav from actions.
 
