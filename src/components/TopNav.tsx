@@ -97,8 +97,10 @@ export const TopNav = ({ isAdmin }: TopNavProps) => {
               key={item.name}
               to={item.href}
               className={cn(
-                'flex items-center gap-2 rounded-lg text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground',
-                active ? 'bg-secondary text-foreground px-3 py-2' : 'px-2 py-2',
+                'flex items-center rounded-lg text-sm font-medium transition-colors',
+                active
+                  ? 'gap-2 bg-secondary text-foreground px-3 py-2'
+                  : 'h-9 w-9 justify-center bg-muted/50 text-muted-foreground hover:bg-secondary hover:text-foreground relative',
                 item.isStatic && 'opacity-70',
                 item.name === 'Team' && 'tour-team-directory',
                 item.name === 'Wiki' && 'tour-wiki-nav',
@@ -110,7 +112,12 @@ export const TopNav = ({ isAdmin }: TopNavProps) => {
               {item.name === 'Chat' && chatUnreadCount > 0 && (
                 <Badge
                   variant="destructive"
-                  className="h-5 min-w-[20px] px-1.5 text-[10px] font-semibold"
+                  className={cn(
+                    "font-semibold",
+                    active
+                      ? "h-5 min-w-[20px] px-1.5 text-[10px]"
+                      : "absolute -top-1.5 -right-1.5 h-4 min-w-[16px] px-1 text-[9px]"
+                  )}
                 >
                   {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
                 </Badge>
