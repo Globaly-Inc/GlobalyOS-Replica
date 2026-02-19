@@ -236,6 +236,87 @@ export const useDeleteEventType = () => {
   });
 };
 
+export const useDuplicateEventType = () => {
+  const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      if (!currentOrg?.id || !user?.id) throw new Error('Not authenticated');
+
+      // Fetch source event type + its hosts
+      const { data: source, error: fetchErr } = await supabase
+        .from('scheduler_event_types')
+        .select('*, hosts:scheduler_event_hosts(employee_id, routing_weight, is_primary)')
+        .eq('id', id)
+        .eq('organization_id', currentOrg.id)
+        .single();
+
+      if (fetchErr || !source) throw fetchErr || new Error('Event type not found');
+
+      // Generate a unique slug: base-copy, base-copy-2, etc.
+      const baseSlug = `${source.slug}-copy`;
+      let slug = baseSlug;
+      let attempt = 1;
+      while (true) {
+        const { data: existing } = await supabase
+          .from('scheduler_event_types')
+          .select('id')
+          .eq('organization_id', currentOrg.id)
+          .eq('slug', slug)
+          .maybeSingle();
+        if (!existing) break;
+        attempt++;
+        slug = `${baseSlug}-${attempt}`;
+      }
+
+      // Insert duplicate (starts inactive so user reviews before enabling)
+      const { data: newEt, error: insertErr } = await supabase
+        .from('scheduler_event_types')
+        .insert({
+          organization_id: currentOrg.id,
+          creator_user_id: user.id,
+          type: source.type,
+          name: `${source.name} (Copy)`,
+          slug,
+          description: source.description,
+          duration_minutes: source.duration_minutes,
+          location_type: source.location_type,
+          location_value: source.location_value,
+          is_active: false,
+          config_json: source.config_json,
+        })
+        .select()
+        .single();
+
+      if (insertErr) throw insertErr;
+
+      // Re-create hosts on the duplicate
+      const hosts = (source as any).hosts as any[];
+      if (hosts?.length > 0) {
+        await supabase.from('scheduler_event_hosts').insert(
+          hosts.map((h: any) => ({
+            event_type_id: newEt.id,
+            employee_id: h.employee_id,
+            routing_weight: h.routing_weight,
+            is_primary: h.is_primary,
+          }))
+        );
+      }
+
+      return newEt;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['scheduler_event_types'] });
+      toast.success("Event type duplicated — it's saved as inactive so you can review it first.");
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Failed to duplicate event type');
+    },
+  });
+};
+
 // ─────────────────────────────────────────────
 // INTEGRATION SETTINGS
 // ─────────────────────────────────────────────
