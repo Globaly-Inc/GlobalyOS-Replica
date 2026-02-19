@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Plus, MoreHorizontal, Flame, Handshake, Snowflake, ChevronLeft, ChevronRight, Tag, X, Tags, Users, Inbox, UserPlus, UserCheck, Archive } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Flame, Handshake, Snowflake, ChevronLeft, ChevronRight, Tag, X, Tags, Users, Inbox, UserPlus, UserCheck, Archive, History } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -114,104 +114,105 @@ export const ContactListView = () => {
   const getTagColor = (name: string) => orgTags.find(t => t.name === name)?.color || undefined;
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Standard GlobalyOS Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-6 pt-6 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary/10">
-            <Users className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Contacts</h1>
-            <p className="text-sm text-muted-foreground">Manage your contacts and leads</p>
-          </div>
+    <div className="space-y-6 pt-4 md:pt-6">
+      {/* Header — matches Leave History pattern */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <Users className="h-6 w-6" />
+            Contacts
+          </h1>
+          <p className="text-muted-foreground hidden md:block">Manage your contacts and leads</p>
         </div>
-        <Button onClick={() => setAddOpen(true)}>
-          <Plus className="h-4 w-4 mr-1" />
-          Create New
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" onClick={() => setAddOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Create New
+          </Button>
+        </div>
       </div>
 
-      {/* Category tabs + Search & Filters bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-2 px-6 py-3 border-b border-border">
-        {/* Category Tab Pills */}
-        <div className="flex items-center gap-1 flex-wrap flex-1">
-          {categoryTabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => { setCategory(tab.key); setPage(1); }}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
-                category === tab.key
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-              )}
-            >
-              <tab.icon className="h-3.5 w-3.5" />
-              {tab.label}
-            </button>
-          ))}
-        </div>
+      {/* Filter bar — same sticky pill bar as Leave History */}
+      <div className="sticky top-0 z-10 pb-2 pt-2 rounded-lg">
+        <div className="flex items-center gap-2 flex-wrap bg-muted px-[5px] py-[5px] rounded-lg">
+          {/* Category tab pills */}
+          <div className="flex items-center gap-1 border rounded-lg p-1 bg-background">
+            {categoryTabs.map((tab) => (
+              <Button
+                key={tab.key}
+                variant={category === tab.key ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => { setCategory(tab.key); setPage(1); }}
+                className="gap-1.5 h-7"
+              >
+                <tab.icon className="h-4 w-4" />
+                <span className="hidden sm:inline">{tab.label}</span>
+              </Button>
+            ))}
+          </div>
 
-        {/* Search */}
-        <div className="relative min-w-[180px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search contacts..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="pl-9 h-8"
-          />
-        </div>
+          {/* Search */}
+          <div className="relative min-w-[160px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search contacts..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              className="pl-9 h-9 bg-background"
+            />
+          </div>
 
-        {/* Tag Filter */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-1.5 h-8">
-              <Tag className="h-3.5 w-3.5" />
-              {tagFilter ? (
-                <span className="flex items-center gap-1">
-                  {tagFilter}
-                  <X
-                    className="h-3 w-3 text-muted-foreground hover:text-foreground"
-                    onClick={(e) => { e.stopPropagation(); setTagFilter(null); setPage(1); }}
-                  />
+          {/* Tag Filter */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5 h-9 bg-background hover:bg-background/80">
+                <Tag className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="text-sm">
+                  {tagFilter ? (
+                    <span className="flex items-center gap-1">
+                      {tagFilter}
+                      <X
+                        className="h-3 w-3 text-muted-foreground hover:text-foreground"
+                        onClick={(e) => { e.stopPropagation(); setTagFilter(null); setPage(1); }}
+                      />
+                    </span>
+                  ) : 'Filter by Tag'}
                 </span>
-              ) : 'Filter by Tag'}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-48 p-2" align="end">
-            {orgTags.length === 0 ? (
-              <p className="text-xs text-muted-foreground px-2 py-1">No tags defined yet.</p>
-            ) : (
-              <div className="space-y-1">
-                {tagFilter && (
-                  <button
-                    className="w-full text-left px-2 py-1 text-xs rounded hover:bg-muted text-muted-foreground"
-                    onClick={() => { setTagFilter(null); setPage(1); }}
-                  >
-                    Clear filter
-                  </button>
-                )}
-                {orgTags.map((tag) => (
-                  <button
-                    key={tag.id}
-                    className="w-full text-left px-2 py-1 text-xs rounded hover:bg-muted flex items-center gap-2"
-                    onClick={() => { setTagFilter(tag.name); setPage(1); }}
-                  >
-                    {tag.color && <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: tag.color }} />}
-                    {tag.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </PopoverContent>
-        </Popover>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-48 p-2" align="end">
+              {orgTags.length === 0 ? (
+                <p className="text-xs text-muted-foreground px-2 py-1">No tags defined yet.</p>
+              ) : (
+                <div className="space-y-1">
+                  {tagFilter && (
+                    <button
+                      className="w-full text-left px-2 py-1 text-xs rounded hover:bg-muted text-muted-foreground"
+                      onClick={() => { setTagFilter(null); setPage(1); }}
+                    >
+                      Clear filter
+                    </button>
+                  )}
+                  {orgTags.map((tag) => (
+                    <button
+                      key={tag.id}
+                      className="w-full text-left px-2 py-1 text-xs rounded hover:bg-muted flex items-center gap-2"
+                      onClick={() => { setTagFilter(tag.name); setPage(1); }}
+                    >
+                      {tag.color && <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: tag.color }} />}
+                      {tag.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
 
       {/* Bulk Action Toolbar */}
       {selected.size > 0 && (
-        <div className="flex items-center gap-3 px-6 py-2 bg-primary/5 border-b border-border">
+        <div className="flex items-center gap-3 px-4 py-2 bg-primary/5 border border-border rounded-lg">
           <span className="text-sm font-medium text-primary">{selected.size} selected</span>
           <Popover open={bulkTagOpen} onOpenChange={setBulkTagOpen}>
             <PopoverTrigger asChild>
@@ -272,10 +273,10 @@ export const ContactListView = () => {
       )}
 
       {/* Table */}
-      <div className="flex-1 overflow-auto">
+      <div className="rounded-lg border border-border overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="bg-muted/50">
               <TableHead className="w-10">
                 <Checkbox
                   checked={contacts.length > 0 && selected.size === contacts.length}
@@ -375,7 +376,7 @@ export const ContactListView = () => {
 
       {/* Pagination */}
       {totalCount > 0 && (
-        <div className="flex items-center justify-between px-6 py-3 border-t border-border">
+        <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">{totalCount} contact{totalCount !== 1 ? 's' : ''}</span>
           <div className="flex items-center gap-2">
             <Select value={String(perPage)} onValueChange={(v) => { setPerPage(Number(v)); setPage(1); }}>
