@@ -3,6 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { Bookmark, Pin } from "lucide-react";
 import AttachmentRenderer from "./AttachmentRenderer";
+import CallLogMessage from "./CallLogMessage";
 import MessageActionsToolbar from "./MessageActionsToolbar";
 import MessageReactions from "./MessageReactions";
 import EditMessageInput from "./EditMessageInput";
@@ -183,8 +184,15 @@ const MessageBubbleComponent = ({
           />
         ) : (
           <>
+            {/* Call log message */}
+            {message.content_type === 'call_log' && message.call_log_data && (
+              <div className="mt-1">
+                <CallLogMessage data={message.call_log_data} isOwn={isOwn} />
+              </div>
+            )}
+
             {/* Message text */}
-            {message.content && (
+            {message.content && message.content_type !== 'call_log' && (
               <div className="text-sm text-foreground leading-relaxed">
                 <RichTextMessage content={message.content} />
                 {message.updated_at !== message.created_at && (

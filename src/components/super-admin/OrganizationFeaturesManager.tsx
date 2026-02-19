@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Loader2, MessageSquare, CheckSquare, Briefcase, Flag, GitBranch, Wallet, Bot, UserPlus, MessageCircle } from "lucide-react";
+import { Loader2, MessageSquare, CheckSquare, Briefcase, Flag, GitBranch, Wallet, Bot, UserPlus, MessageCircle, Phone } from "lucide-react";
 import { toast } from "sonner";
 import { useAdminActivityLog } from "@/hooks/useAdminActivityLog";
 
@@ -66,6 +66,12 @@ const AVAILABLE_FEATURES = [
     label: "WhatsApp Messaging", 
     description: "WhatsApp inbox, broadcasts, automations, and flows",
     icon: MessageCircle 
+  },
+  { 
+    name: "calls", 
+    label: "Voice & Video Calls", 
+    description: "1:1 and group voice/video calls via Sendbird",
+    icon: Phone 
   },
 ];
 
