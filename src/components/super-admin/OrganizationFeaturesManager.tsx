@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Loader2, MessageSquare, CheckSquare, Briefcase, Flag, GitBranch, Wallet, Bot, UserPlus, MessageCircle, Phone } from "lucide-react";
+import { Loader2, MessageSquare, CheckSquare, Briefcase, Flag, GitBranch, Wallet, Bot, UserPlus, MessageCircle, Phone, Inbox } from "lucide-react";
 import { toast } from "sonner";
 import { useAdminActivityLog } from "@/hooks/useAdminActivityLog";
 
@@ -72,6 +72,18 @@ const AVAILABLE_FEATURES = [
     label: "Voice & Video Calls", 
     description: "1:1 and group voice/video calls via Sendbird",
     icon: Phone 
+  },
+  { 
+    name: "omnichannel_inbox", 
+    label: "Omni-Channel Inbox", 
+    description: "Unified inbox for WhatsApp, Telegram, Messenger, Instagram & more",
+    icon: Inbox 
+  },
+  { 
+    name: "ai_responder", 
+    label: "AI Auto-Responder", 
+    description: "AI-powered auto-replies with RAG-based knowledge retrieval",
+    icon: Bot 
   },
 ];
 
