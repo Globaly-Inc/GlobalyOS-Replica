@@ -17,6 +17,7 @@ const triggerIcons: Record<string, React.ReactNode> = {
   keyword: <Tag className="h-4 w-4" />,
   new_contact: <UserPlus className="h-4 w-4" />,
   tag_added: <Tag className="h-4 w-4" />,
+  flow_submitted: <Workflow className="h-4 w-4" />,
 };
 
 const triggerLabels: Record<string, string> = {

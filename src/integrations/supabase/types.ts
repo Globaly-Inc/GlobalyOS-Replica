@@ -14282,6 +14282,121 @@ export type Database = {
           },
         ]
       }
+      wa_flow_submissions: {
+        Row: {
+          conversation_id: string | null
+          created_at: string
+          data: Json
+          flow_id: string
+          id: string
+          mapped_fields: Json
+          organization_id: string
+          wa_contact_id: string | null
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string
+          data?: Json
+          flow_id: string
+          id?: string
+          mapped_fields?: Json
+          organization_id: string
+          wa_contact_id?: string | null
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string
+          data?: Json
+          flow_id?: string
+          id?: string
+          mapped_fields?: Json
+          organization_id?: string
+          wa_contact_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_flow_submissions_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "wa_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_flow_submissions_flow_id_fkey"
+            columns: ["flow_id"]
+            isOneToOne: false
+            referencedRelation: "wa_flows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_flow_submissions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_flow_submissions_wa_contact_id_fkey"
+            columns: ["wa_contact_id"]
+            isOneToOne: false
+            referencedRelation: "wa_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wa_flows: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          external_flow_id: string | null
+          field_mapping: Json
+          id: string
+          name: string
+          organization_id: string
+          screens: Json
+          status: string
+          submission_count: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          external_flow_id?: string | null
+          field_mapping?: Json
+          id?: string
+          name: string
+          organization_id: string
+          screens?: Json
+          status?: string
+          submission_count?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          external_flow_id?: string | null
+          field_mapping?: Json
+          id?: string
+          name?: string
+          organization_id?: string
+          screens?: Json
+          status?: string
+          submission_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_flows_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wa_messages: {
         Row: {
           content: Json
