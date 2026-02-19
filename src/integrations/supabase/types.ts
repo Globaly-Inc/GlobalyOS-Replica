@@ -5604,6 +5604,10 @@ export type Database = {
       }
       inbox_channels: {
         Row: {
+          ai_auto_reply_enabled: boolean
+          ai_blocked_intents: string[]
+          ai_confidence_threshold: number
+          ai_safe_intents: string[]
           channel_type: Database["public"]["Enums"]["inbox_channel_type"]
           config: Json
           created_at: string
@@ -5620,6 +5624,10 @@ export type Database = {
           webhook_status: string
         }
         Insert: {
+          ai_auto_reply_enabled?: boolean
+          ai_blocked_intents?: string[]
+          ai_confidence_threshold?: number
+          ai_safe_intents?: string[]
           channel_type: Database["public"]["Enums"]["inbox_channel_type"]
           config?: Json
           created_at?: string
@@ -5636,6 +5644,10 @@ export type Database = {
           webhook_status?: string
         }
         Update: {
+          ai_auto_reply_enabled?: boolean
+          ai_blocked_intents?: string[]
+          ai_confidence_threshold?: number
+          ai_safe_intents?: string[]
           channel_type?: Database["public"]["Enums"]["inbox_channel_type"]
           config?: Json
           created_at?: string

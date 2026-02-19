@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { conversation_id, organization_id, messages, mode = "draft" } = await req.json();
+    const { conversation_id, organization_id, messages, mode = "draft", channel_id } = await req.json();
 
     if (!conversation_id || !organization_id || !messages) {
       return new Response(
@@ -146,8 +146,60 @@ RULES:
       model_version: "google/gemini-3-flash-preview",
     });
 
+    // Auto-send logic: if mode is "auto" and channel has auto-reply enabled
+    let autoSent = false;
+    if (mode === "auto" && channel_id) {
+      const { data: channel } = await supabase
+        .from("inbox_channels")
+        .select("ai_auto_reply_enabled, ai_confidence_threshold, ai_safe_intents, ai_blocked_intents")
+        .eq("id", channel_id)
+        .single();
+
+      if (channel?.ai_auto_reply_enabled) {
+        const threshold = channel.ai_confidence_threshold || 0.8;
+        const safeIntents = channel.ai_safe_intents || ["faq", "hours", "pricing", "booking"];
+        const blockedIntents = channel.ai_blocked_intents || ["billing_dispute", "legal", "refund"];
+
+        const intentIsSafe = safeIntents.includes(result.intent);
+        const intentIsBlocked = blockedIntents.includes(result.intent);
+        const meetsConfidence = result.confidence >= threshold;
+        const noHumanNeeded = !result.requires_human;
+
+        if (intentIsSafe && !intentIsBlocked && meetsConfidence && noHumanNeeded) {
+          // Auto-send via inbox-send
+          const sendResponse = await fetch(`${supabaseUrl}/functions/v1/inbox-send`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${supabaseKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              conversation_id,
+              organization_id,
+              content: { body: result.reply },
+              msg_type: "text",
+            }),
+          });
+
+          autoSent = sendResponse.ok;
+
+          // Log auto-send event
+          await supabase.from("inbox_ai_events").insert({
+            organization_id,
+            conversation_id,
+            event_type: "auto_send",
+            inputs: { intent: result.intent, confidence: result.confidence },
+            outputs: { reply: result.reply, sent: autoSent },
+            confidence: result.confidence,
+            citations: result.citations,
+            model_version: "google/gemini-3-flash-preview",
+          });
+        }
+      }
+    }
+
     return new Response(
-      JSON.stringify(result),
+      JSON.stringify({ ...result, auto_sent: autoSent }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
