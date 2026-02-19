@@ -1,99 +1,76 @@
 
-# Email Campaigns Module — GlobalyOS
+# Email Campaigns Module — Full Implementation Plan
 
-## Ground Truth: What Was Found in the Codebase
+## Codebase Reality Check
 
-### Already Implemented
-- **CRM module**: `crm_contacts`, `crm_companies`, `crm_activity_log` tables with full RBAC and org-scoping via `organization_id`
-- **Email infrastructure**: Resend is already configured (`RESEND_API_KEY` used in 29+ edge functions, including `send-bulk-hiring-email` which is the closest pattern to what we need)
-- **RBAC**: `useUserRole` hook with owner/admin/hr/member hierarchy; `user_roles` table properly separated
-- **Org isolation**: `useOrganization` + `OrgProtectedRoute` + `FeatureProtectedRoute` patterns are mature
-- **CRM sub-navigation**: `CRMSubNav.tsx` with Contacts, Companies, Scheduler, Settings tabs — "Campaigns" will be added here
-- **Activity timeline**: `crm_activity_log` table and `ActivityTimeline.tsx` component for contact/company timelines — will be extended with campaign event types
-- **Routing**: Full lazy-load pattern in `App.tsx` under `/org/:orgCode/crm/...`
-- **Jobs/queue pattern**: No dedicated job runner — the existing pattern is edge function invocation (as in hiring's bulk email). We'll follow the same pattern with a `send-campaign` edge function that processes in batches
-- **AI**: Lovable AI Gateway is available via `LOVABLE_API_KEY` (already used in `wiki-ask-ai`, `task-ai-helper`, etc.)
+### What Was Confirmed Exists
+- **Resend**: Configured via `RESEND_API_KEY` secret. From-address pattern: `hello@globalyos.com`. Reference pattern: `send-bulk-hiring-email/index.ts`
+- **RBAC**: `useUserRole()` in `src/hooks/useUserRole.tsx` — `isOwner`, `isAdmin`, `isHR` booleans. owner/admin/hr can manage; members view-only
+- **CRM tables**: `crm_contacts` (has `email`, `first_name`, `last_name`, `tags`, `is_archived`, `organization_id`), `crm_companies`, `crm_activity_log`
+- **CRMSubNav**: 4 tabs — Contacts, Companies, Scheduler, Settings. Adding Campaigns between Scheduler and Settings
+- **ActivityTimeline**: Renders typed activities from `crm_activity_log`. Currently handles: note, call, email, meeting, task. Needs 5 new campaign event types
+- **Routing pattern**: Lazy-loaded under `<FeatureProtectedRoute feature="crm">`, uses `useOrgNavigation` + `OrgLink`
+- **Edge function pattern**: `verify_jwt = false` in `config.toml` + manual auth verification with `createClient(url, anonKey, { global: { headers: { authorization: authHeader } } })`
+- **Service pattern**: React Query hooks in `src/services/`, types in `src/types/`, follows `useCRM.ts` structure
+- **No existing campaign tables** — 5 new tables required
 
-### Missing / Net-New
+### What Does NOT Exist Yet
 - `email_campaigns`, `campaign_recipients`, `email_templates`, `sender_identities`, `email_suppressions` tables
-- Campaigns pages, wizard, builder, analytics
-- Campaign-specific activity log event types
-- `send-campaign` and `track-campaign-event` edge functions
+- Any campaigns page, service, or component
+- Drag-and-drop email builder (but `@dnd-kit/core` + `@dnd-kit/sortable` already installed)
 
 ---
 
-## Architecture Overview
+## Implementation Scope
 
-The feature ships under `CRM → Campaigns` (gated by the existing `crm` feature flag). No new feature flag needed.
+This is a large feature delivered in a focused, complete way. The build follows this priority order:
 
-URL pattern:
-```text
-/org/:orgCode/crm/campaigns              → Campaigns list + dashboard
-/org/:orgCode/crm/campaigns/new          → Create wizard (full page)
-/org/:orgCode/crm/campaigns/:id          → Campaign detail (setup/edit)
-/org/:orgCode/crm/campaigns/:id/builder  → Full-screen email builder
-/org/:orgCode/crm/campaigns/:id/report   → Post-send analytics
-/org/:orgCode/crm/campaigns/templates    → Template library
-/org/:orgCode/crm/campaigns/settings     → Sender identities + suppressions
-```
-
-Public (no auth):
-```text
-/e/unsub/:token                          → Unsubscribe page (1-click)
-/e/track/open/:recipientId               → 1x1 tracking pixel
-/e/track/click/:recipientId/:linkIndex   → Click redirect
-```
+1. Database migration (5 tables + RLS)
+2. TypeScript types
+3. Service layer hooks
+4. CRMSubNav + App.tsx routing
+5. CampaignsPage (list view)
+6. CampaignSetupPage (Mailchimp-style checklist)
+7. CampaignBuilderPage + Email Builder components
+8. Send pipeline edge functions
+9. Tracking + unsubscribe edge functions
+10. CampaignReportPage
+11. TemplatesPage + CampaignSettingsPage
+12. ActivityTimeline extension
+13. AI subject improvement
+14. UnsubscribePage (public)
 
 ---
 
-## Database Schema (6 new tables)
+## Database Schema (5 new tables)
 
 ### Table 1: `email_campaigns`
 ```sql
 CREATE TABLE email_campaigns (
-  id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id       uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  name                  text NOT NULL DEFAULT 'Untitled Campaign',
-  status                text NOT NULL DEFAULT 'draft'
-                        CHECK (status IN ('draft','scheduled','sending','sent','failed','archived')),
-  subject               text,
-  preview_text          text,
-  from_name             text,
-  from_email            text,
-  reply_to              text,
-  content_json          jsonb,              -- drag-and-drop builder state
-  content_html_cache    text,              -- rendered HTML
-  audience_source       text DEFAULT 'crm_contacts'
-                        CHECK (audience_source IN ('crm_contacts','crm_companies','manual')),
-  audience_filters      jsonb,             -- {tags:[], rating:null, source:null}
-  recipient_count       integer DEFAULT 0,
-  track_opens           boolean DEFAULT true,
-  track_clicks          boolean DEFAULT true,
-  schedule_at           timestamptz,
-  sent_at               timestamptz,
-  created_by            uuid REFERENCES employees(id),
-  created_at            timestamptz DEFAULT now(),
-  updated_at            timestamptz DEFAULT now()
+  id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id    uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  name               text NOT NULL DEFAULT 'Untitled Campaign',
+  status             text NOT NULL DEFAULT 'draft',
+  subject            text,
+  preview_text       text,
+  from_name          text,
+  from_email         text,
+  reply_to           text,
+  content_json       jsonb DEFAULT '{"blocks":[],"globalStyles":{"backgroundColor":"#f3f4f6","fontFamily":"Inter, sans-serif","maxWidth":600}}',
+  content_html_cache text,
+  audience_source    text DEFAULT 'crm_contacts',
+  audience_filters   jsonb DEFAULT '{}',
+  recipient_count    integer DEFAULT 0,
+  track_opens        boolean DEFAULT true,
+  track_clicks       boolean DEFAULT true,
+  schedule_at        timestamptz,
+  sent_at            timestamptz,
+  created_by         uuid REFERENCES employees(id),
+  created_at         timestamptz DEFAULT now(),
+  updated_at         timestamptz DEFAULT now()
 );
-
 ALTER TABLE email_campaigns ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "org members can view campaigns"
-  ON email_campaigns FOR SELECT TO authenticated
-  USING (organization_id IN (
-    SELECT organization_id FROM employees WHERE user_id = auth.uid()
-  ));
-
-CREATE POLICY "admins and hr can manage campaigns"
-  ON email_campaigns FOR ALL TO authenticated
-  USING (organization_id IN (
-    SELECT organization_id FROM employees
-    WHERE user_id = auth.uid() AND role IN ('owner','admin','hr')
-  ))
-  WITH CHECK (organization_id IN (
-    SELECT organization_id FROM employees
-    WHERE user_id = auth.uid() AND role IN ('owner','admin','hr')
-  ));
+-- RLS: org members (via employees join) SELECT; owner/admin/hr ALL
 ```
 
 ### Table 2: `campaign_recipients`
@@ -105,38 +82,17 @@ CREATE TABLE campaign_recipients (
   contact_id          uuid REFERENCES crm_contacts(id) ON DELETE SET NULL,
   email               text NOT NULL,
   full_name           text,
-  status              text NOT NULL DEFAULT 'queued'
-                      CHECK (status IN ('queued','sent','delivered','opened','clicked',
-                                        'bounced','unsubscribed','complaint','failed')),
+  status              text NOT NULL DEFAULT 'queued',
   provider_message_id text,
   unsubscribe_token   text UNIQUE DEFAULT encode(gen_random_bytes(24), 'base64url'),
-  events              jsonb DEFAULT '[]',   -- [{type,ts,meta}]
+  events              jsonb DEFAULT '[]',
   created_at          timestamptz DEFAULT now(),
   updated_at          timestamptz DEFAULT now()
 );
-
-CREATE INDEX idx_campaign_recipients_campaign  ON campaign_recipients(organization_id, campaign_id);
-CREATE INDEX idx_campaign_recipients_contact   ON campaign_recipients(organization_id, contact_id);
-CREATE INDEX idx_campaign_recipients_token     ON campaign_recipients(unsubscribe_token);
-
+CREATE INDEX ON campaign_recipients(organization_id, campaign_id);
+CREATE INDEX ON campaign_recipients(organization_id, contact_id);
+CREATE INDEX ON campaign_recipients(unsubscribe_token);
 ALTER TABLE campaign_recipients ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "org members can view campaign recipients"
-  ON campaign_recipients FOR SELECT TO authenticated
-  USING (organization_id IN (
-    SELECT organization_id FROM employees WHERE user_id = auth.uid()
-  ));
-
-CREATE POLICY "admins and hr can manage campaign recipients"
-  ON campaign_recipients FOR ALL TO authenticated
-  USING (organization_id IN (
-    SELECT organization_id FROM employees
-    WHERE user_id = auth.uid() AND role IN ('owner','admin','hr')
-  ))
-  WITH CHECK (organization_id IN (
-    SELECT organization_id FROM employees
-    WHERE user_id = auth.uid() AND role IN ('owner','admin','hr')
-  ));
 ```
 
 ### Table 3: `email_templates`
@@ -146,31 +102,13 @@ CREATE TABLE email_templates (
   organization_id  uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   name             text NOT NULL,
   category         text DEFAULT 'custom',
-  content_json     jsonb NOT NULL DEFAULT '{"blocks":[]}',
+  content_json     jsonb NOT NULL DEFAULT '{"blocks":[],"globalStyles":{"backgroundColor":"#f3f4f6","fontFamily":"Inter, sans-serif","maxWidth":600}}',
   thumbnail_url    text,
   created_by       uuid REFERENCES employees(id),
   created_at       timestamptz DEFAULT now(),
   updated_at       timestamptz DEFAULT now()
 );
-
 ALTER TABLE email_templates ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "org members can view templates"
-  ON email_templates FOR SELECT TO authenticated
-  USING (organization_id IN (
-    SELECT organization_id FROM employees WHERE user_id = auth.uid()
-  ));
-
-CREATE POLICY "admins and hr can manage templates"
-  ON email_templates FOR ALL TO authenticated
-  USING (organization_id IN (
-    SELECT organization_id FROM employees
-    WHERE user_id = auth.uid() AND role IN ('owner','admin','hr')
-  ))
-  WITH CHECK (organization_id IN (
-    SELECT organization_id FROM employees
-    WHERE user_id = auth.uid() AND role IN ('owner','admin','hr')
-  ));
 ```
 
 ### Table 4: `sender_identities`
@@ -187,25 +125,7 @@ CREATE TABLE sender_identities (
   created_at       timestamptz DEFAULT now(),
   UNIQUE (organization_id, from_email)
 );
-
 ALTER TABLE sender_identities ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "org members can view identities"
-  ON sender_identities FOR SELECT TO authenticated
-  USING (organization_id IN (
-    SELECT organization_id FROM employees WHERE user_id = auth.uid()
-  ));
-
-CREATE POLICY "admins can manage identities"
-  ON sender_identities FOR ALL TO authenticated
-  USING (organization_id IN (
-    SELECT organization_id FROM employees
-    WHERE user_id = auth.uid() AND role IN ('owner','admin')
-  ))
-  WITH CHECK (organization_id IN (
-    SELECT organization_id FROM employees
-    WHERE user_id = auth.uid() AND role IN ('owner','admin')
-  ));
 ```
 
 ### Table 5: `email_suppressions`
@@ -214,174 +134,63 @@ CREATE TABLE email_suppressions (
   id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id  uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   email            text NOT NULL,
-  type             text NOT NULL DEFAULT 'unsubscribed'
-                   CHECK (type IN ('unsubscribed','bounced','complaint','manual')),
+  type             text NOT NULL DEFAULT 'unsubscribed',
   reason           text,
   campaign_id      uuid REFERENCES email_campaigns(id) ON DELETE SET NULL,
   created_at       timestamptz DEFAULT now(),
   UNIQUE (organization_id, email)
 );
-
-CREATE INDEX idx_email_suppressions_email ON email_suppressions(organization_id, email);
-
+CREATE INDEX ON email_suppressions(organization_id, email);
 ALTER TABLE email_suppressions ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "org members can view suppressions"
-  ON email_suppressions FOR SELECT TO authenticated
-  USING (organization_id IN (
-    SELECT organization_id FROM employees WHERE user_id = auth.uid()
-  ));
-
-CREATE POLICY "admins can manage suppressions"
-  ON email_suppressions FOR ALL TO authenticated
-  USING (organization_id IN (
-    SELECT organization_id FROM employees
-    WHERE user_id = auth.uid() AND role IN ('owner','admin','hr')
-  ))
-  WITH CHECK (organization_id IN (
-    SELECT organization_id FROM employees
-    WHERE user_id = auth.uid() AND role IN ('owner','admin','hr')
-  ));
 ```
+
+RLS policies for all 5 tables follow the same pattern as existing CRM tables: org members (verified via `employees.user_id = auth.uid()`) can SELECT; owner/admin/hr can ALL.
 
 ---
 
-## Email Builder: JSON Schema
+## New Files to Create
 
-The builder stores content as a JSON array of blocks. Each block has a `type` and `props`:
-
-```json
-{
-  "blocks": [
-    {
-      "id": "uuid",
-      "type": "header",
-      "props": { "logoUrl": "", "backgroundColor": "#1a56db", "textColor": "#ffffff" }
-    },
-    {
-      "id": "uuid",
-      "type": "text",
-      "props": {
-        "content": "<p>Hello {{first_name}},</p>",
-        "backgroundColor": "#ffffff",
-        "paddingTop": 16, "paddingBottom": 16,
-        "paddingLeft": 24, "paddingRight": 24,
-        "textAlign": "left"
-      }
-    },
-    {
-      "id": "uuid",
-      "type": "image",
-      "props": { "src": "", "alt": "", "link": "", "width": 600, "align": "center" }
-    },
-    {
-      "id": "uuid",
-      "type": "button",
-      "props": {
-        "label": "Get Started",
-        "href": "",
-        "backgroundColor": "#1a56db",
-        "textColor": "#ffffff",
-        "borderRadius": 6,
-        "align": "center"
-      }
-    },
-    {
-      "id": "uuid",
-      "type": "divider",
-      "props": { "color": "#e5e7eb", "height": 1, "paddingTop": 16, "paddingBottom": 16 }
-    },
-    {
-      "id": "uuid",
-      "type": "spacer",
-      "props": { "height": 32 }
-    },
-    {
-      "id": "uuid",
-      "type": "columns",
-      "props": {
-        "columnCount": 2,
-        "columns": [
-          { "blocks": [] },
-          { "blocks": [] }
-        ]
-      }
-    },
-    {
-      "id": "uuid",
-      "type": "social",
-      "props": {
-        "links": [
-          { "platform": "linkedin", "url": "" },
-          { "platform": "twitter", "url": "" }
-        ],
-        "align": "center"
-      }
-    },
-    {
-      "id": "uuid",
-      "type": "footer",
-      "props": {
-        "companyName": "{{company_name}}",
-        "address": "{{company_address}}",
-        "unsubscribeUrl": "{{unsubscribe_url}}",
-        "backgroundColor": "#f9fafb",
-        "textColor": "#6b7280"
-      }
-    }
-  ],
-  "globalStyles": {
-    "backgroundColor": "#f3f4f6",
-    "fontFamily": "Inter, sans-serif",
-    "maxWidth": 600
-  }
-}
-```
-
-HTML is generated from this JSON client-side for preview and server-side (edge function) before sending.
-
----
-
-## Files to Create
-
-### Pages (lazy-loaded via App.tsx)
-| File | Purpose |
-|------|---------|
-| `src/pages/crm/campaigns/CampaignsPage.tsx` | List view + stats dashboard |
-| `src/pages/crm/campaigns/CampaignSetupPage.tsx` | Create/Edit setup page (Mailchimp-style checklist) |
-| `src/pages/crm/campaigns/CampaignBuilderPage.tsx` | Full-screen drag-and-drop email builder |
-| `src/pages/crm/campaigns/CampaignReportPage.tsx` | Post-send analytics |
-| `src/pages/crm/campaigns/TemplatesPage.tsx` | Template library |
-| `src/pages/crm/campaigns/CampaignSettingsPage.tsx` | Sender identities + suppressions |
-| `src/pages/public/UnsubscribePage.tsx` | Public 1-click unsubscribe |
+### Types
+| File | Description |
+|------|-------------|
+| `src/types/campaigns.ts` | `EmailCampaign`, `CampaignRecipient`, `EmailTemplate`, `SenderIdentity`, `EmailSuppression`, `EmailBlock`, `EmailBuilderState`, `AudienceFilters`, status union types |
 
 ### Service Layer
-| File | Purpose |
-|------|---------|
-| `src/services/useCampaigns.ts` | React Query hooks for all campaigns CRUD |
-| `src/types/campaigns.ts` | TypeScript interfaces |
+| File | Description |
+|------|-------------|
+| `src/services/useCampaigns.ts` | All React Query hooks: `useCampaigns`, `useCampaign`, `useCampaignRecipients`, `useEmailTemplates`, `useSenderIdentities`, `useEmailSuppressions`, and mutations for each |
+
+### Pages (lazy-loaded)
+| File | Description |
+|------|-------------|
+| `src/pages/crm/campaigns/CampaignsPage.tsx` | List + stats dashboard |
+| `src/pages/crm/campaigns/CampaignSetupPage.tsx` | Mailchimp-style checklist wizard |
+| `src/pages/crm/campaigns/CampaignBuilderPage.tsx` | Full-screen drag-and-drop builder |
+| `src/pages/crm/campaigns/CampaignReportPage.tsx` | Post-send analytics (Recharts) |
+| `src/pages/crm/campaigns/TemplatesPage.tsx` | Template gallery |
+| `src/pages/crm/campaigns/CampaignSettingsPage.tsx` | Sender identities + suppressions |
+| `src/pages/public/UnsubscribePage.tsx` | Public 1-click unsubscribe page (no auth) |
 
 ### Components
-| File | Purpose |
-|------|---------|
-| `src/components/campaigns/EmailBuilder.tsx` | Core drag-and-drop builder canvas |
-| `src/components/campaigns/BlockLibrary.tsx` | Left panel: draggable block list |
-| `src/components/campaigns/BlockPropertiesPanel.tsx` | Right panel: selected block properties |
-| `src/components/campaigns/BlockRenderer.tsx` | Renders a block to JSX (both builder preview and HTML export) |
-| `src/components/campaigns/HtmlRenderer.tsx` | Converts JSON schema to email-safe HTML string |
-| `src/components/campaigns/AudienceSelector.tsx` | Recipients step: source + filters + count estimate |
-| `src/components/campaigns/CampaignStatusBadge.tsx` | Status pill with colors |
-| `src/components/campaigns/CampaignAnalyticsCard.tsx` | Metric cards for report page |
+| File | Description |
+|------|-------------|
+| `src/components/campaigns/EmailBuilder.tsx` | DnD canvas orchestrator (left panel + canvas + right panel) |
+| `src/components/campaigns/BlockLibrary.tsx` | Left panel: draggable block palette by category |
+| `src/components/campaigns/BlockRenderer.tsx` | Renders individual block types as live JSX preview |
+| `src/components/campaigns/BlockPropertiesPanel.tsx` | Right panel: property editors per block type |
+| `src/components/campaigns/HtmlRenderer.ts` | Pure TS function: `EmailBuilderState → HTML string` for preview and send |
+| `src/components/campaigns/AudienceSelector.tsx` | Recipients source picker + filters + live count |
+| `src/components/campaigns/CampaignStatusBadge.tsx` | Status pill (draft/scheduled/sending/sent/failed/archived) |
 
 ### Edge Functions
-| File | Purpose |
-|------|---------|
-| `supabase/functions/send-campaign/index.ts` | Core send engine: resolve recipients, check suppressions, send in batches via Resend, update statuses |
-| `supabase/functions/send-test-campaign-email/index.ts` | Send a rendered preview to the logged-in user's email |
-| `supabase/functions/track-campaign-event/index.ts` | Handle open pixel + click redirects (public, no auth) |
-| `supabase/functions/campaign-unsubscribe/index.ts` | 1-click unsubscribe via token (public, no auth) |
-| `supabase/functions/estimate-campaign-recipients/index.ts` | Count contacts matching audience filters (fast DB query, auth required) |
-| `supabase/functions/ai-improve-subject/index.ts` | AI subject line improvement using Lovable AI Gateway |
+| File | Description |
+|------|-------------|
+| `supabase/functions/send-campaign/index.ts` | Core send engine: resolve recipients, suppress check, batch-send via Resend, update statuses |
+| `supabase/functions/send-test-campaign-email/index.ts` | Test send to logged-in user's email |
+| `supabase/functions/estimate-campaign-recipients/index.ts` | Fast count of matching contacts minus suppressions |
+| `supabase/functions/track-campaign-event/index.ts` | Public: open pixel + click redirect handler |
+| `supabase/functions/campaign-unsubscribe/index.ts` | Public: token-based 1-click unsubscribe |
+| `supabase/functions/ai-improve-subject/index.ts` | Uses `LOVABLE_API_KEY` (Gemini 2.5 Flash) to return 3 improved subject lines |
 
 ---
 
@@ -389,168 +198,305 @@ HTML is generated from this JSON client-side for preview and server-side (edge f
 
 | File | Change |
 |------|--------|
-| `src/App.tsx` | Add 7 new lazy imports + 7 route entries + public `/e/unsub/:token` route |
-| `src/components/crm/CRMSubNav.tsx` | Add "Campaigns" nav item between Scheduler and Settings |
+| `src/App.tsx` | 7 lazy imports + 8 routes (7 under `crm` feature gate + 1 public `/e/unsub/:token`) |
+| `src/components/crm/CRMSubNav.tsx` | Add `{ name: 'Campaigns', href: '/crm/campaigns', icon: Mail }` between Scheduler and Settings |
+| `src/components/crm/ActivityTimeline.tsx` | Add 5 campaign event types to `typeConfig` + `filterOptions` |
+| `supabase/config.toml` | Add `verify_jwt = false` for 6 new edge functions |
 
 ---
 
-## Campaign Setup Page Design (Mailchimp checklist style)
+## URL Structure
 
-```text
-┌─────────────────────────────────────────────────────────────────────┐
-│  ← Campaigns   [Campaign Name — editable inline]      [Draft]       │
-│                                                  [Save Draft] [Send]│
-├────────────────────────────────┬────────────────────────────────────┤
-│                                │                                    │
-│  ✅  To                        │   EMAIL PREVIEW                    │
-│      CRM Contacts · 84 people  │                                    │
-│      [Edit recipients]         │   [Skeleton preview of email]      │
-│                                │                                    │
-│  ✅  From                      │                                    │
-│      Acme Corp · hi@acme.com   │                                    │
-│      [Edit from]               │                                    │
-│                                │                                    │
-│  ○   Subject                   │                                    │
-│      What's the subject?       │                                    │
-│      [Add subject]             │                                    │
-│                                │                                    │
-│  ○   Content                   │                                    │
-│      Design your email         │                                    │
-│      [Design email]            │                                    │
-│                                │                                    │
-│  ○   Schedule                  │                                    │
-│      When to send?             │                                    │
-│      [Send now / Schedule]     │                                    │
-│                                │                                    │
-└────────────────────────────────┴────────────────────────────────────┘
+```
+/org/:orgCode/crm/campaigns                  → CampaignsPage
+/org/:orgCode/crm/campaigns/new              → CampaignSetupPage (create)
+/org/:orgCode/crm/campaigns/:id              → CampaignSetupPage (edit)
+/org/:orgCode/crm/campaigns/:id/builder      → CampaignBuilderPage (full-screen)
+/org/:orgCode/crm/campaigns/:id/report       → CampaignReportPage
+/org/:orgCode/crm/campaigns/templates        → TemplatesPage
+/org/:orgCode/crm/campaigns/settings         → CampaignSettingsPage (admin/owner only)
+
+/e/unsub/:token                              → UnsubscribePage (public, no auth)
 ```
 
 ---
 
-## Email Builder Design (Klaviyo-style)
+## Page Designs
 
-```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│  ← Setup     [Campaign name]       [Desktop] [Mobile]   [Save] [Preview]│
-├──────────────┬──────────────────────────────────┬───────────────────────┤
-│              │                                  │                       │
-│  Content     │     EMAIL CANVAS (600px max)     │  PROPERTIES           │
-│  ─────────── │                                  │  ─────────────────    │
-│  Blocks      │  ┌─── drag blocks here ────────┐ │  (when block         │
-│  [Text]      │  │  Logo Place                 │ │   selected)          │
-│  [Image]     │  │  ─────────────────────────  │ │                      │
-│  [Button]    │  │  [ Hero image / text ]      │ │  Background color    │
-│  [Divider]   │  │  ─────────────────────────  │ │  Padding T/B: [16]   │
-│  [Spacer]    │  │  Body text block            │ │  Padding L/R: [24]   │
-│  [Columns]   │  │  ─────────────────────────  │ │  Text align          │
-│  [Social]    │  │  [CTA Button]               │ │  Font size           │
-│  [Header]    │  │  ─────────────────────────  │ │  Font weight         │
-│  [Footer]    │  │  Footer / Unsubscribe       │ │                      │
-│              │  └─────────────────────────────┘ │                      │
-│  Layout      │                                  │                      │
-│  [Columns]   │                                  │                      │
-│  [Section]   │                                  │                      │
-│              │                                  │                      │
-└──────────────┴──────────────────────────────────┴───────────────────────┘
+### CampaignsPage — List + Dashboard
+- Top stat row: Total Campaigns, Total Sent (sum of `recipient_count` where `status = 'sent'`), Avg Open Rate (computed from `campaign_recipients` events), Avg Click Rate
+- Filter pills: All | Draft | Scheduled | Sending | Sent | Archived
+- Search input
+- Campaign table: Name, Status badge, Recipients, Open %, Click %, Created, Actions dropdown (Edit / Duplicate / Archive / Delete)
+- Empty state: Mail icon + "Create your first campaign" CTA
+- "New Campaign" primary button top-right → navigates to `/crm/campaigns/new`
+
+### CampaignSetupPage — Mailchimp Checklist Style
+Two-column layout:
+- Left (60%): 5 accordion-style checklist steps
+- Right (40%): live mini email preview thumbnail
+
+**Step 1 — Recipients (To)**
+- Source selector: CRM Contacts | CRM Companies | Manual
+- Filters: tags multi-select, rating, source, date range
+- Live count: `AudienceSelector` component calls `estimate-campaign-recipients`
+- Shows: "84 contacts selected · 2 missing email address"
+
+**Step 2 — From**
+- `sender_identities` select dropdown
+- "Add new sender" inline form
+- Note: "Emails are sent from hello@globalyos.com infrastructure"
+
+**Step 3 — Subject**
+- Subject line input
+- Preview text input
+- Personalization token list: `{{first_name}}`, `{{last_name}}`, `{{company_name}}`, `{{email}}`
+- "✨ Improve with AI" button → calls `ai-improve-subject` → shows 3 alternatives in a popover
+
+**Step 4 — Content**
+- Thumbnail of `content_json` state (rendered inline via `HtmlRenderer`)
+- "Design Email" button → navigates to `/crm/campaigns/:id/builder`
+- "Use Template" button → opens template picker drawer
+
+**Step 5 — Send**
+- "Send Test Email" → calls `send-test-campaign-email`
+- Schedule radio: "Send Now" | "Schedule for later" (datetime picker)
+- Compliance warning shown if no `footer` block detected in `content_json`
+- "Send Campaign" primary button — disabled until all steps complete
+
+**Completion indicators**: Each step shows a green checkmark once its required fields are set. Steps 1-4 must all be green to enable the Send button.
+
+### CampaignBuilderPage — Full-Screen 3-Panel
+No CRMSubNav (full-screen builder like Notion editor). Header bar: `← Back to [Campaign Name]`, Desktop/Mobile toggle, Save (debounced auto-save + manual), Preview (full modal preview).
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ← Campaign Name         [Desktop][Mobile]          [Save] [Preview]        │
+├──────────────┬─────────────────────────────────┬───────────────────────────┤
+│  LEFT PANEL  │  CANVAS (600px centered)        │  RIGHT PANEL              │
+│  (260px)     │  drag + reorder blocks          │  (280px)                  │
+│              │                                 │                            │
+│  Content     │  ┌─── email frame ─────────┐    │  [No selection]           │
+│  ─────────── │  │  [Header block]         │    │  Click a block to         │
+│  [T] Text    │  │  [Text block]           │    │  edit properties           │
+│  [🖼] Image  │  │  [Image block]          │    │                            │
+│  [◉] Button  │  │  [Button block]         │    │  [When selected:]         │
+│  [─] Divider │  │  [Footer block]         │    │  Background color         │
+│  [□] Spacer  │  └─────────────────────────┘    │  Padding T/R/B/L          │
+│  [⊞] Columns │                                 │  Font size / weight       │
+│  [⊕] Social  │                                 │  Text alignment           │
+│  [H] Header  │                                 │  Border radius            │
+│  [F] Footer  │                                 │  Link URL                 │
+│              │                                 │                            │
+│  Layouts     │                                 │                            │
+│  1-column    │                                 │                            │
+│  2-column    │                                 │                            │
+└──────────────┴─────────────────────────────────┴───────────────────────────┘
 ```
 
-The builder uses `@dnd-kit/core` + `@dnd-kit/sortable` (already installed) for drag-and-drop. No new library needed.
+**Blocks available** (MVP):
+- `header` — logo + background color + org name
+- `text` — rich text with padding/alignment controls
+- `image` — URL/upload, alt text, link, width, alignment
+- `button` — label, href, background color, text color, border radius, alignment
+- `divider` — color, thickness, padding
+- `spacer` — height
+- `columns` — 2-column layout with text-only sub-blocks (full nested DnD is phase 2)
+- `social` — link list (LinkedIn, X/Twitter, Instagram, Facebook)
+- `footer` — required compliance block with `{{unsubscribe_url}}` and company address
+
+**Mobile preview**: CSS `transform: scale(0.625)` on canvas at 375px width.
+
+**Auto-save**: 1.5s debounced write of `content_json` to campaign — no explicit save needed during editing.
+
+### CampaignReportPage — Analytics
+Available once `status = 'sent'`. Shows:
+- Stat cards: Sent / Delivered / Open Rate % / Click Rate % / Bounced / Unsubscribed
+- Line chart (Recharts, already installed): opens and clicks over time from `events` JSONB array
+- Top links clicked: URL + click count (aggregated from `events`)
+- Recipient table: paginated, filterable by status, shows name + email + status + last event timestamp
 
 ---
 
-## Send Pipeline (Edge Function Flow)
+## Email Builder JSON Schema
 
-```text
-send-campaign edge function:
-  1. Auth + role check (admin/hr/owner)
-  2. Load campaign + validate: has subject, has content_json, has from_email, has footer block, has unsubscribe token in footer
-  3. Resolve recipients from audience_source + audience_filters:
-     - Query crm_contacts WHERE organization_id = org_id AND is_archived = false AND NOT IN email_suppressions
-     - Apply tag/rating/source filters
-  4. Create campaign_recipients rows (status = 'queued')
-  5. Update campaign.status = 'sending', campaign.recipient_count = N
-  6. Process in batches of 50:
-     - For each recipient: render HTML with token substitution, send via Resend
-     - On success: update status = 'sent', store provider_message_id
-     - On error: update status = 'failed'
-  7. After all batches: update campaign.status = 'sent', campaign.sent_at = now()
+```typescript
+interface EmailBuilderState {
+  blocks: EmailBlock[];
+  globalStyles: {
+    backgroundColor: string;   // e.g. "#f3f4f6"
+    fontFamily: string;        // e.g. "Inter, sans-serif"
+    maxWidth: number;          // 600
+  };
+}
+
+type EmailBlock =
+  | { id: string; type: 'header'; props: HeaderProps }
+  | { id: string; type: 'text'; props: TextProps }
+  | { id: string; type: 'image'; props: ImageProps }
+  | { id: string; type: 'button'; props: ButtonProps }
+  | { id: string; type: 'divider'; props: DividerProps }
+  | { id: string; type: 'spacer'; props: { height: number } }
+  | { id: string; type: 'columns'; props: ColumnsProps }
+  | { id: string; type: 'social'; props: SocialProps }
+  | { id: string; type: 'footer'; props: FooterProps }
 ```
 
-**Token substitution** (`{{first_name}}`, `{{last_name}}`, `{{email}}`, `{{company}}`, `{{unsubscribe_url}}`) is done server-side during the render step.
+Each block type has typed `props` controlling all visual properties. The `HtmlRenderer.ts` function converts this JSON to table-based inline-styled HTML safe for email clients.
 
 ---
 
-## Tracking & Compliance
+## Send Pipeline
 
-### Open Tracking
-The `track-campaign-event` function serves a 1×1 transparent GIF at `/e/track/open/:recipientId` and logs the event. The open pixel is injected into the HTML just before `</body>`.
+### `send-campaign` Edge Function Flow
+```
+1. Verify JWT → get user → check employee.role in ['owner','admin','hr']
+2. Load campaign + validate: has subject, has from_email, content_json has ≥1 footer block
+3. Resolve recipients:
+   SELECT crm_contacts WHERE org_id AND is_archived = false
+   Apply audience_filters (tags, rating, source)
+   Exclude emails in email_suppressions
+4. Insert campaign_recipients (status = 'queued')
+5. Update campaign.status = 'sending', recipient_count = N
+6. Process batches of 50:
+   - Render HTML per recipient (substitute {{tokens}})
+   - Inject open-tracking pixel before </body>
+   - Rewrite <a href> to click-tracking URL
+   - Call Resend API
+   - On success: update status = 'sent', store provider_message_id
+   - On failure: update status = 'failed'
+7. Insert crm_activity_log rows (type='campaign_sent') for all matched contacts
+8. Update campaign.status = 'sent', sent_at = now()
+```
 
-### Click Tracking
-All `<a>` hrefs in the rendered HTML are rewritten to `/e/track/click/:recipientId/:encodedUrl` which logs the click and redirects.
+**Token substitution** (server-side, per recipient):
+- `{{first_name}}` → contact.first_name
+- `{{last_name}}` → contact.last_name
+- `{{email}}` → contact.email
+- `{{company_name}}` → joined company.name
+- `{{org_name}}` → organization.name
+- `{{unsubscribe_url}}` → `https://globalyos.lovable.app/e/unsub/{recipient.unsubscribe_token}`
 
-### Unsubscribe
-Every external campaign email includes a footer with `{{unsubscribe_url}}` = `https://app.globalyos.com/e/unsub/:token`. The `campaign-unsubscribe` function validates the token, inserts into `email_suppressions`, updates `campaign_recipients.status = 'unsubscribed'`, and shows the public `UnsubscribePage.tsx`.
+### `track-campaign-event` Edge Function
+Public endpoint (no auth). Two route patterns handled by URL path:
+- `GET /track-campaign-event?type=open&rid=:recipientId` → serves 1×1 transparent GIF, appends `{type:'opened',ts}` to events JSONB, updates status to `opened`
+- `GET /track-campaign-event?type=click&rid=:recipientId&url=:encodedUrl` → logs click, HTTP 302 redirect to decoded URL
 
----
+### `campaign-unsubscribe` Edge Function
+Public endpoint. Called from unsubscribe link in email footer.
+1. Find `campaign_recipients` by `unsubscribe_token`
+2. Update status = 'unsubscribed', append event
+3. Upsert `email_suppressions` (type = 'unsubscribed', org scoped)
+4. Optionally update `crm_contacts.is_archived = false` (just suppress, don't archive)
+5. Insert `crm_activity_log` event (type = 'campaign_unsubscribed')
+6. Return JSON redirect signal → `UnsubscribePage` shows confirmation
 
-## AI Integration (Lovable AI Gateway)
-
-The `ai-improve-subject` edge function uses the existing `LOVABLE_API_KEY` (no new secret needed). It receives the campaign subject + preview text and returns 3 improved variations. This keeps all AI calls server-side, org-scoped.
-
-Client-side "AI improve" button → calls edge function → shows 3 options in a popover → user picks one.
-
----
-
-## Contact Timeline Integration
-
-Campaign events are appended to `crm_activity_log` using new `type` values:
-- `campaign_sent`
-- `campaign_opened`
-- `campaign_clicked`
-- `campaign_bounced`
-- `campaign_unsubscribed`
-
-The `ActivityTimeline.tsx` component and its `typeConfig` map will be extended to render these types with a `Mail` icon and appropriate color (`bg-indigo-100 text-indigo-700`).
-
----
-
-## Implementation Sequence
-
-1. **Database migration** — create all 5 tables with RLS policies
-2. **Types & service layer** — `src/types/campaigns.ts` + `src/services/useCampaigns.ts`
-3. **CRMSubNav** — add Campaigns link
-4. **App.tsx** — add all 8 routes (7 internal + 1 public unsubscribe)
-5. **CampaignsPage** — list view with status filters + "New Campaign" button
-6. **CampaignSetupPage** — Mailchimp-style checklist layout
-7. **AudienceSelector component** — source picker + filters + live count
-8. **EmailBuilder + BlockLibrary + BlockPropertiesPanel** — drag-and-drop using @dnd-kit
-9. **HtmlRenderer** — JSON → email HTML converter
-10. **CampaignBuilderPage** — full-screen page wrapping the builder
-11. **TemplatesPage** — gallery of saved templates
-12. **CampaignSettingsPage** — sender identities + suppressions management
-13. **Edge functions** — send-campaign, send-test-campaign-email, estimate-campaign-recipients, track-campaign-event, campaign-unsubscribe, ai-improve-subject
-14. **CampaignReportPage** — post-send analytics with Recharts
-15. **ActivityTimeline** — extend with campaign event types
-16. **UnsubscribePage** — public page
+### `ai-improve-subject` Edge Function
+Uses `LOVABLE_API_KEY` (Gemini 2.5 Flash — no additional cost to user).
+- Input: `{ subject, preview_text, campaign_name, org_id }`
+- Prompt: generates 3 alternative subject lines ranked by engagement, staying on-brand
+- Output: `{ suggestions: string[] }` — shown in a popover on the setup page
 
 ---
 
-## Technical Notes & Risk Mitigations
+## ActivityTimeline Extension
 
-- **No new email library**: Resend is already in use. The from-address for MVP will use `hello@globalyos.com` (same as all other system emails). Sender identity verification is a UI-only feature in MVP — the actual Resend domain auth is handled in Resend dashboard settings.
-- **Builder drag-and-drop**: `@dnd-kit/core` and `@dnd-kit/sortable` are already installed — no new dependencies.
-- **HTML generation**: Done client-side for preview, server-side (edge function) for actual send. Both use the same `HtmlRenderer` logic — on the server side it is inlined as a string template function.
-- **Suppression check**: Checked in `send-campaign` edge function before each batch to ensure no newly-unsubscribed contacts are emailed.
-- **Slug/token uniqueness**: `unsubscribe_token` uses `encode(gen_random_bytes(24), 'base64url')` — cryptographically random and URL-safe.
-- **Campaign compliance gate**: The "Send" button is disabled unless the content JSON contains at least one `footer` block with an unsubscribe link. This is validated both client-side (UI warning) and server-side (edge function rejects if footer block missing).
-- **Rate limiting on Resend**: Batches of 50 with a small delay between batches to stay within Resend free tier limits.
-- **Mobile builder**: The builder itself is desktop-only (too complex for mobile). A "Mobile preview" toggle renders the canvas at 375px width, simulating mobile rendering.
+Add to `typeConfig` in `ActivityTimeline.tsx`:
+```typescript
+campaign_sent:         { icon: Send,        color: 'bg-indigo-100 text-indigo-700',  label: 'Campaign Sent' }
+campaign_opened:       { icon: MailOpen,    color: 'bg-blue-100 text-blue-700',      label: 'Email Opened' }
+campaign_clicked:      { icon: MousePointer, color: 'bg-green-100 text-green-700',  label: 'Link Clicked' }
+campaign_bounced:      { icon: AlertCircle, color: 'bg-red-100 text-red-700',        label: 'Bounced' }
+campaign_unsubscribed: { icon: UserMinus,   color: 'bg-orange-100 text-orange-700',  label: 'Unsubscribed' }
+```
+
+Add these to `filterOptions` array so users can filter contact timelines by campaign events.
 
 ---
 
-## What Is NOT in MVP (Future Phases)
-- Real-time Resend webhook for delivery/bounce events (infrastructure is ready — just needs a webhook endpoint registered in Resend + a `stripe-webhook`-style handler)
-- Domain authentication (SPF/DKIM) wizard — instructions only in Settings
+## App.tsx Routes to Add
+
+```tsx
+// Campaigns pages (lazy imports)
+const CampaignsPage = lazy(() => import('./pages/crm/campaigns/CampaignsPage'));
+const CampaignSetupPage = lazy(() => import('./pages/crm/campaigns/CampaignSetupPage'));
+const CampaignBuilderPage = lazy(() => import('./pages/crm/campaigns/CampaignBuilderPage'));
+const CampaignReportPage = lazy(() => import('./pages/crm/campaigns/CampaignReportPage'));
+const TemplatesPage = lazy(() => import('./pages/crm/campaigns/TemplatesPage'));
+const CampaignSettingsPage = lazy(() => import('./pages/crm/campaigns/CampaignSettingsPage'));
+const UnsubscribePage = lazy(() => import('./pages/public/UnsubscribePage'));
+
+// Under /org/:orgCode, inside crm FeatureProtectedRoute:
+<Route path="crm/campaigns" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CampaignsPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+<Route path="crm/campaigns/new" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CampaignSetupPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+<Route path="crm/campaigns/templates" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><TemplatesPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+<Route path="crm/campaigns/settings" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CampaignSettingsPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+<Route path="crm/campaigns/:id" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CampaignSetupPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+<Route path="crm/campaigns/:id/builder" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CampaignBuilderPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+<Route path="crm/campaigns/:id/report" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CampaignReportPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+
+// Public (outside org routes):
+<Route path="/e/unsub/:token" element={<UnsubscribePage />} />
+```
+
+Note: `crm/campaigns/templates` and `crm/campaigns/settings` must be declared BEFORE `crm/campaigns/:id` to avoid route conflicts.
+
+---
+
+## config.toml Additions
+
+```toml
+[functions.send-campaign]
+verify_jwt = false
+
+[functions.send-test-campaign-email]
+verify_jwt = false
+
+[functions.estimate-campaign-recipients]
+verify_jwt = false
+
+[functions.track-campaign-event]
+verify_jwt = false
+
+[functions.campaign-unsubscribe]
+verify_jwt = false
+
+[functions.ai-improve-subject]
+verify_jwt = false
+```
+
+---
+
+## Technical Decisions & Trade-offs
+
+- **No new dependencies**: `@dnd-kit` (already installed), `recharts` (already installed), `sonner` (already installed), `LOVABLE_API_KEY` (already available)
+- **From address**: All emails sent as `{from_name} <hello@globalyos.com>`. The `sender_identities` table stores the display name and is used in the From header. Actual Resend domain auth is outside MVP scope
+- **Batch size**: 50 emails per batch to respect Resend rate limits. Small delay (100ms) between batches
+- **Builder mobile**: Builder UI itself is desktop-only (too complex for mobile interaction). A "Mobile Preview" button renders canvas at 375px via CSS scale transform
+- **Compliance gate**: "Send" button is disabled client-side AND rejected server-side if no `footer` block exists in `content_json`
+- **Columns block**: MVP uses fixed 2-column text-only layout. Full nested DnD for sub-blocks is phase 2
+- **Open tracking**: Pixel injected into HTML before `</body>` only when `track_opens = true`. iOS MPP will cause false opens — this is an industry-wide limitation noted in the UI with a small info tooltip
+- **Click tracking**: All `<a href>` links in sent HTML are rewritten to tracking redirect URLs server-side in the `send-campaign` function
+- **Route ordering**: `templates` and `settings` routes declared before `:id` to prevent conflict
+
+---
+
+## Security Guarantees
+
+- Every DB query in the service layer scoped by `organization_id` derived from `employees.user_id = auth.uid()`, never from request body
+- `campaign-unsubscribe` and `track-campaign-event` are public but only accept opaque random tokens — no org IDs exposed
+- `email_suppressions` checked on every send batch — contacts that unsubscribe after campaign creation are excluded from ongoing batches
+- RLS policies are applied at DB layer as a double-check on all 5 new tables
+- AI calls in `ai-improve-subject` are scoped to campaign data only — no cross-org leakage
+
+---
+
+## Future Phases (Out of Scope for MVP)
+
+- Real-time Resend webhook for delivery/bounce confirmation (architecture ready — just needs a webhook endpoint + Resend dashboard configuration)
+- Domain authentication wizard (SPF/DKIM instructions)
 - A/B subject line testing
-- Multi-step automation flows
-- CSV import of external contacts
+- Multi-step email automations / drip campaigns
+- Full nested drag-and-drop within Columns blocks
+- CSV import of external contacts to `campaign_recipients`
+- Dedicated IP warmup tooling
