@@ -10839,6 +10839,11 @@ export type Database = {
         Row: {
           availability_calendar_ids: string[] | null
           created_at: string
+          google_access_token: string | null
+          google_calendar_connected: boolean
+          google_email: string | null
+          google_refresh_token: string | null
+          google_token_expires_at: string | null
           id: string
           is_google_meet_enabled: boolean
           organization_id: string
@@ -10850,6 +10855,11 @@ export type Database = {
         Insert: {
           availability_calendar_ids?: string[] | null
           created_at?: string
+          google_access_token?: string | null
+          google_calendar_connected?: boolean
+          google_email?: string | null
+          google_refresh_token?: string | null
+          google_token_expires_at?: string | null
           id?: string
           is_google_meet_enabled?: boolean
           organization_id: string
@@ -10861,6 +10871,11 @@ export type Database = {
         Update: {
           availability_calendar_ids?: string[] | null
           created_at?: string
+          google_access_token?: string | null
+          google_calendar_connected?: boolean
+          google_email?: string | null
+          google_refresh_token?: string | null
+          google_token_expires_at?: string | null
           id?: string
           is_google_meet_enabled?: boolean
           organization_id?: string
