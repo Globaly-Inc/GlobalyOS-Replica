@@ -112,6 +112,11 @@ const WhatsAppContactsPage = lazy(() => import('./pages/crm/whatsapp/WhatsAppCon
 const WhatsAppFlowsPage = lazy(() => import('./pages/crm/whatsapp/WhatsAppFlowsPage'));
 const WhatsAppSettingsPage = lazy(() => import('./pages/crm/whatsapp/WhatsAppSettingsPage'));
 const WhatsAppSequencesPage = lazy(() => import('./pages/crm/whatsapp/WhatsAppSequencesPage'));
+
+// Omni-Channel Inbox pages
+const InboxPage = lazy(() => import('./pages/crm/inbox/InboxPage'));
+const InboxChannelsPage = lazy(() => import('./pages/crm/inbox/InboxChannelsPage'));
+
 const Payroll = lazy(() => import('./pages/Payroll'));
 
 // Sendbird Calls UI (lazy)
@@ -311,7 +316,10 @@ const App = () => <QueryClientProvider client={queryClient}>
                    <Route path="crm/campaigns/:id" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CampaignSetupPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/campaigns/:id/builder" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CampaignBuilderPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/campaigns/:id/report" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CampaignReportPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
-                   {/* WhatsApp routes */}
+                   {/* Omni-Channel Inbox routes */}
+                   <Route path="crm/inbox" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><InboxPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/inbox/channels" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><InboxChannelsPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   {/* WhatsApp routes (legacy, kept for backward compatibility) */}
                    <Route path="crm/whatsapp" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FeatureProtectedRoute feature="whatsapp"><WhatsAppOverviewPage /></FeatureProtectedRoute></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/whatsapp/inbox" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FeatureProtectedRoute feature="whatsapp"><WhatsAppInboxPage /></FeatureProtectedRoute></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/whatsapp/templates" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FeatureProtectedRoute feature="whatsapp"><WhatsAppTemplatesPage /></FeatureProtectedRoute></FeatureProtectedRoute></OrgProtectedRoute>} />
