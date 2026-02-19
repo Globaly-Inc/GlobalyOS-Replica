@@ -177,6 +177,58 @@ const handler = async (req: Request): Promise<Response> => {
       .gte("start_at_utc", dayStart)
       .lte("start_at_utc", dayEnd);
 
+    // ── Google Calendar busy time check ──
+    let googleBusyTimes: Array<{ start_at_utc: string; end_at_utc: string }> = [];
+    const hosts = eventType.hosts || [];
+    const primaryHost = hosts.find((h: any) => h.is_primary) || hosts[0];
+
+    if (primaryHost?.employee?.user_id) {
+      try {
+        const { data: gcalSettings } = await supabase
+          .from("scheduler_integration_settings")
+          .select("*")
+          .eq("organization_id", org.id)
+          .eq("user_id", primaryHost.employee.user_id)
+          .eq("google_calendar_connected", true)
+          .maybeSingle();
+
+        if (gcalSettings) {
+          const proxyUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/google-calendar-proxy`;
+          const calendarIds = gcalSettings.availability_calendar_ids?.length
+            ? gcalSettings.availability_calendar_ids
+            : ["primary"];
+
+          const busyRes = await fetch(proxyUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            },
+            body: JSON.stringify({
+              action: "get_busy_times",
+              user_id: primaryHost.employee.user_id,
+              organization_id: org.id,
+              time_min: dayStart,
+              time_max: dayEnd,
+              calendar_ids: calendarIds,
+            }),
+          });
+
+          if (busyRes.ok) {
+            const busyData = await busyRes.json();
+            googleBusyTimes = (busyData.busy_times || []).map((bt: any) => ({
+              start_at_utc: bt.start,
+              end_at_utc: bt.end,
+            }));
+          }
+        }
+      } catch (gcalErr) {
+        console.warn("Google Calendar busy time check failed (non-blocking):", gcalErr);
+      }
+    }
+
+    const allBookings = [...(existingBookings || []), ...googleBusyTimes];
+
     const slots = generateSlots(
       dateStr,
       dayAvailability.start,
@@ -184,7 +236,7 @@ const handler = async (req: Request): Promise<Response> => {
       eventType.duration_minutes,
       availability.buffer_before_minutes || 0,
       availability.buffer_after_minutes || 0,
-      existingBookings || [],
+      allBookings,
       availability.min_notice_hours || 2,
       inviteeTimezone
     );

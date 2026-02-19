@@ -163,6 +163,54 @@ const handler = async (req: Request): Promise<Response> => {
       contactId = newContact?.id || null;
     }
 
+    // ── Google Calendar event creation ──
+    let googleEventId: string | null = null;
+    let googleMeetLink: string | null = null;
+
+    if (primaryHost?.employee?.user_id) {
+      try {
+        const { data: gcalSettings } = await supabase
+          .from("scheduler_integration_settings")
+          .select("*")
+          .eq("organization_id", org.id)
+          .eq("user_id", primaryHost.employee.user_id)
+          .eq("google_calendar_connected", true)
+          .maybeSingle();
+
+        if (gcalSettings) {
+          const proxyUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/google-calendar-proxy`;
+          const createMeetLink = gcalSettings.is_google_meet_enabled;
+
+          const calRes = await fetch(proxyUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            },
+            body: JSON.stringify({
+              action: "create_event",
+              user_id: primaryHost.employee.user_id,
+              organization_id: org.id,
+              summary: `${eventType.name} with ${invitee_name}`,
+              description: `Booked via ${org.name} scheduler.\nInvitee: ${invitee_name} (${invitee_email})`,
+              start_time: start_at_utc,
+              end_time: endTime.toISOString(),
+              attendees: [invitee_email],
+              create_meet_link: createMeetLink,
+            }),
+          });
+
+          if (calRes.ok) {
+            const calData = await calRes.json();
+            googleEventId = calData.google_event_id || null;
+            googleMeetLink = calData.google_meet_link || null;
+          }
+        }
+      } catch (gcalErr) {
+        console.warn("Google Calendar event creation failed (non-blocking):", gcalErr);
+      }
+    }
+
     // Create the booking
     const { data: booking, error: bookingError } = await supabase
       .from("scheduler_bookings")
@@ -178,6 +226,8 @@ const handler = async (req: Request): Promise<Response> => {
         end_at_utc: endTime.toISOString(),
         status: "scheduled",
         answers_json: answers_json || {},
+        google_event_id: googleEventId,
+        google_meet_link: googleMeetLink,
       })
       .select()
       .single();
@@ -191,7 +241,7 @@ const handler = async (req: Request): Promise<Response> => {
         contact_id: contactId,
         employee_id: hostEmployeeId,
         type: "meeting",
-        content: `Meeting scheduled: ${eventType.name} on ${new Date(start_at_utc).toLocaleString()}`,
+        content: `Meeting scheduled: ${eventType.name} on ${new Date(start_at_utc).toLocaleString()}${googleMeetLink ? ` (Google Meet: ${googleMeetLink})` : ""}`,
       });
     }
 
@@ -221,10 +271,11 @@ const handler = async (req: Request): Promise<Response> => {
           host_employee: primaryHost?.employee,
           start_at_utc: start_at_utc,
           duration_minutes: eventType.duration_minutes,
-          location_type: eventType.location_type,
-          location_value: eventType.location_value,
-          cancel_link: cancelLink,
-          reschedule_link: rescheduleLink,
+           location_type: eventType.location_type,
+           location_value: eventType.location_value,
+           google_meet_link: googleMeetLink,
+           cancel_link: cancelLink,
+           reschedule_link: rescheduleLink,
         }),
       });
     } catch (notifyErr) {

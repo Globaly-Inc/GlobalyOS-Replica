@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, Chrome, Zap, Mail, CheckCircle, XCircle, ToggleLeft, Info, Settings } from 'lucide-react';
+import { Calendar, Chrome, Zap, Mail, CheckCircle, XCircle, Info, Settings, Loader2, ExternalLink, Unplug } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -8,13 +8,18 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
 import { useIntegrationSettings, useUpdateIntegrationSettings } from '@/services/useScheduler';
+import { useGoogleCalendarConnect, useGoogleCalendarDisconnect } from '@/services/useGoogleCalendar';
 
 export function IntegrationsTab() {
   const [calendarInfoOpen, setCalendarInfoOpen] = useState(false);
   const { data: settings, isLoading } = useIntegrationSettings();
   const updateSettings = useUpdateIntegrationSettings();
+  const connectGoogle = useGoogleCalendarConnect();
+  const disconnectGoogle = useGoogleCalendarDisconnect();
 
   const isGoogleMeetEnabled = settings?.is_google_meet_enabled ?? false;
+  const isGoogleConnected = settings?.google_calendar_connected ?? false;
+  const googleEmail = (settings as any)?.google_email ?? null;
 
   const handleToggleGoogleMeet = (value: boolean) => {
     updateSettings.mutate({ is_google_meet_enabled: value });
@@ -69,28 +74,66 @@ export function IntegrationsTab() {
             <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold text-foreground">Google Calendar</h3>
-                <Badge variant="outline" className="text-xs border-amber-400 text-amber-600 dark:text-amber-400">
-                  Phase 2
-                </Badge>
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-                <div className="w-2 h-2 rounded-full bg-muted-foreground/50" />
-                Not connected
-              </div>
+              {isGoogleConnected ? (
+                <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400 font-medium">
+                  <CheckCircle className="h-4 w-4" />
+                  Connected{googleEmail ? ` · ${googleEmail}` : ''}
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+                  <div className="w-2 h-2 rounded-full bg-muted-foreground/50" />
+                  Not connected
+                </div>
+              )}
             </div>
             <p className="text-sm text-muted-foreground mb-4">
-              Connect your Google Calendar to automatically sync availability and create Google Meet links for every booking.
+              {isGoogleConnected
+                ? 'Your Google Calendar is synced. Availability is checked in real time and events are created for every booking.'
+                : 'Connect your Google Calendar to automatically sync availability and create Google Meet links for every booking.'}
             </p>
 
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2 mb-4"
-              onClick={() => setCalendarInfoOpen(true)}
-            >
-              <Info className="h-4 w-4" />
-              Learn about Google Calendar sync
-            </Button>
+            <div className="flex items-center gap-2 mb-4">
+              {isGoogleConnected ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 text-destructive hover:text-destructive"
+                  onClick={() => disconnectGoogle.mutate()}
+                  disabled={disconnectGoogle.isPending}
+                >
+                  {disconnectGoogle.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Unplug className="h-4 w-4" />
+                  )}
+                  Disconnect
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => connectGoogle.mutate()}
+                  disabled={connectGoogle.isPending}
+                >
+                  {connectGoogle.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ExternalLink className="h-4 w-4" />
+                  )}
+                  Connect Google Calendar
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-2"
+                onClick={() => setCalendarInfoOpen(true)}
+              >
+                <Info className="h-4 w-4" />
+                Learn more
+              </Button>
+            </div>
 
             <div className="space-y-2 pl-0.5">
               {[
@@ -127,28 +170,30 @@ export function IntegrationsTab() {
                 Auto-create Google Meet links
               </Label>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {isGoogleMeetEnabled
-                  ? 'Links will be auto-added when Google Calendar is connected (Phase 2)'
-                  : 'Requires Google Calendar connection (coming in Phase 2)'}
+                {isGoogleConnected
+                  ? (isGoogleMeetEnabled
+                    ? 'A unique Google Meet link will be added to every booking'
+                    : 'Enable to automatically add Google Meet links to bookings')
+                  : 'Connect Google Calendar first to use this feature'}
               </p>
             </div>
             <Switch
               id="gmeet-toggle"
               checked={isGoogleMeetEnabled}
               onCheckedChange={handleToggleGoogleMeet}
-              disabled={updateSettings.isPending || isLoading}
+              disabled={updateSettings.isPending || isLoading || !isGoogleConnected}
             />
           </div>
         </div>
       </div>
 
-      {/* Phase 1 availability note */}
+      {/* Availability note */}
       <div className="bg-muted/40 border border-border rounded-xl p-5">
-        <h4 className="font-medium text-foreground mb-1 text-sm">How availability works right now</h4>
+        <h4 className="font-medium text-foreground mb-1 text-sm">How availability works</h4>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Your availability is driven by the working hours you configure per event type. Set your working hours,
-          buffer times, and minimum notice — the booking page shows only slots within those windows,
-          automatically excluding already-booked times. Google Calendar sync arrives in Phase 2.
+          {isGoogleConnected
+            ? 'Your availability combines your working hours configuration with real-time Google Calendar data. Slots that conflict with existing calendar events are automatically hidden.'
+            : 'Your availability is driven by the working hours you configure per event type. Connect Google Calendar above to also block out times from your personal calendar.'}
         </p>
       </div>
 
@@ -166,7 +211,7 @@ export function IntegrationsTab() {
               Google Calendar Integration
             </DialogTitle>
             <DialogDescription>
-              What's coming in Phase 2
+              How Google Calendar sync works
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -185,11 +230,6 @@ export function IntegrationsTab() {
                   </div>
                 </div>
               ))}
-            </div>
-            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
-              <p className="text-xs text-amber-700 dark:text-amber-400">
-                Google Calendar sync is coming in Phase 2. In the meantime, use the working hours configuration in each event type to control your availability.
-              </p>
             </div>
           </div>
         </DialogContent>
