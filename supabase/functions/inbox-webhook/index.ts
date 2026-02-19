@@ -274,12 +274,139 @@ async function handleTelegramWebhook(supabase: any, payload: any) {
     const message = payload?.message;
     if (!message) return { success: true, error: "" };
 
-    // TODO: Match bot token to channel, upsert contact/conversation/message
-    // Scaffold - log and acknowledge
-    console.log("Telegram webhook received:", JSON.stringify(message).substring(0, 200));
+    const chatId = String(message.chat?.id);
+    const text = message.text || message.caption || "";
+    const fromUser = message.from;
+    const contactName = [fromUser?.first_name, fromUser?.last_name].filter(Boolean).join(" ") || null;
+    const username = fromUser?.username || null;
+
+    // Find the channel by matching — we search all Telegram channels
+    const { data: channels } = await supabase
+      .from("inbox_channels")
+      .select("*")
+      .eq("channel_type", "telegram")
+      .eq("is_active", true);
+
+    if (!channels || channels.length === 0) {
+      console.log("No active Telegram channels found");
+      return { success: true, error: "" };
+    }
+
+    // Use first active Telegram channel (multi-bot: match by bot_token in future)
+    const channel = channels[0];
+    const orgId = channel.organization_id;
+
+    // Update webhook timestamp
+    await supabase
+      .from("inbox_channels")
+      .update({ last_webhook_at: new Date().toISOString(), webhook_status: "connected" })
+      .eq("id", channel.id);
+
+    // Upsert contact by Telegram chat ID
+    const handle = username ? `@${username}` : chatId;
+    let { data: contact } = await supabase
+      .from("inbox_contacts")
+      .select("id")
+      .eq("organization_id", orgId)
+      .eq("handles->telegram", JSON.stringify(chatId))
+      .single();
+
+    if (!contact) {
+      // Try by username
+      if (username) {
+        const { data: byUsername } = await supabase
+          .from("inbox_contacts")
+          .select("id")
+          .eq("organization_id", orgId)
+          .eq("handles->telegram_username", JSON.stringify(username))
+          .single();
+        contact = byUsername;
+      }
+    }
+
+    if (!contact) {
+      const { data: newContact } = await supabase
+        .from("inbox_contacts")
+        .insert({
+          organization_id: orgId,
+          name: contactName,
+          handles: { telegram: chatId, telegram_username: username },
+          consent: { telegram: { status: "opted_in" } },
+        })
+        .select()
+        .single();
+      contact = newContact;
+    }
+
+    if (!contact) return { success: false, error: "Failed to upsert contact" };
+
+    // Upsert conversation
+    let { data: conversation } = await supabase
+      .from("inbox_conversations")
+      .select("id, unread_count")
+      .eq("organization_id", orgId)
+      .eq("channel_type", "telegram")
+      .eq("contact_id", contact.id)
+      .neq("status", "closed")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (!conversation) {
+      const { data: newConv } = await supabase
+        .from("inbox_conversations")
+        .insert({
+          organization_id: orgId,
+          channel_type: "telegram",
+          channel_id: channel.id,
+          contact_id: contact.id,
+          status: "open",
+          channel_thread_ref: chatId,
+          last_message_at: new Date().toISOString(),
+          last_inbound_at: new Date().toISOString(),
+          unread_count: 1,
+        })
+        .select()
+        .single();
+      conversation = newConv;
+    } else {
+      await supabase
+        .from("inbox_conversations")
+        .update({
+          last_message_at: new Date().toISOString(),
+          last_inbound_at: new Date().toISOString(),
+          unread_count: (conversation.unread_count || 0) + 1,
+          status: "open",
+        })
+        .eq("id", conversation.id);
+    }
+
+    if (!conversation) return { success: false, error: "Failed to upsert conversation" };
+
+    // Determine message type
+    let msgType = "text";
+    const mediaUrls: string[] = [];
+    if (message.photo) msgType = "image";
+    else if (message.video) msgType = "video";
+    else if (message.document) msgType = "document";
+    else if (message.voice || message.audio) msgType = "audio";
+
+    // Insert message
+    await supabase.from("inbox_messages").insert({
+      organization_id: orgId,
+      conversation_id: conversation.id,
+      direction: "inbound",
+      msg_type: msgType,
+      content: { body: text, raw: message },
+      media_urls: mediaUrls,
+      provider_message_id: String(message.message_id),
+      delivery_status: "delivered",
+      created_by_type: "contact",
+    });
 
     return { success: true, error: "" };
   } catch (err) {
+    console.error("Telegram webhook processing error:", err);
     return { success: false, error: err instanceof Error ? err.message : "Unknown error" };
   }
 }

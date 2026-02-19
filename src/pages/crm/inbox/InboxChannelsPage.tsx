@@ -2,11 +2,18 @@ import { useState } from 'react';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useInboxChannels } from '@/hooks/useInbox';
 import { ChannelBadge } from '@/components/inbox/ChannelBadge';
+import { ConnectChannelDialog } from '@/components/inbox/ConnectChannelDialog';
+import { InboxSubNav } from '@/components/inbox/InboxSubNav';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Settings, Wifi, WifiOff } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Plus, Settings, Wifi, WifiOff, Bot } from 'lucide-react';
 import { format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import type { InboxChannelType } from '@/types/inbox';
 import { CHANNEL_META } from '@/types/inbox';
 
@@ -21,9 +28,26 @@ const availableChannels: { type: InboxChannelType; description: string }[] = [
 
 const InboxChannelsPage = () => {
   const { data: channels = [], isLoading } = useInboxChannels();
+  const [connectChannel, setConnectChannel] = useState<InboxChannelType | null>(null);
+  const qc = useQueryClient();
+
+  const toggleAutoReply = async (channelId: string, enabled: boolean) => {
+    const { error } = await supabase
+      .from('inbox_channels')
+      .update({ ai_auto_reply_enabled: enabled })
+      .eq('id', channelId);
+    if (error) {
+      toast.error('Failed to update');
+    } else {
+      toast.success(enabled ? 'AI auto-reply enabled' : 'AI auto-reply disabled');
+      qc.invalidateQueries({ queryKey: ['inbox-channels'] });
+    }
+  };
 
   return (
-    <div className="container px-4 md:px-8 py-6 space-y-6">
+    <div>
+      <InboxSubNav />
+      <div className="container px-4 md:px-8 py-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Channels</h1>
@@ -58,7 +82,7 @@ const InboxChannelsPage = () => {
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="pt-0">
+                <CardContent className="pt-0 space-y-3">
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span>
                       Last webhook: {ch.last_webhook_at
@@ -70,8 +94,18 @@ const InboxChannelsPage = () => {
                     </Button>
                   </div>
                   {ch.last_error && (
-                    <p className="text-xs text-destructive mt-2 truncate">{ch.last_error}</p>
+                    <p className="text-xs text-destructive truncate">{ch.last_error}</p>
                   )}
+                  <div className="flex items-center justify-between pt-1 border-t border-border">
+                    <div className="flex items-center gap-1.5">
+                      <Bot className="h-3.5 w-3.5 text-violet-500" />
+                      <Label className="text-xs font-medium cursor-pointer">AI Auto-Reply</Label>
+                    </div>
+                    <Switch
+                      checked={(ch as any).ai_auto_reply_enabled || false}
+                      onCheckedChange={(checked) => toggleAutoReply(ch.id, checked)}
+                    />
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -97,13 +131,20 @@ const InboxChannelsPage = () => {
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <Button variant="outline" size="sm" className="w-full text-xs">
+                  <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setConnectChannel(ac.type)}>
                     <Plus className="h-3.5 w-3.5 mr-1" /> Connect
                   </Button>
                 </CardContent>
               </Card>
             ))}
         </div>
+      </div>
+
+      <ConnectChannelDialog
+        open={!!connectChannel}
+        onOpenChange={(open) => !open && setConnectChannel(null)}
+        channelType={connectChannel}
+      />
       </div>
     </div>
   );

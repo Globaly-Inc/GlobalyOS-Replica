@@ -113,6 +113,20 @@ const InboxPage = () => {
     );
   };
 
+  const handleUpdateTags = (tags: string[]) => {
+    if (!activeConversationId) return;
+    updateConversation.mutate(
+      { conversationId: activeConversationId, updates: { tags } },
+    );
+  };
+
+  const handleUpdatePriority = (priority: string) => {
+    if (!activeConversationId) return;
+    updateConversation.mutate(
+      { conversationId: activeConversationId, updates: { priority } },
+    );
+  };
+
   return (
     <div>
       <InboxSubNav />
@@ -163,6 +177,8 @@ const InboxPage = () => {
             conversation={activeConversation}
             onUpdateStatus={handleUpdateStatus}
             onAssign={handleAssign}
+            onUpdateTags={handleUpdateTags}
+            onUpdatePriority={handleUpdatePriority}
           />
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { ChannelBadge } from './ChannelBadge';
+import { InboxTagManager } from './InboxTagManager';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -10,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { User, Phone, Mail, Tag, Clock, UserCheck, XCircle, Pause, ExternalLink } from 'lucide-react';
+import { Phone, Mail, Clock, UserCheck, XCircle, Pause, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import type { InboxConversation, InboxContact, InboxConversationStatus } from '@/types/inbox';
 
@@ -18,9 +19,11 @@ interface InboxContactPanelProps {
   conversation: (InboxConversation & { inbox_contacts?: InboxContact }) | undefined;
   onUpdateStatus: (status: InboxConversationStatus) => void;
   onAssign: (userId: string | null) => void;
+  onUpdateTags?: (tags: string[]) => void;
+  onUpdatePriority?: (priority: string) => void;
 }
 
-export const InboxContactPanel = ({ conversation, onUpdateStatus, onAssign }: InboxContactPanelProps) => {
+export const InboxContactPanel = ({ conversation, onUpdateStatus, onAssign, onUpdateTags, onUpdatePriority }: InboxContactPanelProps) => {
   if (!conversation) return null;
 
   const contact = conversation.inbox_contacts;
@@ -67,7 +70,7 @@ export const InboxContactPanel = ({ conversation, onUpdateStatus, onAssign }: In
 
         <Separator />
 
-        {/* Status & Assignment */}
+        {/* Status & Priority */}
         <div className="space-y-3">
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</h4>
 
@@ -85,6 +88,24 @@ export const InboxContactPanel = ({ conversation, onUpdateStatus, onAssign }: In
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="snoozed">Snoozed</SelectItem>
                 <SelectItem value="closed">Closed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs text-muted-foreground">Priority</label>
+            <Select
+              value={conversation.priority || 'normal'}
+              onValueChange={(v) => onUpdatePriority?.(v)}
+            >
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="normal">Normal</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="urgent">Urgent</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -116,17 +137,10 @@ export const InboxContactPanel = ({ conversation, onUpdateStatus, onAssign }: In
         {/* Tags */}
         <div className="space-y-2">
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tags</h4>
-          <div className="flex flex-wrap gap-1">
-            {conversation.tags.length > 0 ? (
-              conversation.tags.map((tag) => (
-                <Badge key={tag} variant="secondary" className="text-[10px]">
-                  {tag}
-                </Badge>
-              ))
-            ) : (
-              <span className="text-xs text-muted-foreground">No tags</span>
-            )}
-          </div>
+          <InboxTagManager
+            tags={conversation.tags || []}
+            onUpdate={(tags) => onUpdateTags?.(tags)}
+          />
         </div>
 
         <Separator />
