@@ -87,6 +87,7 @@ const CRMContactProfile = lazy(() => import('./pages/CRMContactProfile'));
 const CRMCompanyProfile = lazy(() => import('./pages/CRMCompanyProfile'));
 const CRMSettings = lazy(() => import('./pages/CRMSettings'));
 const SchedulerPage = lazy(() => import('./pages/crm/scheduler/SchedulerPage'));
+const CreateEventTypePage = lazy(() => import('./pages/crm/scheduler/CreateEventTypePage'));
 const PublicBookingPage = lazy(() => import('./pages/scheduler/PublicBookingPage'));
 const BookingCancelPage = lazy(() => import('./pages/scheduler/BookingCancelPage'));
 const BookingReschedulePage = lazy(() => import('./pages/scheduler/BookingReschedulePage'));
@@ -274,7 +275,8 @@ const App = () => <QueryClientProvider client={queryClient}>
                    <Route path="crm/companies/:id" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CRMCompanyProfile /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/settings" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CRMSettings /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/scheduler" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><SchedulerPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
-                   <Route path="crm/scheduler/:eventSlug/edit" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><SchedulerPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/scheduler/new" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CreateEventTypePage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/scheduler/:id/edit" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CreateEventTypePage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="payroll" element={<OrgProtectedRoute><FeatureProtectedRoute feature="payroll"><Payroll /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="workflows" element={<OrgProtectedRoute><FeatureProtectedRoute feature="workflows"><Workflows /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="workflows/:workflowId" element={<OrgProtectedRoute><FeatureProtectedRoute feature="workflows"><ApplicationDetail /></FeatureProtectedRoute></OrgProtectedRoute>} />

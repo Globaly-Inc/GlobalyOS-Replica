@@ -1,6 +1,4 @@
-import { useState } from 'react';
-import { useOrganization } from '@/hooks/useOrganization';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Calendar, Clock, Users, Settings, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,12 +6,10 @@ import { PageBody } from '@/components/ui/page-body';
 import { EventTypesTab } from './EventTypesTab';
 import { ScheduledEventsTab } from './ScheduledEventsTab';
 import { IntegrationsTab } from './IntegrationsTab';
-import { CreateEventTypeWizard } from '@/components/crm/scheduler/CreateEventTypeWizard';
 
 export default function SchedulerPage() {
-  const { currentOrg } = useOrganization();
-  const [wizardOpen, setWizardOpen] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const { orgCode } = useParams<{ orgCode: string }>();
 
   return (
     <PageBody>
@@ -31,7 +27,7 @@ export default function SchedulerPage() {
           </div>
         </div>
         <Button
-          onClick={() => { setEditId(null); setWizardOpen(true); }}
+          onClick={() => navigate(`/org/${orgCode}/crm/scheduler/new`)}
           className="gap-2"
         >
           <Plus className="h-4 w-4" />
@@ -58,8 +54,8 @@ export default function SchedulerPage() {
 
         <TabsContent value="event-types">
           <EventTypesTab
-            onEdit={(id) => { setEditId(id); setWizardOpen(true); }}
-            onNew={() => { setEditId(null); setWizardOpen(true); }}
+            onEdit={(id) => navigate(`/org/${orgCode}/crm/scheduler/${id}/edit`)}
+            onNew={() => navigate(`/org/${orgCode}/crm/scheduler/new`)}
           />
         </TabsContent>
 
@@ -71,13 +67,6 @@ export default function SchedulerPage() {
           <IntegrationsTab />
         </TabsContent>
       </Tabs>
-
-      {/* Create / Edit Wizard */}
-      <CreateEventTypeWizard
-        open={wizardOpen}
-        editId={editId}
-        onClose={() => { setWizardOpen(false); setEditId(null); }}
-      />
     </PageBody>
   );
 }

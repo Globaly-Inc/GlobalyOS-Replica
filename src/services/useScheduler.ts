@@ -237,6 +237,75 @@ export const useDeleteEventType = () => {
 };
 
 // ─────────────────────────────────────────────
+// INTEGRATION SETTINGS
+// ─────────────────────────────────────────────
+
+export const useIntegrationSettings = () => {
+  const { currentOrg } = useOrganization();
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ['scheduler_integration_settings', currentOrg?.id, user?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id || !user?.id) return null;
+      const { data, error } = await supabase
+        .from('scheduler_integration_settings')
+        .select('*')
+        .eq('organization_id', currentOrg.id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!currentOrg?.id && !!user?.id,
+  });
+};
+
+export const useUpdateIntegrationSettings = () => {
+  const queryClient = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (updates: { is_google_meet_enabled?: boolean }) => {
+      if (!currentOrg?.id || !user?.id) throw new Error('Not authenticated');
+
+      const { data: existing } = await supabase
+        .from('scheduler_integration_settings')
+        .select('id')
+        .eq('organization_id', currentOrg.id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase
+          .from('scheduler_integration_settings')
+          .update(updates)
+          .eq('id', existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('scheduler_integration_settings')
+          .insert({
+            organization_id: currentOrg.id,
+            user_id: user.id,
+            provider: 'google',
+            is_google_meet_enabled: updates.is_google_meet_enabled ?? false,
+            availability_calendar_ids: [],
+          });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['scheduler_integration_settings'] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to save settings');
+    },
+  });
+};
+
+// ─────────────────────────────────────────────
 // BOOKINGS
 // ─────────────────────────────────────────────
 
