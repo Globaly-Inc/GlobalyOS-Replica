@@ -5,7 +5,7 @@ import { CHANNEL_META } from '@/types/inbox';
 
 interface ChannelBadgeProps {
   channel: InboxChannelType;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
   showLabel?: boolean;
   className?: string;
 }
@@ -23,6 +23,7 @@ export const ChannelBadge = ({ channel, size = 'sm', showLabel = false, classNam
   const Icon = channelIcons[channel];
   const meta = CHANNEL_META[channel];
   const sizeClasses = {
+    xs: 'h-3 w-3',
     sm: 'h-4 w-4',
     md: 'h-5 w-5',
     lg: 'h-6 w-6',
@@ -32,6 +33,7 @@ export const ChannelBadge = ({ channel, size = 'sm', showLabel = false, classNam
     <div className={cn('flex items-center gap-1.5', className)}>
       <div
         className={cn('rounded-full flex items-center justify-center', {
+          'p-0': size === 'xs',
           'p-0.5': size === 'sm',
           'p-1': size === 'md',
           'p-1.5': size === 'lg',
