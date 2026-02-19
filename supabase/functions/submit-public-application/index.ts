@@ -58,6 +58,7 @@ Deno.serve(async (req) => {
     let candidateLocation: string | null = null;
   let coverLetter: string | null = null;
   let sourceOfApplication: string | null = null;
+  let employeeId: string | null = null;
   let resumeFile: File | null = null;
   let additionalFiles: File[] = [];
   let customFieldsData: Record<string, string> = {};
@@ -75,6 +76,7 @@ Deno.serve(async (req) => {
       candidateLocation = formData.get('candidate_location') as string || null;
       coverLetter = formData.get('cover_letter') as string || null;
       sourceOfApplication = formData.get('source_of_application') as string || null;
+      employeeId = formData.get('employee_id') as string || null;
       resumeFile = formData.get('resume') as File | null;
       // Collect additional files
       const allAdditional = formData.getAll('additional_files');
@@ -231,6 +233,15 @@ Deno.serve(async (req) => {
     if (existingCandidate) {
       candidateId = existingCandidate.id;
       console.log(`Found existing candidate: ${candidateId}`);
+
+      // If this is an internal application and the candidate doesn't have employee_id linked yet, update it
+      if (isInternalApplication && employeeId) {
+        await supabase
+          .from('candidates')
+          .update({ employee_id: employeeId })
+          .eq('id', candidateId)
+          .is('employee_id', null);
+      }
       
       // Check if already applied for this job
       const { data: existingApp } = await supabase
@@ -247,7 +258,7 @@ Deno.serve(async (req) => {
         );
       }
     } else {
-      // Create new candidate
+      // Create new candidate — link employee_id if this is an internal application
       const { data: newCandidate, error: candError } = await supabase
         .from('candidates')
         .insert({
@@ -258,7 +269,8 @@ Deno.serve(async (req) => {
           linkedin_url: sanitizedCandidate.linkedin_url,
           portfolio_url: sanitizedCandidate.portfolio_url,
           location: sanitizedCandidate.location,
-          source: 'careers_site',
+          source: isInternalApplication ? 'internal' : 'careers_site',
+          employee_id: isInternalApplication && employeeId ? employeeId : null,
         })
         .select('id')
         .single();
