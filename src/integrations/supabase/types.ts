@@ -13886,6 +13886,518 @@ export type Database = {
           },
         ]
       }
+      wa_accounts: {
+        Row: {
+          business_hours: Json | null
+          connected_at: string | null
+          created_at: string
+          display_name: string | null
+          display_phone: string | null
+          frequency_cap_per_day: number | null
+          id: string
+          organization_id: string
+          phone_number_id: string
+          status: string
+          updated_at: string
+          waba_id: string
+          webhook_secret: string | null
+        }
+        Insert: {
+          business_hours?: Json | null
+          connected_at?: string | null
+          created_at?: string
+          display_name?: string | null
+          display_phone?: string | null
+          frequency_cap_per_day?: number | null
+          id?: string
+          organization_id: string
+          phone_number_id: string
+          status?: string
+          updated_at?: string
+          waba_id: string
+          webhook_secret?: string | null
+        }
+        Update: {
+          business_hours?: Json | null
+          connected_at?: string | null
+          created_at?: string
+          display_name?: string | null
+          display_phone?: string | null
+          frequency_cap_per_day?: number | null
+          id?: string
+          organization_id?: string
+          phone_number_id?: string
+          status?: string
+          updated_at?: string
+          waba_id?: string
+          webhook_secret?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_accounts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wa_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          details: Json | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          organization_id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          organization_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_audit_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wa_automations: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          edges: Json | null
+          id: string
+          name: string
+          nodes: Json | null
+          organization_id: string
+          status: Database["public"]["Enums"]["wa_automation_status"]
+          trigger_config: Json | null
+          trigger_type: Database["public"]["Enums"]["wa_automation_trigger"]
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          edges?: Json | null
+          id?: string
+          name: string
+          nodes?: Json | null
+          organization_id: string
+          status?: Database["public"]["Enums"]["wa_automation_status"]
+          trigger_config?: Json | null
+          trigger_type?: Database["public"]["Enums"]["wa_automation_trigger"]
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          edges?: Json | null
+          id?: string
+          name?: string
+          nodes?: Json | null
+          organization_id?: string
+          status?: Database["public"]["Enums"]["wa_automation_status"]
+          trigger_config?: Json | null
+          trigger_type?: Database["public"]["Enums"]["wa_automation_trigger"]
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_automations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_automations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_automations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wa_campaigns: {
+        Row: {
+          audience_filters: Json | null
+          audience_source: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          organization_id: string
+          scheduled_at: string | null
+          started_at: string | null
+          stats: Json | null
+          status: Database["public"]["Enums"]["wa_campaign_status"]
+          template_id: string | null
+          throttle_per_second: number | null
+          updated_at: string
+          variable_mapping: Json | null
+        }
+        Insert: {
+          audience_filters?: Json | null
+          audience_source?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          organization_id: string
+          scheduled_at?: string | null
+          started_at?: string | null
+          stats?: Json | null
+          status?: Database["public"]["Enums"]["wa_campaign_status"]
+          template_id?: string | null
+          throttle_per_second?: number | null
+          updated_at?: string
+          variable_mapping?: Json | null
+        }
+        Update: {
+          audience_filters?: Json | null
+          audience_source?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          scheduled_at?: string | null
+          started_at?: string | null
+          stats?: Json | null
+          status?: Database["public"]["Enums"]["wa_campaign_status"]
+          template_id?: string | null
+          throttle_per_second?: number | null
+          updated_at?: string
+          variable_mapping?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_campaigns_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_campaigns_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_campaigns_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_campaigns_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "wa_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wa_contacts: {
+        Row: {
+          created_at: string
+          crm_contact_id: string | null
+          custom_fields: Json | null
+          id: string
+          last_inbound_at: string | null
+          last_outbound_at: string | null
+          name: string | null
+          opt_in_at: string | null
+          opt_in_source: string | null
+          opt_in_status: Database["public"]["Enums"]["wa_opt_in_status"]
+          organization_id: string
+          phone: string
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          crm_contact_id?: string | null
+          custom_fields?: Json | null
+          id?: string
+          last_inbound_at?: string | null
+          last_outbound_at?: string | null
+          name?: string | null
+          opt_in_at?: string | null
+          opt_in_source?: string | null
+          opt_in_status?: Database["public"]["Enums"]["wa_opt_in_status"]
+          organization_id: string
+          phone: string
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          crm_contact_id?: string | null
+          custom_fields?: Json | null
+          id?: string
+          last_inbound_at?: string | null
+          last_outbound_at?: string | null
+          name?: string | null
+          opt_in_at?: string | null
+          opt_in_source?: string | null
+          opt_in_status?: Database["public"]["Enums"]["wa_opt_in_status"]
+          organization_id?: string
+          phone?: string
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_contacts_crm_contact_id_fkey"
+            columns: ["crm_contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_contacts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wa_conversations: {
+        Row: {
+          assigned_at: string | null
+          assigned_to: string | null
+          created_at: string
+          id: string
+          last_message_at: string | null
+          notes: string | null
+          organization_id: string
+          status: Database["public"]["Enums"]["wa_conversation_status"]
+          tags: string[] | null
+          unread_count: number
+          updated_at: string
+          wa_contact_id: string
+          window_open_until: string | null
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_to?: string | null
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          notes?: string | null
+          organization_id: string
+          status?: Database["public"]["Enums"]["wa_conversation_status"]
+          tags?: string[] | null
+          unread_count?: number
+          updated_at?: string
+          wa_contact_id: string
+          window_open_until?: string | null
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_to?: string | null
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          notes?: string | null
+          organization_id?: string
+          status?: Database["public"]["Enums"]["wa_conversation_status"]
+          tags?: string[] | null
+          unread_count?: number
+          updated_at?: string
+          wa_contact_id?: string
+          window_open_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_conversations_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_conversations_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_conversations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_conversations_wa_contact_id_fkey"
+            columns: ["wa_contact_id"]
+            isOneToOne: false
+            referencedRelation: "wa_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wa_messages: {
+        Row: {
+          content: Json
+          conversation_id: string
+          created_at: string
+          direction: Database["public"]["Enums"]["wa_message_direction"]
+          error_code: string | null
+          error_message: string | null
+          id: string
+          msg_type: Database["public"]["Enums"]["wa_message_type"]
+          organization_id: string
+          status: Database["public"]["Enums"]["wa_message_status"]
+          status_updated_at: string | null
+          template_id: string | null
+          wa_message_id: string | null
+        }
+        Insert: {
+          content?: Json
+          conversation_id: string
+          created_at?: string
+          direction: Database["public"]["Enums"]["wa_message_direction"]
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          msg_type?: Database["public"]["Enums"]["wa_message_type"]
+          organization_id: string
+          status?: Database["public"]["Enums"]["wa_message_status"]
+          status_updated_at?: string | null
+          template_id?: string | null
+          wa_message_id?: string | null
+        }
+        Update: {
+          content?: Json
+          conversation_id?: string
+          created_at?: string
+          direction?: Database["public"]["Enums"]["wa_message_direction"]
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          msg_type?: Database["public"]["Enums"]["wa_message_type"]
+          organization_id?: string
+          status?: Database["public"]["Enums"]["wa_message_status"]
+          status_updated_at?: string | null
+          template_id?: string | null
+          wa_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "wa_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_messages_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wa_templates: {
+        Row: {
+          category: Database["public"]["Enums"]["wa_template_category"]
+          components: Json
+          created_at: string
+          external_template_id: string | null
+          id: string
+          language: string
+          name: string
+          organization_id: string
+          rejection_reason: string | null
+          status: Database["public"]["Enums"]["wa_template_status"]
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["wa_template_category"]
+          components?: Json
+          created_at?: string
+          external_template_id?: string | null
+          id?: string
+          language?: string
+          name: string
+          organization_id: string
+          rejection_reason?: string | null
+          status?: Database["public"]["Enums"]["wa_template_status"]
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["wa_template_category"]
+          components?: Json
+          created_at?: string
+          external_template_id?: string | null
+          id?: string
+          language?: string
+          name?: string
+          organization_id?: string
+          rejection_reason?: string | null
+          status?: Database["public"]["Enums"]["wa_template_status"]
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       welcome_survey_responses: {
         Row: {
           completed_at: string
@@ -16442,6 +16954,34 @@ export type Database = {
         | "closed"
         | "wont_fix"
       support_request_type: "bug" | "feature"
+      wa_automation_status: "draft" | "active" | "paused"
+      wa_automation_trigger:
+        | "message_received"
+        | "keyword"
+        | "new_contact"
+        | "tag_added"
+        | "flow_submitted"
+      wa_campaign_status:
+        | "draft"
+        | "scheduled"
+        | "sending"
+        | "sent"
+        | "failed"
+        | "cancelled"
+      wa_conversation_status: "open" | "assigned" | "resolved" | "closed"
+      wa_message_direction: "inbound" | "outbound"
+      wa_message_status: "pending" | "sent" | "delivered" | "read" | "failed"
+      wa_message_type:
+        | "text"
+        | "image"
+        | "video"
+        | "document"
+        | "template"
+        | "interactive"
+        | "flow"
+      wa_opt_in_status: "opted_in" | "opted_out" | "pending"
+      wa_template_category: "marketing" | "utility" | "authentication"
+      wa_template_status: "draft" | "pending" | "approved" | "rejected"
       wiki_template_category:
         | "policies"
         | "sops"
@@ -16689,6 +17229,37 @@ export const Constants = {
         "wont_fix",
       ],
       support_request_type: ["bug", "feature"],
+      wa_automation_status: ["draft", "active", "paused"],
+      wa_automation_trigger: [
+        "message_received",
+        "keyword",
+        "new_contact",
+        "tag_added",
+        "flow_submitted",
+      ],
+      wa_campaign_status: [
+        "draft",
+        "scheduled",
+        "sending",
+        "sent",
+        "failed",
+        "cancelled",
+      ],
+      wa_conversation_status: ["open", "assigned", "resolved", "closed"],
+      wa_message_direction: ["inbound", "outbound"],
+      wa_message_status: ["pending", "sent", "delivered", "read", "failed"],
+      wa_message_type: [
+        "text",
+        "image",
+        "video",
+        "document",
+        "template",
+        "interactive",
+        "flow",
+      ],
+      wa_opt_in_status: ["opted_in", "opted_out", "pending"],
+      wa_template_category: ["marketing", "utility", "authentication"],
+      wa_template_status: ["draft", "pending", "approved", "rejected"],
       wiki_template_category: [
         "policies",
         "sops",

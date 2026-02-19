@@ -98,6 +98,15 @@ const UnsubscribePage = lazy(() => import('./pages/public/UnsubscribePage'));
 const PublicBookingPage = lazy(() => import('./pages/scheduler/PublicBookingPage'));
 const BookingCancelPage = lazy(() => import('./pages/scheduler/BookingCancelPage'));
 const BookingReschedulePage = lazy(() => import('./pages/scheduler/BookingReschedulePage'));
+
+// WhatsApp pages
+const WhatsAppOverviewPage = lazy(() => import('./pages/crm/whatsapp/WhatsAppOverviewPage'));
+const WhatsAppInboxPage = lazy(() => import('./pages/crm/whatsapp/WhatsAppInboxPage'));
+const WhatsAppTemplatesPage = lazy(() => import('./pages/crm/whatsapp/WhatsAppTemplatesPage'));
+const WhatsAppCampaignsPage = lazy(() => import('./pages/crm/whatsapp/WhatsAppCampaignsPage'));
+const WhatsAppAutomationsPage = lazy(() => import('./pages/crm/whatsapp/WhatsAppAutomationsPage'));
+const WhatsAppContactsPage = lazy(() => import('./pages/crm/whatsapp/WhatsAppContactsPage'));
+const WhatsAppSettingsPage = lazy(() => import('./pages/crm/whatsapp/WhatsAppSettingsPage'));
 const Payroll = lazy(() => import('./pages/Payroll'));
 const MyPayslips = lazy(() => import('./pages/MyPayslips'));
 const Workflows = lazy(() => import('./pages/Workflows'));
@@ -292,6 +301,14 @@ const App = () => <QueryClientProvider client={queryClient}>
                    <Route path="crm/campaigns/:id" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CampaignSetupPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/campaigns/:id/builder" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CampaignBuilderPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/campaigns/:id/report" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CampaignReportPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   {/* WhatsApp routes */}
+                   <Route path="crm/whatsapp" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FeatureProtectedRoute feature="whatsapp"><WhatsAppOverviewPage /></FeatureProtectedRoute></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/whatsapp/inbox" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FeatureProtectedRoute feature="whatsapp"><WhatsAppInboxPage /></FeatureProtectedRoute></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/whatsapp/templates" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FeatureProtectedRoute feature="whatsapp"><WhatsAppTemplatesPage /></FeatureProtectedRoute></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/whatsapp/campaigns" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FeatureProtectedRoute feature="whatsapp"><WhatsAppCampaignsPage /></FeatureProtectedRoute></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/whatsapp/automations" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FeatureProtectedRoute feature="whatsapp"><WhatsAppAutomationsPage /></FeatureProtectedRoute></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/whatsapp/contacts" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FeatureProtectedRoute feature="whatsapp"><WhatsAppContactsPage /></FeatureProtectedRoute></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/whatsapp/settings" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FeatureProtectedRoute feature="whatsapp"><WhatsAppSettingsPage /></FeatureProtectedRoute></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="payroll" element={<OrgProtectedRoute><FeatureProtectedRoute feature="payroll"><Payroll /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="workflows" element={<OrgProtectedRoute><FeatureProtectedRoute feature="workflows"><Workflows /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="workflows/:workflowId" element={<OrgProtectedRoute><FeatureProtectedRoute feature="workflows"><ApplicationDetail /></FeatureProtectedRoute></OrgProtectedRoute>} />
