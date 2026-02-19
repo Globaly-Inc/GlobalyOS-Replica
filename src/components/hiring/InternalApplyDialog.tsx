@@ -62,6 +62,9 @@ export const InternalApplyDialog = ({ open, onOpenChange, vacancy }: InternalApp
       formData.append('candidate_name', employeeName);
       formData.append('candidate_email', employeeEmail);
       formData.append('source_of_application', 'internal');
+      if (employee?.id) {
+        formData.append('employee_id', employee.id);
+      }
       if (resumeFile) {
         formData.append('resume', resumeFile);
       }
