@@ -110,6 +110,7 @@ const WhatsAppAutomationsPage = lazy(() => import('./pages/crm/whatsapp/WhatsApp
 const WhatsAppContactsPage = lazy(() => import('./pages/crm/whatsapp/WhatsAppContactsPage'));
 const WhatsAppFlowsPage = lazy(() => import('./pages/crm/whatsapp/WhatsAppFlowsPage'));
 const WhatsAppSettingsPage = lazy(() => import('./pages/crm/whatsapp/WhatsAppSettingsPage'));
+const WhatsAppSequencesPage = lazy(() => import('./pages/crm/whatsapp/WhatsAppSequencesPage'));
 const Payroll = lazy(() => import('./pages/Payroll'));
 const MyPayslips = lazy(() => import('./pages/MyPayslips'));
 const Workflows = lazy(() => import('./pages/Workflows'));
@@ -314,6 +315,7 @@ const App = () => <QueryClientProvider client={queryClient}>
                    <Route path="crm/whatsapp/automations" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FeatureProtectedRoute feature="whatsapp"><WhatsAppAutomationsPage /></FeatureProtectedRoute></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/whatsapp/flows" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FeatureProtectedRoute feature="whatsapp"><WhatsAppFlowsPage /></FeatureProtectedRoute></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/whatsapp/contacts" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FeatureProtectedRoute feature="whatsapp"><WhatsAppContactsPage /></FeatureProtectedRoute></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/whatsapp/sequences" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FeatureProtectedRoute feature="whatsapp"><WhatsAppSequencesPage /></FeatureProtectedRoute></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/whatsapp/settings" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FeatureProtectedRoute feature="whatsapp"><WhatsAppSettingsPage /></FeatureProtectedRoute></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="payroll" element={<OrgProtectedRoute><FeatureProtectedRoute feature="payroll"><Payroll /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="workflows" element={<OrgProtectedRoute><FeatureProtectedRoute feature="workflows"><Workflows /></FeatureProtectedRoute></OrgProtectedRoute>} />

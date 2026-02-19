@@ -13888,6 +13888,7 @@ export type Database = {
       }
       wa_accounts: {
         Row: {
+          auto_assign_mode: string | null
           business_hours: Json | null
           connected_at: string | null
           created_at: string
@@ -13897,12 +13898,15 @@ export type Database = {
           id: string
           organization_id: string
           phone_number_id: string
+          sla_first_response_target: number | null
+          sla_resolution_target: number | null
           status: string
           updated_at: string
           waba_id: string
           webhook_secret: string | null
         }
         Insert: {
+          auto_assign_mode?: string | null
           business_hours?: Json | null
           connected_at?: string | null
           created_at?: string
@@ -13912,12 +13916,15 @@ export type Database = {
           id?: string
           organization_id: string
           phone_number_id: string
+          sla_first_response_target?: number | null
+          sla_resolution_target?: number | null
           status?: string
           updated_at?: string
           waba_id: string
           webhook_secret?: string | null
         }
         Update: {
+          auto_assign_mode?: string | null
           business_hours?: Json | null
           connected_at?: string | null
           created_at?: string
@@ -13927,6 +13934,8 @@ export type Database = {
           id?: string
           organization_id?: string
           phone_number_id?: string
+          sla_first_response_target?: number | null
+          sla_resolution_target?: number | null
           status?: string
           updated_at?: string
           waba_id?: string
@@ -14210,10 +14219,14 @@ export type Database = {
           assigned_at: string | null
           assigned_to: string | null
           created_at: string
+          first_response_at: string | null
           id: string
           last_message_at: string | null
           notes: string | null
           organization_id: string
+          resolved_at: string | null
+          sla_first_response_minutes: number | null
+          sla_resolution_minutes: number | null
           status: Database["public"]["Enums"]["wa_conversation_status"]
           tags: string[] | null
           unread_count: number
@@ -14225,10 +14238,14 @@ export type Database = {
           assigned_at?: string | null
           assigned_to?: string | null
           created_at?: string
+          first_response_at?: string | null
           id?: string
           last_message_at?: string | null
           notes?: string | null
           organization_id: string
+          resolved_at?: string | null
+          sla_first_response_minutes?: number | null
+          sla_resolution_minutes?: number | null
           status?: Database["public"]["Enums"]["wa_conversation_status"]
           tags?: string[] | null
           unread_count?: number
@@ -14240,10 +14257,14 @@ export type Database = {
           assigned_at?: string | null
           assigned_to?: string | null
           created_at?: string
+          first_response_at?: string | null
           id?: string
           last_message_at?: string | null
           notes?: string | null
           organization_id?: string
+          resolved_at?: string | null
+          sla_first_response_minutes?: number | null
+          sla_resolution_minutes?: number | null
           status?: Database["public"]["Enums"]["wa_conversation_status"]
           tags?: string[] | null
           unread_count?: number
@@ -14453,6 +14474,109 @@ export type Database = {
           },
           {
             foreignKeyName: "wa_messages_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wa_saved_replies: {
+        Row: {
+          body: string
+          category: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          organization_id: string
+          shortcut: string | null
+          title: string
+          updated_at: string
+          usage_count: number
+        }
+        Insert: {
+          body: string
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          organization_id: string
+          shortcut?: string | null
+          title: string
+          updated_at?: string
+          usage_count?: number
+        }
+        Update: {
+          body?: string
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          organization_id?: string
+          shortcut?: string | null
+          title?: string
+          updated_at?: string
+          usage_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_saved_replies_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wa_sequences: {
+        Row: {
+          audience_filters: Json
+          audience_source: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          organization_id: string
+          stats: Json
+          status: string
+          steps: Json
+          stop_conditions: Json
+          updated_at: string
+        }
+        Insert: {
+          audience_filters?: Json
+          audience_source?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          organization_id: string
+          stats?: Json
+          status?: string
+          steps?: Json
+          stop_conditions?: Json
+          updated_at?: string
+        }
+        Update: {
+          audience_filters?: Json
+          audience_source?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          stats?: Json
+          status?: string
+          steps?: Json
+          stop_conditions?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_sequences_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"

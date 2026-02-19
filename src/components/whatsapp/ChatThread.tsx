@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { Send, Clock, Check, CheckCheck, AlertCircle, Image, FileText, Video } from 'lucide-react';
 import { format, differenceInHours } from 'date-fns';
 import type { WaMessage, WaContact } from '@/types/whatsapp';
+import SavedRepliesPopover from '@/components/whatsapp/SavedRepliesPopover';
 
 interface Props {
   messages: WaMessage[];
@@ -14,6 +15,7 @@ interface Props {
   windowOpenUntil: string | null;
   onSend: (body: string) => void;
   isSending: boolean;
+  orgId?: string;
 }
 
 function MessageStatusIcon({ status }: { status: string }) {
@@ -55,7 +57,7 @@ function getMessageText(msg: WaMessage): string {
   return `[${msg.msg_type}]`;
 }
 
-export default function ChatThread({ messages, contact, windowOpenUntil, onSend, isSending }: Props) {
+export default function ChatThread({ messages, contact, windowOpenUntil, onSend, isSending, orgId }: Props) {
   const [text, setText] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -165,9 +167,17 @@ export default function ChatThread({ messages, contact, windowOpenUntil, onSend,
             24h window closed. Only template messages can be sent.
           </p>
         )}
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          {orgId && (
+            <SavedRepliesPopover
+              orgId={orgId}
+              onSelect={(body) => {
+                setText(body);
+              }}
+            />
+          )}
           <Input
-            placeholder={windowOpen ? 'Type a message...' : 'Send a template...'}
+            placeholder={windowOpen ? 'Type a message... (type / for snippets)' : 'Send a template...'}
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}

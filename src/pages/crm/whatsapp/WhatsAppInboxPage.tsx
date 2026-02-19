@@ -111,6 +111,7 @@ const WhatsAppInboxPage = () => {
             windowOpenUntil={selectedConv?.window_open_until ?? null}
             onSend={handleSend}
             isSending={sendMutation.isPending}
+            orgId={orgId}
           />
         </div>
 
