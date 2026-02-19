@@ -86,7 +86,8 @@ export const useInternalVacancies = () => {
       }, {});
     },
     enabled: !!orgId && !!employeeId,
-    staleTime: 2 * 60 * 1000,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   return { vacancies, isLoading, appliedJobsMap };

@@ -66,7 +66,7 @@ const APPLICATION_STATUS_COLORS: Record<string, string> = {
 async function downloadResume(cvFilePath: string, candidateName: string) {
   try {
     const { data, error } = await supabase.storage
-      .from('hiring-cvs')
+      .from('hiring-documents')
       .createSignedUrl(cvFilePath, 60);
     if (error) throw error;
     const a = document.createElement('a');

@@ -511,7 +511,7 @@ export default function ApplicationDetail() {
                     {getInitials(candidate?.name || 'U')}
                   </AvatarFallback>
                 </Avatar>
-                <h3 className="font-semibold text-lg">{candidate?.name}</h3>
+                <h3 className="font-semibold text-lg">{candidate?.name || 'Unknown Candidate'}</h3>
                 {application.is_internal && (
                   <Badge variant="secondary" className="mt-1">Internal Candidate</Badge>
                 )}
@@ -520,47 +520,82 @@ export default function ApplicationDetail() {
               <Separator className="my-4" />
 
               <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <a href={`mailto:${candidate?.email}`} className="text-primary hover:underline">
-                    {candidate?.email}
-                  </a>
+                <div className="flex items-start gap-2 text-sm">
+                  <User className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Full Name</p>
+                    <p className="font-medium">{candidate?.name || '—'}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2 text-sm">
+                  <Mail className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground mb-0.5">Email</p>
+                    <a href={`mailto:${candidate?.email}`} className="text-primary hover:underline break-all">
+                      {candidate?.email || '—'}
+                    </a>
+                  </div>
                 </div>
                 
-                {candidate?.phone && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    <a href={`tel:${candidate.phone}`} className="hover:underline">
-                      {candidate.phone}
-                    </a>
+                <div className="flex items-start gap-2 text-sm">
+                  <Phone className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Phone</p>
+                    {candidate?.phone ? (
+                      <a href={`tel:${candidate.phone}`} className="hover:underline">
+                        {candidate.phone}
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </div>
-                )}
+                </div>
 
-                {candidate?.location && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span>{candidate.location}</span>
+                <div className="flex items-start gap-2 text-sm">
+                  <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Location</p>
+                    <span>{candidate?.location || '—'}</span>
                   </div>
-                )}
+                </div>
+
+                {(() => {
+                  const customFields = (application as any).custom_fields as Record<string, string> | null;
+                  const salaryExpectation = customFields?.salary_expectation || customFields?.salary || customFields?.expected_salary;
+                  if (!salaryExpectation) return null;
+                  return (
+                    <div className="flex items-start gap-2 text-sm">
+                      <DollarSign className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-0.5">Salary Expectation</p>
+                        <span className="font-medium">{salaryExpectation}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {candidate?.linkedin_url && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Linkedin className="h-4 w-4 text-muted-foreground" />
-                    <a 
-                      href={candidate.linkedin_url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline"
-                    >
-                      LinkedIn Profile
-                    </a>
+                  <div className="flex items-start gap-2 text-sm">
+                    <Linkedin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-0.5">LinkedIn</p>
+                      <a 
+                        href={candidate.linkedin_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        View Profile
+                      </a>
+                    </div>
                   </div>
                 )}
               </div>
 
               <Separator className="my-4" />
 
-              <div className="text-sm text-muted-foreground">
+              <div className="text-sm text-muted-foreground space-y-1">
                 <p>Applied {formatDistanceToNow(new Date(application.created_at), { addSuffix: true })}</p>
                 <p>Source: {candidate?.source || 'Unknown'}</p>
               </div>
