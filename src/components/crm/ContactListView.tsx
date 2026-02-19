@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Plus, MoreHorizontal, Flame, Handshake, Snowflake, ChevronLeft, ChevronRight, Tag, X, Tags } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Flame, Handshake, Snowflake, ChevronLeft, ChevronRight, Tag, X, Tags, Users, Inbox, UserPlus, UserCheck, Archive } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -15,6 +15,7 @@ import { AddContactDialog } from './AddContactDialog';
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import type { CRMContact, CRMSidebarCategory } from '@/types/crm';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 const RatingIcon = ({ rating }: { rating: string | null }) => {
   if (rating === 'hot') return <Flame className="h-4 w-4 text-red-500" />;
@@ -23,11 +24,16 @@ const RatingIcon = ({ rating }: { rating: string | null }) => {
   return <span className="text-xs text-muted-foreground">—</span>;
 };
 
-interface Props {
-  category: CRMSidebarCategory;
-}
+const categoryTabs: { key: CRMSidebarCategory; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { key: 'all', label: 'All Contacts', icon: Users },
+  { key: 'enquiries', label: 'Enquiries', icon: Inbox },
+  { key: 'prospects', label: 'Prospects', icon: UserPlus },
+  { key: 'clients', label: 'Clients', icon: UserCheck },
+  { key: 'archived', label: 'Archived', icon: Archive },
+];
 
-export const ContactListView = ({ category }: Props) => {
+export const ContactListView = () => {
+  const [category, setCategory] = useState<CRMSidebarCategory>('all');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(20);
@@ -109,31 +115,59 @@ export const ContactListView = ({ category }: Props) => {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-        <h1 className="text-xl font-semibold text-foreground">Contacts</h1>
-        <Button onClick={() => setAddOpen(true)} size="sm">
+      {/* Standard GlobalyOS Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 px-6 pt-6 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-primary/10">
+            <Users className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Contacts</h1>
+            <p className="text-sm text-muted-foreground">Manage your contacts and leads</p>
+          </div>
+        </div>
+        <Button onClick={() => setAddOpen(true)}>
           <Plus className="h-4 w-4 mr-1" />
           Create New
         </Button>
       </div>
 
-      {/* Search & Filters */}
-      <div className="flex items-center gap-3 px-6 py-3 border-b border-border flex-wrap">
-        <div className="relative flex-1 min-w-[180px] max-w-sm">
+      {/* Category tabs + Search & Filters bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 px-6 py-3 border-b border-border">
+        {/* Category Tab Pills */}
+        <div className="flex items-center gap-1 flex-wrap flex-1">
+          {categoryTabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => { setCategory(tab.key); setPage(1); }}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+                category === tab.key
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              )}
+            >
+              <tab.icon className="h-3.5 w-3.5" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Search */}
+        <div className="relative min-w-[180px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search contacts..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="pl-9"
+            className="pl-9 h-8"
           />
         </div>
 
         {/* Tag Filter */}
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-1.5">
+            <Button variant="outline" size="sm" className="gap-1.5 h-8">
               <Tag className="h-3.5 w-3.5" />
               {tagFilter ? (
                 <span className="flex items-center gap-1">
@@ -146,7 +180,7 @@ export const ContactListView = ({ category }: Props) => {
               ) : 'Filter by Tag'}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-48 p-2" align="start">
+          <PopoverContent className="w-48 p-2" align="end">
             {orgTags.length === 0 ? (
               <p className="text-xs text-muted-foreground px-2 py-1">No tags defined yet.</p>
             ) : (

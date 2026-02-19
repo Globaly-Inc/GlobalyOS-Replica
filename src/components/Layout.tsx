@@ -7,6 +7,7 @@ import { MobileBottomNav } from "./MobileBottomNav";
 import { TopNav } from "./TopNav";
 import { SubNav } from "./SubNav";
  import { SettingsSubNav } from "./SettingsSubNav";
+import { CRMSubNav } from "./crm/CRMSubNav";
 
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { PullToRefreshIndicator } from "./PullToRefreshIndicator";
@@ -154,7 +155,10 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
        
        {/* Sub Navigation for Settings section */}
        <SettingsSubNav />
-      
+
+       {/* Sub Navigation for CRM section */}
+       <CRMSubNav />
+
 
       {/* Page Content */}
       <main className={`container px-4 md:px-8 ${isFullHeightPage ? 'h-[calc(100vh-4rem)] overflow-hidden pt-0 pb-0' : 'pt-4 md:pt-6 pb-24 md:pb-8 overflow-x-hidden'}`}>
