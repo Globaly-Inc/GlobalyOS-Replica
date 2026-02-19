@@ -48,22 +48,40 @@ export const useInternalVacancies = () => {
   });
 
   // Fetch jobs the current employee has already applied to, with application date
+  // Strategy: first get the candidate record for this employee, then fetch their applications
   const { data: appliedJobsMap = {} } = useQuery<AppliedJobsMap>({
     queryKey: ['internal-vacancies-applied', orgId, employeeId],
     queryFn: async () => {
       if (!orgId || !employeeId) return {};
+
+      // Step 1: Find the candidate record linked to this employee
+      const { data: candidateData, error: candError } = await supabase
+        .from('candidates')
+        .select('id')
+        .eq('organization_id', orgId)
+        .eq('employee_id', employeeId)
+        .limit(1)
+        .maybeSingle();
+
+      if (candError) {
+        console.error('Error fetching candidate record:', candError);
+        return {};
+      }
+      if (!candidateData) return {};
+
+      // Step 2: Fetch all applications for this candidate
       const { data, error } = await supabase
         .from('candidate_applications')
-        .select('job_id, created_at, candidates!inner(employee_id)')
+        .select('job_id, created_at')
         .eq('organization_id', orgId)
-        .eq('candidates.employee_id', employeeId);
+        .eq('candidate_id', candidateData.id);
 
       if (error) {
         console.error('Error fetching applied jobs:', error);
         return {};
       }
-      return (data ?? []).reduce<AppliedJobsMap>((acc, row: any) => {
-        acc[row.job_id as string] = { appliedAt: row.created_at as string };
+      return (data ?? []).reduce<AppliedJobsMap>((acc, row) => {
+        acc[row.job_id] = { appliedAt: row.created_at ?? '' };
         return acc;
       }, {});
     },
