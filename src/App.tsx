@@ -359,6 +359,11 @@ const App = () => <QueryClientProvider client={queryClient}>
                 <Route path="/settings" element={<Navigate to="/" replace />} />
                 <Route path="/notifications/*" element={<Navigate to="/" replace />} />
                 
+                {/* Public Scheduler booking pages (no auth required) */}
+                <Route path="/s/:orgCode/scheduler/:eventSlug" element={<PublicBookingPage />} />
+                <Route path="/s/:orgCode/scheduler/cancel/:token" element={<BookingCancelPage />} />
+                <Route path="/s/:orgCode/scheduler/reschedule/:token" element={<BookingReschedulePage />} />
+
                 {/* Catch-all */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
