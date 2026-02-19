@@ -1,63 +1,82 @@
 
-## Applied State Button — Show Application Date on Hover
+# Hiring Module Bug Fixes — 5 Issues
 
-### What's Changing
+## Issues Identified from PDF
 
-The apply button (UserPlus/CheckCircle2) in `InternalVacanciesCard` currently only tracks *whether* a user has applied. It needs to also surface *when* they applied, shown in the hover tooltip.
+### Issue 1: Candidate Greeted by Email Username Instead of Full Name
+**Root cause**: When `bhatta2096@gmail.com` applied via the referral link, the public careers form allowed submitting with `bhatta2096` (the email prefix) as the full name. The edge function stores whatever `candidate_name` is sent — it doesn't validate that it looks like a real name. The email template then addresses them as `"Dear bhatta2096"`.
 
-### Two Files to Touch
+**Fix**: Add a validation on the public careers form (`JobDetailPublic.tsx`) that requires the Full Name field to contain at least 2 words (first + last name) or at minimum not be an email-like string, with a clear error message.
 
-#### 1. `src/hooks/useInternalVacancies.ts`
+---
 
-The query for applied jobs currently returns only an array of `job_id` strings:
-```ts
-return (data ?? []).map((row: any) => row.job_id as string);
-// e.g. ['job-uuid-1', 'job-uuid-2']
-```
+### Issue 2: Cannot Download Resume from Candidates List
+**Root cause**: `CandidatesList.tsx` line 69 calls `supabase.storage.from('hiring-cvs')` to create a signed URL, but all resumes are stored in the `'hiring-documents'` bucket (confirmed by checking actual `cv_file_path` values in the database, e.g., `11111111-.../resume-1770891247409.pdf` stored in `hiring-documents`). The wrong bucket name causes the signed URL creation to fail silently.
 
-It needs to also fetch `created_at` from `candidate_applications` and return a map instead:
-```ts
-// New return shape — a Record keyed by job_id
-Record<string, { appliedAt: string }>
-// e.g. { 'job-uuid-1': { appliedAt: '2025-02-10T08:30:00Z' } }
-```
+**Fix**: Change `supabase.storage.from('hiring-cvs')` → `supabase.storage.from('hiring-documents')` in the `downloadResume` function in `CandidatesList.tsx`.
 
-- Add `created_at` to the `.select(...)` on `candidate_applications`
-- Change the return type from `string[]` to `Record<string, { appliedAt: string }>`
-- Export a new `AppliedJobsMap` type
-- Rename the returned value from `appliedJobIds` → `appliedJobsMap` to reflect the new shape
+---
 
-#### 2. `src/components/home/InternalVacanciesCard.tsx`
+### Issue 3: "Candidate not found" When Clicking a Candidate Profile
+**Root cause**: Candidates like `bhatta2096` and `shresthaayushma051.as` were created with their email prefix as the name. When clicking their row in the list, the link navigates to `/hiring/candidates/:candidateId`. The `useCandidate` hook fetches from `candidates` with `has_hiring_access(organization_id)` RLS — this should work for HR. However, looking at the list, the candidate `shresthaayushma051.as` has `employee_id = null` so the new "Employees can view their own candidate record" policy doesn't cover them. But for HR users, `has_hiring_access` should allow access.
 
-- Update the destructure: `appliedJobIds` → `appliedJobsMap`
-- Change the `hasApplied` check:
-  ```ts
-  // Before
-  const hasApplied = appliedJobIds.includes(vacancy.id);
-  // After
-  const appliedInfo = appliedJobsMap[vacancy.id];
-  const hasApplied = !!appliedInfo;
-  ```
-- Update the tooltip content when applied to include the formatted date:
-  ```tsx
-  <TooltipContent side="top">
-    <p>Applied {formatRelativeTime(appliedInfo.appliedAt)}</p>
-    <p className="text-xs opacity-70">
-      {new Date(appliedInfo.appliedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-    </p>
-  </TooltipContent>
-  ```
-  e.g. the tooltip would show: **"Applied 3 days ago"** with the full date underneath: *"16 Feb 2026"*
+The likely root cause is that the **`useCandidate` hook is also checking** `organization_id` in the query, and the linked applications join `jobs` — if the job is deleted or the `status` filter blocks it, `single()` fails with `PGRST116` (no rows), returning `null` → "Candidate not found". This manifests when the candidate has no applications with accessible jobs.
 
-### No Database Changes Needed
+**Fix**: Change `useCandidate` to use `.maybeSingle()` with better error handling, and ensure the `applications` join doesn't fail when job is null. Also verify the `useHiringApplication` query covers external (null `employee_id`) candidates under the `has_hiring_access` policy.
 
-`candidate_applications.created_at` already exists — we're just adding it to the existing select query.
+---
 
-### Visual Result
+### Issue 4: Candidate Application Detail Doesn't Show Full Name / Contact / Salary Expectation
+**Root cause**: The `ApplicationDetail` page sidebar (right column) does show name, email, and phone if available. But external candidates often have incomplete profiles. The user is requesting that the sidebar explicitly show:
+- Full name (prominently)
+- Phone/contact
+- **Salary expectation** — this is currently not captured anywhere in the application form or displayed in `ApplicationDetail`.
 
-| State | Icon | Tooltip on hover |
-|---|---|---|
-| Not applied | `UserPlus` (grey) | "Apply" |
-| Applied | `CheckCircle2` (green) | "Applied 3 days ago · 16 Feb 2026" |
+**Fix**: 
+- Add a "Salary Expectation" field to the candidate detail sidebar in `ApplicationDetail.tsx` (if captured via custom fields, pull it from `application.custom_fields_data`).
+- Ensure the candidate name shown at the top of the application detail view falls back gracefully.
+- Add a visible "Candidate Info" card section that shows: Full Name, Email, Phone, Location.
 
-The applied button remains non-clickable (`cursor-default`, no `onClick` effect) — exactly as today, just with a richer tooltip.
+---
+
+### Issue 5: Sarah's "Applied" Button Still Showing (Internal Vacancies)
+**Root cause confirmed**: Sarah's data is correct — she has `employee_id` set on her `candidates` record, and her `candidate_applications` row exists. The RLS policies added in the last migration are also correct. The issue is a **React Query stale cache** — the `appliedJobsMap` query has `staleTime: 2 * 60 * 1000` (2 minutes). If Sarah's session already had a cached empty result from before the migration ran, the component won't re-fetch until the cache expires.
+
+**Fix**: Remove the `staleTime` on the `internal-vacancies-applied` query (or set it to 0) so it always re-fetches on mount, ensuring fresh data. Also add `refetchOnMount: true` as a safety net.
+
+---
+
+## Technical Implementation Plan
+
+### Files to Modify
+
+**1. `src/pages/careers/JobDetailPublic.tsx`**
+- Add name validation: trim whitespace and check the name is at least 2 characters and doesn't look like an email/username (no `@`, at least one space or 2+ chars).
+- Show a clear inline error if the name field is invalid on submit.
+
+**2. `src/pages/hiring/CandidatesList.tsx`**
+- Line 69: Change `supabase.storage.from('hiring-cvs')` → `supabase.storage.from('hiring-documents')`.
+
+**3. `src/services/useHiring.ts`** (`useCandidate` function)
+- Change `.single()` to `.maybeSingle()` to prevent throwing on no rows.
+- Ensure the `candidate_applications` join uses a left join pattern so candidates with no applications are still returned.
+
+**4. `src/pages/hiring/ApplicationDetail.tsx`**
+- Add a prominent "Candidate Info" section to the right sidebar showing: Full Name, Email, Phone, Location.
+- Add display of salary expectation from `application.custom_fields_data` if present.
+
+**5. `src/hooks/useInternalVacancies.ts`**
+- Remove `staleTime` from the `internal-vacancies-applied` query (or set to 0).
+- Add `refetchOnMount: 'always'` to ensure it always fetches on component mount.
+
+---
+
+## Summary Table
+
+| # | Bug | Root Cause | File(s) |
+|---|-----|-----------|---------|
+| 1 | "Dear bhatta2096" in email | Name field accepts email-like strings | `JobDetailPublic.tsx` |
+| 2 | Resume download fails | Wrong bucket: `hiring-cvs` should be `hiring-documents` | `CandidatesList.tsx` |
+| 3 | "Candidate not found" | `.single()` throws on edge cases; stale join | `useHiring.ts` |
+| 4 | Missing candidate details | Sidebar incomplete; salary not shown | `ApplicationDetail.tsx` |
+| 5 | Sarah still sees Apply | Stale React Query cache (2 min staleTime) | `useInternalVacancies.ts` |
