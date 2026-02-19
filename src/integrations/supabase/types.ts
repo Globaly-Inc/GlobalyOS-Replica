@@ -5539,6 +5539,461 @@ export type Database = {
           },
         ]
       }
+      inbox_ai_events: {
+        Row: {
+          citations: Json
+          confidence: number | null
+          conversation_id: string | null
+          created_at: string
+          event_type: string
+          feedback_label: string | null
+          id: string
+          inputs: Json
+          model_version: string | null
+          organization_id: string
+          outputs: Json
+          reviewer_feedback: string | null
+          reviewer_id: string | null
+        }
+        Insert: {
+          citations?: Json
+          confidence?: number | null
+          conversation_id?: string | null
+          created_at?: string
+          event_type: string
+          feedback_label?: string | null
+          id?: string
+          inputs?: Json
+          model_version?: string | null
+          organization_id: string
+          outputs?: Json
+          reviewer_feedback?: string | null
+          reviewer_id?: string | null
+        }
+        Update: {
+          citations?: Json
+          confidence?: number | null
+          conversation_id?: string | null
+          created_at?: string
+          event_type?: string
+          feedback_label?: string | null
+          id?: string
+          inputs?: Json
+          model_version?: string | null
+          organization_id?: string
+          outputs?: Json
+          reviewer_feedback?: string | null
+          reviewer_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbox_ai_events_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "inbox_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbox_ai_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inbox_channels: {
+        Row: {
+          channel_type: Database["public"]["Enums"]["inbox_channel_type"]
+          config: Json
+          created_at: string
+          credentials: Json
+          display_name: string
+          id: string
+          is_active: boolean
+          last_error: string | null
+          last_webhook_at: string | null
+          organization_id: string
+          team_id: string | null
+          updated_at: string
+          webhook_secret: string | null
+          webhook_status: string
+        }
+        Insert: {
+          channel_type: Database["public"]["Enums"]["inbox_channel_type"]
+          config?: Json
+          created_at?: string
+          credentials?: Json
+          display_name: string
+          id?: string
+          is_active?: boolean
+          last_error?: string | null
+          last_webhook_at?: string | null
+          organization_id: string
+          team_id?: string | null
+          updated_at?: string
+          webhook_secret?: string | null
+          webhook_status?: string
+        }
+        Update: {
+          channel_type?: Database["public"]["Enums"]["inbox_channel_type"]
+          config?: Json
+          created_at?: string
+          credentials?: Json
+          display_name?: string
+          id?: string
+          is_active?: boolean
+          last_error?: string | null
+          last_webhook_at?: string | null
+          organization_id?: string
+          team_id?: string | null
+          updated_at?: string
+          webhook_secret?: string | null
+          webhook_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbox_channels_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inbox_contacts: {
+        Row: {
+          avatar_url: string | null
+          consent: Json
+          created_at: string
+          crm_contact_id: string | null
+          custom_fields: Json
+          email: string | null
+          handles: Json
+          id: string
+          last_seen_at: string | null
+          name: string | null
+          organization_id: string
+          phone: string | null
+          tags: string[]
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          consent?: Json
+          created_at?: string
+          crm_contact_id?: string | null
+          custom_fields?: Json
+          email?: string | null
+          handles?: Json
+          id?: string
+          last_seen_at?: string | null
+          name?: string | null
+          organization_id: string
+          phone?: string | null
+          tags?: string[]
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          consent?: Json
+          created_at?: string
+          crm_contact_id?: string | null
+          custom_fields?: Json
+          email?: string | null
+          handles?: Json
+          id?: string
+          last_seen_at?: string | null
+          name?: string | null
+          organization_id?: string
+          phone?: string | null
+          tags?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbox_contacts_crm_contact_id_fkey"
+            columns: ["crm_contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbox_contacts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inbox_conversations: {
+        Row: {
+          assigned_at: string | null
+          assigned_to: string | null
+          channel_id: string | null
+          channel_thread_ref: string | null
+          channel_type: Database["public"]["Enums"]["inbox_channel_type"]
+          contact_id: string
+          created_at: string
+          first_response_at: string | null
+          id: string
+          last_inbound_at: string | null
+          last_message_at: string | null
+          last_outbound_at: string | null
+          metadata: Json
+          notes: string | null
+          organization_id: string
+          priority: string
+          resolved_at: string | null
+          sla_breach_at: string | null
+          snoozed_until: string | null
+          status: Database["public"]["Enums"]["inbox_conversation_status"]
+          subject: string | null
+          tags: string[]
+          team_id: string | null
+          unread_count: number
+          updated_at: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_to?: string | null
+          channel_id?: string | null
+          channel_thread_ref?: string | null
+          channel_type: Database["public"]["Enums"]["inbox_channel_type"]
+          contact_id: string
+          created_at?: string
+          first_response_at?: string | null
+          id?: string
+          last_inbound_at?: string | null
+          last_message_at?: string | null
+          last_outbound_at?: string | null
+          metadata?: Json
+          notes?: string | null
+          organization_id: string
+          priority?: string
+          resolved_at?: string | null
+          sla_breach_at?: string | null
+          snoozed_until?: string | null
+          status?: Database["public"]["Enums"]["inbox_conversation_status"]
+          subject?: string | null
+          tags?: string[]
+          team_id?: string | null
+          unread_count?: number
+          updated_at?: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_to?: string | null
+          channel_id?: string | null
+          channel_thread_ref?: string | null
+          channel_type?: Database["public"]["Enums"]["inbox_channel_type"]
+          contact_id?: string
+          created_at?: string
+          first_response_at?: string | null
+          id?: string
+          last_inbound_at?: string | null
+          last_message_at?: string | null
+          last_outbound_at?: string | null
+          metadata?: Json
+          notes?: string | null
+          organization_id?: string
+          priority?: string
+          resolved_at?: string | null
+          sla_breach_at?: string | null
+          snoozed_until?: string | null
+          status?: Database["public"]["Enums"]["inbox_conversation_status"]
+          subject?: string | null
+          tags?: string[]
+          team_id?: string | null
+          unread_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbox_conversations_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "inbox_channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbox_conversations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "inbox_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbox_conversations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inbox_macros: {
+        Row: {
+          category: string | null
+          channel_compatibility: Database["public"]["Enums"]["inbox_channel_type"][]
+          content: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          name: string
+          organization_id: string
+          updated_at: string
+          variables: string[]
+        }
+        Insert: {
+          category?: string | null
+          channel_compatibility?: Database["public"]["Enums"]["inbox_channel_type"][]
+          content: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          organization_id: string
+          updated_at?: string
+          variables?: string[]
+        }
+        Update: {
+          category?: string | null
+          channel_compatibility?: Database["public"]["Enums"]["inbox_channel_type"][]
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          organization_id?: string
+          updated_at?: string
+          variables?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbox_macros_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inbox_messages: {
+        Row: {
+          content: Json
+          conversation_id: string
+          created_at: string
+          created_by: string | null
+          created_by_type: string
+          delivery_status: Database["public"]["Enums"]["inbox_delivery_status"]
+          delivery_status_updated_at: string | null
+          direction: Database["public"]["Enums"]["inbox_message_direction"]
+          error_code: string | null
+          error_message: string | null
+          id: string
+          media_urls: string[]
+          msg_type: Database["public"]["Enums"]["inbox_message_type"]
+          organization_id: string
+          provider_message_id: string | null
+          template_id: string | null
+        }
+        Insert: {
+          content?: Json
+          conversation_id: string
+          created_at?: string
+          created_by?: string | null
+          created_by_type?: string
+          delivery_status?: Database["public"]["Enums"]["inbox_delivery_status"]
+          delivery_status_updated_at?: string | null
+          direction: Database["public"]["Enums"]["inbox_message_direction"]
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          media_urls?: string[]
+          msg_type?: Database["public"]["Enums"]["inbox_message_type"]
+          organization_id: string
+          provider_message_id?: string | null
+          template_id?: string | null
+        }
+        Update: {
+          content?: Json
+          conversation_id?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_type?: string
+          delivery_status?: Database["public"]["Enums"]["inbox_delivery_status"]
+          delivery_status_updated_at?: string | null
+          direction?: Database["public"]["Enums"]["inbox_message_direction"]
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          media_urls?: string[]
+          msg_type?: Database["public"]["Enums"]["inbox_message_type"]
+          organization_id?: string
+          provider_message_id?: string | null
+          template_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbox_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "inbox_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbox_messages_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inbox_webhook_events: {
+        Row: {
+          channel_type: Database["public"]["Enums"]["inbox_channel_type"]
+          created_at: string
+          error: string | null
+          id: string
+          idempotency_key: string
+          organization_id: string | null
+          processed: boolean
+          processed_at: string | null
+          raw_payload: Json
+          retry_count: number
+        }
+        Insert: {
+          channel_type: Database["public"]["Enums"]["inbox_channel_type"]
+          created_at?: string
+          error?: string | null
+          id?: string
+          idempotency_key: string
+          organization_id?: string | null
+          processed?: boolean
+          processed_at?: string | null
+          raw_payload: Json
+          retry_count?: number
+        }
+        Update: {
+          channel_type?: Database["public"]["Enums"]["inbox_channel_type"]
+          created_at?: string
+          error?: string | null
+          id?: string
+          idempotency_key?: string
+          organization_id?: string | null
+          processed?: boolean
+          processed_at?: string | null
+          raw_payload?: Json
+          retry_count?: number
+        }
+        Relationships: []
+      }
       interview_scorecards: {
         Row: {
           concerns: string | null
@@ -17162,6 +17617,31 @@ export type Database = {
         | "contract"
         | "internship"
         | "temporary"
+      inbox_channel_type:
+        | "whatsapp"
+        | "telegram"
+        | "messenger"
+        | "instagram"
+        | "tiktok"
+        | "email"
+      inbox_conversation_status: "open" | "pending" | "snoozed" | "closed"
+      inbox_delivery_status:
+        | "pending"
+        | "sent"
+        | "delivered"
+        | "read"
+        | "failed"
+      inbox_message_direction: "inbound" | "outbound"
+      inbox_message_type:
+        | "text"
+        | "image"
+        | "video"
+        | "document"
+        | "audio"
+        | "template"
+        | "interactive"
+        | "system"
+        | "note"
       interview_recommendation:
         | "strong_yes"
         | "yes"
@@ -17432,6 +17912,28 @@ export const Constants = {
         "contract",
         "internship",
         "temporary",
+      ],
+      inbox_channel_type: [
+        "whatsapp",
+        "telegram",
+        "messenger",
+        "instagram",
+        "tiktok",
+        "email",
+      ],
+      inbox_conversation_status: ["open", "pending", "snoozed", "closed"],
+      inbox_delivery_status: ["pending", "sent", "delivered", "read", "failed"],
+      inbox_message_direction: ["inbound", "outbound"],
+      inbox_message_type: [
+        "text",
+        "image",
+        "video",
+        "document",
+        "audio",
+        "template",
+        "interactive",
+        "system",
+        "note",
       ],
       interview_recommendation: [
         "strong_yes",
