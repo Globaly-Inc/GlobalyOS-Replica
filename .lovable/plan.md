@@ -1,60 +1,282 @@
 
 
-# Dynamic TopNav: Responsive Text/Icon Mode
+# Omni-Channel Inbox + AI Responder -- Full Implementation Plan
 
-## What Changes
+## Overview
 
-The TopNav will automatically detect available horizontal space and switch between two modes:
+Replace the existing WhatsApp-only messaging module with a unified Omni-Channel Inbox that supports WhatsApp, Telegram, Messenger, Instagram, TikTok (where APIs permit), and future connectors. Includes an AI Auto-Responder powered by Lovable AI with RAG-based knowledge retrieval from the GlobalyOS Wiki.
 
-- **Expanded mode** (enough space): All items show icon + text label (like a traditional nav bar)
-- **Compact mode** (tight space): Inactive items collapse to icon-only square buttons; the active item still shows its text label
+The reference screenshot shows a Linear-style three-pane inbox layout (list / thread / details) -- the new Inbox will follow this pattern closely.
 
-This uses a `ResizeObserver` on the nav container to measure available width and decide which mode to use.
+---
 
-## How It Works
+## Phase Breakdown
+
+Due to the scale of this PRD (dozens of new tables, multiple edge functions, 15+ UI pages, AI integration), the implementation will be split into **6 sequential build phases**. Each phase is self-contained and testable.
+
+---
+
+## Phase 1: Unified Data Model + Migration
+
+### Database Changes
+
+**New tables:**
+
+- `inbox_channels` -- connected channel configurations (type: whatsapp/telegram/messenger/instagram/tiktok, auth credentials as encrypted JSONB, webhook status, team assignments)
+- `inbox_contacts` -- unified contact store with multi-channel identifiers (phone, email, handles), consent tracking per channel, CRM link
+- `inbox_conversations` -- canonical conversations with channel_type, channel_id, contact_id, status (open/pending/snoozed/closed), priority, tags, assignee, team, SLA fields, channel_thread_ref
+- `inbox_messages` -- canonical messages with conversation_id, direction, type (text/media/template/system/note), content JSONB, provider_message_id, delivery_status, created_by (agent/ai/system)
+- `inbox_macros` -- quick reply templates with channel compatibility flags and variable placeholders
+- `inbox_ai_events` -- AI audit log (event_type, inputs, outputs, confidence, citations, model_version, reviewer_feedback)
+- `inbox_webhook_events` -- raw webhook payload storage with idempotency_key, processed flag, for debugging and replay
+
+**New enums:**
+- `inbox_channel_type`: whatsapp, telegram, messenger, instagram, tiktok, email
+- `inbox_conversation_status`: open, pending, snoozed, closed
+- `inbox_message_direction`: inbound, outbound
+- `inbox_message_type`: text, image, video, document, audio, template, interactive, system, note
+- `inbox_delivery_status`: pending, sent, delivered, read, failed
+
+**Migration from old WhatsApp tables:**
+- SQL migration script copies data from `wa_contacts` -> `inbox_contacts`, `wa_conversations` -> `inbox_conversations`, `wa_messages` -> `inbox_messages`
+- Old `wa_*` tables are kept read-only (not dropped) for safety
+- `wa_accounts` data maps into `inbox_channels` with type='whatsapp'
+
+**Feature flags:**
+- Add `omnichannel_inbox` and `ai_responder` to the `FeatureName` type and `organization_features`
+- Add `whatsapp_old_inbox_disabled` flag (defaults to true for new orgs)
+
+**RLS policies:** All new tables get organization_id-scoped RLS policies.
+
+### Routing Changes
+- Old `/crm/whatsapp/inbox` route redirects to `/crm/inbox?channel=whatsapp`
+- Old WhatsApp sub-routes (templates, campaigns, automations, flows, contacts, settings) remain accessible but are re-mounted under the new Inbox settings area where applicable
+
+---
+
+## Phase 2: Connector Framework + WhatsApp Connector
+
+### Backend (Edge Functions)
+
+**Connector interface pattern** (implemented as a shared module in `supabase/functions/_shared/connectors/`):
 
 ```text
-Wide screen (e.g. 1920px):
-  [Home]  [Team]  [KPIs]  [Wiki]  [Chat]  [Tasks]  [CRM]
-   icon+   icon+   icon+   icon+   icon+   icon+    icon+
-   text    text    text    text    text    text     text
-
-Narrow screen (e.g. 1280px with sidebar + right actions taking space):
-  [H] [T] [K] [W] [ Chat ] [T] [C]
-  icon icon icon icon  active  icon icon
-                      (label)
+BaseConnector
+  |-- verifyWebhook(req) -> boolean
+  |-- handleInboundEvent(payload) -> CanonicalMessage[]
+  |-- sendMessage(conversation, message) -> ProviderResult
+  |-- mapToCanonical(providerMsg) -> CanonicalMessage
 ```
+
+**Edge functions:**
+- `inbox-webhook` -- unified webhook endpoint; routes to correct connector by channel type; stores raw event in `inbox_webhook_events` with idempotency key; processes into canonical format
+- `inbox-send` -- unified send endpoint; looks up channel connector; applies compliance rules (WhatsApp 24h window, opt-in, frequency cap); calls connector's `sendMessage()`; stores outbound message with delivery status
+
+**WhatsApp connector:**
+- Migrates logic from existing `wa-webhook` and `wa-send` into the new connector pattern
+- Preserves all compliance checks (24h window, template requirement, opt-in, frequency cap, audit logging)
+
+### Channel Admin API
+- `inbox-channel-connect` -- validates credentials, stores encrypted config, sets up webhook URL
+- `inbox-channel-health` -- returns last webhook event timestamp, error count, connection status
+
+---
+
+## Phase 3: Inbox UI (Core)
+
+### Layout (three-pane, inspired by reference screenshot)
+
+```text
++------------------+---------------------------+------------------+
+| Conversation     |   Conversation Thread     |  Contact Profile |
+| List (320px)     |   (flex-1)                |  Panel (300px)   |
+|                  |                           |                  |
+| - Search         |  - Header (contact info,  |  - Avatar/Name   |
+| - Filter tabs    |    channel badge, SLA)    |  - Identifiers   |
+|   (All/Open/     |  - Message bubbles        |  - Tags          |
+|    Pending/      |  - System events          |  - Consent       |
+|    Snoozed)      |  - Internal notes         |  - Activity log  |
+| - Channel filter |  - Typing indicator       |  - CRM link      |
+| - Assignee       |  - Composer:              |  - Timeline      |
+|   filter         |    text + attachments +   |  - Actions       |
+| - Conv cards     |    templates + AI draft + |    (assign,      |
+|   with channel   |    schedule send          |     resolve,     |
+|   icon + badge   |                           |     snooze)      |
++------------------+---------------------------+------------------+
+```
+
+### New Components
+- `src/pages/crm/inbox/InboxPage.tsx` -- main page
+- `src/components/inbox/InboxConversationList.tsx` -- left panel with filters, saved views
+- `src/components/inbox/InboxThread.tsx` -- center panel, message thread
+- `src/components/inbox/InboxContactPanel.tsx` -- right panel, contact details
+- `src/components/inbox/InboxComposer.tsx` -- message composer with AI draft button
+- `src/components/inbox/InboxSubNav.tsx` -- Inbox sub-navigation (Inbox, Channels, Templates, Analytics)
+- `src/components/inbox/ChannelBadge.tsx` -- channel type icon/badge component
+- `src/components/inbox/ConversationCard.tsx` -- conversation list item
+- `src/components/inbox/InternalNote.tsx` -- internal note display/entry
+- `src/components/inbox/CollisionIndicator.tsx` -- "agent is viewing/typing" indicator
+
+### Hooks
+- `src/hooks/useInbox.ts` -- conversations query, messages query, send mutation, assignment, resolve, snooze
+- `src/hooks/useInboxRealtime.ts` -- Supabase realtime subscriptions for conversations + messages
+
+### Routing
+- `/crm/inbox` -- main inbox
+- `/crm/inbox/channels` -- channel management
+- `/crm/inbox/templates` -- unified templates
+- `/crm/inbox/analytics` -- reporting (Phase 5)
+
+### CRM SubNav Update
+- Replace "WhatsApp" link with "Inbox" in CRMSubNav
+- Feature-flag gated by `omnichannel_inbox`
+
+---
+
+## Phase 4: Additional Connectors (Scaffolded)
+
+### Telegram Bot Connector
+- Edge function: `inbox-telegram-webhook` (or handled by unified `inbox-webhook`)
+- Bot API integration: receive messages via webhook, send via Bot API
+- Channel setup UI: enter Bot token, verify webhook
+
+### Messenger Connector (Scaffolded)
+- Meta Page Messaging API integration
+- OAuth flow for page access token
+- Webhook subscription for page messages
+
+### Instagram DM Connector (Scaffolded)
+- Instagram Messaging API (requires Meta app review)
+- Same webhook infrastructure as Messenger
+
+### TikTok Comments (Scaffolded)
+- TikTok Business API for comment retrieval
+- Polling-based (no webhook available for most use cases)
+
+All scaffolded connectors include:
+- UI for connecting/disconnecting
+- Placeholder webhook handlers with TODO markers
+- Safe failure modes (clear error messages when credentials missing)
+
+---
+
+## Phase 5: AI Auto-Responder
+
+### Edge Function: `inbox-ai-respond`
+- Uses Lovable AI (gateway at `https://ai.gateway.lovable.dev/v1/chat/completions`)
+- Model: `google/gemini-3-flash-preview` (default)
+- RAG pipeline:
+  1. Query `wiki_pages` and any indexed knowledge for the org
+  2. Build context from conversation history + retrieved docs
+  3. Generate response with tone/policy rules
+  4. Return with confidence score and citations
+
+### Features
+- **"AI Draft" button** in composer: generates suggested reply, agent edits and sends
+- **"Auto Reply" toggle** per inbox/channel:
+  - Only for safe intents (FAQ, hours, pricing, booking link)
+  - Configurable confidence threshold (default 0.85)
+  - Blocklist topics (billing disputes, legal, refunds) always route to human
+  - Auto-handoff on negative sentiment or explicit "human" request
+- **Audit logging**: every AI event stored in `inbox_ai_events` with model version, prompt, sources, confidence, feedback
+- **"Stop AI" button**: one click, immediate, disables auto-reply for that conversation
+- **Admin review page**: `/crm/inbox/ai-review` -- browse AI conversations, add feedback labels (helpful/not helpful/corrected), export training dataset
+
+### AI Guardrails
+- Channel compliance: AI never sends when WhatsApp window is closed (falls back to template suggestion)
+- Confidence threshold with fallback
+- Safe intent allowlist
+- Blocklist topics -> require human
+- Full audit trail
+
+---
+
+## Phase 6: V1 + V2 Features
+
+### V1
+- **Routing rules**: auto-assign by channel, keyword, language, business hours, VIP tags
+- **SLA policies**: first response SLA, resolution SLA, breach alerts (background job via edge function)
+- **Macro actions**: tag + assign + close + send template in one action
+- **Identity resolution**: merge contact profiles across channels (phone/email/handle matching)
+- **Analytics dashboard**: response time, resolution time, volume by channel, agent leaderboard, AI assist rate
+
+### V2
+- **Workflow automation builder**: trigger -> action visual builder (simplified Manychat-style)
+- **WhatsApp Flows**: interactive forms (already partially built, migrated from old module)
+- **Template A/B testing**: variant management with performance tracking
+- **Advanced AI**: auto-triage, auto-summarize, auto-fill CRM fields, suggested next best action
+- **AI improvement loop**: feedback labels -> curated dataset export -> admin review page -> prompt/retrieval refinement (not live self-modifying)
+
+---
 
 ## Technical Details
 
-### File: `src/components/TopNav.tsx`
+### Files to Create (Phase 1-5, approximately)
 
-1. **Add a `useRef` on the `<nav>` element** and a `useState` for `isCompact` (boolean).
+**Database migrations:**
+- New enums, tables, RLS policies, indexes
+- Data migration from `wa_*` tables
+- Feature flag entries
 
-2. **Add a `useEffect` with `ResizeObserver`** that watches the nav container width:
-   - Calculate the space needed for expanded mode: roughly `visibleItems.length * 90px` (each item with icon + text + padding + gap).
-   - If the container width is less than the threshold, set `isCompact = true`; otherwise `isCompact = false`.
+**Edge functions (6 new):**
+- `inbox-webhook/index.ts`
+- `inbox-send/index.ts`
+- `inbox-channel-connect/index.ts`
+- `inbox-channel-health/index.ts`
+- `inbox-ai-respond/index.ts`
+- `inbox-sla-check/index.ts` (scheduled)
 
-3. **Update the rendering logic**:
-   - When `isCompact` is `false` (expanded): all items show icon + text label with `gap-2 px-3 py-2` and the active item gets `bg-secondary`.
-   - When `isCompact` is `true` (compact): inactive items use the current square icon style (`h-9 w-9 justify-center bg-muted/50`), active item keeps icon + text.
+**Shared connector code:**
+- `supabase/functions/_shared/connectors/base.ts`
+- `supabase/functions/_shared/connectors/whatsapp.ts`
+- `supabase/functions/_shared/connectors/telegram.ts`
+- `supabase/functions/_shared/connectors/messenger.ts`
+- `supabase/functions/_shared/connectors/instagram.ts`
 
-4. **Add tooltips for compact mode**: Wrap inactive icon-only items in a `Tooltip` so users can hover to see the label (using the existing `Tooltip` component from `@/components/ui/tooltip`).
+**Frontend (20+ new files):**
+- Pages: `InboxPage`, `InboxChannelsPage`, `InboxTemplatesPage`, `InboxAnalyticsPage`, `InboxAIReviewPage`
+- Components: ~15 inbox components
+- Hooks: `useInbox.ts`, `useInboxRealtime.ts`, `useInboxAI.ts`, `useInboxChannels.ts`
+- Types: `src/types/inbox.ts`
 
-5. **Chat badge positioning** remains the same -- absolute when icon-only, inline when showing text.
+**Files to Modify:**
+- `src/App.tsx` -- add inbox routes, redirect old WhatsApp routes
+- `src/components/crm/CRMSubNav.tsx` -- replace WhatsApp with Inbox
+- `src/hooks/useFeatureFlags.tsx` -- add `omnichannel_inbox` and `ai_responder` flags
+- `supabase/config.toml` -- add new edge function configs
 
-### Threshold Calculation
+**Files eventually deprecated (not deleted immediately):**
+- All `src/pages/crm/whatsapp/*` pages (redirected)
+- All `src/components/whatsapp/*` components
+- `src/hooks/useWhatsAppInbox.ts` and related hooks
+- Old `wa-*` edge functions (kept but deprecated)
 
-The threshold will be based on the number of visible items. Each expanded item needs approximately 85-95px (icon 16px + gap 8px + text ~40-50px + padding 24px). A simple formula:
+### Security
+- All tables have organization_id-scoped RLS
+- Edge functions validate auth + org membership
+- Webhook signature verification per connector
+- API tokens encrypted at rest in JSONB (using Supabase vault where possible)
+- No PII in logs; access tokens never logged
+- Rate limiting on send endpoints
 
-```typescript
-const EXPANDED_ITEM_WIDTH = 90;
-const threshold = visibleItems.length * EXPANDED_ITEM_WIDTH;
-```
+### Realtime
+- `inbox_conversations` and `inbox_messages` added to `supabase_realtime` publication
+- Client subscribes filtered by organization_id
+- Typing/viewing indicators via Supabase Presence channels
 
-The `ResizeObserver` fires on mount and whenever the nav container resizes (e.g., window resize, sidebar toggle), so mode switches happen automatically with no flicker.
+---
 
-### No Other File Changes
+## Implementation Order
 
-All changes are contained within `src/components/TopNav.tsx`. The existing `Tooltip`, `TooltipTrigger`, `TooltipContent`, and `TooltipProvider` components from `@/components/ui/tooltip` will be imported and used.
+Given the size, I recommend implementing in this order across multiple prompts:
+
+1. **Phase 1**: Database schema + migration + feature flags + types
+2. **Phase 3 (partial)**: Inbox UI shell (page, layout, components) with mock data
+3. **Phase 2**: Connector framework + WhatsApp connector + hooks wired to real data
+4. **Phase 3 (complete)**: Full UI with realtime, composer, notes, assignment, collision prevention
+5. **Phase 5**: AI Auto-Responder
+6. **Phase 4**: Additional connector scaffolding
+7. **Phase 6**: V1/V2 features incrementally
+
+Each step will be a separate prompt to keep changes manageable.
 
