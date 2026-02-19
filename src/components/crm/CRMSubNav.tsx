@@ -1,4 +1,4 @@
-import { Users, Building2, Settings, Calendar } from 'lucide-react';
+import { Users, Building2, Settings, Calendar, Mail } from 'lucide-react';
 import { OrgLink } from '@/components/OrgLink';
 import { useLocation, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -7,6 +7,7 @@ import { useUserRole } from '@/hooks/useUserRole';
 const crmSubNavItems = [
   { name: 'Contacts', href: '/crm/contacts', icon: Users },
   { name: 'Companies', href: '/crm/companies', icon: Building2 },
+  { name: 'Campaigns', href: '/crm/campaigns', icon: Mail },
   { name: 'Scheduler', href: '/crm/scheduler', icon: Calendar },
   { name: 'Settings', href: '/crm/settings', icon: Settings, adminOnly: true },
 ];

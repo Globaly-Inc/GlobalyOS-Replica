@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { FileText, Phone, Mail, Users, CheckSquare, Plus } from 'lucide-react';
+import { FileText, Phone, Mail, Users, CheckSquare, Plus, Send, MailOpen, MousePointer, AlertCircle, UserMinus } from 'lucide-react';
 import { format } from 'date-fns';
 import { LogActivityDialog } from './LogActivityDialog';
 import type { CRMActivity } from '@/types/crm';
@@ -17,9 +17,15 @@ const typeConfig: Record<string, { icon: typeof FileText; color: string; label: 
   email: { icon: Mail, color: 'bg-blue-100 text-blue-700', label: 'Email' },
   meeting: { icon: Users, color: 'bg-purple-100 text-purple-700', label: 'Meeting' },
   task: { icon: CheckSquare, color: 'bg-orange-100 text-orange-700', label: 'Task' },
+  // Campaign events
+  campaign_sent: { icon: Send, color: 'bg-indigo-100 text-indigo-700', label: 'Campaign Sent' },
+  campaign_opened: { icon: MailOpen, color: 'bg-blue-100 text-blue-700', label: 'Email Opened' },
+  campaign_clicked: { icon: MousePointer, color: 'bg-green-100 text-green-700', label: 'Link Clicked' },
+  campaign_bounced: { icon: AlertCircle, color: 'bg-red-100 text-red-700', label: 'Bounced' },
+  campaign_unsubscribed: { icon: UserMinus, color: 'bg-orange-100 text-orange-700', label: 'Unsubscribed' },
 };
 
-const filterOptions = ['all', 'note', 'call', 'email', 'meeting', 'task'] as const;
+const filterOptions = ['all', 'note', 'call', 'email', 'meeting', 'task', 'campaign_sent', 'campaign_opened', 'campaign_clicked', 'campaign_bounced', 'campaign_unsubscribed'] as const;
 
 interface Props {
   activities: CRMActivity[];

@@ -88,6 +88,13 @@ const CRMCompanyProfile = lazy(() => import('./pages/CRMCompanyProfile'));
 const CRMSettings = lazy(() => import('./pages/CRMSettings'));
 const SchedulerPage = lazy(() => import('./pages/crm/scheduler/SchedulerPage'));
 const CreateEventTypePage = lazy(() => import('./pages/crm/scheduler/CreateEventTypePage'));
+const CampaignsPage = lazy(() => import('./pages/crm/campaigns/CampaignsPage'));
+const CampaignSetupPage = lazy(() => import('./pages/crm/campaigns/CampaignSetupPage'));
+const CampaignBuilderPage = lazy(() => import('./pages/crm/campaigns/CampaignBuilderPage'));
+const CampaignReportPage = lazy(() => import('./pages/crm/campaigns/CampaignReportPage'));
+const TemplatesPage = lazy(() => import('./pages/crm/campaigns/TemplatesPage'));
+const CampaignSettingsPage = lazy(() => import('./pages/crm/campaigns/CampaignSettingsPage'));
+const UnsubscribePage = lazy(() => import('./pages/public/UnsubscribePage'));
 const PublicBookingPage = lazy(() => import('./pages/scheduler/PublicBookingPage'));
 const BookingCancelPage = lazy(() => import('./pages/scheduler/BookingCancelPage'));
 const BookingReschedulePage = lazy(() => import('./pages/scheduler/BookingReschedulePage'));
@@ -277,6 +284,14 @@ const App = () => <QueryClientProvider client={queryClient}>
                    <Route path="crm/scheduler" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><SchedulerPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/scheduler/new" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CreateEventTypePage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/scheduler/:id/edit" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CreateEventTypePage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   {/* Campaign routes — static routes before :id to avoid conflicts */}
+                   <Route path="crm/campaigns" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CampaignsPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/campaigns/new" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CampaignSetupPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/campaigns/templates" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><TemplatesPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/campaigns/settings" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CampaignSettingsPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/campaigns/:id" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CampaignSetupPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/campaigns/:id/builder" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CampaignBuilderPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/campaigns/:id/report" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CampaignReportPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="payroll" element={<OrgProtectedRoute><FeatureProtectedRoute feature="payroll"><Payroll /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="workflows" element={<OrgProtectedRoute><FeatureProtectedRoute feature="workflows"><Workflows /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="workflows/:workflowId" element={<OrgProtectedRoute><FeatureProtectedRoute feature="workflows"><ApplicationDetail /></FeatureProtectedRoute></OrgProtectedRoute>} />
@@ -365,6 +380,9 @@ const App = () => <QueryClientProvider client={queryClient}>
                 <Route path="/s/:orgCode/scheduler/:eventSlug" element={<PublicBookingPage />} />
                 <Route path="/s/:orgCode/scheduler/cancel/:token" element={<BookingCancelPage />} />
                 <Route path="/s/:orgCode/scheduler/reschedule/:token" element={<BookingReschedulePage />} />
+
+                {/* Public email campaign pages */}
+                <Route path="/e/unsub/:token" element={<UnsubscribePage />} />
 
                 {/* Catch-all */}
                 <Route path="*" element={<NotFound />} />
