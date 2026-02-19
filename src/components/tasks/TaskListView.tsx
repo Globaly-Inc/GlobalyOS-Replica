@@ -12,11 +12,12 @@ interface TaskListViewProps {
   tasks: TaskWithRelations[];
   categories: TaskCategoryRow[];
   spaceId: string;
+  listId?: string | null;
   onTaskClick: (taskId: string) => void;
   columns?: ColumnConfig[];
 }
 
-export const TaskListView = ({ statuses, tasks, categories, spaceId, onTaskClick, columns }: TaskListViewProps) => {
+export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onTaskClick, columns }: TaskListViewProps) => {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [addingInStatus, setAddingInStatus] = useState<string | null>(null);
 

@@ -20,6 +20,7 @@ import type {
   TaskActivityLogWithActor,
   TaskFilters,
   TaskSpaceTreeNode,
+  TaskListRow, TaskListInsert, TaskListUpdate,
 } from '@/types/task';
 
 // ─── Spaces ───
@@ -100,6 +101,71 @@ export const useDeleteTaskSpace = () => {
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['task-spaces'] }),
+  });
+};
+
+// ─── Task Lists ───
+
+export const useTaskLists = (spaceId: string | undefined) => {
+  return useQuery({
+    queryKey: ['task-lists', spaceId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('task_lists')
+        .select('*')
+        .eq('space_id', spaceId!)
+        .eq('is_archived', false)
+        .order('sort_order');
+      if (error) throw error;
+      return data as TaskListRow[];
+    },
+    enabled: !!spaceId,
+  });
+};
+
+export const useCreateTaskList = () => {
+  const qc = useQueryClient();
+  const { currentOrg } = useOrganization();
+  return useMutation({
+    mutationFn: async (input: Omit<TaskListInsert, 'organization_id'>) => {
+      const { data, error } = await supabase
+        .from('task_lists')
+        .insert({ ...input, organization_id: currentOrg!.id })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => qc.invalidateQueries({ queryKey: ['task-lists', data.space_id] }),
+  });
+};
+
+export const useUpdateTaskList = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: TaskListUpdate & { id: string }) => {
+      const { data, error } = await supabase
+        .from('task_lists')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => qc.invalidateQueries({ queryKey: ['task-lists', data.space_id] }),
+  });
+};
+
+export const useDeleteTaskList = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, spaceId }: { id: string; spaceId: string }) => {
+      const { error } = await supabase.from('task_lists').delete().eq('id', id);
+      if (error) throw error;
+      return spaceId;
+    },
+    onSuccess: (spaceId) => qc.invalidateQueries({ queryKey: ['task-lists', spaceId] }),
   });
 };
 
@@ -249,6 +315,7 @@ export const useTasks = (spaceId: string | undefined, filters?: TaskFilters) => 
         .eq('is_archived', false)
         .order('sort_order');
 
+      if (filters?.list_id) query = query.eq('list_id', filters.list_id);
       if (filters?.status_ids?.length) query = query.in('status_id', filters.status_ids);
       if (filters?.assignee_ids?.length) query = query.in('assignee_id', filters.assignee_ids);
       if (filters?.priority?.length) query = query.in('priority', filters.priority);

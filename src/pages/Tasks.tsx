@@ -1,9 +1,11 @@
 import { useState, useMemo } from 'react';
-import { Search, Plus, Settings, LayoutList, Columns3 } from 'lucide-react';
+import { Search, Plus, Settings, LayoutList, Columns3, X, ListPlus, Pencil, Trash2, MoreHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { useTasks, useTaskStatuses, useTaskCategories } from '@/services/useTasks';
+import { Badge } from '@/components/ui/badge';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { useTasks, useTaskStatuses, useTaskCategories, useTaskSpaces, useTaskLists, useCreateTaskList, useUpdateTaskList, useDeleteTaskList } from '@/services/useTasks';
 import { TaskListView } from '../components/tasks/TaskListView';
 import { TaskBoardView } from '../components/tasks/TaskBoardView';
 import { TaskInnerSidebar } from '../components/tasks/TaskInnerSidebar';
@@ -12,15 +14,16 @@ import { TaskDetailPage } from '../components/tasks/TaskDetailPage';
 import { TaskFilterPopover } from '../components/tasks/TaskFilterPopover';
 import { TaskColumnCustomizer, getDefaultColumns } from '../components/tasks/TaskColumnCustomizer';
 import { AddTaskDialog } from '../components/tasks/AddTaskDialog';
-import { useTaskSpaces } from '@/services/useTasks';
 import { useTaskListRealtime } from '@/services/useTaskDetailRealtime';
-import type { TaskSpaceRow, TaskFilters } from '@/types/task';
+import type { TaskSpaceRow, TaskFilters, TaskListRow } from '@/types/task';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 type ViewMode = 'list' | 'board';
 
 const Tasks = () => {
   const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(null);
+  const [selectedListId, setSelectedListId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [showManage, setShowManage] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
@@ -28,13 +31,25 @@ const Tasks = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [filters, setFilters] = useState<TaskFilters>({});
   const [columns, setColumns] = useState(getDefaultColumns());
+  const [newListName, setNewListName] = useState('');
+  const [addingList, setAddingList] = useState(false);
+  const [editingListId, setEditingListId] = useState<string | null>(null);
+  const [editingListName, setEditingListName] = useState('');
 
   const { data: spaces = [] } = useTaskSpaces();
 
   const activeSpaceId = selectedSpaceId || spaces[0]?.id || null;
   const activeSpace = spaces.find(s => s.id === activeSpaceId);
 
-  // Realtime for the active space
+  const { data: taskLists = [] } = useTaskLists(activeSpaceId || undefined);
+  const createList = useCreateTaskList();
+  const updateList = useUpdateTaskList();
+  const deleteList = useDeleteTaskList();
+
+  // Auto-select first list when space changes or lists load
+  const activeListId = selectedListId || taskLists[0]?.id || null;
+  const activeList = taskLists.find(l => l.id === activeListId);
+
   useTaskListRealtime(activeSpaceId);
 
   const breadcrumb = useMemo(() => {
@@ -48,38 +63,79 @@ const Tasks = () => {
     return trail;
   }, [activeSpace, spaces]);
 
-  // Combine search with filters
   const combinedFilters: TaskFilters = useMemo(() => ({
     ...filters,
     ...(search ? { search } : {}),
-  }), [filters, search]);
+    ...(activeListId ? { list_id: activeListId } : {}),
+  }), [filters, search, activeListId]);
 
-  const hasActiveFilters = Object.values(combinedFilters).some(v =>
-    Array.isArray(v) ? v.length > 0 : !!v
-  );
+  const hasActiveFilters = Object.keys(filters).some(k => {
+    const v = (filters as any)[k];
+    return Array.isArray(v) ? v.length > 0 : !!v;
+  }) || !!search;
 
   const { data: statuses = [] } = useTaskStatuses(activeSpaceId || undefined);
   const { data: categories = [] } = useTaskCategories(activeSpaceId || undefined);
-  const { data: tasks = [] } = useTasks(activeSpaceId || undefined, hasActiveFilters ? combinedFilters : undefined);
+  const { data: tasks = [] } = useTasks(activeSpaceId || undefined, combinedFilters);
 
   const handleSelectSpace = (spaceId: string) => {
     setSelectedSpaceId(spaceId);
+    setSelectedListId(null);
     setSelectedTaskId(null);
+    setFilters({});
+    setSearch('');
   };
 
-  const handleTaskClick = (taskId: string) => {
-    setSelectedTaskId(taskId);
-  };
+  const handleTaskClick = (taskId: string) => setSelectedTaskId(taskId);
 
   const handleTaskNav = (direction: 'prev' | 'next') => {
     if (!selectedTaskId) return;
     const idx = tasks.findIndex(t => t.id === selectedTaskId);
     if (idx < 0) return;
     const newIdx = direction === 'prev' ? idx - 1 : idx + 1;
-    if (newIdx >= 0 && newIdx < tasks.length) {
-      setSelectedTaskId(tasks[newIdx].id);
+    if (newIdx >= 0 && newIdx < tasks.length) setSelectedTaskId(tasks[newIdx].id);
+  };
+
+  const handleAddList = async () => {
+    if (!newListName.trim() || !activeSpaceId) return;
+    try {
+      const newList = await createList.mutateAsync({
+        space_id: activeSpaceId,
+        name: newListName.trim(),
+        sort_order: taskLists.length,
+      });
+      setSelectedListId(newList.id);
+      setNewListName('');
+      setAddingList(false);
+      toast.success('List created');
+    } catch {
+      toast.error('Failed to create list');
     }
   };
+
+  const handleRenameList = async (id: string) => {
+    if (!editingListName.trim()) { setEditingListId(null); return; }
+    try {
+      await updateList.mutateAsync({ id, name: editingListName.trim() });
+      setEditingListId(null);
+      toast.success('List renamed');
+    } catch {
+      toast.error('Failed to rename');
+    }
+  };
+
+  const handleDeleteList = async (list: TaskListRow) => {
+    if (taskLists.length <= 1) { toast.error("Can't delete the last list"); return; }
+    try {
+      await deleteList.mutateAsync({ id: list.id, spaceId: list.space_id });
+      if (selectedListId === list.id) setSelectedListId(null);
+      toast.success('List deleted');
+    } catch {
+      toast.error('Failed to delete list');
+    }
+  };
+
+  const clearFilters = () => { setFilters({}); setSearch(''); };
 
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
@@ -87,7 +143,7 @@ const Tasks = () => {
 
       {/* Task Detail Dialog */}
       <Dialog open={!!selectedTaskId} onOpenChange={(open) => { if (!open) setSelectedTaskId(null); }}>
-        <DialogContent className="max-w-5xl w-[95vw] h-[85vh] p-0 gap-0 overflow-hidden">
+        <DialogContent className="max-w-5xl w-[95vw] h-[88vh] p-0 gap-0 overflow-hidden">
           {selectedTaskId && (
             <TaskDetailPage
               taskId={selectedTaskId}
@@ -102,86 +158,186 @@ const Tasks = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         {activeSpaceId && activeSpace ? (
           <>
-            {/* Breadcrumb + title */}
-            <div className="px-6 pt-4 pb-2">
+            {/* Space Header */}
+            <div className="px-6 pt-4 pb-0">
               {breadcrumb.length > 1 && (
                 <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
                   {breadcrumb.map((s, i) => (
                     <span key={s.id} className="flex items-center gap-1">
                       {i > 0 && <span>/</span>}
-                      <button
-                        className="hover:text-foreground transition-colors"
-                        onClick={() => handleSelectSpace(s.id)}
-                      >
+                      <button className="hover:text-foreground transition-colors" onClick={() => handleSelectSpace(s.id)}>
                         {s.name}
                       </button>
                     </span>
                   ))}
                 </div>
               )}
-              <h1 className="text-xl font-semibold">{activeSpace.name}</h1>
+              <div className="flex items-center justify-between">
+                <h1 className="text-xl font-semibold flex items-center gap-2">
+                  <span>{activeSpace.icon || '📁'}</span>
+                  {activeSpace.name}
+                </h1>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => setShowManage(true)}>
+                    <Settings className="h-3.5 w-3.5" />
+                    Manage
+                  </Button>
+                  <Button size="sm" className="h-8 gap-1.5" onClick={() => setShowAddTask(true)}>
+                    <Plus className="h-3.5 w-3.5" />
+                    Add Task
+                  </Button>
+                </div>
+              </div>
             </div>
 
-            {/* Toolbar */}
-            <div className="px-6 py-2 flex items-center gap-2 border-b">
-              <div className="relative flex-1 max-w-xs">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search tasks..."
-                  className="h-8 text-sm pl-8"
+            {/* Task Lists Tabs + Toolbar */}
+            <div className="px-6 pt-3 border-b">
+              {/* List tabs */}
+              <div className="flex items-center gap-0.5 overflow-x-auto">
+                {taskLists.map(list => (
+                  <div
+                    key={list.id}
+                    className={cn(
+                      'group relative flex items-center gap-1 px-3 py-2 text-sm cursor-pointer border-b-2 transition-colors whitespace-nowrap shrink-0',
+                      activeListId === list.id
+                        ? 'border-primary text-primary font-medium'
+                        : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                    )}
+                    onClick={() => setSelectedListId(list.id)}
+                  >
+                    {editingListId === list.id ? (
+                      <Input
+                        value={editingListName}
+                        onChange={e => setEditingListName(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') handleRenameList(list.id);
+                          if (e.key === 'Escape') setEditingListId(null);
+                        }}
+                        onBlur={() => handleRenameList(list.id)}
+                        className="h-6 text-sm w-28 px-1"
+                        autoFocus
+                        onClick={e => e.stopPropagation()}
+                      />
+                    ) : (
+                      <>
+                        <span>{list.name}</span>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-muted transition-opacity"
+                              onClick={e => e.stopPropagation()}
+                            >
+                              <MoreHorizontal className="h-3.5 w-3.5" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start">
+                            <DropdownMenuItem onClick={() => { setEditingListId(list.id); setEditingListName(list.name); }}>
+                              <Pencil className="h-3.5 w-3.5 mr-2" /> Rename
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDeleteList(list)}>
+                              <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </>
+                    )}
+                  </div>
+                ))}
+
+                {/* Add list button/input */}
+                {addingList ? (
+                  <div className="flex items-center gap-1 px-2">
+                    <Input
+                      value={newListName}
+                      onChange={e => setNewListName(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleAddList();
+                        if (e.key === 'Escape') { setAddingList(false); setNewListName(''); }
+                      }}
+                      placeholder="List name..."
+                      className="h-7 text-xs w-28"
+                      autoFocus
+                    />
+                    <Button size="sm" className="h-7 px-2 text-xs" onClick={handleAddList} disabled={!newListName.trim()}>Add</Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setAddingList(false); setNewListName(''); }}>
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <button
+                    className="flex items-center gap-1 px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                    onClick={() => setAddingList(true)}
+                  >
+                    <ListPlus className="h-3.5 w-3.5" />
+                    New List
+                  </button>
+                )}
+              </div>
+
+              {/* Toolbar row */}
+              <div className="flex items-center gap-2 py-2">
+                <div className="relative flex-1 max-w-xs">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search tasks..."
+                    className="h-8 text-sm pl-8"
+                  />
+                </div>
+
+                <TaskFilterPopover
+                  statuses={statuses}
+                  categories={categories}
+                  filters={filters}
+                  onFiltersChange={setFilters}
                 />
+
+                {hasActiveFilters && (
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-muted-foreground" onClick={clearFilters}>
+                    <X className="h-3.5 w-3.5" />
+                    Clear
+                  </Button>
+                )}
+
+                {viewMode === 'list' && (
+                  <TaskColumnCustomizer columns={columns} onColumnsChange={setColumns} />
+                )}
+
+                <div className="flex-1" />
+
+                {/* Active filter chips */}
+                {filters.priority?.map(p => (
+                  <Badge key={p} variant="secondary" className="text-xs gap-1 cursor-pointer" onClick={() => setFilters(f => ({ ...f, priority: f.priority?.filter(x => x !== p) }))}>
+                    {p} <X className="h-2.5 w-2.5" />
+                  </Badge>
+                ))}
+
+                {/* View toggle */}
+                <div className="flex items-center border rounded-md overflow-hidden">
+                  <button
+                    className={cn(
+                      'flex items-center gap-1 px-2.5 py-1 text-xs transition-colors',
+                      viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    )}
+                    onClick={() => setViewMode('list')}
+                  >
+                    <LayoutList className="h-3.5 w-3.5" />
+                    List
+                  </button>
+                  <button
+                    className={cn(
+                      'flex items-center gap-1 px-2.5 py-1 text-xs transition-colors',
+                      viewMode === 'board' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    )}
+                    onClick={() => setViewMode('board')}
+                  >
+                    <Columns3 className="h-3.5 w-3.5" />
+                    Board
+                  </button>
+                </div>
               </div>
-
-              <TaskFilterPopover
-                statuses={statuses}
-                categories={categories}
-                filters={filters}
-                onFiltersChange={setFilters}
-              />
-
-              {viewMode === 'list' && (
-                <TaskColumnCustomizer columns={columns} onColumnsChange={setColumns} />
-              )}
-
-              {/* View toggle */}
-              <div className="flex items-center border rounded-md overflow-hidden">
-                <button
-                  className={cn(
-                    'flex items-center gap-1 px-2.5 py-1 text-xs transition-colors',
-                    viewMode === 'list'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                  )}
-                  onClick={() => setViewMode('list')}
-                >
-                  <LayoutList className="h-3.5 w-3.5" />
-                  List
-                </button>
-                <button
-                  className={cn(
-                    'flex items-center gap-1 px-2.5 py-1 text-xs transition-colors',
-                    viewMode === 'board'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                  )}
-                  onClick={() => setViewMode('board')}
-                >
-                  <Columns3 className="h-3.5 w-3.5" />
-                  Board
-                </button>
-              </div>
-
-              <div className="flex-1" />
-              <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => setShowManage(true)}>
-                <Settings className="h-3.5 w-3.5" />
-                Manage
-              </Button>
-              <Button size="sm" className="h-8 gap-1.5" onClick={() => setShowAddTask(true)}>
-                <Plus className="h-3.5 w-3.5" />
-                Add Task
-              </Button>
             </div>
 
             {/* Task content */}
@@ -192,6 +348,7 @@ const Tasks = () => {
                   tasks={tasks}
                   categories={categories}
                   spaceId={activeSpaceId}
+                  listId={activeListId}
                   onTaskClick={handleTaskClick}
                   columns={columns}
                 />
@@ -207,7 +364,12 @@ const Tasks = () => {
             </div>
 
             <ManageDialog open={showManage} onOpenChange={setShowManage} spaceId={activeSpaceId} />
-            <AddTaskDialog open={showAddTask} onOpenChange={setShowAddTask} spaceId={activeSpaceId} />
+            <AddTaskDialog
+              open={showAddTask}
+              onOpenChange={setShowAddTask}
+              spaceId={activeSpaceId}
+              listId={activeListId}
+            />
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">

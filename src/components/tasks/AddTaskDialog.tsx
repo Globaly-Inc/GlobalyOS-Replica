@@ -15,9 +15,10 @@ interface AddTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   spaceId: string;
+  listId?: string | null;
 }
 
-export const AddTaskDialog = ({ open, onOpenChange, spaceId }: AddTaskDialogProps) => {
+export const AddTaskDialog = ({ open, onOpenChange, spaceId, listId }: AddTaskDialogProps) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [statusId, setStatusId] = useState<string>('');
@@ -38,6 +39,7 @@ export const AddTaskDialog = ({ open, onOpenChange, spaceId }: AddTaskDialogProp
     try {
       await createTask.mutateAsync({
         space_id: spaceId,
+        list_id: listId || null,
         title: title.trim(),
         description: description.trim() || null,
         status_id: statusId || defaultStatusId,
