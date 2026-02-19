@@ -167,12 +167,14 @@ Deno.serve(async (req) => {
         "Api-Token": SENDBIRD_API_TOKEN,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ expires_at: Math.floor(Date.now() / 1000) + 86400 }),
+      body: JSON.stringify({ expires_at: Date.now() + 86400 * 1000 }),
     });
 
     if (!tokenResp.ok) {
+      const tokenErr = await tokenResp.text();
+      console.error("Sendbird token error:", tokenResp.status, tokenErr);
       return new Response(
-        JSON.stringify({ error: "Failed to issue session token" }),
+        JSON.stringify({ error: "Failed to issue session token", details: tokenErr }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
