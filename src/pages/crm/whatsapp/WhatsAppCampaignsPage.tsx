@@ -6,7 +6,7 @@ import { useWaCampaigns, useSendWaCampaign } from '@/hooks/useWhatsAppTemplates'
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { Plus, Megaphone, Send, BarChart3 } from 'lucide-react';
+import { Plus, Megaphone, Send, BarChart3, ListOrdered } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -40,13 +40,19 @@ const WhatsAppCampaignsPage = () => {
       <PageBody>
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Broadcast Campaigns</h1>
-            <p className="text-sm text-muted-foreground mt-1">Send targeted WhatsApp broadcasts using approved templates</p>
+            <h1 className="text-2xl font-bold text-foreground">Campaigns</h1>
+            <p className="text-sm text-muted-foreground mt-1">Broadcasts and drip sequences for WhatsApp outreach</p>
           </div>
-          <Button size="sm" onClick={() => navigate('/crm/whatsapp/campaigns/new')}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Broadcast
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => navigate('/crm/whatsapp/sequences')}>
+              <ListOrdered className="h-4 w-4 mr-2" />
+              Sequences
+            </Button>
+            <Button size="sm" onClick={() => navigate('/crm/whatsapp/campaigns/new')}>
+              <Plus className="h-4 w-4 mr-2" />
+              New Broadcast
+            </Button>
+          </div>
         </div>
 
         {isLoading ? (

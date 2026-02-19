@@ -13,11 +13,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import {
   Plus, Search, Users, Phone, CheckCircle, XCircle, Clock,
-  MoreVertical, Tag, ShieldCheck, ShieldOff,
+  MoreVertical, Tag, ShieldCheck, ShieldOff, Upload,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import CsvImportDialog from '@/components/whatsapp/CsvImportDialog';
+import { useQueryClient } from '@tanstack/react-query';
 
 const optInColors: Record<string, { icon: React.ReactNode; cls: string }> = {
   opted_in: { icon: <CheckCircle className="h-3.5 w-3.5" />, cls: 'text-green-600 dark:text-green-400' },
@@ -31,10 +33,12 @@ const WhatsAppContactsPage = () => {
   const { data: contacts = [], isLoading } = useWaContacts(orgId);
   const updateMutation = useUpdateWaContact();
   const createMutation = useCreateWaContact();
+  const qc = useQueryClient();
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [csvDialogOpen, setCsvDialogOpen] = useState(false);
   const [newPhone, setNewPhone] = useState('');
   const [newName, setNewName] = useState('');
   const [newOptIn, setNewOptIn] = useState('pending');
@@ -84,10 +88,16 @@ const WhatsAppContactsPage = () => {
             <h1 className="text-2xl font-bold text-foreground">WhatsApp Contacts</h1>
             <p className="text-sm text-muted-foreground mt-1">Manage contacts, consent, and opt-in preferences</p>
           </div>
-          <Button size="sm" onClick={() => setAddDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Contact
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => setCsvDialogOpen(true)}>
+              <Upload className="h-4 w-4 mr-2" />
+              Import CSV
+            </Button>
+            <Button size="sm" onClick={() => setAddDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Contact
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -234,6 +244,16 @@ const WhatsAppContactsPage = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* CSV Import */}
+        {orgId && (
+          <CsvImportDialog
+            open={csvDialogOpen}
+            onOpenChange={setCsvDialogOpen}
+            orgId={orgId}
+            onImported={() => qc.invalidateQueries({ queryKey: ['wa-contacts'] })}
+          />
+        )}
       </PageBody>
     </>
   );
