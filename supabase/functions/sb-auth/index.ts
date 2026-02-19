@@ -90,11 +90,14 @@ Deno.serve(async (req) => {
     const baseUrl = `https://api-${SENDBIRD_APP_ID}.sendbird.com/v3`;
 
     // Try to get existing user first
+    console.log("Checking Sendbird user:", sendbirdUserId, "at:", `${baseUrl}/users/${sendbirdUserId}`);
     const getUserResp = await fetch(`${baseUrl}/users/${sendbirdUserId}`, {
       headers: { "Api-Token": SENDBIRD_API_TOKEN },
     });
 
-    if (getUserResp.status === 404) {
+    console.log("Sendbird getUserResp status:", getUserResp.status);
+
+    if (getUserResp.status === 404 || getUserResp.status === 400) {
       // Create user
       const createResp = await fetch(`${baseUrl}/users`, {
         method: "POST",
@@ -132,8 +135,10 @@ Deno.serve(async (req) => {
     }
 
     if (!getUserResp.ok) {
+      const errBody = await getUserResp.text();
+      console.error("Sendbird get user failed:", getUserResp.status, errBody);
       return new Response(
-        JSON.stringify({ error: "Failed to check Sendbird user" }),
+        JSON.stringify({ error: "Failed to check Sendbird user", details: errBody }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
