@@ -10,6 +10,7 @@ export type WaTemplateStatus = 'draft' | 'pending' | 'approved' | 'rejected';
 export type WaCampaignStatus = 'draft' | 'scheduled' | 'sending' | 'sent' | 'failed' | 'cancelled';
 export type WaAutomationStatus = 'draft' | 'active' | 'paused';
 export type WaAutomationTrigger = 'message_received' | 'keyword' | 'new_contact' | 'tag_added' | 'flow_submitted';
+export type WaFlowStatus = 'draft' | 'active' | 'archived';
 
 export interface WaAccount {
   id: string;
@@ -135,6 +136,57 @@ export interface WaAutomation {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// ── Flow types ──
+
+export interface WaFlowField {
+  id: string;
+  type: 'text' | 'email' | 'phone' | 'number' | 'select' | 'date' | 'textarea';
+  label: string;
+  placeholder?: string;
+  required: boolean;
+  options?: string[]; // for select fields
+  validation?: Record<string, unknown>;
+}
+
+export interface WaFlowScreen {
+  id: string;
+  title: string;
+  description?: string;
+  fields: WaFlowField[];
+}
+
+export interface WaFlowFieldMapping {
+  field_id: string;
+  target: 'contact_name' | 'contact_phone' | 'contact_tag' | 'contact_custom_field' | 'crm_contact_name' | 'crm_contact_email' | 'crm_deal_title';
+  target_key?: string; // for custom fields
+}
+
+export interface WaFlow {
+  id: string;
+  organization_id: string;
+  name: string;
+  description: string | null;
+  screens: WaFlowScreen[];
+  field_mapping: WaFlowFieldMapping[];
+  status: WaFlowStatus;
+  external_flow_id: string | null;
+  submission_count: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WaFlowSubmission {
+  id: string;
+  organization_id: string;
+  flow_id: string;
+  wa_contact_id: string | null;
+  conversation_id: string | null;
+  data: Record<string, unknown>;
+  mapped_fields: Record<string, unknown>;
+  created_at: string;
 }
 
 export interface WaAuditLog {

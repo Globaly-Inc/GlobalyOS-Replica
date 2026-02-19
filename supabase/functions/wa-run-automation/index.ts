@@ -147,6 +147,25 @@ serve(async (req) => {
             break;
           }
 
+          case "send_flow": {
+            const flowId = step.flow_id as string;
+            if (flowId) {
+              await supabase.from("wa_audit_log").insert({
+                organization_id,
+                action: "automation_send_flow",
+                entity_type: "automation",
+                entity_id: automation.id,
+                details: {
+                  automation_name: automation.name,
+                  flow_id: flowId,
+                  contact_id: trigger_data?.contact_id,
+                },
+              });
+            }
+            stepsExecuted++;
+            break;
+          }
+
           default:
             stepsExecuted++;
         }

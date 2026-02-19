@@ -1,4 +1,4 @@
-import { Users, MessageCircle, FileText, Megaphone, Workflow, Settings, LayoutDashboard } from 'lucide-react';
+import { Users, MessageCircle, FileText, Megaphone, Workflow, Settings, LayoutDashboard, ClipboardList } from 'lucide-react';
 import { OrgLink } from '@/components/OrgLink';
 import { useLocation, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -9,6 +9,7 @@ const whatsappSubNavItems = [
   { name: 'Templates', href: '/crm/whatsapp/templates', icon: FileText },
   { name: 'Campaigns', href: '/crm/whatsapp/campaigns', icon: Megaphone },
   { name: 'Automations', href: '/crm/whatsapp/automations', icon: Workflow },
+  { name: 'Flows', href: '/crm/whatsapp/flows', icon: ClipboardList },
   { name: 'Contacts', href: '/crm/whatsapp/contacts', icon: Users },
   { name: 'Settings', href: '/crm/whatsapp/settings', icon: Settings },
 ];
