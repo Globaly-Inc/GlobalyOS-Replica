@@ -341,3 +341,21 @@ verify_jwt = false
 
 [functions.send-scheduler-notification]
 verify_jwt = false
+
+[functions.send-campaign]
+verify_jwt = false
+
+[functions.send-test-campaign-email]
+verify_jwt = false
+
+[functions.estimate-campaign-recipients]
+verify_jwt = false
+
+[functions.track-campaign-event]
+verify_jwt = false
+
+[functions.campaign-unsubscribe]
+verify_jwt = false
+
+[functions.ai-improve-subject]
+verify_jwt = false
