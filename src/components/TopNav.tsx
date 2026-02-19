@@ -88,31 +88,37 @@ export const TopNav = ({ isAdmin }: TopNavProps) => {
 
   return (
     <nav className="flex items-center space-x-0.5 tour-feature-overview">
-      {visibleItems.map((item) =>
-      <OrgLink
-        key={item.name}
-        to={item.href}
-        className={cn("flex items-center rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground gap-[10px]",
-
-        item.isStatic && 'opacity-70',
-        isActive(item.href) && 'bg-secondary text-foreground',
-        item.name === 'Team' && 'tour-team-directory',
-        item.name === 'Wiki' && 'tour-wiki-nav',
-        item.name === 'Chat' && 'tour-chat-nav'
-        )}>
-
-          <item.icon className="h-4 w-4" />
-          {item.name}
-          {item.name === 'Chat' && chatUnreadCount > 0 &&
-        <Badge
-          variant="destructive"
-          className="h-5 min-w-[20px] px-1.5 text-[10px] font-semibold">
-
-              {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
-            </Badge>
-        }
-        </OrgLink>
-      )}
+      {visibleItems.map((item) => {
+        const active = isActive(item.href);
+        return (
+          <OrgLink
+            key={item.name}
+            to={item.href}
+            className={cn(
+              'flex items-center rounded-lg text-sm font-medium transition-colors',
+              active
+                ? 'gap-2 bg-secondary text-foreground px-3 py-2'
+                : 'h-9 w-9 justify-center bg-muted/50 text-muted-foreground hover:bg-secondary hover:text-foreground relative',
+              item.isStatic && 'opacity-70',
+              item.name === 'Team' && 'tour-team-directory',
+              item.name === 'Wiki' && 'tour-wiki-nav',
+              item.name === 'Chat' && 'tour-chat-nav'
+            )}>
+            <item.icon className="h-4 w-4" />
+            {active && item.name}
+            {item.name === 'Chat' && chatUnreadCount > 0 && (
+              <Badge
+                variant="destructive"
+                className={cn(
+                  "h-5 min-w-[20px] px-1.5 text-[10px] font-semibold",
+                  !active && "absolute -top-1 -right-1"
+                )}>
+                {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+              </Badge>
+            )}
+          </OrgLink>
+        );
+      })}
     </nav>);
 
 };
