@@ -404,7 +404,7 @@ export default function PublicBookingPage() {
                 {primaryHost && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <User className="h-4 w-4 flex-shrink-0" />
-                    <span>{primaryHost.first_name} {primaryHost.last_name}</span>
+                    <span>{primaryHost.full_name || primaryHost.position || 'Host'}</span>
                   </div>
                 )}
               </div>

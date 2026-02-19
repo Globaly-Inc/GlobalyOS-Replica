@@ -78,11 +78,17 @@ export default function CreateEventTypePage() {
     if (!currentOrg?.id) return;
     supabase
       .from('employees')
-      .select('id, first_name, last_name, job_title, avatar_url')
+      .select('id, user_id, position, profiles(full_name, avatar_url)')
       .eq('organization_id', currentOrg.id)
       .eq('status', 'active')
-      .order('first_name')
-      .then(({ data }) => setEmployees(data || []));
+      .order('id')
+      .then(({ data }) => setEmployees((data || []).map((e: any) => ({
+        ...e,
+        first_name: (e.profiles?.full_name || '').split(' ')[0] || '',
+        last_name: (e.profiles?.full_name || '').split(' ').slice(1).join(' ') || '',
+        avatar_url: e.profiles?.avatar_url || null,
+        job_title: e.position || '',
+      }))));
   }, [currentOrg?.id]);
 
   // Populate for edit

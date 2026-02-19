@@ -234,7 +234,7 @@ function EventTypeCard({ eventType, bookingLink, onEdit, onCopyLink, onToggleAct
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Users className="h-3.5 w-3.5" />
           <span>
-            {hosts.slice(0, 2).map(h => `${h.employee?.first_name || ''} ${h.employee?.last_name || ''}`.trim()).join(', ')}
+            {hosts.slice(0, 2).map(h => (h.employee as any)?.profiles?.full_name || (h.employee as any)?.position || 'Host').join(', ')}
             {hosts.length > 2 && ` +${hosts.length - 2} more`}
           </span>
         </div>
