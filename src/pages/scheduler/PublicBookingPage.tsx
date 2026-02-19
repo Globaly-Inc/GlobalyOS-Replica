@@ -1,14 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { format, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, isPast, startOfDay } from 'date-fns';
-import { ChevronLeft, ChevronRight, Clock, MapPin, Video, Phone, Building, Globe, User, ChevronDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Video, Phone, Building, Globe, User, Download, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import type { PublicEventType, TimeSlot, CustomQuestion } from '@/types/scheduler';
+import { toast } from 'sonner';
+import type { PublicEventType, CustomQuestion } from '@/types/scheduler';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -27,13 +28,91 @@ const LOCATION_LABEL = {
   custom: 'Custom',
 };
 
-// Common timezones
+// Comprehensive timezone list
 const TIMEZONES = [
-  'UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
-  'America/Toronto', 'America/Vancouver', 'Europe/London', 'Europe/Paris', 'Europe/Berlin',
-  'Europe/Moscow', 'Asia/Dubai', 'Asia/Kolkata', 'Asia/Singapore', 'Asia/Tokyo',
-  'Australia/Sydney', 'Pacific/Auckland',
+  // UTC
+  'UTC',
+  // Americas
+  'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
+  'America/Phoenix', 'America/Anchorage', 'America/Honolulu',
+  'America/Toronto', 'America/Vancouver', 'America/Montreal', 'America/Calgary',
+  'America/Mexico_City', 'America/Bogota', 'America/Lima', 'America/Santiago',
+  'America/Buenos_Aires', 'America/Sao_Paulo', 'America/Caracas',
+  'America/La_Paz', 'America/Asuncion', 'America/Montevideo',
+  // Europe
+  'Europe/London', 'Europe/Dublin', 'Europe/Lisbon',
+  'Europe/Paris', 'Europe/Berlin', 'Europe/Madrid', 'Europe/Rome',
+  'Europe/Amsterdam', 'Europe/Brussels', 'Europe/Vienna', 'Europe/Zurich',
+  'Europe/Warsaw', 'Europe/Prague', 'Europe/Budapest', 'Europe/Bucharest',
+  'Europe/Athens', 'Europe/Istanbul', 'Europe/Kiev', 'Europe/Moscow',
+  'Europe/Helsinki', 'Europe/Stockholm', 'Europe/Oslo', 'Europe/Copenhagen',
+  // Africa
+  'Africa/Cairo', 'Africa/Nairobi', 'Africa/Lagos', 'Africa/Johannesburg',
+  'Africa/Casablanca', 'Africa/Accra', 'Africa/Addis_Ababa',
+  // Middle East
+  'Asia/Dubai', 'Asia/Riyadh', 'Asia/Qatar', 'Asia/Kuwait', 'Asia/Bahrain',
+  'Asia/Tehran', 'Asia/Jerusalem', 'Asia/Amman', 'Asia/Beirut',
+  // Asia
+  'Asia/Kolkata', 'Asia/Karachi', 'Asia/Dhaka', 'Asia/Colombo',
+  'Asia/Kathmandu', 'Asia/Rangoon',
+  'Asia/Bangkok', 'Asia/Jakarta', 'Asia/Kuala_Lumpur', 'Asia/Singapore',
+  'Asia/Manila', 'Asia/Hong_Kong', 'Asia/Shanghai', 'Asia/Taipei',
+  'Asia/Seoul', 'Asia/Tokyo',
+  'Asia/Almaty', 'Asia/Tashkent', 'Asia/Tbilisi', 'Asia/Yerevan',
+  // Pacific
+  'Australia/Perth', 'Australia/Adelaide', 'Australia/Darwin',
+  'Australia/Brisbane', 'Australia/Sydney', 'Australia/Melbourne',
+  'Pacific/Auckland', 'Pacific/Fiji', 'Pacific/Honolulu',
+  'Pacific/Guam', 'Pacific/Port_Moresby',
 ];
+
+// Generate ICS file content
+function generateICS(params: {
+  title: string;
+  description: string;
+  location: string;
+  startUtc: string;
+  endUtc: string;
+  organizer: string;
+}): string {
+  const toICSDate = (iso: string) =>
+    iso.replace(/[-:]/g, '').replace('.000', '').replace('Z', '') + 'Z';
+
+  const uid = `${Date.now()}@globalyos.com`;
+  const now = toICSDate(new Date().toISOString());
+
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//GlobalyOS//Scheduler//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `DTSTAMP:${now}`,
+    `DTSTART:${toICSDate(params.startUtc)}`,
+    `DTEND:${toICSDate(params.endUtc)}`,
+    `SUMMARY:${params.title}`,
+    `DESCRIPTION:${params.description.replace(/\n/g, '\\n')}`,
+    `LOCATION:${params.location}`,
+    `ORGANIZER:CN=${params.organizer}`,
+    'STATUS:CONFIRMED',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+}
+
+function downloadICS(filename: string, content: string) {
+  const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 type BookingStep = 'time' | 'details' | 'confirmed';
 
@@ -41,18 +120,19 @@ interface ConfirmedData {
   invitee_name: string;
   invitee_email: string;
   start_at_utc: string;
+  end_at_utc: string;
   event_name: string;
   host_name: string | null;
   org_name: string;
   duration_minutes: number;
   location_type: string;
+  location_value: string | null;
   cancel_link: string;
   reschedule_link: string;
 }
 
 export default function PublicBookingPage() {
   const { orgCode, eventSlug } = useParams<{ orgCode: string; eventSlug: string }>();
-  const navigate = useNavigate();
 
   const [step, setStep] = useState<BookingStep>('time');
   const [eventType, setEventType] = useState<PublicEventType | null>(null);
@@ -140,22 +220,27 @@ export default function PublicBookingPage() {
         }),
       });
       const data = await res.json();
-      if (data.error) { alert(data.error); return; }
+      if (data.error) {
+        toast.error(data.error);
+        return;
+      }
       setConfirmed({
         invitee_name: data.booking.invitee_name,
         invitee_email: data.booking.invitee_email,
         start_at_utc: data.booking.start_at_utc,
+        end_at_utc: data.booking.end_at_utc,
         event_name: data.event_type.name,
         host_name: data.host?.name || null,
         org_name: data.org_name,
         duration_minutes: data.event_type.duration_minutes,
         location_type: data.event_type.location_type,
+        location_value: data.event_type.location_value || null,
         cancel_link: data.cancel_link,
         reschedule_link: data.reschedule_link,
       });
       setStep('confirmed');
     } catch {
-      alert('Failed to create booking. Please try again.');
+      toast.error('Failed to create booking. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -165,7 +250,7 @@ export default function PublicBookingPage() {
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const calendarDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
-  const startDayOfWeek = monthStart.getDay(); // 0 = Sunday
+  const startDayOfWeek = monthStart.getDay();
 
   const today = startOfDay(new Date());
   const maxDate = eventType
@@ -208,6 +293,25 @@ export default function PublicBookingPage() {
   // Confirmed page
   if (step === 'confirmed' && confirmed) {
     const startDate = new Date(confirmed.start_at_utc);
+    const endDate = new Date(confirmed.end_at_utc || new Date(confirmed.start_at_utc).getTime() + confirmed.duration_minutes * 60000);
+    const LocIconConf = LOCATION_ICON[confirmed.location_type as keyof typeof LOCATION_ICON] || Video;
+
+    const handleAddToCalendar = () => {
+      const locationStr =
+        confirmed.location_type === 'google_meet' ? 'Google Meet' :
+        confirmed.location_value || confirmed.location_type;
+
+      const icsContent = generateICS({
+        title: `${confirmed.event_name} with ${confirmed.host_name || confirmed.org_name}`,
+        description: `Meeting booked via ${confirmed.org_name}\\n\\nReschedule: ${confirmed.reschedule_link}\\nCancel: ${confirmed.cancel_link}`,
+        location: locationStr,
+        startUtc: confirmed.start_at_utc,
+        endUtc: endDate.toISOString(),
+        organizer: confirmed.host_name || confirmed.org_name,
+      });
+      downloadICS(`${confirmed.event_name.replace(/\s+/g, '-')}.ics`, icsContent);
+    };
+
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="bg-card border border-border rounded-2xl shadow-lg max-w-md w-full p-8 text-center">
@@ -221,7 +325,7 @@ export default function PublicBookingPage() {
             A confirmation email has been sent to {confirmed.invitee_email}
           </p>
 
-          <div className="bg-muted/40 rounded-xl p-5 text-left space-y-3 mb-6">
+          <div className="bg-muted/40 rounded-xl p-5 text-left space-y-3 mb-5">
             <div className="flex items-center gap-3 text-sm">
               <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               <div>
@@ -234,8 +338,10 @@ export default function PublicBookingPage() {
               </div>
             </div>
             <div className="flex items-center gap-3 text-sm">
-              <LocIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-              <span className="text-foreground">{LOCATION_LABEL[confirmed.location_type as keyof typeof LOCATION_LABEL] || confirmed.location_type}</span>
+              <LocIconConf className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <span className="text-foreground">
+                {LOCATION_LABEL[confirmed.location_type as keyof typeof LOCATION_LABEL] || confirmed.location_type}
+              </span>
             </div>
             {confirmed.host_name && (
               <div className="flex items-center gap-3 text-sm">
@@ -244,6 +350,16 @@ export default function PublicBookingPage() {
               </div>
             )}
           </div>
+
+          {/* Add to calendar */}
+          <Button
+            variant="outline"
+            className="w-full mb-4 gap-2"
+            onClick={handleAddToCalendar}
+          >
+            <Download className="h-4 w-4" />
+            Add to Calendar (.ics)
+          </Button>
 
           <div className="flex gap-3">
             <a
@@ -327,12 +443,12 @@ export default function PublicBookingPage() {
                   <div className="flex items-center justify-end gap-2 mb-4">
                     <Globe className="h-4 w-4 text-muted-foreground" />
                     <Select value={timezone} onValueChange={setTimezone}>
-                      <SelectTrigger className="w-52 h-8 text-xs">
+                      <SelectTrigger className="w-56 h-8 text-xs">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="max-h-60">
+                      <SelectContent className="max-h-72">
                         {TIMEZONES.map(tz => (
-                          <SelectItem key={tz} value={tz} className="text-xs">{tz}</SelectItem>
+                          <SelectItem key={tz} value={tz} className="text-xs">{tz.replace(/_/g, ' ')}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -377,7 +493,6 @@ export default function PublicBookingPage() {
 
                     {/* Calendar grid */}
                     <div className="grid grid-cols-7 gap-1">
-                      {/* Empty cells for start offset */}
                       {Array.from({ length: startDayOfWeek }).map((_, i) => (
                         <div key={`empty-${i}`} />
                       ))}
@@ -490,7 +605,7 @@ export default function PublicBookingPage() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
-          Powered by <a href="https://globalyos.com" className="hover:underline">GlobalyOS Scheduler</a>
+          Powered by <a href="https://globalyos.com" className="hover:underline" target="_blank" rel="noopener noreferrer">GlobalyOS Scheduler</a>
         </p>
       </div>
     </div>
