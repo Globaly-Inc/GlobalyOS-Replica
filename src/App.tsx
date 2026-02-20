@@ -61,6 +61,7 @@ const Settings = lazy(() => import('./pages/Settings'));
  const SettingsWorkflows = lazy(() => import('./pages/settings/SettingsWorkflows'));
  const SettingsAI = lazy(() => import('./pages/settings/SettingsAI'));
  const SettingsBilling = lazy(() => import('./pages/settings/SettingsBilling'));
+ const SettingsCRM = lazy(() => import('./pages/settings/SettingsCRM'));
 const Join = lazy(() => import('./pages/Join'));
 const Leave = lazy(() => import('./pages/Leave'));
 const BulkLeaveImport = lazy(() => import('./pages/BulkLeaveImport'));
@@ -293,6 +294,7 @@ const App = () => <QueryClientProvider client={queryClient}>
                   <Route path="settings/workflows" element={<OrgProtectedRoute><FeatureProtectedRoute feature="workflows"><SettingsWorkflows /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="settings/ai" element={<OrgProtectedRoute><FeatureProtectedRoute feature="ask-ai"><SettingsAI /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="settings/billing" element={<OrgProtectedRoute><SettingsBilling /></OrgProtectedRoute>} />
+                  <Route path="settings/crm" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><SettingsCRM /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="settings/workflow/:templateId" element={<OrgProtectedRoute><WorkflowSettings /></OrgProtectedRoute>} />
                   <Route path="notifications" element={<OrgProtectedRoute><Notifications /></OrgProtectedRoute>} />
                   <Route path="notifications/preferences" element={<OrgProtectedRoute><NotificationPreferences /></OrgProtectedRoute>} />
@@ -308,7 +310,7 @@ const App = () => <QueryClientProvider client={queryClient}>
                    <Route path="crm/companies" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CompaniesPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/contacts/:id" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CRMContactProfile /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/companies/:id" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CRMCompanyProfile /></FeatureProtectedRoute></OrgProtectedRoute>} />
-                   <Route path="crm/settings" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CRMSettings /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/settings" element={<Navigate to="../settings/crm" replace />} />
                    <Route path="crm/scheduler" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><SchedulerPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/scheduler/new" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CreateEventTypePage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/scheduler/:id/edit" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CreateEventTypePage /></FeatureProtectedRoute></OrgProtectedRoute>} />
