@@ -70,7 +70,19 @@ export function useIvrBuilder(initialConfig: Record<string, unknown> | null) {
       const id = generateId(type);
       const parent = parentId ? findNode(parentId) : null;
 
-      const baseX = parent ? parent.position.x : 400;
+      // Offset X for siblings to prevent overlap
+      let siblingCount = 0;
+      if (parent) {
+        if (parent.type === 'menu') {
+          siblingCount = parent.menu_options?.length || 0;
+        } else {
+          siblingCount = parent.children?.length || 0;
+        }
+      }
+      const xSpread = 220;
+      const baseX = parent
+        ? parent.position.x + (siblingCount * xSpread) - ((siblingCount > 0 ? siblingCount - 1 : 0) * xSpread / 2)
+        : 400;
       const baseY = parent ? parent.position.y + 180 : 50;
 
       const newNode: IvrNode = {

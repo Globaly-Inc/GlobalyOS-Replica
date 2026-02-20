@@ -14,18 +14,24 @@ export interface ActiveCall {
   phone_number_id: string | null;
 }
 
-export function useActiveCalls() {
+export function useActiveCalls(enabled = true) {
   const { currentOrg } = useOrganization();
   return useQuery({
     queryKey: ['active-calls', currentOrg?.id],
-    enabled: !!currentOrg?.id,
-    refetchInterval: 5000,
+    enabled: !!currentOrg?.id && enabled,
+    refetchInterval: enabled ? 10000 : false,
+    retry: 1,
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke('twilio-monitor-call', {
-        body: { action: 'list_active', organization_id: currentOrg!.id },
-      });
-      if (error) throw error;
-      return (data?.calls ?? []) as ActiveCall[];
+      try {
+        const { data, error } = await supabase.functions.invoke('twilio-monitor-call', {
+          body: { action: 'list_active', organization_id: currentOrg!.id },
+        });
+        if (error) throw error;
+        return (data?.calls ?? []) as ActiveCall[];
+      } catch {
+        // Silently return empty if Twilio isn't configured
+        return [] as ActiveCall[];
+      }
     },
   });
 }
