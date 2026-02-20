@@ -173,7 +173,7 @@ const CallQueuesPage = () => {
                   {members.length === 0 ? (
                     <p className="text-xs text-muted-foreground">No members assigned to this queue yet.</p>
                   ) : (
-                    <div className="rounded-md border divide-y">
+                    <div className="rounded-md border divide-y bg-card">
                       {members.map((m) => {
                         const emp = employees.find((e) => e.id === m.employee_id);
                         const empName = emp?.full_name || 'Unknown Agent';

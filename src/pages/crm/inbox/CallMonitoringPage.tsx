@@ -124,7 +124,7 @@ const CallMonitoringPage = () => {
                 </p>
               </div>
             ) : (
-              <div className="rounded-md border divide-y">
+              <div className="rounded-md border divide-y bg-card">
                 {activeCalls.map((call) => (
                   <div key={call.id} className="flex items-center justify-between px-4 py-3">
                     <div className="flex items-center gap-3">

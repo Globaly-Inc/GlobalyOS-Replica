@@ -151,7 +151,7 @@ const TelephonyUsagePage = () => {
                 No usage activity yet. Send an SMS or make a call to see data here.
               </p>
             ) : (
-              <div className="rounded-md border divide-y">
+              <div className="rounded-md border divide-y bg-card">
                 {usageLogs.map((log: any) => {
                   const meta = eventTypeLabel[log.event_type] || { label: log.event_type, icon: Activity, color: 'text-muted-foreground' };
                   const IconComp = meta.icon;
