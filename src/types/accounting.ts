@@ -210,6 +210,58 @@ export interface AccountingInvoicePayment {
   created_at: string;
 }
 
+// Bill types
+export type BillStatus = 'draft' | 'approved' | 'paid' | 'partially_paid' | 'overdue' | 'voided';
+
+export interface AccountingBill {
+  id: string;
+  organization_id: string;
+  ledger_id: string;
+  office_id: string;
+  contact_id: string | null;
+  bill_number: string;
+  reference: string | null;
+  status: BillStatus;
+  date: string;
+  due_date: string;
+  subtotal: number;
+  tax_total: number;
+  total: number;
+  amount_paid: number;
+  amount_due: number;
+  currency: string;
+  notes: string | null;
+  created_by: string;
+  approved_by: string | null;
+  approved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AccountingBillLine {
+  id: string;
+  bill_id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  amount: number;
+  account_id: string;
+  tax_rate_id: string | null;
+  tax_amount: number;
+  sort_order: number;
+}
+
+export interface AccountingBillPayment {
+  id: string;
+  bill_id: string;
+  amount: number;
+  date: string;
+  method: string;
+  reference: string | null;
+  journal_id: string | null;
+  created_at: string;
+}
+
 // Setup wizard form types
 export interface SetupWizardFormData {
   scopeType: AccountingScopeType;

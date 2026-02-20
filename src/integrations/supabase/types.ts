@@ -74,6 +74,219 @@ export type Database = {
           },
         ]
       }
+      accounting_bill_lines: {
+        Row: {
+          account_id: string
+          amount: number
+          bill_id: string
+          description: string
+          id: string
+          quantity: number
+          sort_order: number
+          tax_amount: number
+          tax_rate_id: string | null
+          unit_price: number
+        }
+        Insert: {
+          account_id: string
+          amount?: number
+          bill_id: string
+          description: string
+          id?: string
+          quantity?: number
+          sort_order?: number
+          tax_amount?: number
+          tax_rate_id?: string | null
+          unit_price?: number
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          bill_id?: string
+          description?: string
+          id?: string
+          quantity?: number
+          sort_order?: number
+          tax_amount?: number
+          tax_rate_id?: string | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_bill_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_bill_lines_bill_id_fkey"
+            columns: ["bill_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_bills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_bill_lines_tax_rate_id_fkey"
+            columns: ["tax_rate_id"]
+            isOneToOne: false
+            referencedRelation: "tax_rates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_bill_payments: {
+        Row: {
+          amount: number
+          bill_id: string
+          created_at: string
+          date: string
+          id: string
+          journal_id: string | null
+          method: string
+          reference: string | null
+        }
+        Insert: {
+          amount: number
+          bill_id: string
+          created_at?: string
+          date?: string
+          id?: string
+          journal_id?: string | null
+          method?: string
+          reference?: string | null
+        }
+        Update: {
+          amount?: number
+          bill_id?: string
+          created_at?: string
+          date?: string
+          id?: string
+          journal_id?: string | null
+          method?: string
+          reference?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_bill_payments_bill_id_fkey"
+            columns: ["bill_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_bills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_bill_payments_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: false
+            referencedRelation: "journals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_bills: {
+        Row: {
+          amount_due: number | null
+          amount_paid: number
+          approved_at: string | null
+          approved_by: string | null
+          bill_number: string
+          contact_id: string | null
+          created_at: string
+          created_by: string
+          currency: string
+          date: string
+          due_date: string
+          id: string
+          ledger_id: string
+          notes: string | null
+          office_id: string
+          organization_id: string
+          reference: string | null
+          status: Database["public"]["Enums"]["accounting_bill_status"]
+          subtotal: number
+          tax_total: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          amount_due?: number | null
+          amount_paid?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          bill_number: string
+          contact_id?: string | null
+          created_at?: string
+          created_by: string
+          currency?: string
+          date?: string
+          due_date?: string
+          id?: string
+          ledger_id: string
+          notes?: string | null
+          office_id: string
+          organization_id: string
+          reference?: string | null
+          status?: Database["public"]["Enums"]["accounting_bill_status"]
+          subtotal?: number
+          tax_total?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          amount_due?: number | null
+          amount_paid?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          bill_number?: string
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string
+          currency?: string
+          date?: string
+          due_date?: string
+          id?: string
+          ledger_id?: string
+          notes?: string | null
+          office_id?: string
+          organization_id?: string
+          reference?: string | null
+          status?: Database["public"]["Enums"]["accounting_bill_status"]
+          subtotal?: number
+          tax_total?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_bills_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_bills_ledger_id_fkey"
+            columns: ["ledger_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_ledgers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_bills_office_id_fkey"
+            columns: ["office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_bills_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accounting_contacts: {
         Row: {
           billing_address: Json | null
@@ -19269,6 +19482,13 @@ export type Database = {
         | "equity"
         | "revenue"
         | "expense"
+      accounting_bill_status:
+        | "draft"
+        | "approved"
+        | "paid"
+        | "partially_paid"
+        | "overdue"
+        | "voided"
       accounting_contact_type: "customer" | "supplier" | "both"
       accounting_invoice_status:
         | "draft"
@@ -19581,6 +19801,14 @@ export const Constants = {
         "equity",
         "revenue",
         "expense",
+      ],
+      accounting_bill_status: [
+        "draft",
+        "approved",
+        "paid",
+        "partially_paid",
+        "overdue",
+        "voided",
       ],
       accounting_contact_type: ["customer", "supplier", "both"],
       accounting_invoice_status: [
