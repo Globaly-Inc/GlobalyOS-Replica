@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useInboxChannels } from '@/hooks/useInbox';
 import { useOrgPhoneNumbers } from '@/hooks/useTelephony';
+import { useFeatureFlags } from '@/hooks/useFeatureFlags';
 import { ChannelBadge } from '@/components/inbox/ChannelBadge';
 import { ConnectChannelDialog } from '@/components/inbox/ConnectChannelDialog';
 import { EditChannelDialog } from '@/components/inbox/EditChannelDialog';
@@ -55,6 +56,7 @@ const InboxChannelsPage = () => {
   const [deleteChannel, setDeleteChannel] = useState<any | null>(null);
   const [deleting, setDeleting] = useState(false);
   const { orgCode } = useParams<{ orgCode: string }>();
+  const { isEnabled } = useFeatureFlags();
   const navigate = useNavigate();
   const qc = useQueryClient();
 
@@ -204,6 +206,7 @@ const InboxChannelsPage = () => {
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {availableChannels
             .filter((ac) => !channels.some((c) => c.channel_type === ac.type))
+            .filter((ac) => ac.type !== 'sms' || isEnabled('telephony'))
             .map((ac) => (
               <Card key={ac.type} className={`border border-dashed ${ac.comingSoon ? 'opacity-70' : ''}`}>
                 <CardHeader className="pb-3">

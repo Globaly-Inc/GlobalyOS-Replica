@@ -85,6 +85,12 @@ const AVAILABLE_FEATURES = [
     description: "AI-powered auto-replies with RAG-based knowledge retrieval",
     icon: Bot 
   },
+  { 
+    name: "telephony", 
+    label: "Telephony (SMS & Calls)", 
+    description: "Twilio-powered SMS messaging, outbound calling, IVR, and number provisioning",
+    icon: Phone 
+  },
 ];
 
 export const OrganizationFeaturesManager = ({ 
