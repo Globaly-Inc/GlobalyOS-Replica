@@ -8561,6 +8561,59 @@ export type Database = {
           },
         ]
       }
+      org_phone_numbers: {
+        Row: {
+          capabilities: Json
+          country_code: string
+          created_at: string
+          friendly_name: string | null
+          id: string
+          ivr_config: Json | null
+          monthly_cost: number
+          organization_id: string
+          phone_number: string
+          status: string
+          twilio_sid: string
+          updated_at: string
+        }
+        Insert: {
+          capabilities?: Json
+          country_code?: string
+          created_at?: string
+          friendly_name?: string | null
+          id?: string
+          ivr_config?: Json | null
+          monthly_cost?: number
+          organization_id: string
+          phone_number: string
+          status?: string
+          twilio_sid: string
+          updated_at?: string
+        }
+        Update: {
+          capabilities?: Json
+          country_code?: string
+          created_at?: string
+          friendly_name?: string | null
+          id?: string
+          ivr_config?: Json | null
+          monthly_cost?: number
+          organization_id?: string
+          phone_number?: string
+          status?: string
+          twilio_sid?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_phone_numbers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       org_pipeline_stages: {
         Row: {
           color: string | null
@@ -13054,6 +13107,69 @@ export type Database = {
             columns: ["payroll_profile_id"]
             isOneToOne: false
             referencedRelation: "payroll_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      telephony_usage_logs: {
+        Row: {
+          cost: number | null
+          created_at: string
+          direction: string
+          duration_seconds: number | null
+          event_type: string
+          from_number: string | null
+          id: string
+          metadata: Json | null
+          organization_id: string
+          phone_number_id: string
+          segments: number | null
+          to_number: string | null
+          twilio_sid: string | null
+        }
+        Insert: {
+          cost?: number | null
+          created_at?: string
+          direction: string
+          duration_seconds?: number | null
+          event_type: string
+          from_number?: string | null
+          id?: string
+          metadata?: Json | null
+          organization_id: string
+          phone_number_id: string
+          segments?: number | null
+          to_number?: string | null
+          twilio_sid?: string | null
+        }
+        Update: {
+          cost?: number | null
+          created_at?: string
+          direction?: string
+          duration_seconds?: number | null
+          event_type?: string
+          from_number?: string | null
+          id?: string
+          metadata?: Json | null
+          organization_id?: string
+          phone_number_id?: string
+          segments?: number | null
+          to_number?: string | null
+          twilio_sid?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telephony_usage_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "telephony_usage_logs_phone_number_id_fkey"
+            columns: ["phone_number_id"]
+            isOneToOne: false
+            referencedRelation: "org_phone_numbers"
             referencedColumns: ["id"]
           },
         ]
