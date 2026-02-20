@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,6 +36,7 @@ const fieldTypes = ['text', 'email', 'phone', 'textarea', 'number', 'dropdown', 
 export function LogicTab({ node, allNodes, onUpdate }: LogicTabProps) {
   const rules = node.logicRules || [];
   const otherFields = allNodes.filter((n) => n.id !== node.id && fieldTypes.includes(n.type));
+  const allFields = allNodes.filter((n) => fieldTypes.includes(n.type));
 
   function updateRules(newRules: LogicRule[]) {
     onUpdate(node.id, { logicRules: newRules });
@@ -134,9 +134,9 @@ export function LogicTab({ node, allNodes, onUpdate }: LogicTabProps) {
                   </SelectContent>
                 </Select>
               )}
-              <div className="flex gap-1.5 items-start">
+              <div className="flex gap-1.5 items-start flex-wrap">
                 <Select value={cond.fieldId} onValueChange={(v) => updateCondition(rule.id, ci, { fieldId: v })}>
-                  <SelectTrigger className="h-8 text-xs flex-1">
+                  <SelectTrigger className="h-8 text-xs flex-1 min-w-[100px]">
                     <SelectValue placeholder="Field" />
                   </SelectTrigger>
                   <SelectContent>
@@ -178,9 +178,9 @@ export function LogicTab({ node, allNodes, onUpdate }: LogicTabProps) {
 
           <div className="space-y-2">
             <span className="text-xs font-medium text-muted-foreground uppercase">Then</span>
-            <div className="flex gap-1.5">
+            <div className="flex gap-1.5 flex-wrap">
               <Select value={rule.actions[0]?.type || 'show'} onValueChange={(v) => updateAction(rule.id, { type: v as LogicActionType })}>
-                <SelectTrigger className="h-8 text-xs flex-1">
+                <SelectTrigger className="h-8 text-xs w-28">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -189,11 +189,26 @@ export function LogicTab({ node, allNodes, onUpdate }: LogicTabProps) {
                   ))}
                 </SelectContent>
               </Select>
+              <Select
+                value={rule.actions[0]?.targetFieldId || node.id}
+                onValueChange={(v) => updateAction(rule.id, { targetFieldId: v })}
+              >
+                <SelectTrigger className="h-8 text-xs flex-1 min-w-[100px]">
+                  <SelectValue placeholder="Target field" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allFields.map((f) => (
+                    <SelectItem key={f.id} value={f.id}>
+                      {f.properties.label || f.type}{f.id === node.id ? ' (this)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {rule.actions[0]?.type === 'set_value' && (
                 <Input
                   value={String(rule.actions[0]?.value ?? '')}
                   onChange={(e) => updateAction(rule.id, { value: e.target.value })}
-                  className="h-8 text-xs flex-1"
+                  className="h-8 text-xs w-24"
                   placeholder="Value"
                 />
               )}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Copy, Check, ExternalLink, Code2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -42,10 +42,11 @@ export function ShareFormDialog({ open, onOpenChange, form, orgCode }: ShareForm
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Share Form</DialogTitle>
+          <DialogDescription>Share your form via link or embed it on your website.</DialogDescription>
         </DialogHeader>
 
         {!isPublished && (
-        <div className="bg-accent border border-border rounded-lg p-3 text-sm text-foreground">
+          <div className="bg-accent border border-border rounded-lg p-3 text-sm text-foreground">
             This form is not published yet. Publish it first to make it available via the public link.
           </div>
         )}
@@ -62,11 +63,7 @@ export function ShareFormDialog({ open, onOpenChange, form, orgCode }: ShareForm
               <Label className="text-xs">Public URL</Label>
               <div className="flex gap-2">
                 <Input value={publicUrl} readOnly className="text-sm" />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => copyToClipboard(publicUrl, 'link')}
-                >
+                <Button variant="outline" size="icon" onClick={() => copyToClipboard(publicUrl, 'link')}>
                   {copied === 'link' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                 </Button>
                 {isPublished && (
