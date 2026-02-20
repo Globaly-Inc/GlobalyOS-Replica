@@ -105,6 +105,54 @@ export interface COATemplate {
   accounts: COATemplateAccount[];
 }
 
+// Journal types
+export type JournalStatus = 'draft' | 'posted' | 'reversed';
+
+export interface Journal {
+  id: string;
+  organization_id: string;
+  ledger_id: string;
+  office_id: string;
+  journal_number: number;
+  date: string;
+  memo: string | null;
+  status: JournalStatus;
+  source_type: string;
+  source_id: string | null;
+  is_adjusting: boolean;
+  created_by: string;
+  posted_at: string | null;
+  created_at: string;
+}
+
+export interface JournalLine {
+  id: string;
+  journal_id: string;
+  account_id: string;
+  description: string | null;
+  debit: number;
+  credit: number;
+  tax_rate_id: string | null;
+  tax_amount: number;
+  contact_id: string | null;
+  sort_order: number;
+}
+
+export interface LedgerEntry {
+  id: string;
+  organization_id: string;
+  ledger_id: string;
+  office_id: string;
+  journal_id: string;
+  journal_line_id: string;
+  account_id: string;
+  date: string;
+  debit: number;
+  credit: number;
+  balance_delta: number;
+  created_at: string;
+}
+
 // Setup wizard form types
 export interface SetupWizardFormData {
   scopeType: AccountingScopeType;
