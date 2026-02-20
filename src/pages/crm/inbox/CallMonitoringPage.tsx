@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useActiveCalls, useMonitorCall } from '@/hooks/useCallMonitoring';
-import { CallsSubNav } from '@/components/calls/CallsSubNav';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -63,9 +63,7 @@ const CallMonitoringPage = () => {
   };
 
   return (
-    <div>
-      <CallsSubNav />
-      <div className="container px-4 md:px-8 py-6 space-y-6">
+    <div className="py-6 space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Call Monitoring</h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -252,7 +250,6 @@ const CallMonitoringPage = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
     </div>
   );
 };

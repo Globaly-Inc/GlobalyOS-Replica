@@ -3,7 +3,7 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { useOrgPhoneNumbers } from '@/hooks/useTelephony';
 import { useCallCampaigns, useCampaignContacts, useCreateCampaign, useUpdateCampaignStatus } from '@/hooks/useCallCampaigns';
 import { useDialCampaignContact } from '@/hooks/useCallMonitoring';
-import { CallsSubNav } from '@/components/calls/CallsSubNav';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -64,9 +64,7 @@ const CallCampaignsPage = () => {
   const selectedCampaign = campaigns.find((c) => c.id === selectedCampaignId);
 
   return (
-    <div>
-      <CallsSubNav />
-      <div className="container px-4 md:px-8 py-6 space-y-6">
+    <div className="py-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Call Campaigns</h1>
@@ -248,7 +246,6 @@ const CallCampaignsPage = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
     </div>
   );
 };

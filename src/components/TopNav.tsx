@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { Home, Users, MessageSquare, BookOpen, CheckSquare, Briefcase, Target, Sparkles } from 'lucide-react';
+import { Home, Users, MessageSquare, BookOpen, CheckSquare, Briefcase, Target, Sparkles, Inbox, Phone } from 'lucide-react';
 import { OrgLink } from './OrgLink';
 import { cn } from '@/lib/utils';
 import { useLocation, useParams } from 'react-router-dom';
@@ -31,7 +31,9 @@ const mainNavItems: NavItem[] = [
 { name: 'Wiki', href: '/wiki', icon: BookOpen, adminOnly: false },
 { name: 'Chat', href: '/chat', icon: MessageSquare, adminOnly: false, featureFlag: 'chat' },
 { name: 'Tasks', href: '/tasks', icon: CheckSquare, adminOnly: false, featureFlag: 'tasks' },
-{ name: 'CRM', href: '/crm', icon: Briefcase, adminOnly: false, featureFlag: 'crm' }];
+{ name: 'CRM', href: '/crm', icon: Briefcase, adminOnly: false, featureFlag: 'crm' },
+{ name: 'Inbox', href: '/crm/inbox', icon: Inbox, adminOnly: false, featureFlag: 'crm' },
+{ name: 'Calls', href: '/crm/calls', icon: Phone, adminOnly: false, featureFlag: 'crm' }];
 
 const EXPANDED_ITEM_WIDTH = 90;
 
@@ -89,6 +91,13 @@ export const TopNav = ({ isAdmin }: TopNavProps) => {
     if (href === '/kpi-dashboard') {
       return location.pathname === `${basePath}/kpi-dashboard` ||
       location.pathname.startsWith(`${basePath}/kpi-dashboard/`);
+    }
+    // CRM should not match inbox/calls sub-sections
+    if (href === '/crm') {
+      const path = location.pathname;
+      const crmBase = `${basePath}/crm`;
+      if (path.startsWith(`${crmBase}/inbox`) || path.startsWith(`${crmBase}/calls`)) return false;
+      return path === crmBase || path.startsWith(`${crmBase}/`);
     }
     return location.pathname === fullPath || location.pathname.startsWith(`${fullPath}/`);
   };
