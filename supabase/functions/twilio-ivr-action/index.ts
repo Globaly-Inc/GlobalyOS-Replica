@@ -1,6 +1,92 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+interface IvrNode {
+  id: string;
+  type: string;
+  label: string;
+  greeting_text?: string;
+  menu_options?: { digit: string; label: string; target_node_id: string }[];
+  timeout?: number;
+  forward_number?: string;
+  voicemail_prompt?: string;
+  voicemail_max_length?: number;
+  children?: string[];
+}
+
+interface IvrTreeConfig {
+  nodes: IvrNode[];
+  business_hours?: { enabled: boolean; start: string; end: string; timezone: string; after_hours_greeting: string };
+  voicemail_enabled?: boolean;
+}
+
+function isTreeConfig(config: any): config is IvrTreeConfig {
+  return Array.isArray(config?.nodes);
+}
+
+function findNode(nodes: IvrNode[], id: string): IvrNode | undefined {
+  return nodes.find((n) => n.id === id);
+}
+
+function generateTwiMLForNode(node: IvrNode, nodes: IvrNode[], supabaseUrl: string, phoneId: string): string {
+  switch (node.type) {
+    case "greeting":
+    case "message": {
+      const sayText = node.greeting_text || "Thank you for calling.";
+      const childId = node.children?.[0];
+      if (childId) {
+        const child = findNode(nodes, childId);
+        if (child) {
+          // If child is a menu, inline the gather
+          if (child.type === "menu") {
+            return generateTwiMLForNode(child, nodes, supabaseUrl, phoneId);
+          }
+          // Otherwise, say then continue to child
+          return `<Say>${sayText}</Say>\n${generateTwiMLForNode(child, nodes, supabaseUrl, phoneId)}`;
+        }
+      }
+      return `<Say>${sayText}</Say><Hangup/>`;
+    }
+
+    case "menu": {
+      const actionUrl = `${supabaseUrl}/functions/v1/twilio-ivr-action?phone_id=${phoneId}&node_id=${node.id}`;
+      const parentGreeting = nodes.find(
+        (n) => (n.type === "greeting" || n.type === "message") && n.children?.includes(node.id)
+      );
+      const greetingText = parentGreeting?.greeting_text || "";
+      const menuPrompt = (node.menu_options || [])
+        .map((opt) => `Press ${opt.digit} for ${opt.label}.`)
+        .join(" ");
+      const timeout = node.timeout || 10;
+      return `<Gather input="dtmf" numDigits="1" action="${actionUrl}" method="POST" timeout="${timeout}">
+  <Say>${greetingText} ${menuPrompt}</Say>
+</Gather>
+<Say>We didn't receive any input. Goodbye.</Say>
+<Hangup/>`;
+    }
+
+    case "forward": {
+      const number = node.forward_number || "";
+      if (!number) {
+        return `<Say>No forwarding number configured. Goodbye.</Say><Hangup/>`;
+      }
+      return `<Say>Connecting you now. Please hold.</Say><Dial>${number}</Dial><Say>The call could not be completed. Goodbye.</Say><Hangup/>`;
+    }
+
+    case "voicemail": {
+      const prompt = node.voicemail_prompt || "Please leave a message after the beep.";
+      const maxLength = node.voicemail_max_length || 120;
+      return `<Say>${prompt}</Say><Record maxLength="${maxLength}" transcribe="true" playBeep="true" action="${supabaseUrl}/functions/v1/twilio-recording-webhook" method="POST" /><Say>Thank you. Goodbye.</Say><Hangup/>`;
+    }
+
+    case "hangup":
+      return `<Hangup/>`;
+
+    default:
+      return `<Say>Thank you for calling.</Say><Hangup/>`;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -14,6 +100,7 @@ serve(async (req) => {
   try {
     const url = new URL(req.url);
     const phoneId = url.searchParams.get("phone_id");
+    const nodeId = url.searchParams.get("node_id"); // Tree-based: which menu node we're at
 
     const formData = await req.formData();
     const digits = String(formData.get("Digits") || "");
@@ -43,12 +130,51 @@ serve(async (req) => {
       );
     }
 
-    const ivrConfig = (phoneRecord.ivr_config || {}) as {
+    const ivrConfig = phoneRecord.ivr_config || {};
+
+    // --- Tree-based IVR ---
+    if (isTreeConfig(ivrConfig)) {
+      const nodes = ivrConfig.nodes;
+      const menuNode = nodeId ? findNode(nodes, nodeId) : null;
+
+      if (!menuNode || menuNode.type !== "menu") {
+        return new Response(
+          `<Response><Say>An error occurred.</Say><Hangup/></Response>`,
+          { headers: { "Content-Type": "text/xml" } }
+        );
+      }
+
+      const selected = menuNode.menu_options?.find((opt) => opt.digit === digits);
+
+      if (!selected) {
+        // Invalid selection — replay menu
+        const twiml = generateTwiMLForNode(menuNode, nodes, supabaseUrl, phoneId);
+        return new Response(`<Response><Say>Invalid selection.</Say>${twiml}</Response>`, {
+          headers: { "Content-Type": "text/xml" },
+        });
+      }
+
+      const targetNode = findNode(nodes, selected.target_node_id);
+      if (!targetNode) {
+        return new Response(
+          `<Response><Say>An error occurred.</Say><Hangup/></Response>`,
+          { headers: { "Content-Type": "text/xml" } }
+        );
+      }
+
+      const twiml = generateTwiMLForNode(targetNode, nodes, supabaseUrl, phoneId);
+      return new Response(`<Response>${twiml}</Response>`, {
+        headers: { "Content-Type": "text/xml" },
+      });
+    }
+
+    // --- Legacy flat IVR (backward compatible) ---
+    const legacyConfig = ivrConfig as {
       menu_options?: { digit: string; label: string; action: string; message?: string }[];
       voicemail_enabled?: boolean;
     };
 
-    const menuOptions = ivrConfig.menu_options || [];
+    const menuOptions = legacyConfig.menu_options || [];
     const selected = menuOptions.find((opt) => opt.digit === digits);
 
     if (!selected) {
@@ -69,7 +195,6 @@ serve(async (req) => {
       );
     }
 
-    // Handle different actions
     switch (selected.action) {
       case "voicemail":
         return new Response(
@@ -87,7 +212,7 @@ serve(async (req) => {
           return new Response(
             `<Response>
               <Say>Connecting you now. Please hold.</Say>
-              <Dial callerId="${supabaseUrl}">${selected.message}</Dial>
+              <Dial>${selected.message}</Dial>
               <Say>The call could not be completed. Goodbye.</Say>
               <Hangup/>
             </Response>`,

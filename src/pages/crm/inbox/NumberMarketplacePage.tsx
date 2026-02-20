@@ -8,7 +8,7 @@ import {
 } from '@/hooks/useTelephony';
 import type { AvailableNumber } from '@/hooks/useTelephony';
 import { InboxSubNav } from '@/components/inbox/InboxSubNav';
-import { IvrBuilderDialog } from '@/components/inbox/IvrBuilderDialog';
+import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -39,6 +39,7 @@ const COUNTRIES = [
 
 const NumberMarketplacePage = () => {
   const { currentOrg } = useOrganization();
+  const { navigateOrg } = useOrgNavigation();
   const { data: myNumbers = [], isLoading: loadingNumbers } = useOrgPhoneNumbers();
   const searchMutation = useSearchNumbers();
   const provisionMutation = useProvisionNumber();
@@ -51,7 +52,6 @@ const NumberMarketplacePage = () => {
   const [searched, setSearched] = useState(false);
   const [buyingNumber, setBuyingNumber] = useState<AvailableNumber | null>(null);
   const [releaseNumber, setReleaseNumber] = useState<string | null>(null);
-  const [ivrNumber, setIvrNumber] = useState<string | null>(null);
 
   const handleSearch = async () => {
     setSearched(true);
@@ -94,8 +94,6 @@ const NumberMarketplacePage = () => {
     navigator.clipboard.writeText(number);
     toast.success('Phone number copied!');
   };
-
-  const ivrNumberData = myNumbers.find((n) => n.id === ivrNumber);
 
   return (
     <div>
@@ -183,7 +181,7 @@ const NumberMarketplacePage = () => {
                         variant="outline"
                         size="sm"
                         className="text-xs flex-1"
-                        onClick={() => setIvrNumber(num.id)}
+                        onClick={() => navigateOrg(`/crm/inbox/numbers/${num.id}/ivr`)}
                       >
                         <Settings2 className="h-3 w-3 mr-1" /> IVR
                       </Button>
@@ -344,15 +342,6 @@ const NumberMarketplacePage = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-
-        {/* IVR Builder */}
-        {ivrNumberData && (
-          <IvrBuilderDialog
-            open={!!ivrNumber}
-            onOpenChange={(o) => !o && setIvrNumber(null)}
-            phoneNumber={ivrNumberData}
-          />
-        )}
       </div>
     </div>
   );
