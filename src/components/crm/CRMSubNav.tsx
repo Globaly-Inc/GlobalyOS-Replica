@@ -1,8 +1,7 @@
-import { Users, Building2, Settings, Calendar, Mail, MessageCircle, Inbox, Phone } from 'lucide-react';
+import { Users, Building2, Calendar, Mail, MessageCircle, Inbox, Phone } from 'lucide-react';
 import { OrgLink } from '@/components/OrgLink';
 import { useLocation, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { useUserRole } from '@/hooks/useUserRole';
 import { useFeatureFlags } from '@/hooks/useFeatureFlags';
 
 const crmSubNavItems = [
@@ -13,13 +12,12 @@ const crmSubNavItems = [
   { name: 'Calls', href: '/crm/calls', icon: Phone, featureFlag: 'telephony' as const },
   { name: 'WhatsApp', href: '/crm/whatsapp', icon: MessageCircle, featureFlag: 'whatsapp' as const, hideWhenFlag: 'omnichannel_inbox' as const },
   { name: 'Scheduler', href: '/crm/scheduler', icon: Calendar },
-  { name: 'Settings', href: '/crm/settings', icon: Settings, adminOnly: true },
+  
 ];
 
 export const CRMSubNav = () => {
   const location = useLocation();
   const { orgCode } = useParams<{ orgCode: string }>();
-  const { isOwner, isAdmin } = useUserRole();
   const { isEnabled } = useFeatureFlags();
 
   const basePath = orgCode ? `/org/${orgCode}` : '';
@@ -28,7 +26,6 @@ export const CRMSubNav = () => {
   if (!isCRMSection) return null;
 
   const visibleItems = crmSubNavItems.filter(item => {
-    if (item.adminOnly && !isOwner && !isAdmin) return false;
     if ('featureFlag' in item && item.featureFlag && !isEnabled(item.featureFlag)) return false;
     if ('hideWhenFlag' in item && item.hideWhenFlag && isEnabled(item.hideWhenFlag)) return false;
     return true;
