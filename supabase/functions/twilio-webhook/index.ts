@@ -199,11 +199,7 @@ async function handleVoiceInbound(supabase: any, payload: Record<string, string>
   }
 
   const orgId = phoneRecord.organization_id;
-  const ivrConfig = (phoneRecord.ivr_config || {}) as {
-    greeting?: string;
-    menu_options?: { digit: string; label: string; action: string }[];
-    voicemail_enabled?: boolean;
-  };
+  const ivrConfig = phoneRecord.ivr_config || {};
 
   // Log usage
   await supabase.from("telephony_usage_logs").insert({
@@ -217,13 +213,38 @@ async function handleVoiceInbound(supabase: any, payload: Record<string, string>
   });
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+
+  // --- Tree-based IVR ---
+  if (Array.isArray(ivrConfig?.nodes)) {
+    const nodes = ivrConfig.nodes as any[];
+    const rootNode = nodes.find((n: any) => n.id === "root") || nodes[0];
+
+    if (!rootNode) {
+      return new Response(
+        `<Response><Say>Thank you for calling. Goodbye.</Say><Hangup/></Response>`,
+        { headers: { "Content-Type": "text/xml" } }
+      );
+    }
+
+    // Generate TwiML by walking the tree from root
+    const twiml = generateNodeTwiML(rootNode, nodes, supabaseUrl, phoneRecord.id);
+    return new Response(`<Response>${twiml}</Response>`, {
+      headers: { "Content-Type": "text/xml" },
+    });
+  }
+
+  // --- Legacy flat IVR ---
+  const legacyConfig = ivrConfig as {
+    greeting?: string;
+    menu_options?: { digit: string; label: string; action: string }[];
+    voicemail_enabled?: boolean;
+  };
+
   const ivrActionUrl = `${supabaseUrl}/functions/v1/twilio-ivr-action?phone_id=${phoneRecord.id}`;
+  const greeting = legacyConfig.greeting || "Thank you for calling. Please leave a message after the beep.";
 
-  // Build TwiML
-  const greeting = ivrConfig.greeting || "Thank you for calling. Please leave a message after the beep.";
-
-  if (ivrConfig.menu_options && ivrConfig.menu_options.length > 0) {
-    const menuPrompt = ivrConfig.menu_options
+  if (legacyConfig.menu_options && legacyConfig.menu_options.length > 0) {
+    const menuPrompt = legacyConfig.menu_options
       .map((opt) => `Press ${opt.digit} for ${opt.label}.`)
       .join(" ");
 
@@ -240,7 +261,7 @@ async function handleVoiceInbound(supabase: any, payload: Record<string, string>
   }
 
   // No IVR menu — go straight to voicemail
-  if (ivrConfig.voicemail_enabled !== false) {
+  if (legacyConfig.voicemail_enabled !== false) {
     return new Response(
       `<Response>
         <Say>${greeting}</Say>
@@ -256,6 +277,67 @@ async function handleVoiceInbound(supabase: any, payload: Record<string, string>
     `<Response><Say>${greeting}</Say><Hangup/></Response>`,
     { headers: { "Content-Type": "text/xml" } }
   );
+}
+
+function generateNodeTwiML(node: any, nodes: any[], supabaseUrl: string, phoneId: string): string {
+  switch (node.type) {
+    case "greeting":
+    case "message": {
+      const sayText = node.greeting_text || "Thank you for calling.";
+      const childId = node.children?.[0];
+      if (childId) {
+        const child = nodes.find((n: any) => n.id === childId);
+        if (child) {
+          if (child.type === "menu") {
+            // Inline the greeting into the gather
+            const actionUrl = `${supabaseUrl}/functions/v1/twilio-ivr-action?phone_id=${phoneId}&node_id=${child.id}`;
+            const menuPrompt = (child.menu_options || [])
+              .map((opt: any) => `Press ${opt.digit} for ${opt.label}.`)
+              .join(" ");
+            const timeout = child.timeout || 10;
+            return `<Gather input="dtmf" numDigits="1" action="${actionUrl}" method="POST" timeout="${timeout}">
+  <Say>${sayText} ${menuPrompt}</Say>
+</Gather>
+<Say>We didn't receive any input. Goodbye.</Say>
+<Hangup/>`;
+          }
+          return `<Say>${sayText}</Say>\n${generateNodeTwiML(child, nodes, supabaseUrl, phoneId)}`;
+        }
+      }
+      return `<Say>${sayText}</Say><Hangup/>`;
+    }
+
+    case "menu": {
+      const actionUrl = `${supabaseUrl}/functions/v1/twilio-ivr-action?phone_id=${phoneId}&node_id=${node.id}`;
+      const menuPrompt = (node.menu_options || [])
+        .map((opt: any) => `Press ${opt.digit} for ${opt.label}.`)
+        .join(" ");
+      const timeout = node.timeout || 10;
+      return `<Gather input="dtmf" numDigits="1" action="${actionUrl}" method="POST" timeout="${timeout}">
+  <Say>${menuPrompt}</Say>
+</Gather>
+<Say>We didn't receive any input. Goodbye.</Say>
+<Hangup/>`;
+    }
+
+    case "forward": {
+      const number = node.forward_number || "";
+      if (!number) return `<Say>No forwarding number configured. Goodbye.</Say><Hangup/>`;
+      return `<Say>Connecting you now. Please hold.</Say><Dial>${number}</Dial><Say>The call could not be completed. Goodbye.</Say><Hangup/>`;
+    }
+
+    case "voicemail": {
+      const prompt = node.voicemail_prompt || "Please leave a message after the beep.";
+      const maxLength = node.voicemail_max_length || 120;
+      return `<Say>${prompt}</Say><Record maxLength="${maxLength}" transcribe="true" playBeep="true" action="${supabaseUrl}/functions/v1/twilio-recording-webhook" method="POST" /><Say>Thank you. Goodbye.</Say><Hangup/>`;
+    }
+
+    case "hangup":
+      return `<Hangup/>`;
+
+    default:
+      return `<Say>Thank you for calling.</Say><Hangup/>`;
+  }
 }
 
 async function handleStatusCallback(supabase: any, payload: Record<string, string>) {
