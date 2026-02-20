@@ -155,6 +155,9 @@ const AccountingSetupPage = lazy(() => import('./pages/accounting/AccountingSetu
 const ChartOfAccounts = lazy(() => import('./pages/accounting/ChartOfAccounts'));
 const JournalEntry = lazy(() => import('./pages/accounting/JournalEntry'));
 const GeneralLedger = lazy(() => import('./pages/accounting/GeneralLedger'));
+const AccountingInvoices = lazy(() => import('./pages/accounting/Invoices'));
+const InvoiceEditor = lazy(() => import('./pages/accounting/InvoiceEditor'));
+const InvoiceDetail = lazy(() => import('./pages/accounting/InvoiceDetail'));
 
 const HiringDashboard = lazy(() => import('./pages/hiring/HiringDashboard'));
 const JobsList = lazy(() => import('./pages/hiring/JobsList'));
@@ -388,7 +391,10 @@ const App = () => <QueryClientProvider client={queryClient}>
                    <Route path="accounting/chart-of-accounts" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><ChartOfAccounts /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="accounting/journals" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><JournalEntry /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="accounting/general-ledger" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><GeneralLedger /></FeatureProtectedRoute></OrgProtectedRoute>} />
-                   <Route path="accounting/invoices" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingDashboard /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="accounting/invoices" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingInvoices /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="accounting/invoices/new" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><InvoiceEditor /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="accounting/invoices/:invoiceId" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><InvoiceDetail /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="accounting/invoices/:invoiceId/edit" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><InvoiceEditor /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="accounting/bills" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingDashboard /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="accounting/banking" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingDashboard /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="accounting/reports" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingDashboard /></FeatureProtectedRoute></OrgProtectedRoute>} />
