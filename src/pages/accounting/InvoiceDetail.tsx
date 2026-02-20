@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, CheckCircle, Send, DollarSign, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Send, DollarSign, XCircle, Link2, ExternalLink, Loader2 } from 'lucide-react';
 import { OrgLink } from '@/components/OrgLink';
 import type { AccountingInvoice, InvoiceStatus } from '@/types/accounting';
 
@@ -130,6 +130,23 @@ const InvoiceDetail = () => {
     onError: (err: any) => toast.error(err.message),
   });
 
+  const createPaymentLink = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('create-invoice-payment-link', {
+        body: { invoiceId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data as { url: string; paymentLinkId: string };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['accounting-invoice', invoiceId] });
+      window.open(data.url, '_blank');
+      toast.success('Payment link created');
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: invoice?.currency || 'AUD' }).format(amount);
 
@@ -165,9 +182,15 @@ const InvoiceDetail = () => {
               </Button>
             )}
             {['approved', 'sent', 'partially_paid', 'overdue'].includes(invoice.status) && (
-              <Button onClick={() => { setPaymentAmount(String(invoice.amount_due)); setPaymentOpen(true); }}>
-                <DollarSign className="h-4 w-4 mr-2" /> Record Payment
-              </Button>
+              <>
+                <Button variant="outline" onClick={() => createPaymentLink.mutate()} disabled={createPaymentLink.isPending}>
+                  {createPaymentLink.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Link2 className="h-4 w-4 mr-2" />}
+                  {invoice.stripe_payment_link_id ? 'New Payment Link' : 'Create Payment Link'}
+                </Button>
+                <Button onClick={() => { setPaymentAmount(String(invoice.amount_due)); setPaymentOpen(true); }}>
+                  <DollarSign className="h-4 w-4 mr-2" /> Record Payment
+                </Button>
+              </>
             )}
             {invoice.status === 'draft' && (
               <Button variant="destructive" size="sm" onClick={() => updateStatus.mutate('voided')}>
