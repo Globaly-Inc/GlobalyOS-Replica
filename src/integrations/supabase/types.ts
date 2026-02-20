@@ -1721,6 +1721,405 @@ export type Database = {
           },
         ]
       }
+      call_campaign_contacts: {
+        Row: {
+          call_sid: string | null
+          called_at: string | null
+          campaign_id: string
+          contact_name: string | null
+          created_at: string
+          crm_contact_id: string | null
+          duration_seconds: number | null
+          id: string
+          notes: string | null
+          organization_id: string
+          outcome: string | null
+          phone_number: string
+          status: string
+        }
+        Insert: {
+          call_sid?: string | null
+          called_at?: string | null
+          campaign_id: string
+          contact_name?: string | null
+          created_at?: string
+          crm_contact_id?: string | null
+          duration_seconds?: number | null
+          id?: string
+          notes?: string | null
+          organization_id: string
+          outcome?: string | null
+          phone_number: string
+          status?: string
+        }
+        Update: {
+          call_sid?: string | null
+          called_at?: string | null
+          campaign_id?: string
+          contact_name?: string | null
+          created_at?: string
+          crm_contact_id?: string | null
+          duration_seconds?: number | null
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          outcome?: string | null
+          phone_number?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_campaign_contacts_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "call_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_campaign_contacts_crm_contact_id_fkey"
+            columns: ["crm_contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_campaign_contacts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      call_campaigns: {
+        Row: {
+          avg_duration_seconds: number | null
+          completed_at: string | null
+          completed_calls: number | null
+          connected_calls: number | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          failed_calls: number | null
+          id: string
+          name: string
+          organization_id: string
+          phone_number_id: string | null
+          started_at: string | null
+          status: string
+          total_contacts: number | null
+          updated_at: string
+          voicemail_drop_text: string | null
+        }
+        Insert: {
+          avg_duration_seconds?: number | null
+          completed_at?: string | null
+          completed_calls?: number | null
+          connected_calls?: number | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          failed_calls?: number | null
+          id?: string
+          name: string
+          organization_id: string
+          phone_number_id?: string | null
+          started_at?: string | null
+          status?: string
+          total_contacts?: number | null
+          updated_at?: string
+          voicemail_drop_text?: string | null
+        }
+        Update: {
+          avg_duration_seconds?: number | null
+          completed_at?: string | null
+          completed_calls?: number | null
+          connected_calls?: number | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          failed_calls?: number | null
+          id?: string
+          name?: string
+          organization_id?: string
+          phone_number_id?: string | null
+          started_at?: string | null
+          status?: string
+          total_contacts?: number | null
+          updated_at?: string
+          voicemail_drop_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_campaigns_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_campaigns_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_campaigns_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_campaigns_phone_number_id_fkey"
+            columns: ["phone_number_id"]
+            isOneToOne: false
+            referencedRelation: "org_phone_numbers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      call_queue_members: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          is_available: boolean | null
+          organization_id: string
+          priority: number | null
+          queue_id: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          is_available?: boolean | null
+          organization_id: string
+          priority?: number | null
+          queue_id: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          is_available?: boolean | null
+          organization_id?: string
+          priority?: number | null
+          queue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_queue_members_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_queue_members_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_queue_members_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_queue_members_queue_id_fkey"
+            columns: ["queue_id"]
+            isOneToOne: false
+            referencedRelation: "call_queues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      call_queues: {
+        Row: {
+          created_at: string
+          description: string | null
+          hold_message: string | null
+          hold_music_url: string | null
+          id: string
+          is_active: boolean | null
+          max_queue_size: number | null
+          max_wait_seconds: number | null
+          name: string
+          organization_id: string
+          strategy: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          hold_message?: string | null
+          hold_music_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_queue_size?: number | null
+          max_wait_seconds?: number | null
+          name: string
+          organization_id: string
+          strategy?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          hold_message?: string | null
+          hold_music_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          max_queue_size?: number | null
+          max_wait_seconds?: number | null
+          name?: string
+          organization_id?: string
+          strategy?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_queues_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      call_recording_settings: {
+        Row: {
+          auto_record_all: boolean | null
+          auto_record_inbound: boolean | null
+          auto_record_outbound: boolean | null
+          auto_summarize: boolean | null
+          auto_transcribe: boolean | null
+          created_at: string
+          id: string
+          organization_id: string
+          retention_days: number | null
+          updated_at: string
+        }
+        Insert: {
+          auto_record_all?: boolean | null
+          auto_record_inbound?: boolean | null
+          auto_record_outbound?: boolean | null
+          auto_summarize?: boolean | null
+          auto_transcribe?: boolean | null
+          created_at?: string
+          id?: string
+          organization_id: string
+          retention_days?: number | null
+          updated_at?: string
+        }
+        Update: {
+          auto_record_all?: boolean | null
+          auto_record_inbound?: boolean | null
+          auto_record_outbound?: boolean | null
+          auto_summarize?: boolean | null
+          auto_transcribe?: boolean | null
+          created_at?: string
+          id?: string
+          organization_id?: string
+          retention_days?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_recording_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      call_recordings: {
+        Row: {
+          ai_summary: string | null
+          ai_summary_generated_at: string | null
+          ai_topics: string[] | null
+          call_sid: string
+          created_at: string
+          direction: string
+          duration_seconds: number | null
+          from_number: string | null
+          id: string
+          metadata: Json | null
+          organization_id: string
+          phone_number_id: string | null
+          recording_sid: string | null
+          recording_url: string | null
+          status: string
+          to_number: string | null
+          transcription_status: string | null
+          transcription_text: string | null
+          updated_at: string
+        }
+        Insert: {
+          ai_summary?: string | null
+          ai_summary_generated_at?: string | null
+          ai_topics?: string[] | null
+          call_sid: string
+          created_at?: string
+          direction?: string
+          duration_seconds?: number | null
+          from_number?: string | null
+          id?: string
+          metadata?: Json | null
+          organization_id: string
+          phone_number_id?: string | null
+          recording_sid?: string | null
+          recording_url?: string | null
+          status?: string
+          to_number?: string | null
+          transcription_status?: string | null
+          transcription_text?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ai_summary?: string | null
+          ai_summary_generated_at?: string | null
+          ai_topics?: string[] | null
+          call_sid?: string
+          created_at?: string
+          direction?: string
+          duration_seconds?: number | null
+          from_number?: string | null
+          id?: string
+          metadata?: Json | null
+          organization_id?: string
+          phone_number_id?: string | null
+          recording_sid?: string | null
+          recording_url?: string | null
+          status?: string
+          to_number?: string | null
+          transcription_status?: string | null
+          transcription_text?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_recordings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_recordings_phone_number_id_fkey"
+            columns: ["phone_number_id"]
+            isOneToOne: false
+            referencedRelation: "org_phone_numbers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_recipients: {
         Row: {
           campaign_id: string

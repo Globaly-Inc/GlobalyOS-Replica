@@ -125,6 +125,10 @@ const InboxAnalyticsPage = lazy(() => import('./pages/crm/inbox/InboxAnalyticsPa
 const NumberMarketplacePage = lazy(() => import('./pages/crm/inbox/NumberMarketplacePage'));
 const TelephonyUsagePage = lazy(() => import('./pages/crm/inbox/TelephonyUsagePage'));
 const IvrBuilderPage = lazy(() => import('./pages/crm/inbox/IvrBuilderPage'));
+const CallRecordingsPage = lazy(() => import('./pages/crm/inbox/CallRecordingsPage'));
+const CallCampaignsPage = lazy(() => import('./pages/crm/inbox/CallCampaignsPage'));
+const CallQueuesPage = lazy(() => import('./pages/crm/inbox/CallQueuesPage'));
+const CallMonitoringPage = lazy(() => import('./pages/crm/inbox/CallMonitoringPage'));
 
 const Payroll = lazy(() => import('./pages/Payroll'));
 
@@ -337,6 +341,10 @@ const App = () => <QueryClientProvider client={queryClient}>
                    <Route path="crm/inbox/numbers" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FeatureProtectedRoute feature="telephony"><NumberMarketplacePage /></FeatureProtectedRoute></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/inbox/numbers/:phoneId/ivr" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FeatureProtectedRoute feature="telephony"><IvrBuilderPage /></FeatureProtectedRoute></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/inbox/usage" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FeatureProtectedRoute feature="telephony"><TelephonyUsagePage /></FeatureProtectedRoute></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/inbox/recordings" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FeatureProtectedRoute feature="telephony"><CallRecordingsPage /></FeatureProtectedRoute></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/inbox/campaigns" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FeatureProtectedRoute feature="telephony"><CallCampaignsPage /></FeatureProtectedRoute></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/inbox/queues" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FeatureProtectedRoute feature="telephony"><CallQueuesPage /></FeatureProtectedRoute></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/inbox/monitoring" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FeatureProtectedRoute feature="telephony"><CallMonitoringPage /></FeatureProtectedRoute></FeatureProtectedRoute></OrgProtectedRoute>} />
                    {/* WhatsApp routes — redirect to Inbox when omnichannel enabled, otherwise legacy */}
                    <Route path="crm/whatsapp" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FeatureProtectedRoute feature="whatsapp"><WhatsAppOverviewPage /></FeatureProtectedRoute></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/whatsapp/inbox" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FeatureProtectedRoute feature="whatsapp"><WhatsAppInboxPage /></FeatureProtectedRoute></FeatureProtectedRoute></OrgProtectedRoute>} />
