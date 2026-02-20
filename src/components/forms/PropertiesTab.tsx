@@ -61,8 +61,9 @@ export function PropertiesTab({ node, onUpdate }: PropertiesTabProps) {
             <div className="space-y-1.5">
               <Label className="text-xs">Suggested Labels</Label>
               <Select
-                value=""
+                value={undefined}
                 onValueChange={(v) => {
+                  if (v === '__none__') return;
                   updateProp('label', v);
                   updateProp('placeholder', `Enter ${v.toLowerCase()}...`);
                 }}
