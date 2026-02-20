@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import type { IvrNode, IvrNodeType } from './ivrTypes';
 import { NODE_COLORS, NODE_LABELS } from './ivrTypes';
 import {
-  Volume2, Grid3X3, PhoneForwarded, Voicemail, MessageSquare, PhoneOff, GripVertical, Trash2, Plus,
+  Volume2, Grid3X3, PhoneForwarded, Voicemail, MessageSquare, PhoneOff, GripVertical, Trash2, Plus, Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -10,6 +10,7 @@ const NODE_ICONS: Record<IvrNodeType, React.ComponentType<{ className?: string }
   greeting: Volume2,
   menu: Grid3X3,
   forward: PhoneForwarded,
+  queue: Users,
   voicemail: Voicemail,
   message: MessageSquare,
   hangup: PhoneOff,
@@ -75,6 +76,8 @@ export function IvrNodeCard({ node, isSelected, onSelect, onMove, onDelete, onAd
         return `${node.menu_options?.length || 0} option(s)`;
       case 'forward':
         return node.forward_number || 'No number set';
+      case 'queue':
+        return node.queue_name || 'No queue set';
       case 'voicemail':
         return 'Records voicemail';
       case 'hangup':
@@ -84,7 +87,7 @@ export function IvrNodeCard({ node, isSelected, onSelect, onMove, onDelete, onAd
     }
   })();
 
-  const canHaveChildren = node.type !== 'hangup' && node.type !== 'voicemail';
+  const canHaveChildren = node.type !== 'hangup' && node.type !== 'voicemail' && node.type !== 'queue';
 
   return (
     <div

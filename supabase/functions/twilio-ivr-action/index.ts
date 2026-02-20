@@ -9,6 +9,9 @@ interface IvrNode {
   menu_options?: { digit: string; label: string; target_node_id: string }[];
   timeout?: number;
   forward_number?: string;
+  queue_name?: string;
+  queue_id?: string;
+  hold_music_url?: string;
   voicemail_prompt?: string;
   voicemail_max_length?: number;
   children?: string[];
@@ -71,6 +74,14 @@ function generateTwiMLForNode(node: IvrNode, nodes: IvrNode[], supabaseUrl: stri
         return `<Say>No forwarding number configured. Goodbye.</Say><Hangup/>`;
       }
       return `<Say>Connecting you now. Please hold.</Say><Dial>${number}</Dial><Say>The call could not be completed. Goodbye.</Say><Hangup/>`;
+    }
+
+    case "queue": {
+      const queueName = node.queue_name || "";
+      if (!queueName) return `<Say>No queue configured. Goodbye.</Say><Hangup/>`;
+      const holdMusic = node.hold_music_url || "";
+      const waitUrl = holdMusic ? ` waitUrl="${holdMusic}"` : "";
+      return `<Say>Please hold while we connect you to the next available agent.</Say><Enqueue${waitUrl}>${queueName}</Enqueue>`;
     }
 
     case "voicemail": {

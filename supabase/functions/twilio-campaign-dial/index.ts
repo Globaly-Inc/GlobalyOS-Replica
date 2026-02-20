@@ -12,6 +12,63 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const url = new URL(req.url);
+  const action = url.searchParams.get("action");
+
+  // --- TwiML endpoint for Twilio to fetch call instructions ---
+  if (action === "twiml") {
+    const contactId = url.searchParams.get("contact_id") || "";
+    const campaignId = url.searchParams.get("campaign_id") || "";
+
+    // Simple TwiML: say a brief message then connect
+    // In a real scenario this could be customized per campaign
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    let voicemailDrop = "";
+    if (campaignId) {
+      const { data: campaign } = await supabase
+        .from("call_campaigns")
+        .select("voicemail_drop_text")
+        .eq("id", campaignId)
+        .single();
+      voicemailDrop = campaign?.voicemail_drop_text || "";
+    }
+
+    // Check AnsweredBy from Twilio (machine detection)
+    let answeredBy = "";
+    try {
+      const formData = await req.formData();
+      answeredBy = String(formData.get("AnsweredBy") || "");
+    } catch {
+      // GET request or no form data
+    }
+
+    // If answered by machine and we have a voicemail drop, leave it
+    if (answeredBy === "machine_start" || answeredBy === "machine_end_beep") {
+      if (voicemailDrop) {
+        return new Response(
+          `<Response><Pause length="1"/><Say>${voicemailDrop}</Say><Hangup/></Response>`,
+          { headers: { "Content-Type": "text/xml" } }
+        );
+      }
+      // No voicemail drop configured — hang up on machines
+      return new Response(
+        `<Response><Hangup/></Response>`,
+        { headers: { "Content-Type": "text/xml" } }
+      );
+    }
+
+    // Human answered — connect the call (ring for 30s)
+    const statusUrl = `${supabaseUrl}/functions/v1/twilio-webhook?type=campaign_status&campaign_id=${campaignId}&contact_id=${contactId}`;
+    return new Response(
+      `<Response><Say>Hello, this is a call from your organization.</Say><Pause length="30"/></Response>`,
+      { headers: { "Content-Type": "text/xml" } }
+    );
+  }
+
+  // --- Main dial endpoint (called from frontend) ---
   try {
     const { campaign_id, organization_id } = await req.json();
 
@@ -62,7 +119,6 @@ serve(async (req) => {
     }
 
     if (!fromNumber) {
-      // Fallback to first active number
       const { data: fallback } = await supabase
         .from("org_phone_numbers")
         .select("phone_number")
@@ -92,7 +148,6 @@ serve(async (req) => {
       .single();
 
     if (contactErr || !nextContact) {
-      // No more contacts — mark campaign complete
       await supabase
         .from("call_campaigns")
         .update({ status: "completed", completed_at: new Date().toISOString() })
@@ -113,12 +168,8 @@ serve(async (req) => {
     // Status callback URL
     const statusCallbackUrl = `${supabaseUrl}/functions/v1/twilio-webhook?type=campaign_status&campaign_id=${campaign_id}&contact_id=${nextContact.id}`;
 
-    // Initiate outbound call via Twilio REST API
-    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls.json`;
+    // TwiML URL — points back to THIS function with action=twiml
     const twimlUrl = `${supabaseUrl}/functions/v1/twilio-campaign-dial?action=twiml&contact_id=${nextContact.id}&campaign_id=${campaign_id}`;
-
-    // If voicemail drop is configured, use it as TwiML
-    const voicemailDrop = campaign.voicemail_drop_text;
 
     const callParams = new URLSearchParams({
       To: nextContact.phone_number,
@@ -131,6 +182,7 @@ serve(async (req) => {
       MachineDetectionTimeout: "5",
     });
 
+    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls.json`;
     const twilioRes = await fetch(twilioUrl, {
       method: "POST",
       headers: {
@@ -144,23 +196,23 @@ serve(async (req) => {
       const errBody = await twilioRes.text();
       console.error("Twilio call error:", errBody);
 
-      // Mark contact as failed
       await supabase
         .from("call_campaign_contacts")
         .update({ status: "failed", outcome: "dial_error" })
         .eq("id", nextContact.id);
 
-      // Increment failed calls
-      await supabase.rpc("increment_campaign_counter", {
-        p_campaign_id: campaign_id,
-        p_field: "failed_calls",
-      }).catch(() => {
-        // Fallback: direct update
-        supabase
+      const { data: campData } = await supabase
+        .from("call_campaigns")
+        .select("failed_calls")
+        .eq("id", campaign_id)
+        .single();
+
+      if (campData) {
+        await supabase
           .from("call_campaigns")
-          .update({ failed_calls: (campaign.failed_calls || 0) + 1 })
+          .update({ failed_calls: (campData.failed_calls || 0) + 1 })
           .eq("id", campaign_id);
-      });
+      }
 
       return new Response(
         JSON.stringify({ error: "Failed to initiate call", details: errBody }),
@@ -170,13 +222,11 @@ serve(async (req) => {
 
     const callData = await twilioRes.json();
 
-    // Update contact with call SID
     await supabase
       .from("call_campaign_contacts")
       .update({ call_sid: callData.sid })
       .eq("id", nextContact.id);
 
-    // Log telephony usage
     await supabase.from("telephony_usage_logs").insert({
       organization_id,
       phone_number_id: campaign.phone_number_id,
