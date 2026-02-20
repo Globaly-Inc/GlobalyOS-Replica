@@ -5,6 +5,9 @@ import { cn } from '@/lib/utils';
 
 const accountingSubNavItems = [
   { name: 'Dashboard', href: '/accounting', icon: LayoutDashboard },
+  { name: 'Chart of Accounts', href: '/accounting/chart-of-accounts', icon: BarChart3 },
+  { name: 'Journals', href: '/accounting/journals', icon: FileText },
+  { name: 'General Ledger', href: '/accounting/general-ledger', icon: FileText },
   { name: 'Invoices', href: '/accounting/invoices', icon: FileText },
   { name: 'Bills', href: '/accounting/bills', icon: Receipt },
   { name: 'Banking', href: '/accounting/banking', icon: Landmark },

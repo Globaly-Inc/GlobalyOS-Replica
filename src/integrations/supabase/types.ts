@@ -7527,6 +7527,147 @@ export type Database = {
           },
         ]
       }
+      journal_lines: {
+        Row: {
+          account_id: string
+          contact_id: string | null
+          credit: number
+          debit: number
+          description: string | null
+          id: string
+          journal_id: string
+          sort_order: number
+          tax_amount: number
+          tax_rate_id: string | null
+        }
+        Insert: {
+          account_id: string
+          contact_id?: string | null
+          credit?: number
+          debit?: number
+          description?: string | null
+          id?: string
+          journal_id: string
+          sort_order?: number
+          tax_amount?: number
+          tax_rate_id?: string | null
+        }
+        Update: {
+          account_id?: string
+          contact_id?: string | null
+          credit?: number
+          debit?: number
+          description?: string | null
+          id?: string
+          journal_id?: string
+          sort_order?: number
+          tax_amount?: number
+          tax_rate_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: false
+            referencedRelation: "journals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_tax_rate_id_fkey"
+            columns: ["tax_rate_id"]
+            isOneToOne: false
+            referencedRelation: "tax_rates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journals: {
+        Row: {
+          created_at: string
+          created_by: string
+          date: string
+          id: string
+          is_adjusting: boolean
+          journal_number: number
+          ledger_id: string
+          memo: string | null
+          office_id: string
+          organization_id: string
+          posted_at: string | null
+          source_id: string | null
+          source_type: string
+          status: Database["public"]["Enums"]["journal_status"]
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          date?: string
+          id?: string
+          is_adjusting?: boolean
+          journal_number?: number
+          ledger_id: string
+          memo?: string | null
+          office_id: string
+          organization_id: string
+          posted_at?: string | null
+          source_id?: string | null
+          source_type?: string
+          status?: Database["public"]["Enums"]["journal_status"]
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          date?: string
+          id?: string
+          is_adjusting?: boolean
+          journal_number?: number
+          ledger_id?: string
+          memo?: string | null
+          office_id?: string
+          organization_id?: string
+          posted_at?: string | null
+          source_id?: string | null
+          source_type?: string
+          status?: Database["public"]["Enums"]["journal_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journals_ledger_id_fkey"
+            columns: ["ledger_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_ledgers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journals_office_id_fkey"
+            columns: ["office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journals_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       knowledge_embeddings: {
         Row: {
           access_entities: string[] | null
@@ -8881,6 +9022,94 @@ export type Database = {
           },
           {
             foreignKeyName: "leave_type_balances_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ledger_entries: {
+        Row: {
+          account_id: string
+          balance_delta: number | null
+          created_at: string
+          credit: number
+          date: string
+          debit: number
+          id: string
+          journal_id: string
+          journal_line_id: string
+          ledger_id: string
+          office_id: string
+          organization_id: string
+        }
+        Insert: {
+          account_id: string
+          balance_delta?: number | null
+          created_at?: string
+          credit?: number
+          date: string
+          debit?: number
+          id?: string
+          journal_id: string
+          journal_line_id: string
+          ledger_id: string
+          office_id: string
+          organization_id: string
+        }
+        Update: {
+          account_id?: string
+          balance_delta?: number | null
+          created_at?: string
+          credit?: number
+          date?: string
+          debit?: number
+          id?: string
+          journal_id?: string
+          journal_line_id?: string
+          ledger_id?: string
+          office_id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_entries_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_entries_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: false
+            referencedRelation: "journals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_entries_journal_line_id_fkey"
+            columns: ["journal_line_id"]
+            isOneToOne: false
+            referencedRelation: "journal_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_entries_ledger_id_fkey"
+            columns: ["ledger_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_ledgers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_entries_office_id_fkey"
+            columns: ["office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_entries_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -18929,6 +19158,7 @@ export type Database = {
         | "open"
         | "paused"
         | "closed"
+      journal_status: "draft" | "posted" | "reversed"
       offer_status:
         | "draft"
         | "pending_approval"
@@ -19234,6 +19464,7 @@ export const Constants = {
         "paused",
         "closed",
       ],
+      journal_status: ["draft", "posted", "reversed"],
       offer_status: [
         "draft",
         "pending_approval",
