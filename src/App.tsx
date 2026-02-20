@@ -118,6 +118,7 @@ const InboxPage = lazy(() => import('./pages/crm/inbox/InboxPage'));
 const InboxChannelsPage = lazy(() => import('./pages/crm/inbox/InboxChannelsPage'));
 const InboxTemplatesPage = lazy(() => import('./pages/crm/inbox/InboxTemplatesPage'));
 const InboxAnalyticsPage = lazy(() => import('./pages/crm/inbox/InboxAnalyticsPage'));
+const NumberMarketplacePage = lazy(() => import('./pages/crm/inbox/NumberMarketplacePage'));
 
 const Payroll = lazy(() => import('./pages/Payroll'));
 
@@ -323,6 +324,7 @@ const App = () => <QueryClientProvider client={queryClient}>
                    <Route path="crm/inbox/channels" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><InboxChannelsPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/inbox/templates" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><InboxTemplatesPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/inbox/analytics" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><InboxAnalyticsPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/inbox/numbers" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><NumberMarketplacePage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    {/* WhatsApp routes — redirect to Inbox when omnichannel enabled, otherwise legacy */}
                    <Route path="crm/whatsapp" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FeatureProtectedRoute feature="whatsapp"><WhatsAppOverviewPage /></FeatureProtectedRoute></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/whatsapp/inbox" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FeatureProtectedRoute feature="whatsapp"><WhatsAppInboxPage /></FeatureProtectedRoute></FeatureProtectedRoute></OrgProtectedRoute>} />

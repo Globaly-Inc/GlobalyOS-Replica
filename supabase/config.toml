@@ -330,6 +330,21 @@ verify_jwt = false
 [functions.verify-assignment-otp]
 verify_jwt = false
 
+[functions.twilio-search-numbers]
+verify_jwt = false
+
+[functions.twilio-provision-number]
+verify_jwt = false
+
+[functions.twilio-release-number]
+verify_jwt = false
+
+[functions.twilio-webhook]
+verify_jwt = false
+
+[functions.twilio-ivr-action]
+verify_jwt = false
+
 [functions.get-scheduler-slots]
 verify_jwt = false
 

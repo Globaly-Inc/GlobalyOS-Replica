@@ -32,8 +32,8 @@ export function useInboxConversations(filters?: {
       if (filters?.status) {
         query = query.eq('status', filters.status);
       }
-      if (filters?.channelType && filters.channelType !== 'sms') {
-        query = query.eq('channel_type', filters.channelType as Exclude<InboxChannelType, 'sms'>);
+      if (filters?.channelType) {
+        query = query.eq('channel_type', filters.channelType as any);
       }
       if (filters?.assignedTo === '__UNASSIGNED__') {
         query = query.is('assigned_to', null);

@@ -146,6 +146,9 @@ serve(async (req) => {
         case "telegram":
           dispatchResult = await dispatchTelegram(conversation, content);
           break;
+        case "sms":
+          dispatchResult = await dispatchSms(supabase, conversation, content, organization_id);
+          break;
         default:
           // For other channels, mark as sent (simulated)
           dispatchResult = { success: true, provider_message_id: "" };
@@ -299,6 +302,91 @@ async function dispatchTelegram(
     return { success: true, provider_message_id: String(data.result?.message_id || "") };
   } catch (err) {
     console.error("Telegram dispatch error:", err);
+    return { success: false, provider_message_id: "" };
+  }
+}
+
+// ─── SMS (Twilio) dispatch ────────────────────────────────────
+async function dispatchSms(
+  supabase: any,
+  conversation: any,
+  content: Record<string, unknown>,
+  organizationId: string
+): Promise<{ success: boolean; provider_message_id: string }> {
+  const contact = conversation.inbox_contacts;
+  const recipientPhone = contact?.phone;
+
+  if (!recipientPhone) {
+    console.error("No recipient phone number for SMS");
+    return { success: false, provider_message_id: "" };
+  }
+
+  // Find the org's active phone number
+  const { data: phoneRecord } = await supabase
+    .from("org_phone_numbers")
+    .select("*")
+    .eq("organization_id", organizationId)
+    .eq("status", "active")
+    .limit(1)
+    .single();
+
+  if (!phoneRecord) {
+    console.error("No active phone number for org:", organizationId);
+    return { success: false, provider_message_id: "" };
+  }
+
+  const accountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
+  const authToken = Deno.env.get("TWILIO_AUTH_TOKEN");
+
+  if (!accountSid || !authToken) {
+    console.error("Twilio credentials not configured");
+    return { success: false, provider_message_id: "" };
+  }
+
+  try {
+    const params = new URLSearchParams();
+    params.set("To", recipientPhone);
+    params.set("From", phoneRecord.phone_number);
+    params.set("Body", (content as { body?: string })?.body || "");
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    params.set("StatusCallback", `${supabaseUrl}/functions/v1/twilio-webhook?type=status`);
+
+    const response = await fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Basic " + btoa(`${accountSid}:${authToken}`),
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: params.toString(),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Twilio SMS error:", data);
+      return { success: false, provider_message_id: "" };
+    }
+
+    // Log usage
+    await supabase.from("telephony_usage_logs").insert({
+      organization_id: organizationId,
+      phone_number_id: phoneRecord.id,
+      event_type: "sms_outbound",
+      direction: "outbound",
+      segments: data.num_segments ? parseInt(data.num_segments, 10) : 1,
+      from_number: phoneRecord.phone_number,
+      to_number: recipientPhone,
+      twilio_sid: data.sid,
+      cost: data.price ? Math.abs(parseFloat(data.price)) : 0,
+    });
+
+    return { success: true, provider_message_id: data.sid || "" };
+  } catch (err) {
+    console.error("SMS dispatch error:", err);
     return { success: false, provider_message_id: "" };
   }
 }
