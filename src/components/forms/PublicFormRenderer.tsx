@@ -41,11 +41,21 @@ export function PublicFormRenderer({ nodes, theme, formName, preview, onSubmit }
     <form onSubmit={handleSubmit} style={style} className="space-y-4">
       <h1 className="text-2xl font-bold">{formName || 'Untitled Form'}</h1>
 
-      {nodes.map((node) => (
-        <div key={node.id} style={{ paddingLeft: node.spacing.paddingX, paddingRight: node.spacing.paddingX, paddingTop: node.spacing.paddingY, paddingBottom: node.spacing.paddingY, marginBottom: node.spacing.gap }}>
-          {renderNode(node, values, setValue)}
-        </div>
-      ))}
+      <div className="grid grid-cols-2 gap-4">
+        {nodes.map((node) => {
+          const isElement = ['heading', 'subheading', 'paragraph', 'image', 'section', 'divider'].includes(node.type);
+          const isHalf = !isElement && node.properties.columns === 2;
+          return (
+            <div
+              key={node.id}
+              className={isHalf ? 'col-span-1' : 'col-span-2'}
+              style={{ paddingLeft: node.spacing.paddingX, paddingRight: node.spacing.paddingX, paddingTop: node.spacing.paddingY, paddingBottom: node.spacing.paddingY }}
+            >
+              {renderNode(node, values, setValue)}
+            </div>
+          );
+        })}
+      </div>
 
       <Button
         type="submit"

@@ -32,9 +32,10 @@ interface CanvasElementProps {
   onSelect: () => void;
   onRemove: () => void;
   onDuplicate: () => void;
+  isHalfWidth?: boolean;
 }
 
-export function CanvasElement({ node, isSelected, onSelect, onRemove, onDuplicate }: CanvasElementProps) {
+export function CanvasElement({ node, isSelected, onSelect, onRemove, onDuplicate, isHalfWidth }: CanvasElementProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: node.id });
 
   const style = {
@@ -100,6 +101,9 @@ export function CanvasElement({ node, isSelected, onSelect, onRemove, onDuplicat
       </div>
 
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        {isHalfWidth && (
+          <span className="text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded mr-1">½</span>
+        )}
         <button
           onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
           className="text-muted-foreground hover:text-foreground p-1 rounded"
