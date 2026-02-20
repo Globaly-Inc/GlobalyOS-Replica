@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Loader2, MessageSquare, CheckSquare, Briefcase, Flag, GitBranch, Wallet, Bot, UserPlus, MessageCircle, Phone, Inbox } from "lucide-react";
+import { Loader2, MessageSquare, CheckSquare, Briefcase, Flag, GitBranch, Wallet, Bot, UserPlus, MessageCircle, Phone, Inbox, Info } from "lucide-react";
 import { toast } from "sonner";
 import { useAdminActivityLog } from "@/hooks/useAdminActivityLog";
 
@@ -11,6 +11,12 @@ interface FeatureFlag {
   feature_name: string;
   is_enabled: boolean;
 }
+
+// Map of features that are prerequisites for other features
+const PREREQUISITE_HINTS: Record<string, string> = {
+  omnichannel_inbox: "Required for Telephony (SMS & Calls)",
+  crm: "Required for Omni-Channel Inbox & Telephony",
+};
 
 interface OrganizationFeaturesManagerProps {
   organizationId: string;
@@ -230,6 +236,12 @@ export const OrganizationFeaturesManager = ({
                   <p className="text-xs text-muted-foreground mt-1">
                     {feature.description}
                   </p>
+                  {PREREQUISITE_HINTS[feature.name] && (
+                    <div className="flex items-center gap-1 mt-1.5 text-[11px] text-primary/80">
+                      <Info className="h-3 w-3 shrink-0" />
+                      <span>{PREREQUISITE_HINTS[feature.name]}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             );
