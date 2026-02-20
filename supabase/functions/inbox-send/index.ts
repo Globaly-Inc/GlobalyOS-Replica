@@ -149,6 +149,9 @@ serve(async (req) => {
         case "sms":
           dispatchResult = await dispatchSms(supabase, conversation, content, organization_id);
           break;
+        case "gmail":
+          dispatchResult = await dispatchGmail(supabase, conversation, content, organization_id, createdBy);
+          break;
         default:
           // For other channels, mark as sent (simulated)
           dispatchResult = { success: true, provider_message_id: "" };
@@ -387,6 +390,53 @@ async function dispatchSms(
     return { success: true, provider_message_id: data.sid || "" };
   } catch (err) {
     console.error("SMS dispatch error:", err);
+    return { success: false, provider_message_id: "" };
+  }
+}
+
+// ─── Gmail dispatch ───────────────────────────────────────────
+async function dispatchGmail(
+  supabase: any,
+  conversation: any,
+  content: Record<string, unknown>,
+  organizationId: string,
+  userId: string | null
+): Promise<{ success: boolean; provider_message_id: string }> {
+  if (!userId) {
+    console.error("No user ID for Gmail dispatch");
+    return { success: false, provider_message_id: "" };
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+
+  try {
+    const response = await fetch(`${supabaseUrl}/functions/v1/gmail-send`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+      },
+      body: JSON.stringify({
+        organization_id: organizationId,
+        conversation_id: conversation.id,
+        body: (content as { body?: string })?.body || "",
+        user_id: userId,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      console.error("Gmail dispatch error:", data);
+      return { success: false, provider_message_id: "" };
+    }
+
+    return {
+      success: true,
+      provider_message_id: data.provider_message_id || "",
+    };
+  } catch (err) {
+    console.error("Gmail dispatch error:", err);
     return { success: false, provider_message_id: "" };
   }
 }

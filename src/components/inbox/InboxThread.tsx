@@ -1,9 +1,9 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChannelBadge } from './ChannelBadge';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Bot, CheckCheck, Check, Clock, AlertCircle, PhoneIncoming, PhoneOutgoing, Mic } from 'lucide-react';
+import { Bot, CheckCheck, Check, Clock, AlertCircle, PhoneIncoming, PhoneOutgoing, Mic, Mail, ChevronDown, ChevronUp } from 'lucide-react';
 import type { InboxMessage, InboxConversation, InboxContact } from '@/types/inbox';
 
 interface InboxThreadProps {
@@ -89,6 +89,79 @@ function VoiceCallBubble({ msg }: { msg: InboxMessage }) {
   );
 }
 
+function isGmailMessage(msg: InboxMessage): boolean {
+  const content = msg.content as Record<string, unknown>;
+  return !!(content?.gmail_message_id || content?.html);
+}
+
+function GmailEmailBubble({ msg, isOutbound }: { msg: InboxMessage; isOutbound: boolean }) {
+  const [showHtml, setShowHtml] = useState(false);
+  const content = msg.content as {
+    body?: string;
+    html?: string;
+    subject?: string;
+    from?: string;
+    to?: string;
+    gmail_message_id?: string;
+  };
+
+  return (
+    <div className={cn('flex', isOutbound ? 'justify-end' : 'justify-start')}>
+      <div className={cn(
+        'max-w-[85%] rounded-xl border px-4 py-3 space-y-2',
+        isOutbound
+          ? 'bg-primary/5 border-primary/20'
+          : 'bg-card border-border'
+      )}>
+        {/* Email header */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Mail className="h-3.5 w-3.5" />
+          <span className="font-medium text-foreground">{content.subject || '(No subject)'}</span>
+        </div>
+        <div className="text-[11px] text-muted-foreground space-y-0.5">
+          {content.from && <p>From: {content.from}</p>}
+          {content.to && <p>To: {content.to}</p>}
+        </div>
+
+        {/* Body */}
+        {content.html && !showHtml ? (
+          <div>
+            <p className="text-sm whitespace-pre-wrap break-words line-clamp-4">
+              {content.body || ''}
+            </p>
+            <button
+              onClick={() => setShowHtml(true)}
+              className="text-xs text-primary mt-1 flex items-center gap-0.5 hover:underline"
+            >
+              <ChevronDown className="h-3 w-3" /> Show full email
+            </button>
+          </div>
+        ) : content.html && showHtml ? (
+          <div>
+            <div
+              className="text-sm prose prose-sm max-w-none dark:prose-invert overflow-x-auto"
+              dangerouslySetInnerHTML={{ __html: content.html }}
+            />
+            <button
+              onClick={() => setShowHtml(false)}
+              className="text-xs text-primary mt-1 flex items-center gap-0.5 hover:underline"
+            >
+              <ChevronUp className="h-3 w-3" /> Collapse
+            </button>
+          </div>
+        ) : (
+          <p className="text-sm whitespace-pre-wrap break-words">{content.body || ''}</p>
+        )}
+
+        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+          <span>{format(new Date(msg.created_at), 'MMM d, HH:mm')}</span>
+          {isOutbound && deliveryIcon[msg.delivery_status]}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export const InboxThread = ({ conversation, messages, isLoading }: InboxThreadProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -163,6 +236,11 @@ export const InboxThread = ({ conversation, messages, isLoading }: InboxThreadPr
               // Voice call bubble
               if (isVoiceSystemMessage(msg)) {
                 return <VoiceCallBubble key={msg.id} msg={msg} />;
+              }
+
+              // Gmail email bubble
+              if (isGmailMessage(msg)) {
+                return <GmailEmailBubble key={msg.id} msg={msg} isOutbound={isOutbound} />;
               }
 
               if (isSystem) {

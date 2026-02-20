@@ -395,3 +395,9 @@ verify_jwt = false
 
 [functions.sb-sync-user]
 verify_jwt = false
+
+[functions.gmail-sync]
+verify_jwt = false
+
+[functions.gmail-send]
+verify_jwt = false

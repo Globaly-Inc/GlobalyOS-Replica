@@ -6282,6 +6282,98 @@ export type Database = {
           },
         ]
       }
+      inbox_gmail_sync_state: {
+        Row: {
+          created_at: string
+          gmail_email: string | null
+          gmail_history_id: string | null
+          id: string
+          last_synced_at: string | null
+          organization_id: string
+          sync_errors: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          gmail_email?: string | null
+          gmail_history_id?: string | null
+          id?: string
+          last_synced_at?: string | null
+          organization_id: string
+          sync_errors?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          gmail_email?: string | null
+          gmail_history_id?: string | null
+          id?: string
+          last_synced_at?: string | null
+          organization_id?: string
+          sync_errors?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbox_gmail_sync_state_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inbox_gmail_thread_map: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          gmail_message_ids: string[] | null
+          gmail_thread_id: string
+          id: string
+          organization_id: string
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          gmail_message_ids?: string[] | null
+          gmail_thread_id: string
+          id?: string
+          organization_id: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          gmail_message_ids?: string[] | null
+          gmail_thread_id?: string
+          id?: string
+          organization_id?: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbox_gmail_thread_map_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "inbox_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbox_gmail_thread_map_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inbox_macros: {
         Row: {
           category: string | null
