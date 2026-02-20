@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useOrganization } from '@/hooks/useOrganization';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { useCallQueues, useQueueMembers, useCreateQueue, useUpdateQueue, useAddQueueMember, useRemoveQueueMember } from '@/hooks/useCallQueues';
 import { InboxSubNav } from '@/components/inbox/InboxSubNav';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,13 +24,31 @@ const STRATEGY_LABELS: Record<string, { label: string; icon: typeof Shuffle }> =
 };
 
 const CallQueuesPage = () => {
+  const { currentOrg } = useOrganization();
   const { data: queues = [], isLoading } = useCallQueues();
   const createQueue = useCreateQueue();
   const updateQueue = useUpdateQueue();
+  const addQueueMember = useAddQueueMember();
   const [showCreate, setShowCreate] = useState(false);
   const [selectedQueueId, setSelectedQueueId] = useState<string | null>(null);
   const { data: members = [] } = useQueueMembers(selectedQueueId ?? undefined);
   const removeQueueMember = useRemoveQueueMember();
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees-list', currentOrg?.id],
+    enabled: !!currentOrg?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('id, first_name, last_name')
+        .eq('organization_id', currentOrg!.id)
+        .eq('status', 'active')
+        .order('first_name');
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const [addMemberEmployeeId, setAddMemberEmployeeId] = useState('');
+  const [addMemberPriority, setAddMemberPriority] = useState(1);
 
   const [newName, setNewName] = useState('');
   const [newStrategy, setNewStrategy] = useState('round_robin');
@@ -177,6 +197,43 @@ const CallQueuesPage = () => {
                       ))}
                     </div>
                   )}
+                </div>
+
+                {/* Add Member */}
+                <div className="border-t pt-3 space-y-2">
+                  <h4 className="text-xs font-semibold">Add Member</h4>
+                  <div className="flex gap-2 items-end">
+                    <div className="flex-1 space-y-1">
+                      <Label className="text-[10px]">Employee</Label>
+                      <Select value={addMemberEmployeeId} onValueChange={setAddMemberEmployeeId}>
+                        <SelectTrigger className="text-xs h-8"><SelectValue placeholder="Select employee" /></SelectTrigger>
+                        <SelectContent>
+                          {employees
+                            .filter((e: any) => !members.some((m) => m.employee_id === e.id))
+                            .map((e: any) => (
+                              <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="w-20 space-y-1">
+                      <Label className="text-[10px]">Priority</Label>
+                      <Input type="number" min={1} value={addMemberPriority} onChange={(e) => setAddMemberPriority(parseInt(e.target.value) || 1)} className="text-xs h-8" />
+                    </div>
+                    <Button
+                      size="sm"
+                      className="h-8 gap-1"
+                      disabled={!addMemberEmployeeId || addQueueMember.isPending}
+                      onClick={() => {
+                        addQueueMember.mutate(
+                          { queue_id: selectedQueue.id, employee_id: addMemberEmployeeId, priority: addMemberPriority },
+                          { onSuccess: () => { setAddMemberEmployeeId(''); setAddMemberPriority(1); } }
+                        );
+                      }}
+                    >
+                      <Plus className="h-3 w-3" /> Add
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useOrgPhoneNumbers } from '@/hooks/useTelephony';
 import { useCallCampaigns, useCampaignContacts, useCreateCampaign, useUpdateCampaignStatus } from '@/hooks/useCallCampaigns';
+import { useDialCampaignContact } from '@/hooks/useCallMonitoring';
 import { InboxSubNav } from '@/components/inbox/InboxSubNav';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import {
-  PhoneCall, Plus, Play, Pause, CheckCircle, XCircle, Users, Clock, Loader2, BarChart3,
+  PhoneCall, Plus, Play, Pause, CheckCircle, XCircle, Users, Clock, Loader2, BarChart3, PhoneOutgoing,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -31,6 +32,7 @@ const CallCampaignsPage = () => {
   const { data: campaigns = [], isLoading } = useCallCampaigns();
   const createCampaign = useCreateCampaign();
   const updateStatus = useUpdateCampaignStatus();
+  const dialNext = useDialCampaignContact();
   const [showCreate, setShowCreate] = useState(false);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
   const { data: contacts = [] } = useCampaignContacts(selectedCampaignId ?? undefined);
@@ -139,16 +141,27 @@ const CallCampaignsPage = () => {
             </DialogHeader>
             {selectedCampaign && (
               <div className="space-y-4">
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   {selectedCampaign.status === 'draft' && (
                     <Button size="sm" className="gap-1" onClick={() => updateStatus.mutate({ id: selectedCampaign.id, status: 'active' })}>
                       <Play className="h-3.5 w-3.5" /> Start Campaign
                     </Button>
                   )}
                   {selectedCampaign.status === 'active' && (
-                    <Button size="sm" variant="outline" className="gap-1" onClick={() => updateStatus.mutate({ id: selectedCampaign.id, status: 'paused' })}>
-                      <Pause className="h-3.5 w-3.5" /> Pause
-                    </Button>
+                    <>
+                      <Button
+                        size="sm"
+                        className="gap-1"
+                        onClick={() => dialNext.mutate({ campaign_id: selectedCampaign.id, organization_id: currentOrg!.id })}
+                        disabled={dialNext.isPending}
+                      >
+                        {dialNext.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PhoneOutgoing className="h-3.5 w-3.5" />}
+                        Dial Next
+                      </Button>
+                      <Button size="sm" variant="outline" className="gap-1" onClick={() => updateStatus.mutate({ id: selectedCampaign.id, status: 'paused' })}>
+                        <Pause className="h-3.5 w-3.5" /> Pause
+                      </Button>
+                    </>
                   )}
                   {selectedCampaign.status === 'paused' && (
                     <Button size="sm" className="gap-1" onClick={() => updateStatus.mutate({ id: selectedCampaign.id, status: 'active' })}>
