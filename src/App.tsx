@@ -149,6 +149,10 @@ const EmployeeOnboardingWizard = lazy(() => import('./pages/onboarding/EmployeeO
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Hiring pages
+// Accounting pages
+const AccountingDashboard = lazy(() => import('./pages/accounting/AccountingDashboard'));
+const AccountingSetupPage = lazy(() => import('./pages/accounting/AccountingSetup'));
+
 const HiringDashboard = lazy(() => import('./pages/hiring/HiringDashboard'));
 const JobsList = lazy(() => import('./pages/hiring/JobsList'));
 const JobCreate = lazy(() => import('./pages/hiring/JobCreate'));
@@ -374,8 +378,17 @@ const App = () => <QueryClientProvider client={queryClient}>
                   <Route path="workflows" element={<OrgProtectedRoute><FeatureProtectedRoute feature="workflows"><Workflows /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="workflows/:workflowId" element={<OrgProtectedRoute><FeatureProtectedRoute feature="workflows"><ApplicationDetail /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="my-payslips" element={<OrgProtectedRoute><FeatureProtectedRoute feature="payroll"><MyPayslips /></FeatureProtectedRoute></OrgProtectedRoute>} />
-                  
-                  {/* Hiring module */}
+                   
+                   {/* Accounting module */}
+                   <Route path="accounting" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingDashboard /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="accounting/setup" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingSetupPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="accounting/invoices" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingDashboard /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="accounting/bills" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingDashboard /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="accounting/banking" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingDashboard /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="accounting/reports" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingDashboard /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="accounting/settings" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingDashboard /></FeatureProtectedRoute></OrgProtectedRoute>} />
+
+                   {/* Hiring module */}
                   <Route path="hiring" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><HiringDashboard /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="hiring/jobs" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><JobsList /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="hiring/jobs/new" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><JobCreate /></FeatureProtectedRoute></OrgProtectedRoute>} />
