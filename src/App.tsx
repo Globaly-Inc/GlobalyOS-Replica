@@ -163,6 +163,8 @@ const BillEditor = lazy(() => import('./pages/accounting/BillEditor'));
 const BillDetail = lazy(() => import('./pages/accounting/BillDetail'));
 const AccountingBanking = lazy(() => import('./pages/accounting/Banking'));
 const AccountingBankRules = lazy(() => import('./pages/accounting/BankRules'));
+const AccountingReports = lazy(() => import('./pages/accounting/Reports'));
+const AccountingReportViewer = lazy(() => import('./pages/accounting/ReportViewer'));
 
 const HiringDashboard = lazy(() => import('./pages/hiring/HiringDashboard'));
 const JobsList = lazy(() => import('./pages/hiring/JobsList'));
@@ -406,7 +408,8 @@ const App = () => <QueryClientProvider client={queryClient}>
                    <Route path="accounting/bills/:billId/edit" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><BillEditor /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="accounting/banking" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingBanking /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="accounting/bank-rules" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingBankRules /></FeatureProtectedRoute></OrgProtectedRoute>} />
-                   <Route path="accounting/reports" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingDashboard /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="accounting/reports" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingReports /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="accounting/reports/:reportId" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingReportViewer /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="accounting/settings" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingDashboard /></FeatureProtectedRoute></OrgProtectedRoute>} />
 
                    {/* Hiring module */}
