@@ -1,9 +1,10 @@
 import { Button } from '@/components/ui/button';
-import { Palette, Eye, Undo2, Redo2 } from 'lucide-react';
+import { Palette, Eye, Undo2, Redo2, Share2 } from 'lucide-react';
 
 interface FormBuilderToolbarProps {
   onTheme: () => void;
   onPreview: () => void;
+  onShare: () => void;
   onSave: () => void;
   onPublish: () => void;
   onCancel: () => void;
@@ -19,6 +20,7 @@ interface FormBuilderToolbarProps {
 export function FormBuilderToolbar({
   onTheme,
   onPreview,
+  onShare,
   onSave,
   onPublish,
   onCancel,
@@ -47,6 +49,10 @@ export function FormBuilderToolbar({
         <Button variant="outline" size="sm" onClick={onPreview}>
           <Eye className="h-4 w-4 mr-1" />
           Preview
+        </Button>
+        <Button variant="outline" size="sm" onClick={onShare}>
+          <Share2 className="h-4 w-4 mr-1" />
+          Share
         </Button>
       </div>
 
