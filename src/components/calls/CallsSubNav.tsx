@@ -1,29 +1,31 @@
-import { Inbox, Radio, FileText, BarChart3 } from 'lucide-react';
+import { Phone, Mic, PhoneCall, Users, Headphones, Activity, LayoutDashboard } from 'lucide-react';
 import { OrgLink } from '@/components/OrgLink';
 import { useLocation, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
-const inboxSubNavItems = [
-  { name: 'Inbox', href: '/crm/inbox', icon: Inbox, exact: true },
-  { name: 'Channels', href: '/crm/inbox/channels', icon: Radio },
-  { name: 'Templates', href: '/crm/inbox/templates', icon: FileText },
-  { name: 'Analytics', href: '/crm/inbox/analytics', icon: BarChart3 },
+const callsSubNavItems = [
+  { name: 'Numbers', href: '/crm/calls', icon: Phone, exact: true },
+  { name: 'Recordings', href: '/crm/calls/recordings', icon: Mic },
+  { name: 'Campaigns', href: '/crm/calls/campaigns', icon: PhoneCall },
+  { name: 'Queues', href: '/crm/calls/queues', icon: Users },
+  { name: 'Monitoring', href: '/crm/calls/monitoring', icon: Headphones },
+  { name: 'Usage', href: '/crm/calls/usage', icon: Activity },
 ];
 
-export const InboxSubNav = () => {
+export const CallsSubNav = () => {
   const location = useLocation();
   const { orgCode } = useParams<{ orgCode: string }>();
 
   const basePath = orgCode ? `/org/${orgCode}` : '';
-  const isInboxSection = location.pathname.includes('/crm/inbox');
+  const isCallsSection = location.pathname.includes('/crm/calls');
 
-  if (!isInboxSection) return null;
+  if (!isCallsSection) return null;
 
   return (
     <div className="border-b border-border bg-card/80 backdrop-blur">
       <div className="container px-4 md:px-8">
         <nav className="flex items-center gap-1 -mb-px overflow-x-auto">
-          {inboxSubNavItems.map((item) => {
+          {callsSubNavItems.map((item) => {
             const fullPath = `${basePath}${item.href}`;
             const isActive = item.exact
               ? location.pathname === fullPath

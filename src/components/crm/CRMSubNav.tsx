@@ -1,4 +1,4 @@
-import { Users, Building2, Settings, Calendar, Mail, MessageCircle, Inbox } from 'lucide-react';
+import { Users, Building2, Settings, Calendar, Mail, MessageCircle, Inbox, Phone } from 'lucide-react';
 import { OrgLink } from '@/components/OrgLink';
 import { useLocation, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -10,6 +10,7 @@ const crmSubNavItems = [
   { name: 'Companies', href: '/crm/companies', icon: Building2 },
   { name: 'Campaigns', href: '/crm/campaigns', icon: Mail },
   { name: 'Inbox', href: '/crm/inbox', icon: Inbox, featureFlag: 'omnichannel_inbox' as const },
+  { name: 'Calls', href: '/crm/calls', icon: Phone, featureFlag: 'telephony' as const },
   { name: 'WhatsApp', href: '/crm/whatsapp', icon: MessageCircle, featureFlag: 'whatsapp' as const, hideWhenFlag: 'omnichannel_inbox' as const },
   { name: 'Scheduler', href: '/crm/scheduler', icon: Calendar },
   { name: 'Settings', href: '/crm/settings', icon: Settings, adminOnly: true },
