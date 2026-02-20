@@ -2,14 +2,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PropertiesTab } from './PropertiesTab';
 import { SpacingTab } from './SpacingTab';
 import { ValidationTab } from './ValidationTab';
+import { LogicTab } from './LogicTab';
 import type { FormNode } from '@/types/forms';
 
 interface SettingsPanelProps {
   selectedNode: FormNode | null;
   onUpdateNode: (id: string, updates: Partial<FormNode>) => void;
+  allNodes?: FormNode[];
 }
 
-export function SettingsPanel({ selectedNode, onUpdateNode }: SettingsPanelProps) {
+export function SettingsPanel({ selectedNode, onUpdateNode, allNodes = [] }: SettingsPanelProps) {
   if (!selectedNode) {
     return (
       <div className="w-80 border-l border-border bg-card p-6 flex items-center justify-center">
@@ -21,6 +23,7 @@ export function SettingsPanel({ selectedNode, onUpdateNode }: SettingsPanelProps
   }
 
   const isElement = ['heading', 'subheading', 'paragraph', 'image', 'section', 'divider'].includes(selectedNode.type);
+  const isField = !isElement;
 
   return (
     <div className="w-80 border-l border-border bg-card flex flex-col h-full overflow-hidden">
@@ -30,10 +33,11 @@ export function SettingsPanel({ selectedNode, onUpdateNode }: SettingsPanelProps
       </div>
 
       <Tabs defaultValue="properties" className="flex-1 flex flex-col overflow-hidden">
-        <TabsList className="mx-4 mt-2 grid grid-cols-3 shrink-0">
+        <TabsList className={`mx-4 mt-2 grid shrink-0 ${isField ? 'grid-cols-4' : 'grid-cols-2'}`}>
           <TabsTrigger value="properties" className="text-xs">Properties</TabsTrigger>
           <TabsTrigger value="spacing" className="text-xs">Spacing</TabsTrigger>
-          {!isElement && <TabsTrigger value="validation" className="text-xs">Validation</TabsTrigger>}
+          {isField && <TabsTrigger value="validation" className="text-xs">Validation</TabsTrigger>}
+          {isField && <TabsTrigger value="logic" className="text-xs">Logic</TabsTrigger>}
         </TabsList>
 
         <div className="flex-1 overflow-y-auto">
@@ -43,9 +47,14 @@ export function SettingsPanel({ selectedNode, onUpdateNode }: SettingsPanelProps
           <TabsContent value="spacing" className="p-4 mt-0">
             <SpacingTab node={selectedNode} onUpdate={onUpdateNode} />
           </TabsContent>
-          {!isElement && (
+          {isField && (
             <TabsContent value="validation" className="p-4 mt-0">
               <ValidationTab node={selectedNode} onUpdate={onUpdateNode} />
+            </TabsContent>
+          )}
+          {isField && (
+            <TabsContent value="logic" className="p-4 mt-0">
+              <LogicTab node={selectedNode} allNodes={allNodes} onUpdate={onUpdateNode} />
             </TabsContent>
           )}
         </div>

@@ -6,6 +6,7 @@ import { SettingsPanel } from '@/components/forms/SettingsPanel';
 import { FormBuilderToolbar } from '@/components/forms/FormBuilderToolbar';
 import { ThemeDialog } from '@/components/forms/ThemeDialog';
 import { PreviewDialog } from '@/components/forms/PreviewDialog';
+import { ShareFormDialog } from '@/components/forms/ShareFormDialog';
 import { useFormBuilder } from '@/services/useFormBuilder';
 import { useForm, useCreateForm, useSaveFormDraft, usePublishForm, useFormDraftVersion } from '@/services/useForms';
 import type { FormNode } from '@/types/forms';
@@ -13,7 +14,6 @@ import type { FormNode } from '@/types/forms';
 export default function FormBuilderPage() {
   const { orgCode, formId } = useParams<{ orgCode: string; formId: string }>();
   const navigate = useNavigate();
-  const isNew = !formId;
 
   const { data: existingForm } = useForm(formId);
   const { data: draftVersion } = useFormDraftVersion(formId);
@@ -39,6 +39,7 @@ export default function FormBuilderPage() {
   const [formName, setFormName] = useState('Untitled Form');
   const [showTheme, setShowTheme] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [showShare, setShowShare] = useState(false);
   const [currentFormId, setCurrentFormId] = useState<string | undefined>(formId);
 
   // Load existing form data
@@ -63,7 +64,6 @@ export default function FormBuilderPage() {
     let fId = currentFormId;
 
     if (!fId) {
-      // Create form first
       const slug = formName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'untitled';
       const form = await createForm.mutateAsync({ name: formName, slug });
       fId = form.id;
@@ -101,7 +101,7 @@ export default function FormBuilderPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] -mx-4 md:-mx-8 -mt-4 md:-mt-6">
+    <div className="flex flex-col h-screen bg-background">
       {/* Builder body */}
       <div className="flex flex-1 overflow-hidden">
         <ElementsPalette onAddNode={addNode} />
@@ -114,13 +114,18 @@ export default function FormBuilderPage() {
           formName={formName}
           onFormNameChange={setFormName}
         />
-        <SettingsPanel selectedNode={selectedNode} onUpdateNode={updateNode} />
+        <SettingsPanel
+          selectedNode={selectedNode}
+          onUpdateNode={updateNode}
+          allNodes={state.layoutTree}
+        />
       </div>
 
       {/* Bottom toolbar */}
       <FormBuilderToolbar
         onTheme={() => setShowTheme(true)}
         onPreview={() => setShowPreview(true)}
+        onShare={() => setShowShare(true)}
         onSave={handleSave}
         onPublish={handlePublish}
         onCancel={() => navigate(`/org/${orgCode}/crm/forms`)}
@@ -135,6 +140,12 @@ export default function FormBuilderPage() {
 
       <ThemeDialog open={showTheme} onOpenChange={setShowTheme} theme={state.theme} onThemeChange={setTheme} />
       <PreviewDialog open={showPreview} onOpenChange={setShowPreview} nodes={state.layoutTree} theme={state.theme} formName={formName} />
+      <ShareFormDialog
+        open={showShare}
+        onOpenChange={setShowShare}
+        form={existingForm ?? null}
+        orgCode={orgCode || ''}
+      />
     </div>
   );
 }

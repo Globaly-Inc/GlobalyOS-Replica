@@ -94,6 +94,7 @@ const CRMSettings = lazy(() => import('./pages/CRMSettings'));
 const FormsListPage = lazy(() => import('./pages/crm/forms/FormsListPage'));
 const FormBuilderPage = lazy(() => import('./pages/crm/forms/FormBuilderPage'));
 const FormDetailPage = lazy(() => import('./pages/crm/forms/FormDetailPage'));
+const PublicFormPage = lazy(() => import('./pages/public/PublicFormPage'));
 const SchedulerPage = lazy(() => import('./pages/crm/scheduler/SchedulerPage'));
 const CreateEventTypePage = lazy(() => import('./pages/crm/scheduler/CreateEventTypePage'));
 const CampaignsPage = lazy(() => import('./pages/crm/campaigns/CampaignsPage'));
@@ -266,6 +267,9 @@ const App = () => <QueryClientProvider client={queryClient}>
                 <Route path="/support/api" element={<SupportAPI />} />
                 <Route path="/support/get-help" element={<SupportGetHelp />} />
                 
+                {/* Public form route */}
+                <Route path="/f/:orgSlug/:formSlug" element={<PublicFormPage />} />
+
                 {/* Root redirect - will redirect to /org/:orgId */}
                 <Route path="/" element={<RootRedirect />} />
                 
