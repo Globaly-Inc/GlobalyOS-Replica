@@ -175,7 +175,7 @@ const CallCampaignsPage = () => {
                   )}
                 </div>
 
-                <div className="rounded-md border divide-y max-h-[400px] overflow-y-auto">
+                <div className="rounded-md border divide-y max-h-[400px] overflow-y-auto bg-card">
                   {contacts.map((ct) => (
                     <div key={ct.id} className="flex items-center justify-between px-4 py-2.5">
                       <div className="flex items-center gap-3">

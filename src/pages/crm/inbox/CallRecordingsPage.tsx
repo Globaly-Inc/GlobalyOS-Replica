@@ -106,7 +106,7 @@ const CallRecordingsPage = () => {
                   <p className="text-sm text-muted-foreground text-center py-8">No recordings yet. Enable auto-recording in settings to start capturing calls.</p>
                 ) : (
                   <ScrollArea className="max-h-[600px]">
-                    <div className="rounded-md border divide-y">
+                    <div className="rounded-md border divide-y bg-card">
                       {recordings.map((rec) => (
                         <Collapsible
                           key={rec.id}
