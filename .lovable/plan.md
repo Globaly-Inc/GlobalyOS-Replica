@@ -1,58 +1,111 @@
 
-
-## Make Telephony Independently Gatable and More Discoverable
+## Add Missing Feature Settings to Org Settings + Setup Guidance on Homepage
 
 ### Problem
-The Twilio-based SMS and calling features are hidden inside the Omni-Channel Inbox with no dedicated feature flag or clear navigation entry point. Super Admins cannot independently enable/disable telephony, and org admins may not realize the features exist.
+1. Several enabled features (Hiring, Telephony, Omni-Channel Inbox, WhatsApp, Chat) have no corresponding entry in the Organization Settings sub-nav -- admins cannot discover or configure them from a central place.
+2. There is no guidance on the homepage telling Owners/Admins which enabled features still need configuration (e.g., no phone numbers provisioned, no inbox channels connected, no hiring pipeline set up).
 
-### Changes
+---
 
-#### 1. Add a "Telephony (SMS & Calls)" Feature Flag
+### Part 1: Add Missing Feature Settings to Org Settings Sub-Nav
 
-**File: `src/components/super-admin/OrganizationFeaturesManager.tsx`**
-- Add a new entry to `AVAILABLE_FEATURES`:
-  - name: `telephony`
-  - label: "Telephony (SMS & Calls)"
-  - description: "Twilio-powered SMS messaging, outbound calling, IVR, and number provisioning"
-  - icon: Phone
+**File: `src/components/SettingsSubNav.tsx`**
 
-**File: `src/hooks/useFeatureFlags.tsx`**
-- Add `"telephony"` to the `FeatureName` union type
-- Add `telephony: false` to the `defaultFlags` and `FeatureFlags` interface
+Add the following entries to `settingsSubNavItems` (after existing items, before Billing):
 
-#### 2. Gate Telephony Routes and UI Behind the New Flag
+| Name | href | Icon | Feature Flag | Notes |
+|------|------|------|-------------|-------|
+| Hiring | `/settings/hiring` | UserPlus | `hiring` | Links to existing HiringSettings page content |
+| Inbox | `/settings/inbox` | Inbox | `omnichannel_inbox` | Channel management, templates |
+| Telephony | `/settings/telephony` | Phone | `telephony` | Number provisioning, IVR, usage |
+
+**New Settings Pages to Create:**
+
+1. **`src/pages/settings/SettingsHiring.tsx`**
+   - Mirrors existing `/hiring/settings` content
+   - Uses standard `PageHeader` + Card layout
+   - Links/redirects to the existing HiringSettings component or embeds its tab content (pipeline, assignments, emails)
+
+2. **`src/pages/settings/SettingsInbox.tsx`**
+   - Standard `PageHeader` + Card layout
+   - Tabs: Channels, Templates, Analytics
+   - Each tab links to or embeds the existing inbox settings pages
+
+3. **`src/pages/settings/SettingsTelephony.tsx`**
+   - Standard `PageHeader` + Card layout
+   - Tabs: Phone Numbers, IVR, Usage
+   - Links to or embeds the existing telephony pages
 
 **File: `src/App.tsx`**
-- Wrap the `/crm/inbox/numbers` and `/crm/inbox/usage` routes with an additional `FeatureProtectedRoute feature="telephony"` check (still also requires `crm`)
+- Register routes: `settings/hiring`, `settings/inbox`, `settings/telephony`
+- Each wrapped with `OrgProtectedRoute` and relevant `FeatureProtectedRoute`
 
-**File: `src/components/inbox/InboxSubNav.tsx`**
-- Conditionally show the "Numbers" and "Usage" tabs only when the `telephony` feature flag is enabled
-- Import and use `useFeatureFlags` to check `isEnabled('telephony')`
+**Alternative (simpler approach -- recommended):**
+Instead of duplicating page content, create lightweight settings pages that show a description card with a button linking to the feature's dedicated settings area. This matches the existing pattern used for Hiring in `Settings.tsx` ("Open Hiring Settings" button). This avoids maintaining two copies of the same UI.
 
-**File: `src/pages/crm/inbox/InboxChannelsPage.tsx`**
-- Conditionally show the SMS channel card only when `telephony` is enabled
+---
 
-**File: `src/components/inbox/InboxContactPanel.tsx`**
-- Conditionally show the "Call" button only when `telephony` is enabled
+### Part 2: Homepage Setup Guidance Banner for Owners/Admins
 
-#### 3. Add Telephony Quick-Access to CRM Sub-Navigation
+**New Component: `src/components/home/FeatureSetupGuide.tsx`**
 
-**File: `src/components/crm/CRMSubNav.tsx`**
-- No changes needed -- telephony is accessed via Inbox sub-tabs, which is the correct UX hierarchy
+A card/banner shown only to users with `isOwner` or `isAdmin` role that checks which features are enabled but not yet configured, and displays actionable setup steps.
+
+**Logic:**
+- Query enabled feature flags via `useFeatureFlags()`
+- For each enabled feature, check a "readiness" condition:
+
+| Feature | Check | "Not configured" condition |
+|---------|-------|--------------------------|
+| Hiring | Query `hiring_pipelines` table | No pipeline stages exist |
+| Omni-Channel Inbox | Query `inbox_channels` table | No channels connected |
+| Telephony | Query `org_phone_numbers` table | No phone numbers provisioned |
+| CRM | Query `crm_custom_fields` table | No custom fields (optional, low priority) |
+| Workflows | Query `workflow_templates` table | No templates exist |
+
+- Each incomplete item renders as a compact card with:
+  - Feature icon and name
+  - Brief description of what needs to be done ("Connect your first messaging channel")
+  - "Set up" button linking to the relevant settings page
+  - Dismiss option (stored in localStorage per feature)
+
+**UI Design:**
+- Appears below the hero section, above the employee profile prompt
+- Uses an amber/warning Card style consistent with existing admin prompts
+- Title: "Complete Your Setup" with a checklist icon
+- Shows a progress indicator (e.g., "3 of 5 features configured")
+- Collapsible -- can be minimized but not permanently hidden (unless all features are configured)
+
+**File: `src/pages/Home.tsx`**
+- Import and render `FeatureSetupGuide` after `AdminSetup` and before `HomeHeroSection`
+- Only rendered when `isAdmin || isOwner` is true
+
+---
 
 ### Technical Details
 
-- The database table `organization_features` already supports arbitrary feature names via upsert, so no migration is needed
-- The `telephony` flag is independent of `omnichannel_inbox` -- an org could have the full inbox without telephony, or telephony could require `omnichannel_inbox` as a prerequisite (recommended: require both `crm` and `omnichannel_inbox` to be enabled for telephony to appear)
-- All route-level gating uses the existing `FeatureProtectedRoute` component pattern
+**New files:**
+| File | Purpose |
+|------|---------|
+| `src/pages/settings/SettingsHiring.tsx` | Hiring settings entry in org settings |
+| `src/pages/settings/SettingsInbox.tsx` | Inbox/channels settings entry |
+| `src/pages/settings/SettingsTelephony.tsx` | Telephony settings entry |
+| `src/components/home/FeatureSetupGuide.tsx` | Homepage setup guidance for admins |
 
-### Summary of Files Changed
+**Modified files:**
 | File | Change |
 |------|--------|
-| `OrganizationFeaturesManager.tsx` | Add "telephony" to AVAILABLE_FEATURES |
-| `useFeatureFlags.tsx` | Add "telephony" to FeatureName type and defaults |
-| `App.tsx` | Add telephony gate on numbers/usage routes |
-| `InboxSubNav.tsx` | Conditionally render Numbers/Usage tabs |
-| `InboxChannelsPage.tsx` | Conditionally render SMS channel card |
-| `InboxContactPanel.tsx` | Conditionally render Call button |
+| `src/components/SettingsSubNav.tsx` | Add Hiring, Inbox, Telephony nav items |
+| `src/App.tsx` | Register 3 new settings routes |
+| `src/pages/Home.tsx` | Render `FeatureSetupGuide` for admins/owners |
 
+**Database queries (read-only, no migrations needed):**
+- `hiring_pipelines` -- check if any rows exist for org
+- `inbox_channels` -- check if any rows exist for org
+- `org_phone_numbers` -- check if any active rows exist for org
+- `workflow_templates` -- check if any rows exist for org
+
+**Permissions:**
+- Setup guide visible only to owner/admin roles
+- Settings pages follow existing role-based access patterns
+- All queries scoped by `organization_id` from session context
