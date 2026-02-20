@@ -2,11 +2,106 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Upload, X, Loader2 } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import type { FormNode, FormNodeProperties } from '@/types/forms';
 
 interface PropertiesTabProps {
   node: FormNode;
   onUpdate: (id: string, updates: Partial<FormNode>) => void;
+}
+
+function ImageVideoUploader({ value, onChange }: { value: string; onChange: (url: string) => void }) {
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'video/mp4', 'video/webm'];
+    if (!allowed.includes(file.type)) {
+      toast.error('Unsupported file type. Use PNG, JPG, WEBP, GIF, MP4, or WEBM.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File must be under 10 MB.');
+      return;
+    }
+
+    setUploading(true);
+    const ext = file.name.split('.').pop();
+    const path = `${crypto.randomUUID()}.${ext}`;
+
+    const { error } = await supabase.storage.from('form-media').upload(path, file);
+    if (error) {
+      toast.error('Upload failed: ' + error.message);
+      setUploading(false);
+      return;
+    }
+
+    const { data: urlData } = supabase.storage.from('form-media').getPublicUrl(path);
+    onChange(urlData.publicUrl);
+    setUploading(false);
+    toast.success('Uploaded!');
+  };
+
+  const isVideo = value && /\.(mp4|webm)$/i.test(value);
+
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs">Image / Video</Label>
+
+      {value ? (
+        <div className="relative rounded-md border border-border overflow-hidden">
+          {isVideo ? (
+            <video src={value} controls className="w-full max-h-40 object-contain bg-muted" />
+          ) : (
+            <img src={value} alt="Preview" className="w-full max-h-40 object-contain bg-muted" />
+          )}
+          <Button
+            variant="destructive"
+            size="icon"
+            className="absolute top-1 right-1 h-6 w-6"
+            onClick={() => onChange('')}
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          className="flex flex-col items-center justify-center w-full h-24 rounded-md border-2 border-dashed border-border hover:border-primary/50 transition-colors text-muted-foreground text-xs gap-1"
+        >
+          {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
+          {uploading ? 'Uploading...' : 'Click to upload'}
+        </button>
+      )}
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm"
+        className="hidden"
+        onChange={handleUpload}
+      />
+
+      <div className="space-y-1">
+        <Label className="text-xs text-muted-foreground">Or paste URL</Label>
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="https://..."
+          className="h-8 text-xs"
+        />
+      </div>
+    </div>
+  );
 }
 
 export function PropertiesTab({ node, onUpdate }: PropertiesTabProps) {
@@ -128,16 +223,12 @@ export function PropertiesTab({ node, onUpdate }: PropertiesTabProps) {
         </div>
       )}
 
-      {/* Image URL */}
+      {/* Image/Video Upload */}
       {node.type === 'image' && (
-        <div className="space-y-1.5">
-          <Label className="text-xs">Image URL</Label>
-          <Input
-            value={node.properties.imageUrl || ''}
-            onChange={(e) => updateProp('imageUrl', e.target.value)}
-            placeholder="https://..."
-          />
-        </div>
+        <ImageVideoUploader
+          value={node.properties.imageUrl || ''}
+          onChange={(url) => updateProp('imageUrl', url)}
+        />
       )}
 
       {/* Options for dropdown/radio/multi_select */}
