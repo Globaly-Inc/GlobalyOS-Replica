@@ -7,7 +7,7 @@ import {
   useReleaseNumber,
 } from '@/hooks/useTelephony';
 import type { AvailableNumber } from '@/hooks/useTelephony';
-import { CallsSubNav } from '@/components/calls/CallsSubNav';
+
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -96,9 +96,7 @@ const NumberMarketplacePage = () => {
   };
 
   return (
-    <div>
-      <CallsSubNav />
-      <div className="container px-4 md:px-8 py-6 space-y-6">
+    <div className="py-6 space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Phone Number Marketplace</h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -342,7 +340,6 @@ const NumberMarketplacePage = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </div>
     </div>
   );
 };

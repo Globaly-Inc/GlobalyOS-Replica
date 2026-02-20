@@ -1,4 +1,4 @@
-import { Users, Building2, Calendar, Mail, MessageCircle, Inbox, Phone } from 'lucide-react';
+import { Users, Building2, Calendar, Mail, MessageCircle } from 'lucide-react';
 import { OrgLink } from '@/components/OrgLink';
 import { useLocation, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -8,11 +8,8 @@ const crmSubNavItems = [
   { name: 'Contacts', href: '/crm/contacts', icon: Users },
   { name: 'Companies', href: '/crm/companies', icon: Building2 },
   { name: 'Campaigns', href: '/crm/campaigns', icon: Mail },
-  { name: 'Inbox', href: '/crm/inbox', icon: Inbox, featureFlag: 'omnichannel_inbox' as const },
-  { name: 'Calls', href: '/crm/calls', icon: Phone, featureFlag: 'telephony' as const },
   { name: 'WhatsApp', href: '/crm/whatsapp', icon: MessageCircle, featureFlag: 'whatsapp' as const, hideWhenFlag: 'omnichannel_inbox' as const },
   { name: 'Scheduler', href: '/crm/scheduler', icon: Calendar },
-  
 ];
 
 export const CRMSubNav = () => {
@@ -21,7 +18,9 @@ export const CRMSubNav = () => {
   const { isEnabled } = useFeatureFlags();
 
   const basePath = orgCode ? `/org/${orgCode}` : '';
-  const isCRMSection = location.pathname.startsWith(`${basePath}/crm`);
+  const isCRMSection = location.pathname.startsWith(`${basePath}/crm`) &&
+    !location.pathname.startsWith(`${basePath}/crm/inbox`) &&
+    !location.pathname.startsWith(`${basePath}/crm/calls`);
 
   if (!isCRMSection) return null;
 

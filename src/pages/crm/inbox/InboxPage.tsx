@@ -14,7 +14,7 @@ import { InboxConversationList } from '@/components/inbox/InboxConversationList'
 import { InboxThread } from '@/components/inbox/InboxThread';
 import { InboxComposer } from '@/components/inbox/InboxComposer';
 import { InboxContactPanel } from '@/components/inbox/InboxContactPanel';
-import { InboxSubNav } from '@/components/inbox/InboxSubNav';
+
 import { CollisionIndicator } from '@/components/inbox/CollisionIndicator';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -178,8 +178,7 @@ const InboxPage = () => {
 
   return (
     <div>
-      <InboxSubNav />
-      <div className="flex h-[calc(100vh-10rem)] overflow-hidden rounded-lg border border-border bg-card m-4">
+      <div className="flex h-[calc(100vh-10rem)] overflow-hidden rounded-lg border border-border bg-card mt-4">
         <div className="w-80 flex-shrink-0">
           <InboxConversationList
             conversations={conversations}

@@ -8,6 +8,8 @@ import { TopNav } from "./TopNav";
 import { SubNav } from "./SubNav";
  import { SettingsSubNav } from "./SettingsSubNav";
 import { CRMSubNav } from "./crm/CRMSubNav";
+import { InboxSubNav } from "./inbox/InboxSubNav";
+import { CallsSubNav } from "./calls/CallsSubNav";
 
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { PullToRefreshIndicator } from "./PullToRefreshIndicator";
@@ -158,6 +160,12 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
        {/* Sub Navigation for CRM section */}
        <CRMSubNav />
+
+       {/* Sub Navigation for Inbox section */}
+       <InboxSubNav />
+
+       {/* Sub Navigation for Calls section */}
+       <CallsSubNav />
 
 
       {/* Page Content */}

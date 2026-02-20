@@ -3,7 +3,7 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useCallQueues, useQueueMembers, useCreateQueue, useUpdateQueue, useAddQueueMember, useRemoveQueueMember } from '@/hooks/useCallQueues';
-import { CallsSubNav } from '@/components/calls/CallsSubNav';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -68,9 +68,7 @@ const CallQueuesPage = () => {
   const selectedQueue = queues.find((q) => q.id === selectedQueueId);
 
   return (
-    <div>
-      <CallsSubNav />
-      <div className="container px-4 md:px-8 py-6 space-y-6">
+    <div className="py-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Call Queues</h1>
@@ -278,7 +276,6 @@ const CallQueuesPage = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
     </div>
   );
 };

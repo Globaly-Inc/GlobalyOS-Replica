@@ -7,7 +7,7 @@ import { useFeatureFlags } from '@/hooks/useFeatureFlags';
 import { ChannelBadge } from '@/components/inbox/ChannelBadge';
 import { ConnectChannelDialog } from '@/components/inbox/ConnectChannelDialog';
 import { EditChannelDialog } from '@/components/inbox/EditChannelDialog';
-import { InboxSubNav } from '@/components/inbox/InboxSubNav';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -105,9 +105,7 @@ const InboxChannelsPage = () => {
   };
 
   return (
-    <div>
-      <InboxSubNav />
-      <div className="container px-4 md:px-8 py-6 space-y-6">
+    <div className="py-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Channels</h1>
@@ -277,7 +275,6 @@ const InboxChannelsPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      </div>
     </div>
   );
 };

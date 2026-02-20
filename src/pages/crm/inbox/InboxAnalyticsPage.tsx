@@ -1,7 +1,7 @@
 import { useOrganization } from '@/hooks/useOrganization';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { InboxSubNav } from '@/components/inbox/InboxSubNav';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart3, Clock, MessageSquare, Bot, Users, TrendingDown } from 'lucide-react';
 import { ChannelBadge } from '@/components/inbox/ChannelBadge';
@@ -89,9 +89,7 @@ const InboxAnalyticsPage = () => {
   ];
 
   return (
-    <div>
-      <InboxSubNav />
-      <div className="container px-4 md:px-8 py-6 space-y-6">
+    <div className="py-6 space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Inbox Analytics</h1>
           <p className="text-sm text-muted-foreground mt-1">Last 30 days performance overview</p>
@@ -142,7 +140,6 @@ const InboxAnalyticsPage = () => {
             )}
           </CardContent>
         </Card>
-      </div>
     </div>
   );
 };
