@@ -6,7 +6,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { X, Plus, Trash2 } from 'lucide-react';
+import { useCallQueues } from '@/hooks/useCallQueues';
 
 interface IvrNodeConfigProps {
   node: IvrNode;
@@ -18,6 +20,7 @@ interface IvrNodeConfigProps {
 
 export function IvrNodeConfig({ node, onUpdate, onClose, onAddMenuOption, onRemoveNode }: IvrNodeConfigProps) {
   const colors = NODE_COLORS[node.type];
+  const { data: queues = [] } = useCallQueues();
 
   return (
     <div className="w-[320px] border-l bg-background flex flex-col h-full">
@@ -136,6 +139,45 @@ export function IvrNodeConfig({ node, onUpdate, onClose, onAddMenuOption, onRemo
               <p className="text-[10px] text-muted-foreground">
                 Enter the phone number or agent extension to forward calls to.
               </p>
+            </div>
+          )}
+
+          {/* Queue */}
+          {node.type === 'queue' && (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Select Queue</Label>
+                <Select
+                  value={node.queue_id || ''}
+                  onValueChange={(v) => {
+                    const q = queues.find((q) => q.id === v);
+                    onUpdate(node.id, { queue_id: v, queue_name: q?.name || '' });
+                  }}
+                >
+                  <SelectTrigger className="text-sm">
+                    <SelectValue placeholder="Choose a call queue..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {queues.map((q) => (
+                      <SelectItem key={q.id} value={q.id}>{q.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {queues.length === 0 && (
+                  <p className="text-[10px] text-muted-foreground">
+                    No queues created yet. Create one in Inbox → Queues.
+                  </p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Hold Music URL (optional)</Label>
+                <Input
+                  value={node.hold_music_url || ''}
+                  onChange={(e) => onUpdate(node.id, { hold_music_url: e.target.value })}
+                  placeholder="https://example.com/hold-music.mp3"
+                  className="text-sm"
+                />
+              </div>
             </div>
           )}
 

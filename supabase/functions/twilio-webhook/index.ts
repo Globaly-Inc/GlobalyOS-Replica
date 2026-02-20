@@ -211,8 +211,8 @@ async function handleVoiceInbound(supabase: any, payload: Record<string, string>
     twilio_sid: callSid,
   });
 
-  // Check recording settings
-  const recordAttr = await getRecordAttribute(supabase, orgId, "inbound", supabaseUrl);
+  // Check recording settings — returns Dial attributes for recording
+  const recordDialAttr = await getRecordingDialAttr(supabase, orgId, "inbound", supabaseUrl);
 
   // --- Tree-based IVR ---
   if (Array.isArray(ivrConfig?.nodes)) {
@@ -221,13 +221,13 @@ async function handleVoiceInbound(supabase: any, payload: Record<string, string>
 
     if (!rootNode) {
       return new Response(
-        `<Response>${recordAttr}<Say>Thank you for calling. Goodbye.</Say><Hangup/></Response>`,
+        `<Response><Say>Thank you for calling. Goodbye.</Say><Hangup/></Response>`,
         { headers: { "Content-Type": "text/xml" } }
       );
     }
 
-    const twiml = generateNodeTwiML(rootNode, nodes, supabaseUrl, phoneRecord.id);
-    return new Response(`<Response>${recordAttr}${twiml}</Response>`, {
+    const twiml = generateNodeTwiML(rootNode, nodes, supabaseUrl, phoneRecord.id, recordDialAttr);
+    return new Response(`<Response>${twiml}</Response>`, {
       headers: { "Content-Type": "text/xml" },
     });
   }
@@ -248,7 +248,7 @@ async function handleVoiceInbound(supabase: any, payload: Record<string, string>
       .join(" ");
 
     return new Response(
-      `<Response>${recordAttr}
+      `<Response>
         <Gather input="dtmf" numDigits="1" action="${ivrActionUrl}" method="POST" timeout="10">
           <Say>${greeting} ${menuPrompt}</Say>
         </Gather>
@@ -261,7 +261,7 @@ async function handleVoiceInbound(supabase: any, payload: Record<string, string>
 
   if (legacyConfig.voicemail_enabled !== false) {
     return new Response(
-      `<Response>${recordAttr}
+      `<Response>
         <Say>${greeting}</Say>
         <Record maxLength="120" transcribe="true" playBeep="true" />
         <Say>Goodbye.</Say>
@@ -272,13 +272,15 @@ async function handleVoiceInbound(supabase: any, payload: Record<string, string>
   }
 
   return new Response(
-    `<Response>${recordAttr}<Say>${greeting}</Say><Hangup/></Response>`,
+    `<Response><Say>${greeting}</Say><Hangup/></Response>`,
     { headers: { "Content-Type": "text/xml" } }
   );
 }
 
 // --- Recording Settings Helper ---
-async function getRecordAttribute(supabase: any, orgId: string, direction: string, supabaseUrl: string): Promise<string> {
+// Returns a string to insert into <Dial> as attributes for call recording,
+// or an empty string if recording is not enabled.
+async function getRecordingDialAttr(supabase: any, orgId: string, direction: string, supabaseUrl: string): Promise<string> {
   try {
     const { data: settings } = await supabase
       .from("call_recording_settings")
@@ -295,7 +297,7 @@ async function getRecordAttribute(supabase: any, orgId: string, direction: strin
 
     if (shouldRecord) {
       const recordingCallbackUrl = `${supabaseUrl}/functions/v1/twilio-recording-webhook`;
-      return `<Record recordingStatusCallback="${recordingCallbackUrl}" recordingStatusCallbackMethod="POST" recordingStatusCallbackEvent="completed" />`;
+      return ` record="record-from-answer-dual" recordingStatusCallback="${recordingCallbackUrl}" recordingStatusCallbackMethod="POST" recordingStatusCallbackEvent="completed"`;
     }
   } catch (e) {
     console.error("Error checking recording settings:", e);
@@ -304,7 +306,7 @@ async function getRecordAttribute(supabase: any, orgId: string, direction: strin
 }
 
 // --- Generate TwiML for tree nodes ---
-function generateNodeTwiML(node: any, nodes: any[], supabaseUrl: string, phoneId: string): string {
+function generateNodeTwiML(node: any, nodes: any[], supabaseUrl: string, phoneId: string, recordDialAttr: string = ""): string {
   switch (node.type) {
     case "greeting":
     case "message": {
@@ -325,7 +327,7 @@ function generateNodeTwiML(node: any, nodes: any[], supabaseUrl: string, phoneId
 <Say>We didn't receive any input. Goodbye.</Say>
 <Hangup/>`;
           }
-          return `<Say>${sayText}</Say>\n${generateNodeTwiML(child, nodes, supabaseUrl, phoneId)}`;
+          return `<Say>${sayText}</Say>\n${generateNodeTwiML(child, nodes, supabaseUrl, phoneId, recordDialAttr)}`;
         }
       }
       return `<Say>${sayText}</Say><Hangup/>`;
@@ -347,7 +349,15 @@ function generateNodeTwiML(node: any, nodes: any[], supabaseUrl: string, phoneId
     case "forward": {
       const number = node.forward_number || "";
       if (!number) return `<Say>No forwarding number configured. Goodbye.</Say><Hangup/>`;
-      return `<Say>Connecting you now. Please hold.</Say><Dial>${number}</Dial><Say>The call could not be completed. Goodbye.</Say><Hangup/>`;
+      return `<Say>Connecting you now. Please hold.</Say><Dial${recordDialAttr}>${number}</Dial><Say>The call could not be completed. Goodbye.</Say><Hangup/>`;
+    }
+
+    case "queue": {
+      const queueName = node.queue_name || "";
+      if (!queueName) return `<Say>No queue configured. Goodbye.</Say><Hangup/>`;
+      const holdMusic = node.hold_music_url || "";
+      const waitUrl = holdMusic ? ` waitUrl="${holdMusic}"` : "";
+      return `<Say>Please hold while we connect you to the next available agent.</Say><Enqueue${waitUrl}>${queueName}</Enqueue>`;
     }
 
     case "voicemail": {

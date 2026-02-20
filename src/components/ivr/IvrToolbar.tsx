@@ -3,13 +3,14 @@ import { NODE_LABELS } from './ivrTypes';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import {
-  Volume2, Grid3X3, PhoneForwarded, Voicemail, MessageSquare, PhoneOff, Undo2, Save, Loader2,
+  Volume2, Grid3X3, PhoneForwarded, Voicemail, MessageSquare, PhoneOff, Undo2, Save, Loader2, Users,
 } from 'lucide-react';
 
 const TOOLBAR_ITEMS: { type: IvrNodeType; icon: React.ComponentType<{ className?: string }> }[] = [
   { type: 'greeting', icon: Volume2 },
   { type: 'menu', icon: Grid3X3 },
   { type: 'forward', icon: PhoneForwarded },
+  { type: 'queue', icon: Users },
   { type: 'voicemail', icon: Voicemail },
   { type: 'message', icon: MessageSquare },
   { type: 'hangup', icon: PhoneOff },
