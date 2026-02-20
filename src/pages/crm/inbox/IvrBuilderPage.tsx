@@ -11,16 +11,33 @@ import { IvrToolbar } from '@/components/ivr/IvrToolbar';
 import { IvrNodeConfig } from '@/components/ivr/IvrNodeConfig';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Phone } from 'lucide-react';
+import { ArrowLeft, Phone, Monitor } from 'lucide-react';
 import { toast } from 'sonner';
 import type { IvrNodeType } from '@/components/ivr/ivrTypes';
 import { OrgLink } from '@/components/OrgLink';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const IvrBuilderPage = () => {
   const { phoneId } = useParams<{ phoneId: string }>();
   const navigate = useNavigate();
   const { currentOrg } = useOrganization();
   const updateIvr = useUpdateIvrConfig();
+  const isMobile = useIsMobile();
+
+  if (isMobile) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-background p-6">
+        <div className="text-center space-y-4 max-w-sm">
+          <Monitor className="h-12 w-12 text-muted-foreground mx-auto" />
+          <h1 className="text-lg font-semibold text-foreground">Desktop Only</h1>
+          <p className="text-sm text-muted-foreground">
+            The IVR Builder is only available on desktop. Please switch to a larger screen to use this feature.
+          </p>
+          <Button variant="outline" onClick={() => navigate(-1)}>Go Back</Button>
+        </div>
+      </div>
+    );
+  }
 
   const { data: phoneNumber, isLoading } = useQuery({
     queryKey: ['phone-number', phoneId],
@@ -106,7 +123,7 @@ const IvrBuilderPage = () => {
   }
 
   return (
-    <div className="h-[calc(100vh-64px)] flex flex-col">
+    <div className="h-screen flex flex-col overflow-hidden">
       {/* Header */}
       <div className="px-4 py-3 border-b bg-background flex items-center gap-3">
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(-1)}>
