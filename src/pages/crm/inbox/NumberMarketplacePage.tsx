@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog,
@@ -24,7 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Phone, Search, ShoppingCart, Loader2, PhoneOff, Settings2, Smartphone, PhoneCall } from 'lucide-react';
+import { Phone, Search, ShoppingCart, Loader2, PhoneOff, Settings2, Smartphone, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 
 const COUNTRIES = [
@@ -89,6 +90,11 @@ const NumberMarketplacePage = () => {
     setReleaseNumber(null);
   };
 
+  const copyNumber = (number: string) => {
+    navigator.clipboard.writeText(number);
+    toast.success('Phone number copied!');
+  };
+
   const ivrNumberData = myNumbers.find((n) => n.id === ivrNumber);
 
   return (
@@ -103,7 +109,30 @@ const NumberMarketplacePage = () => {
         </div>
 
         {/* My Numbers */}
-        {myNumbers.length > 0 && (
+        {loadingNumbers ? (
+          <div className="space-y-3">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              Your Numbers
+            </h2>
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <Card key={i} className="border">
+                  <CardHeader className="pb-2">
+                    <Skeleton className="h-5 w-36" />
+                    <Skeleton className="h-3 w-20 mt-1" />
+                  </CardHeader>
+                  <CardContent className="pt-0 space-y-2">
+                    <Skeleton className="h-4 w-48" />
+                    <div className="flex gap-2 pt-1">
+                      <Skeleton className="h-8 flex-1" />
+                      <Skeleton className="h-8 w-24" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        ) : myNumbers.length > 0 ? (
           <div className="space-y-3">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
               Your Numbers
@@ -116,6 +145,15 @@ const NumberMarketplacePage = () => {
                       <div className="flex items-center gap-2">
                         <Phone className="h-4 w-4 text-primary" />
                         <CardTitle className="text-sm font-mono">{num.phone_number}</CardTitle>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => copyNumber(num.phone_number)}
+                          title="Copy number"
+                        >
+                          <Copy className="h-3 w-3 text-muted-foreground" />
+                        </Button>
                       </div>
                       <Badge variant={num.status === 'active' ? 'default' : 'secondary'}>
                         {num.status}
@@ -164,6 +202,19 @@ const NumberMarketplacePage = () => {
               ))}
             </div>
           </div>
+        ) : (
+          /* Empty state */
+          <Card className="border border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                <Phone className="h-7 w-7 text-primary" />
+              </div>
+              <h3 className="text-base font-semibold text-foreground mb-1">No phone numbers yet</h3>
+              <p className="text-sm text-muted-foreground text-center max-w-sm">
+                Search for available numbers below and provision one to start sending SMS and receiving calls.
+              </p>
+            </CardContent>
+          </Card>
         )}
 
         {/* Search */}
