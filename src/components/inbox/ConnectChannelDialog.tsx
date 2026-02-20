@@ -4,13 +4,84 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ChannelBadge } from './ChannelBadge';
-import { Loader2, ExternalLink, Info } from 'lucide-react';
+import { Loader2, ExternalLink, Info, Zap, ArrowLeft, CheckCircle2, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type { InboxChannelType } from '@/types/inbox';
 import { CHANNEL_META } from '@/types/inbox';
+
+const channelsWithOAuth = new Set<InboxChannelType>(['whatsapp', 'messenger', 'instagram', 'tiktok']);
+
+interface OAuthMeta {
+  title: string;
+  description: string;
+  steps: string[];
+  oauthUrl: string;
+  oauthLabel: string;
+  scopes: string;
+  note: string;
+}
+
+const oauthMeta: Partial<Record<InboxChannelType, OAuthMeta>> = {
+  whatsapp: {
+    title: 'WhatsApp Embedded Signup',
+    description: 'Connect your WhatsApp Business account directly through Meta\'s Embedded Signup flow — no need to copy tokens manually.',
+    steps: [
+      'Click "Start Integration" to open Meta\'s login window.',
+      'Log in with your Facebook account and select your Business portfolio.',
+      'Choose or create a WhatsApp Business Account and phone number.',
+      'Grant the requested permissions and close the popup.',
+    ],
+    oauthUrl: 'https://developers.facebook.com/docs/whatsapp/embedded-signup',
+    oauthLabel: 'Learn about Meta Embedded Signup',
+    scopes: 'whatsapp_business_management, whatsapp_business_messaging',
+    note: 'This requires your Meta App to be approved as a Tech Provider. The integration will be available once platform approval is complete.',
+  },
+  messenger: {
+    title: 'Facebook Messenger OAuth',
+    description: 'Connect your Facebook Page directly via Meta OAuth — we\'ll request the necessary page permissions automatically.',
+    steps: [
+      'Click "Start Integration" to open Facebook Login.',
+      'Log in and select the Facebook Page you want to connect.',
+      'Grant the requested permissions (pages_messaging, pages_manage_metadata).',
+      'You\'ll be redirected back automatically once authorized.',
+    ],
+    oauthUrl: 'https://developers.facebook.com/docs/messenger-platform/getting-started',
+    oauthLabel: 'Messenger Platform Docs',
+    scopes: 'pages_messaging, pages_manage_metadata, pages_read_engagement',
+    note: 'Your Meta App must pass App Review for these permissions before going live.',
+  },
+  instagram: {
+    title: 'Instagram Direct OAuth',
+    description: 'Connect your Instagram Business account via Meta OAuth to manage DMs directly from your inbox.',
+    steps: [
+      'Click "Start Integration" to open Facebook Login.',
+      'Select the Facebook Page linked to your Instagram Business account.',
+      'Grant permissions for instagram_manage_messages and pages_manage_metadata.',
+      'Your Instagram account will be connected automatically.',
+    ],
+    oauthUrl: 'https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login',
+    oauthLabel: 'Instagram API Docs',
+    scopes: 'instagram_manage_messages, pages_manage_metadata, instagram_basic',
+    note: 'Your Instagram account must be a Business or Professional account linked to a Facebook Page.',
+  },
+  tiktok: {
+    title: 'TikTok OAuth Integration',
+    description: 'Connect your TikTok account directly via TikTok\'s OAuth flow to manage comments and messages.',
+    steps: [
+      'Click "Start Integration" to open TikTok authorization.',
+      'Log in with your TikTok account.',
+      'Authorize the requested permissions for messaging access.',
+      'You\'ll be redirected back once authorization is complete.',
+    ],
+    oauthUrl: 'https://developers.tiktok.com/doc/oauth-user-access-token-management',
+    oauthLabel: 'TikTok OAuth Docs',
+    scopes: 'user.info.basic, direct_message',
+    note: 'TikTok messaging API access requires partner-level approval from TikTok. Contact TikTok developer support to apply.',
+  },
+};
 
 interface ConnectChannelDialogProps {
   open: boolean;
@@ -125,11 +196,15 @@ export const ConnectChannelDialog = ({ open, onOpenChange, channelType }: Connec
   const [displayName, setDisplayName] = useState('');
   const [credentials, setCredentials] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [showOAuthDialog, setShowOAuthDialog] = useState(false);
+  const [oauthWaiting, setOauthWaiting] = useState(false);
 
   if (!channelType) return null;
   const fields = channelFields[channelType] || [];
   const meta = CHANNEL_META[channelType];
   const instructions = channelInstructions[channelType];
+  const hasOAuth = channelsWithOAuth.has(channelType);
+  const oauth = hasOAuth ? oauthMeta[channelType] : null;
 
   const handleSave = async () => {
     if (!currentOrg?.id || !displayName.trim()) return;
@@ -157,78 +232,183 @@ export const ConnectChannelDialog = ({ open, onOpenChange, channelType }: Connec
     }
   };
 
+  const handleStartOAuth = () => {
+    if (oauth?.oauthUrl) {
+      window.open(oauth.oauthUrl, '_blank', 'noopener,noreferrer');
+      setOauthWaiting(true);
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ChannelBadge channel={channelType} size="md" />
-            Connect {meta.label}
-          </DialogTitle>
-          <DialogDescription>
-            Enter your API credentials to connect this channel to your inbox.
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open && !showOAuthDialog} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ChannelBadge channel={channelType} size="md" />
+              Connect {meta.label}
+            </DialogTitle>
+            <DialogDescription>
+              Enter your API credentials to connect this channel to your inbox.
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="rounded-lg border border-blue-200 bg-blue-50/50 dark:border-blue-900/50 dark:bg-blue-950/20 p-3 space-y-2">
-          <div className="flex items-center gap-2 text-sm font-medium text-blue-800 dark:text-blue-300">
-            <Info className="h-4 w-4 shrink-0" />
-            How to get your credentials
-          </div>
-          <ol className="list-decimal list-inside space-y-1 text-xs text-blue-700 dark:text-blue-400">
-            {instructions.steps.map((step, i) => (
-              <li key={i} className="leading-relaxed">{step}</li>
-            ))}
-          </ol>
-          <a
-            href={instructions.portalUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 transition-colors"
-          >
-            <ExternalLink className="h-3 w-3" />
-            {instructions.portalLabel}
-          </a>
-          {instructions.note && (
-            <p className="text-[11px] text-muted-foreground leading-relaxed mt-1">
-              💡 {instructions.note}
-            </p>
-          )}
-        </div>
-
-        <div className="space-y-4 py-2">
-          <div className="space-y-2">
-            <Label>Display Name</Label>
-            <Input
-              placeholder={`e.g. ${meta.label} - Support`}
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-            />
+          <div className="rounded-lg border border-blue-200 bg-blue-50/50 dark:border-blue-900/50 dark:bg-blue-950/20 p-3 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium text-blue-800 dark:text-blue-300">
+              <Info className="h-4 w-4 shrink-0" />
+              How to get your credentials
+            </div>
+            <ol className="list-decimal list-inside space-y-1 text-xs text-blue-700 dark:text-blue-400">
+              {instructions.steps.map((step, i) => (
+                <li key={i} className="leading-relaxed">{step}</li>
+              ))}
+            </ol>
+            <a
+              href={instructions.portalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 transition-colors"
+            >
+              <ExternalLink className="h-3 w-3" />
+              {instructions.portalLabel}
+            </a>
+            {instructions.note && (
+              <p className="text-[11px] text-muted-foreground leading-relaxed mt-1">
+                💡 {instructions.note}
+              </p>
+            )}
           </div>
 
-          {fields.map((field) => (
-            <div key={field.key} className="space-y-2">
-              <Label>{field.label}</Label>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Display Name</Label>
               <Input
-                type={field.key.includes('token') || field.key.includes('password') ? 'password' : 'text'}
-                placeholder={field.placeholder}
-                value={credentials[field.key] || ''}
-                onChange={(e) =>
-                  setCredentials((prev) => ({ ...prev, [field.key]: e.target.value }))
-                }
+                placeholder={`e.g. ${meta.label} - Support`}
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
               />
             </div>
-          ))}
-        </div>
+            {fields.map((field) => (
+              <div key={field.key} className="space-y-2">
+                <Label>{field.label}</Label>
+                <Input
+                  type={field.key.includes('token') || field.key.includes('password') ? 'password' : 'text'}
+                  placeholder={field.placeholder}
+                  value={credentials[field.key] || ''}
+                  onChange={(e) =>
+                    setCredentials((prev) => ({ ...prev, [field.key]: e.target.value }))
+                  }
+                />
+              </div>
+            ))}
+          </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving || !displayName.trim()}>
-            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Connect
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter className={hasOAuth ? 'flex !justify-between' : ''}>
+            {hasOAuth && (
+              <Button
+                variant="secondary"
+                onClick={() => { setShowOAuthDialog(true); setOauthWaiting(false); }}
+                className="gap-1.5"
+              >
+                <Zap className="h-4 w-4" />
+                Integrate Directly
+              </Button>
+            )}
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button onClick={handleSave} disabled={saving || !displayName.trim()}>
+                {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Connect
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {hasOAuth && oauth && (
+        <Dialog open={showOAuthDialog} onOpenChange={(v) => { if (!v) { setShowOAuthDialog(false); setOauthWaiting(false); } }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ChannelBadge channel={channelType} size="md" />
+                {oauth.title}
+              </DialogTitle>
+              <DialogDescription>{oauth.description}</DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">How it works</p>
+                <div className="space-y-2.5">
+                  {oauth.steps.map((step, i) => (
+                    <div key={i} className="flex gap-2.5 items-start">
+                      <span className="flex-shrink-0 mt-0.5 h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11px] font-semibold">
+                        {i + 1}
+                      </span>
+                      <p className="text-sm text-foreground leading-relaxed">{step}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-md bg-muted/50 border border-border p-3 space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">Permissions requested</p>
+                <p className="text-xs text-foreground font-mono">{oauth.scopes}</p>
+              </div>
+
+              {oauthWaiting && (
+                <div className="rounded-md border border-amber-200 bg-amber-50/50 dark:border-amber-900/50 dark:bg-amber-950/20 p-3 flex items-center gap-2.5">
+                  <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400 animate-pulse shrink-0" />
+                  <div>
+                    <p className="text-xs font-medium text-amber-800 dark:text-amber-300">Waiting for authorization...</p>
+                    <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-0.5">Complete the process in the new tab, then return here.</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="rounded-md bg-muted/30 border border-border p-3 flex gap-2 items-start">
+                <Info className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                <p className="text-[11px] text-muted-foreground leading-relaxed">{oauth.note}</p>
+              </div>
+
+              <a
+                href={oauth.oauthUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+              >
+                <ExternalLink className="h-3 w-3" />
+                {oauth.oauthLabel}
+              </a>
+            </div>
+
+            <DialogFooter className="flex !justify-between">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setShowOAuthDialog(false); setOauthWaiting(false); }}
+                className="gap-1.5"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Manual Setup
+              </Button>
+              <Button onClick={handleStartOAuth} className="gap-1.5">
+                {oauthWaiting ? (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    Open Again
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-4 w-4" />
+                    Start Integration
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 };
