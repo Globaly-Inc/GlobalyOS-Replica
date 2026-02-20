@@ -61,7 +61,7 @@ const InboxChannelsPage = () => {
   const { isEnabled } = useFeatureFlags();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const googleConnect = useGoogleCalendarConnect();
+  const googleConnect = useGoogleCalendarConnect('inbox');
 
   const toggleAutoReply = async (channelId: string, enabled: boolean) => {
     const { error } = await supabase

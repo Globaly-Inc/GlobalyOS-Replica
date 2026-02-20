@@ -77,6 +77,7 @@ serve(async (req: Request) => {
     // Read org_id from body
     const body = await req.json().catch(() => ({}));
     const orgId = body.organization_id;
+    const source = body.source || 'scheduler'; // 'scheduler' or 'inbox'
     if (!orgId) {
       return new Response(JSON.stringify({ error: "organization_id required" }), {
         status: 400,
@@ -84,8 +85,8 @@ serve(async (req: Request) => {
       });
     }
 
-    // Build state param: userId|orgId (we'll verify on callback)
-    const state = btoa(JSON.stringify({ userId, orgId }));
+    // Build state param: userId|orgId|source (we'll verify on callback)
+    const state = btoa(JSON.stringify({ userId, orgId, source }));
 
     const authUrl = new URL(GOOGLE_AUTH_URL);
     authUrl.searchParams.set("client_id", clientId);
@@ -118,7 +119,7 @@ serve(async (req: Request) => {
       return Response.redirect(`${siteUrl}?gcal_error=missing_params`, 302);
     }
 
-    let state: { userId: string; orgId: string };
+    let state: { userId: string; orgId: string; source?: string };
     try {
       state = JSON.parse(atob(stateParam));
     } catch {
@@ -190,6 +191,50 @@ serve(async (req: Request) => {
           availability_calendar_ids: [],
           ...updates,
         });
+    }
+
+    // If source is 'inbox', auto-create Gmail inbox channel
+    if (state.source === 'inbox') {
+      // Check if a Gmail channel already exists for this org
+      const { data: existingChannel } = await supabase
+        .from("inbox_channels")
+        .select("id")
+        .eq("organization_id", state.orgId)
+        .eq("channel_type", "gmail")
+        .maybeSingle();
+
+      if (!existingChannel) {
+        await supabase.from("inbox_channels").insert({
+          organization_id: state.orgId,
+          channel_type: "gmail",
+          display_name: `Gmail - ${googleEmail || "Connected"}`,
+          credentials: { google_email: googleEmail, user_id: state.userId },
+          webhook_status: "connected",
+          is_active: true,
+          config: {},
+        });
+      }
+
+      // Trigger initial sync
+      try {
+        await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/gmail-sync`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          },
+          body: JSON.stringify({
+            organization_id: state.orgId,
+            user_id: state.userId,
+            max_results: 20,
+          }),
+        });
+      } catch (e) {
+        console.warn("Initial Gmail sync trigger failed:", e);
+      }
+
+      // Parse orgCode from siteUrl or use a generic redirect
+      return Response.redirect(`${siteUrl}/crm/inbox/channels?gmail=connected`, 302);
     }
 
     // Redirect back to scheduler integrations tab
