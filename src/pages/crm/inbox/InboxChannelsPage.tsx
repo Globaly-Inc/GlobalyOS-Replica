@@ -27,7 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Wifi, WifiOff, Bot, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Wifi, WifiOff, Bot, MoreVertical, Pencil, Trash2, MessageSquare } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
@@ -35,13 +35,14 @@ import { toast } from 'sonner';
 import type { InboxChannelType } from '@/types/inbox';
 import { CHANNEL_META } from '@/types/inbox';
 
-const availableChannels: { type: InboxChannelType; description: string }[] = [
+const availableChannels: { type: InboxChannelType; description: string; comingSoon?: boolean }[] = [
   { type: 'whatsapp', description: 'Connect your WhatsApp Business account via Meta Cloud API' },
   { type: 'telegram', description: 'Connect a Telegram Bot to receive and send messages' },
   { type: 'messenger', description: 'Connect your Facebook Page to manage Messenger conversations' },
   { type: 'instagram', description: 'Manage Instagram DMs from your connected page' },
   { type: 'tiktok', description: 'Monitor and respond to TikTok comments' },
-  { type: 'email', description: 'Connect an email inbox for support conversations' },
+  { type: 'email', description: 'Connect via IMAP or email forwarding' },
+  { type: 'sms', description: 'Two-way SMS messaging via Twilio or similar provider', comingSoon: true },
 ];
 
 const InboxChannelsPage = () => {
@@ -180,20 +181,31 @@ const InboxChannelsPage = () => {
           {availableChannels
             .filter((ac) => !channels.some((c) => c.channel_type === ac.type))
             .map((ac) => (
-              <Card key={ac.type} className="border border-dashed">
+              <Card key={ac.type} className={`border border-dashed ${ac.comingSoon ? 'opacity-70' : ''}`}>
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-3">
                     <ChannelBadge channel={ac.type} size="md" />
                     <div>
-                      <CardTitle className="text-sm">{CHANNEL_META[ac.type].label}</CardTitle>
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-sm">{CHANNEL_META[ac.type].label}</CardTitle>
+                        {ac.comingSoon && (
+                          <Badge variant="secondary" className="text-[10px] font-medium">Coming Soon</Badge>
+                        )}
+                      </div>
                       <CardDescription className="text-xs">{ac.description}</CardDescription>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setConnectChannel(ac.type)}>
-                    <Plus className="h-3.5 w-3.5 mr-1" /> Connect
-                  </Button>
+                  {ac.comingSoon ? (
+                    <Button variant="outline" size="sm" className="w-full text-xs" disabled>
+                      <MessageSquare className="h-3.5 w-3.5 mr-1" /> Coming Soon
+                    </Button>
+                  ) : (
+                    <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setConnectChannel(ac.type)}>
+                      <Plus className="h-3.5 w-3.5 mr-1" /> Connect
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             ))}

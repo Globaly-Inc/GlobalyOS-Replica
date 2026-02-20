@@ -28,7 +28,7 @@ export function useCreateInboxMacro() {
     mutationFn: async (macro: Omit<InboxMacro, 'id' | 'created_by' | 'created_at' | 'updated_at'>) => {
       const { data, error } = await supabase
         .from('inbox_macros')
-        .insert(macro)
+        .insert(macro as any)
         .select()
         .single();
       if (error) throw error;
@@ -46,7 +46,7 @@ export function useUpdateInboxMacro() {
     mutationFn: async (params: { id: string; updates: Partial<InboxMacro> }) => {
       const { error } = await supabase
         .from('inbox_macros')
-        .update({ ...params.updates, updated_at: new Date().toISOString() })
+        .update({ ...params.updates, updated_at: new Date().toISOString() } as any)
         .eq('id', params.id);
       if (error) throw error;
     },
