@@ -401,3 +401,6 @@ verify_jwt = false
 
 [functions.gmail-send]
 verify_jwt = false
+
+[functions.form-public-submit]
+verify_jwt = false

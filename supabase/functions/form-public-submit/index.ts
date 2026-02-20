@@ -3,7 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 serve(async (req) => {
@@ -48,6 +49,10 @@ serve(async (req) => {
       });
     }
 
+    // Strip honeypot field from answers
+    const cleanAnswers = { ...answers };
+    delete cleanAnswers._hp_field;
+
     // Insert submission using service role (bypasses RLS)
     const { data: submission, error: subErr } = await supabase
       .from("form_submissions")
@@ -55,7 +60,7 @@ serve(async (req) => {
         form_id: formId,
         form_version_id: form.published_version_id,
         organization_id: form.organization_id,
-        answers,
+        answers: cleanAnswers,
         computed: {},
         status: "new",
         submitter_meta: submitterMeta || {},
