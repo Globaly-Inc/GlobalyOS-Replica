@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useInboxChannels } from '@/hooks/useInbox';
 import { ChannelBadge } from '@/components/inbox/ChannelBadge';
@@ -42,7 +43,7 @@ const availableChannels: { type: InboxChannelType; description: string; comingSo
   { type: 'instagram', description: 'Manage Instagram DMs from your connected page' },
   { type: 'tiktok', description: 'Monitor and respond to TikTok comments' },
   { type: 'email', description: 'Connect via IMAP or email forwarding' },
-  { type: 'sms', description: 'Two-way SMS messaging via Twilio or similar provider', comingSoon: true },
+  { type: 'sms', description: 'Two-way SMS & Voice via the Number Marketplace' },
 ];
 
 const InboxChannelsPage = () => {
@@ -51,6 +52,8 @@ const InboxChannelsPage = () => {
   const [editChannel, setEditChannel] = useState<any | null>(null);
   const [deleteChannel, setDeleteChannel] = useState<any | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const { orgCode } = useParams<{ orgCode: string }>();
+  const navigate = useNavigate();
   const qc = useQueryClient();
 
   const toggleAutoReply = async (channelId: string, enabled: boolean) => {
@@ -197,15 +200,20 @@ const InboxChannelsPage = () => {
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  {ac.comingSoon ? (
-                    <Button variant="outline" size="sm" className="w-full text-xs" disabled>
-                      <MessageSquare className="h-3.5 w-3.5 mr-1" /> Coming Soon
-                    </Button>
-                  ) : (
-                    <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setConnectChannel(ac.type)}>
-                      <Plus className="h-3.5 w-3.5 mr-1" /> Connect
-                    </Button>
-                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => {
+                      if (ac.type === 'sms') {
+                        navigate(`/org/${orgCode}/crm/inbox/numbers`);
+                      } else {
+                        setConnectChannel(ac.type);
+                      }
+                    }}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" /> {ac.type === 'sms' ? 'Get Numbers' : 'Connect'}
+                  </Button>
                 </CardContent>
               </Card>
             ))}

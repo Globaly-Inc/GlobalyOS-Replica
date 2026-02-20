@@ -1,4 +1,4 @@
-import { Inbox, Radio, FileText, BarChart3 } from 'lucide-react';
+import { Inbox, Radio, FileText, BarChart3, Phone } from 'lucide-react';
 import { OrgLink } from '@/components/OrgLink';
 import { useLocation, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 const inboxSubNavItems = [
   { name: 'Inbox', href: '/crm/inbox', icon: Inbox, exact: true },
   { name: 'Channels', href: '/crm/inbox/channels', icon: Radio },
+  { name: 'Numbers', href: '/crm/inbox/numbers', icon: Phone },
   { name: 'Templates', href: '/crm/inbox/templates', icon: FileText },
   { name: 'Analytics', href: '/crm/inbox/analytics', icon: BarChart3 },
 ];
