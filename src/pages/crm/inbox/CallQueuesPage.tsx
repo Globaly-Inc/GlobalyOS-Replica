@@ -35,14 +35,14 @@ const CallQueuesPage = () => {
   const removeQueueMember = useRemoveQueueMember();
   const { data: employees = [] } = useQuery({
     queryKey: ['employees-list', currentOrg?.id],
-    enabled: !!currentOrg?.id,
+    enabled: !!currentOrg?.id && !!selectedQueueId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('employees')
-        .select('id, first_name, last_name')
+        .from('employee_directory')
+        .select('id, full_name')
         .eq('organization_id', currentOrg!.id)
         .eq('status', 'active')
-        .order('first_name');
+        .order('full_name');
       if (error) throw error;
       return data ?? [];
     },
@@ -174,10 +174,13 @@ const CallQueuesPage = () => {
                     <p className="text-xs text-muted-foreground">No members assigned to this queue yet.</p>
                   ) : (
                     <div className="rounded-md border divide-y">
-                      {members.map((m) => (
+                      {members.map((m) => {
+                        const emp = employees.find((e) => e.id === m.employee_id);
+                        const empName = emp?.full_name || 'Unknown Agent';
+                        return (
                         <div key={m.id} className="flex items-center justify-between px-3 py-2">
                           <div className="text-xs">
-                            <span className="font-medium">Agent</span>
+                            <span className="font-medium">{empName}</span>
                             <span className="text-muted-foreground ml-2">Priority: {m.priority}</span>
                           </div>
                           <div className="flex items-center gap-2">
@@ -194,7 +197,8 @@ const CallQueuesPage = () => {
                             </Button>
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -209,9 +213,9 @@ const CallQueuesPage = () => {
                         <SelectTrigger className="text-xs h-8"><SelectValue placeholder="Select employee" /></SelectTrigger>
                         <SelectContent>
                           {employees
-                            .filter((e: any) => !members.some((m) => m.employee_id === e.id))
-                            .map((e: any) => (
-                              <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name}</SelectItem>
+                            .filter((e) => !members.some((m) => m.employee_id === e.id))
+                            .map((e) => (
+                              <SelectItem key={e.id!} value={e.id!}>{e.full_name}</SelectItem>
                             ))}
                         </SelectContent>
                       </Select>
