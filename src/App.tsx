@@ -158,6 +158,9 @@ const GeneralLedger = lazy(() => import('./pages/accounting/GeneralLedger'));
 const AccountingInvoices = lazy(() => import('./pages/accounting/Invoices'));
 const InvoiceEditor = lazy(() => import('./pages/accounting/InvoiceEditor'));
 const InvoiceDetail = lazy(() => import('./pages/accounting/InvoiceDetail'));
+const AccountingBills = lazy(() => import('./pages/accounting/Bills'));
+const BillEditor = lazy(() => import('./pages/accounting/BillEditor'));
+const BillDetail = lazy(() => import('./pages/accounting/BillDetail'));
 
 const HiringDashboard = lazy(() => import('./pages/hiring/HiringDashboard'));
 const JobsList = lazy(() => import('./pages/hiring/JobsList'));
@@ -395,7 +398,10 @@ const App = () => <QueryClientProvider client={queryClient}>
                    <Route path="accounting/invoices/new" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><InvoiceEditor /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="accounting/invoices/:invoiceId" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><InvoiceDetail /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="accounting/invoices/:invoiceId/edit" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><InvoiceEditor /></FeatureProtectedRoute></OrgProtectedRoute>} />
-                   <Route path="accounting/bills" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingDashboard /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="accounting/bills" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingBills /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="accounting/bills/new" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><BillEditor /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="accounting/bills/:billId" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><BillDetail /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="accounting/bills/:billId/edit" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><BillEditor /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="accounting/banking" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingDashboard /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="accounting/reports" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingDashboard /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="accounting/settings" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingDashboard /></FeatureProtectedRoute></OrgProtectedRoute>} />
