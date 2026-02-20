@@ -66,17 +66,22 @@ export function FormCanvas({
         {/* Canvas items */}
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={nodes.map((n) => n.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-2">
-              {nodes.map((node) => (
-                <CanvasElement
-                  key={node.id}
-                  node={node}
-                  isSelected={selectedNodeId === node.id}
-                  onSelect={() => onSelectNode(node.id)}
-                  onRemove={() => onRemoveNode(node.id)}
-                  onDuplicate={() => onDuplicateNode(node.id)}
-                />
-              ))}
+            <div className="grid grid-cols-2 gap-2">
+              {nodes.map((node) => {
+                const isHalf = !['heading', 'subheading', 'paragraph', 'image', 'section', 'divider'].includes(node.type) && node.properties.columns === 2;
+                return (
+                  <div key={node.id} className={isHalf ? 'col-span-1' : 'col-span-2'}>
+                    <CanvasElement
+                      node={node}
+                      isSelected={selectedNodeId === node.id}
+                      onSelect={() => onSelectNode(node.id)}
+                      onRemove={() => onRemoveNode(node.id)}
+                      onDuplicate={() => onDuplicateNode(node.id)}
+                      isHalfWidth={isHalf}
+                    />
+                  </div>
+                );
+              })}
             </div>
           </SortableContext>
         </DndContext>

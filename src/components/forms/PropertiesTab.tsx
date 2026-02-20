@@ -18,6 +18,22 @@ export function PropertiesTab({ node, onUpdate }: PropertiesTabProps) {
 
   const isElement = ['heading', 'subheading', 'paragraph', 'image', 'section', 'divider'].includes(node.type);
 
+  const suggestedLabels: Record<string, string[]> = {
+    text: ['Name', 'First Name', 'Last Name', 'Street', 'City', 'Company', 'Job Title', 'Address'],
+    email: ['Email', 'Work Email', 'Secondary Email'],
+    phone: ['Phone', 'Mobile', 'Work Phone'],
+    dropdown: ['Country', 'State', 'Department', 'Gender', 'Category'],
+    date: ['Date of Birth', 'Start Date', 'End Date', 'Due Date'],
+    file: ['Resume', 'Cover Image', 'Logo', 'Attachment', 'Document'],
+    number: ['Age', 'Quantity', 'Amount', 'Budget'],
+    textarea: ['Message', 'Description', 'Notes', 'Comments', 'Feedback'],
+    checkbox: ['I agree to terms', 'Subscribe to newsletter', 'Confirm'],
+    radio: ['Gender', 'Priority', 'Rating', 'Category'],
+    multi_select: ['Skills', 'Interests', 'Categories', 'Services'],
+  };
+
+  const currentSuggestions = suggestedLabels[node.type] || [];
+
   return (
     <div className="space-y-4">
       {/* Label / Content */}
@@ -41,6 +57,28 @@ export function PropertiesTab({ node, onUpdate }: PropertiesTabProps) {
         </div>
       ) : node.type !== 'divider' ? (
         <>
+          {currentSuggestions.length > 0 && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">Suggested Labels</Label>
+              <Select
+                value=""
+                onValueChange={(v) => {
+                  updateProp('label', v);
+                  updateProp('placeholder', `Enter ${v.toLowerCase()}...`);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Pick a system field..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {currentSuggestions.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="space-y-1.5">
             <Label className="text-xs">Label</Label>
             <Input

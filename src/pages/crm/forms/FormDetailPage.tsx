@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Pencil, Share2, Download } from 'lucide-react';
+import { ShareFormDialog } from '@/components/forms/ShareFormDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +10,7 @@ import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { FormSubmission } from '@/types/forms';
 
 export default function FormDetailPage() {
@@ -19,6 +20,7 @@ export default function FormDetailPage() {
   const { data: submissions, isLoading } = useFormSubmissions(formId);
   const updateStatus = useUpdateSubmissionStatus();
   const [viewingSub, setViewingSub] = useState<FormSubmission | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
 
   function exportCSV() {
     if (!submissions?.length) return;
@@ -61,6 +63,9 @@ export default function FormDetailPage() {
         </div>
         <Button variant="outline" size="sm" onClick={() => navigate(`/org/${orgCode}/crm/forms/${formId}/builder`)}>
           <Pencil className="h-4 w-4 mr-1" /> Edit
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => setShareOpen(true)}>
+          <Share2 className="h-4 w-4 mr-1" /> Share
         </Button>
         <Button variant="outline" size="sm" onClick={exportCSV} disabled={!submissions?.length}>
           <Download className="h-4 w-4 mr-1" /> Export
@@ -131,10 +136,13 @@ export default function FormDetailPage() {
       </Card>
 
       {/* Submission Viewer */}
+      <ShareFormDialog open={shareOpen} onOpenChange={setShareOpen} form={form ?? null} orgCode={orgCode || ''} />
+
       <Dialog open={!!viewingSub} onOpenChange={() => setViewingSub(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Submission Detail</DialogTitle>
+            <DialogDescription>View the details of this form submission.</DialogDescription>
           </DialogHeader>
           {viewingSub && (
             <div className="space-y-3">
