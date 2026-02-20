@@ -9,6 +9,8 @@ import { CardSkeleton } from "@/components/ui/card-skeleton";
 import { PendingLeaveApprovals } from "@/components/PendingLeaveApprovals";
 import { PendingWfhApprovals } from "@/components/PendingWfhApprovals";
 import { PendingKpiUpdates } from "@/components/PendingKpiUpdates";
+import { FeatureSetupGuide } from "@/components/home/FeatureSetupGuide";
+import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
 import type { PersonOnLeave, UpcomingTeamLeave, UpcomingEvent, UpcomingCalendarEvent } from "@/hooks/useHomeData";
 
@@ -55,10 +57,15 @@ export const HomeSidebar = ({
   upcomingCalendarEvents,
   onLeaveDataChange,
 }: HomeSidebarProps) => {
+  const { isAdmin, isOwner } = useUserRole();
+
   return (
     <div className="hidden lg:block space-y-6 lg:pl-2">
       <PendingLeaveApprovals onApprovalChange={onLeaveDataChange} />
       <PendingWfhApprovals />
+
+      {(isAdmin || isOwner) && <FeatureSetupGuide />}
+
       <PendingKpiUpdates />
 
       <Suspense fallback={<CardSkeleton />}>
