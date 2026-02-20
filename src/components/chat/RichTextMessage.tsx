@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import DOMPurify from "dompurify";
 import { ExternalLink } from "lucide-react";
+import MeetLinkCard, { extractMeetLinks } from "./MeetLinkCard";
 
 interface RichTextMessageProps {
   content: string;
@@ -130,10 +131,18 @@ const RichTextMessage = ({ content, className = "" }: RichTextMessageProps) => {
     });
   }, [content]);
 
+  // Check for Meet links and render as cards
+  const meetLinks = useMemo(() => content ? extractMeetLinks(content) : [], [content]);
+
   return (
-    <p className={`whitespace-pre-wrap break-words ${className}`}>
-      {formattedContent}
-    </p>
+    <div className={`${className}`}>
+      <p className="whitespace-pre-wrap break-words">
+        {formattedContent}
+      </p>
+      {meetLinks.map((link, i) => (
+        <MeetLinkCard key={`meet-${i}`} url={link} />
+      ))}
+    </div>
   );
 };
 

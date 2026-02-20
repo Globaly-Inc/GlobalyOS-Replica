@@ -18,6 +18,7 @@ const channelIcons: Record<InboxChannelType, React.ComponentType<React.SVGProps<
   tiktok: Music,
   email: Mail,
   sms: Smartphone,
+  gmail: Mail,
 };
 
 export const ChannelBadge = ({ channel, size = 'sm', showLabel = false, className }: ChannelBadgeProps) => {

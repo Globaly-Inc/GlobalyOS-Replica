@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useGoogleCalendarConnect } from '@/services/useGoogleCalendar';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useInboxChannels } from '@/hooks/useInbox';
 import { useOrgPhoneNumbers } from '@/hooks/useTelephony';
@@ -38,7 +39,7 @@ import { toast } from 'sonner';
 import type { InboxChannelType } from '@/types/inbox';
 import { CHANNEL_META } from '@/types/inbox';
 
-const availableChannels: { type: InboxChannelType; description: string; comingSoon?: boolean }[] = [
+const availableChannels: { type: InboxChannelType; description: string; comingSoon?: boolean; isOAuth?: boolean }[] = [
   { type: 'whatsapp', description: 'Connect your WhatsApp Business account via Meta Cloud API' },
   { type: 'telegram', description: 'Connect a Telegram Bot to receive and send messages' },
   { type: 'messenger', description: 'Connect your Facebook Page to manage Messenger conversations' },
@@ -46,6 +47,7 @@ const availableChannels: { type: InboxChannelType; description: string; comingSo
   { type: 'tiktok', description: 'Monitor and respond to TikTok comments' },
   { type: 'email', description: 'Connect via IMAP or email forwarding' },
   { type: 'sms', description: 'Two-way SMS & Voice via the Number Marketplace' },
+  { type: 'gmail', description: 'Full two-way Gmail sync via Google OAuth', isOAuth: true },
 ];
 
 const InboxChannelsPage = () => {
@@ -59,6 +61,7 @@ const InboxChannelsPage = () => {
   const { isEnabled } = useFeatureFlags();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const googleConnect = useGoogleCalendarConnect();
 
   const toggleAutoReply = async (channelId: string, enabled: boolean) => {
     const { error } = await supabase
@@ -229,12 +232,15 @@ const InboxChannelsPage = () => {
                     onClick={() => {
                       if (ac.type === 'sms') {
                         navigate(`/org/${orgCode}/crm/calls`);
+                      } else if (ac.type === 'gmail') {
+                        googleConnect.mutate();
                       } else {
                         setConnectChannel(ac.type);
                       }
                     }}
+                    disabled={ac.type === 'gmail' && googleConnect.isPending}
                   >
-                    <Plus className="h-3.5 w-3.5 mr-1" /> {ac.type === 'sms' ? 'Get Numbers' : 'Connect'}
+                    <Plus className="h-3.5 w-3.5 mr-1" /> {ac.type === 'sms' ? 'Get Numbers' : ac.type === 'gmail' ? 'Connect Google' : 'Connect'}
                   </Button>
                 </CardContent>
               </Card>

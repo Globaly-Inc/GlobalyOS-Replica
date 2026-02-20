@@ -124,7 +124,7 @@ interface ChannelInstruction {
   note?: string;
 }
 
-const channelInstructions: Partial<Record<InboxChannelType, ChannelInstruction>> & Record<Exclude<InboxChannelType, 'sms'>, ChannelInstruction> = {
+const channelInstructions: Partial<Record<InboxChannelType, ChannelInstruction>> & Record<Exclude<InboxChannelType, 'sms' | 'gmail'>, ChannelInstruction> = {
   whatsapp: {
     steps: [
       'Go to the Meta Developer Portal and create a new App with "Business" type (or select an existing one).',

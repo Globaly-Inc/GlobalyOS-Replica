@@ -1,6 +1,6 @@
 // Omni-Channel Inbox Types
 
-export type InboxChannelType = 'whatsapp' | 'telegram' | 'messenger' | 'instagram' | 'tiktok' | 'email' | 'sms';
+export type InboxChannelType = 'whatsapp' | 'telegram' | 'messenger' | 'instagram' | 'tiktok' | 'email' | 'sms' | 'gmail';
 export type InboxConversationStatus = 'open' | 'pending' | 'snoozed' | 'closed';
 export type InboxMessageDirection = 'inbound' | 'outbound';
 export type InboxMessageType = 'text' | 'image' | 'video' | 'document' | 'audio' | 'template' | 'interactive' | 'system' | 'note';
@@ -141,4 +141,5 @@ export const CHANNEL_META: Record<InboxChannelType, { label: string; color: stri
   tiktok: { label: 'TikTok', color: '#000000' },
   email: { label: 'Email', color: '#6366F1' },
   sms: { label: 'SMS', color: '#F59E0B' },
+  gmail: { label: 'Gmail', color: '#EA4335' },
 };
