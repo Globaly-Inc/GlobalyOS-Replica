@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ChannelBadge } from './ChannelBadge';
-import { Loader2, ExternalLink, Info, Zap, ArrowLeft, CheckCircle2, Clock } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Loader2, ExternalLink, Info, Zap, ArrowLeft, CheckCircle2, Clock, Copy, Check, Mail } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useQueryClient } from '@tanstack/react-query';
@@ -123,7 +124,7 @@ interface ChannelInstruction {
   note?: string;
 }
 
-const channelInstructions: Record<InboxChannelType, ChannelInstruction> = {
+const channelInstructions: Partial<Record<InboxChannelType, ChannelInstruction>> & Record<Exclude<InboxChannelType, 'sms'>, ChannelInstruction> = {
   whatsapp: {
     steps: [
       'Go to the Meta Developer Portal and create a new App with "Business" type (or select an existing one).',
@@ -198,6 +199,8 @@ export const ConnectChannelDialog = ({ open, onOpenChange, channelType }: Connec
   const [saving, setSaving] = useState(false);
   const [showOAuthDialog, setShowOAuthDialog] = useState(false);
   const [oauthWaiting, setOauthWaiting] = useState(false);
+  const [emailMethod, setEmailMethod] = useState<'imap' | 'forwarding'>('imap');
+  const [copiedForwarding, setCopiedForwarding] = useState(false);
 
   if (!channelType) return null;
   const fields = channelFields[channelType] || [];
@@ -205,26 +208,41 @@ export const ConnectChannelDialog = ({ open, onOpenChange, channelType }: Connec
   const instructions = channelInstructions[channelType];
   const hasOAuth = channelsWithOAuth.has(channelType);
   const oauth = hasOAuth ? oauthMeta[channelType] : null;
+  const isEmail = channelType === 'email';
+
+  const orgShort = currentOrg?.id ? currentOrg.id.slice(0, 8) : 'org';
+  const forwardingAddress = `inbox-${orgShort}@inbound.globalyos.app`;
+
+  const handleCopyForwarding = () => {
+    navigator.clipboard.writeText(forwardingAddress);
+    setCopiedForwarding(true);
+    toast.success('Forwarding address copied');
+    setTimeout(() => setCopiedForwarding(false), 2000);
+  };
 
   const handleSave = async () => {
     if (!currentOrg?.id || !displayName.trim()) return;
     setSaving(true);
     try {
+      const finalCredentials = isEmail && emailMethod === 'forwarding'
+        ? { method: 'forwarding', forwarding_address: forwardingAddress }
+        : { ...credentials, ...(isEmail ? { method: 'imap' } : {}) };
       const { error } = await supabase.from('inbox_channels').insert({
         organization_id: currentOrg.id,
-        channel_type: channelType,
+        channel_type: channelType as Exclude<InboxChannelType, 'sms'>,
         display_name: displayName.trim(),
-        credentials,
+        credentials: finalCredentials,
         webhook_status: 'pending',
         is_active: true,
         config: {},
-      });
+      } as any);
       if (error) throw error;
       toast.success(`${meta.label} channel connected`);
       qc.invalidateQueries({ queryKey: ['inbox-channels'] });
       onOpenChange(false);
       setDisplayName('');
       setCredentials({});
+      setEmailMethod('imap');
     } catch (err: any) {
       toast.error(err.message || 'Failed to connect channel');
     } finally {
@@ -288,19 +306,88 @@ export const ConnectChannelDialog = ({ open, onOpenChange, channelType }: Connec
                 onChange={(e) => setDisplayName(e.target.value)}
               />
             </div>
-            {fields.map((field) => (
-              <div key={field.key} className="space-y-2">
-                <Label>{field.label}</Label>
-                <Input
-                  type={field.key.includes('token') || field.key.includes('password') ? 'password' : 'text'}
-                  placeholder={field.placeholder}
-                  value={credentials[field.key] || ''}
-                  onChange={(e) =>
-                    setCredentials((prev) => ({ ...prev, [field.key]: e.target.value }))
-                  }
-                />
-              </div>
-            ))}
+
+            {isEmail ? (
+              <Tabs value={emailMethod} onValueChange={(v) => setEmailMethod(v as 'imap' | 'forwarding')}>
+                <TabsList className="w-full">
+                  <TabsTrigger value="imap" className="flex-1 gap-1.5">
+                    <Mail className="h-3.5 w-3.5" />
+                    IMAP Connection
+                  </TabsTrigger>
+                  <TabsTrigger value="forwarding" className="flex-1 gap-1.5">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    Email Forwarding
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="imap" className="space-y-4 mt-3">
+                  {fields.map((field) => (
+                    <div key={field.key} className="space-y-2">
+                      <Label>{field.label}</Label>
+                      <Input
+                        type={field.key.includes('token') || field.key.includes('password') ? 'password' : 'text'}
+                        placeholder={field.placeholder}
+                        value={credentials[field.key] || ''}
+                        onChange={(e) =>
+                          setCredentials((prev) => ({ ...prev, [field.key]: e.target.value }))
+                        }
+                      />
+                    </div>
+                  ))}
+                </TabsContent>
+                <TabsContent value="forwarding" className="space-y-4 mt-3">
+                  <div className="space-y-2">
+                    <Label>Your forwarding address</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        readOnly
+                        value={forwardingAddress}
+                        className="font-mono text-xs bg-muted/50"
+                      />
+                      <Button type="button" variant="outline" size="icon" onClick={handleCopyForwarding} className="shrink-0">
+                        {copiedForwarding ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-blue-200 bg-blue-50/50 dark:border-blue-900/50 dark:bg-blue-950/20 p-3 space-y-2">
+                    <p className="text-xs font-medium text-blue-800 dark:text-blue-300">Setup Instructions</p>
+                    <ol className="list-decimal list-inside space-y-1 text-xs text-blue-700 dark:text-blue-400">
+                      <li>Copy the forwarding address above.</li>
+                      <li>Go to your email provider's forwarding settings.</li>
+                      <li>Add this address as a forwarding destination.</li>
+                      <li>Confirm the forwarding (some providers send a verification email).</li>
+                    </ol>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <a href="https://support.google.com/mail/answer/10957" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200">
+                        <ExternalLink className="h-2.5 w-2.5" /> Gmail Guide
+                      </a>
+                      <a href="https://support.microsoft.com/en-us/office/turn-on-automatic-forwarding-10bd5fe2-ec46-4398-a422-87e919d547e0" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200">
+                        <ExternalLink className="h-2.5 w-2.5" /> Outlook Guide
+                      </a>
+                      <a href="https://help.yahoo.com/kb/SLN22028.html" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200">
+                        <ExternalLink className="h-2.5 w-2.5" /> Yahoo Guide
+                      </a>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    💡 Once forwarding is active, incoming emails will appear as conversations in your inbox automatically.
+                  </p>
+                </TabsContent>
+              </Tabs>
+            ) : (
+              fields.map((field) => (
+                <div key={field.key} className="space-y-2">
+                  <Label>{field.label}</Label>
+                  <Input
+                    type={field.key.includes('token') || field.key.includes('password') ? 'password' : 'text'}
+                    placeholder={field.placeholder}
+                    value={credentials[field.key] || ''}
+                    onChange={(e) =>
+                      setCredentials((prev) => ({ ...prev, [field.key]: e.target.value }))
+                    }
+                  />
+                </div>
+              ))
+            )}
           </div>
 
           <DialogFooter className={hasOAuth ? 'flex !justify-between' : ''}>

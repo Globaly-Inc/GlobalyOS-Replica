@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ChannelBadge } from './ChannelBadge';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Copy, Check, ExternalLink } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -49,6 +49,7 @@ export const EditChannelDialog = ({ open, onOpenChange, channel }: EditChannelDi
   const [displayName, setDisplayName] = useState('');
   const [credentials, setCredentials] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [copiedForwarding, setCopiedForwarding] = useState(false);
 
   useEffect(() => {
     if (channel) {
@@ -62,6 +63,15 @@ export const EditChannelDialog = ({ open, onOpenChange, channel }: EditChannelDi
   const channelType = channel.channel_type as InboxChannelType;
   const fields = channelFields[channelType] || [];
   const meta = CHANNEL_META[channelType];
+  const isForwarding = channelType === 'email' && credentials?.method === 'forwarding';
+  const forwardingAddress = credentials?.forwarding_address || '';
+
+  const handleCopyForwarding = () => {
+    navigator.clipboard.writeText(forwardingAddress);
+    setCopiedForwarding(true);
+    toast.success('Forwarding address copied');
+    setTimeout(() => setCopiedForwarding(false), 2000);
+  };
 
   const handleSave = async () => {
     if (!displayName.trim()) return;
@@ -108,19 +118,47 @@ export const EditChannelDialog = ({ open, onOpenChange, channel }: EditChannelDi
             />
           </div>
 
-          {fields.map((field) => (
-            <div key={field.key} className="space-y-2">
-              <Label>{field.label}</Label>
-              <Input
-                type={field.key.includes('token') || field.key.includes('password') ? 'password' : 'text'}
-                placeholder={field.placeholder}
-                value={credentials[field.key] || ''}
-                onChange={(e) =>
-                  setCredentials((prev) => ({ ...prev, [field.key]: e.target.value }))
-                }
-              />
+          {isForwarding ? (
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label>Forwarding Address</Label>
+                <div className="flex gap-2">
+                  <Input readOnly value={forwardingAddress} className="font-mono text-xs bg-muted/50" />
+                  <Button type="button" variant="outline" size="icon" onClick={handleCopyForwarding} className="shrink-0">
+                    {copiedForwarding ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+              <div className="rounded-lg border border-blue-200 bg-blue-50/50 dark:border-blue-900/50 dark:bg-blue-950/20 p-3 space-y-2">
+                <p className="text-xs font-medium text-blue-800 dark:text-blue-300">Forwarding is active</p>
+                <p className="text-xs text-blue-700 dark:text-blue-400">
+                  Emails forwarded to this address will appear in your inbox. Make sure your email provider is still forwarding to this address.
+                </p>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <a href="https://support.google.com/mail/answer/10957" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200">
+                    <ExternalLink className="h-2.5 w-2.5" /> Gmail Guide
+                  </a>
+                  <a href="https://support.microsoft.com/en-us/office/turn-on-automatic-forwarding-10bd5fe2-ec46-4398-a422-87e919d547e0" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200">
+                    <ExternalLink className="h-2.5 w-2.5" /> Outlook Guide
+                  </a>
+                </div>
+              </div>
             </div>
-          ))}
+          ) : (
+            fields.map((field) => (
+              <div key={field.key} className="space-y-2">
+                <Label>{field.label}</Label>
+                <Input
+                  type={field.key.includes('token') || field.key.includes('password') ? 'password' : 'text'}
+                  placeholder={field.placeholder}
+                  value={credentials[field.key] || ''}
+                  onChange={(e) =>
+                    setCredentials((prev) => ({ ...prev, [field.key]: e.target.value }))
+                  }
+                />
+              </div>
+            ))
+          )}
         </div>
 
         <DialogFooter>

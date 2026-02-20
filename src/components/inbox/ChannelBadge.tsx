@@ -1,4 +1,4 @@
-import { MessageCircle, Hash, Send, Instagram, Music, Mail } from 'lucide-react';
+import { MessageCircle, Hash, Send, Instagram, Music, Mail, Smartphone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { InboxChannelType } from '@/types/inbox';
 import { CHANNEL_META } from '@/types/inbox';
@@ -17,6 +17,7 @@ const channelIcons: Record<InboxChannelType, React.ComponentType<React.SVGProps<
   instagram: Instagram,
   tiktok: Music,
   email: Mail,
+  sms: Smartphone,
 };
 
 export const ChannelBadge = ({ channel, size = 'sm', showLabel = false, className }: ChannelBadgeProps) => {
