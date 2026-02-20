@@ -1,51 +1,52 @@
 
-
-## Move Feature Setup Guide to Right Sidebar
+## Add a Phone Dialer Button to the Top Navigation Bar
 
 ### What Changes
-The "Complete Your Setup" guide will be moved from the main content area on the Home page into the right sidebar, positioned just before the "KPI Updates Due" card. It will remain visible only to admins and owners.
+A new **Phone** icon button will be added to the `DesktopQuickActions` bar (between the Notifications bell and the Settings gear). Clicking it opens a **dialer dialog** where users can type a phone number and place an outbound call via the existing `twilio-outbound-call` edge function. The button is only visible when the `telephony` feature flag is enabled.
 
-### Changes Required
+### New Component: `QuickDialer.tsx`
 
-**1. Remove from Home.tsx (main content area)**
-- Remove the `FeatureSetupGuide` import and its rendering block (the `{(isAdmin || isOwner) && <FeatureSetupGuide />}` section).
+A new file `src/components/layout/QuickDialer.tsx` will be created containing:
 
-**2. Add to HomeSidebar.tsx (right sidebar)**
-- Import `FeatureSetupGuide` and `useUserRole`.
-- Render `<FeatureSetupGuide />` wrapped in role checks (`isAdmin || isOwner`) directly before the `<PendingKpiUpdates />` component (line 62).
-- The component already handles its own visibility logic (hides when all features are configured or dismissed), so no extra logic is needed in the sidebar.
+- A **Dialog** (Radix) triggered by a `Phone` icon button in the quick actions bar.
+- A **dial pad UI** inside the dialog:
+  - A text input for the phone number (with country code prefix).
+  - A 3x4 grid of digit buttons (1-9, *, 0, #) for tap-to-dial entry.
+  - A green "Call" button at the bottom.
+  - A dropdown to select which org phone number to call from (if the org has multiple numbers), using the existing `useOrgPhoneNumbers` hook.
+- On "Call" press:
+  - Invokes `supabase.functions.invoke('twilio-outbound-call', { body: { to_number, organization_id, phone_number_id } })`.
+  - Shows a success/error toast via `sonner`.
+  - Closes the dialog on success.
 
-**3. Enhance FeatureSetupGuide.tsx to cover all features**
-- Expand the `FEATURE_CHECKS` array to include **all** feature-flag-gated modules, not just the current 4 (hiring, omnichannel_inbox, telephony, workflows). Add checks for:
-  - **CRM** -- check if any contacts or deals exist.
-  - **Chat** -- check if any chat channels exist.
-  - **Tasks** -- check if any task boards exist.
-  - **Payroll** -- check if payroll settings are configured.
-  - **Accounting** -- check if a chart of accounts or ledger exists.
-  - **Forms** -- check if any form templates exist.
-- Each new entry gets an icon, label, description, settings/setup path, and a readiness query.
-- The readiness `queryFn` will be extended with additional checks for the new features.
-- The card styling will be slightly adjusted (smaller padding) to fit the sidebar width comfortably.
+### Changes to `DesktopQuickActions.tsx`
+
+- Import `QuickDialer` and `useFeatureFlags` (already imported).
+- Render `<QuickDialer organizationId={currentOrgId} />` conditionally when `isEnabled('telephony')` is true.
+- Position it after the Notifications button and before the Settings button.
 
 ### Technical Details
 
-**Sidebar rendering order (after change):**
-1. PendingLeaveApprovals
-2. PendingWfhApprovals
-3. **FeatureSetupGuide** (new position -- admin/owner only)
-4. PendingKpiUpdates
-5. NotCheckedInCard
-6. ... (rest unchanged)
+**QuickDialer component structure:**
+- Uses `Dialog`, `DialogTrigger`, `DialogContent`, `DialogHeader`, `DialogTitle` from `@/components/ui/dialog`.
+- Uses `useOrgPhoneNumbers()` from `@/hooks/useTelephony` to list available caller IDs.
+- Uses `Select` component if multiple org phone numbers exist; auto-selects the first one if only one is available.
+- Uses `supabase.functions.invoke('twilio-outbound-call')` -- the existing edge function already handles everything (finding the org's active number, placing the call via Twilio, logging usage).
+- Basic phone number validation before allowing the call (must start with + and have at least 10 digits).
 
-**New feature readiness checks (inside the existing `queryFn`):**
-- `crm`: query `crm_contacts` count > 0
-- `chat`: query `chat_channels` count > 0
-- `tasks`: query `task_boards` count > 0
-- `payroll`: query `payroll_settings` or equivalent count > 0
-- `accounting`: query `chart_of_accounts` count > 0
-- `forms`: query `form_templates` count > 0
+**Dial pad layout:**
+```text
++------------------+
+| +1 555-123-4567  |  (input field)
++------------------+
+|  1  |  2  |  3   |
+|  4  |  5  |  6   |
+|  7  |  8  |  9   |
+|  *  |  0  |  #   |
++------------------+
+| [Backspace]      |
+| [  Call    ]     |  (green button)
++------------------+
+```
 
-Tables that don't exist yet will be handled gracefully -- the check returns `false` (not configured) so the setup card shows, which is the correct behavior.
-
-**No database changes required.** This is purely a frontend reorganization and enhancement.
-
+**No database changes required.** This uses the existing `twilio-outbound-call` edge function and `org_phone_numbers` table.
