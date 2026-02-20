@@ -161,6 +161,8 @@ const InvoiceDetail = lazy(() => import('./pages/accounting/InvoiceDetail'));
 const AccountingBills = lazy(() => import('./pages/accounting/Bills'));
 const BillEditor = lazy(() => import('./pages/accounting/BillEditor'));
 const BillDetail = lazy(() => import('./pages/accounting/BillDetail'));
+const AccountingBanking = lazy(() => import('./pages/accounting/Banking'));
+const AccountingBankRules = lazy(() => import('./pages/accounting/BankRules'));
 
 const HiringDashboard = lazy(() => import('./pages/hiring/HiringDashboard'));
 const JobsList = lazy(() => import('./pages/hiring/JobsList'));
@@ -402,7 +404,8 @@ const App = () => <QueryClientProvider client={queryClient}>
                    <Route path="accounting/bills/new" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><BillEditor /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="accounting/bills/:billId" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><BillDetail /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="accounting/bills/:billId/edit" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><BillEditor /></FeatureProtectedRoute></OrgProtectedRoute>} />
-                   <Route path="accounting/banking" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingDashboard /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="accounting/banking" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingBanking /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="accounting/bank-rules" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingBankRules /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="accounting/reports" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingDashboard /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="accounting/settings" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingDashboard /></FeatureProtectedRoute></OrgProtectedRoute>} />
 

@@ -2037,6 +2037,278 @@ export type Database = {
           },
         ]
       }
+      bank_accounts: {
+        Row: {
+          account_number: string | null
+          bank_name: string | null
+          bsb: string | null
+          chart_account_id: string
+          created_at: string
+          currency: string
+          current_balance: number
+          id: string
+          is_active: boolean
+          ledger_id: string
+          name: string
+          office_id: string
+          organization_id: string
+        }
+        Insert: {
+          account_number?: string | null
+          bank_name?: string | null
+          bsb?: string | null
+          chart_account_id: string
+          created_at?: string
+          currency?: string
+          current_balance?: number
+          id?: string
+          is_active?: boolean
+          ledger_id: string
+          name: string
+          office_id: string
+          organization_id: string
+        }
+        Update: {
+          account_number?: string | null
+          bank_name?: string | null
+          bsb?: string | null
+          chart_account_id?: string
+          created_at?: string
+          currency?: string
+          current_balance?: number
+          id?: string
+          is_active?: boolean
+          ledger_id?: string
+          name?: string
+          office_id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_accounts_chart_account_id_fkey"
+            columns: ["chart_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_accounts_ledger_id_fkey"
+            columns: ["ledger_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_ledgers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_accounts_office_id_fkey"
+            columns: ["office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_accounts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_rules: {
+        Row: {
+          actions: Json
+          auto_add: boolean
+          conditions: Json
+          created_at: string
+          id: string
+          is_active: boolean
+          ledger_id: string
+          name: string
+          office_id: string | null
+          organization_id: string
+          priority: number
+        }
+        Insert: {
+          actions?: Json
+          auto_add?: boolean
+          conditions?: Json
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          ledger_id: string
+          name: string
+          office_id?: string | null
+          organization_id: string
+          priority?: number
+        }
+        Update: {
+          actions?: Json
+          auto_add?: boolean
+          conditions?: Json
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          ledger_id?: string
+          name?: string
+          office_id?: string | null
+          organization_id?: string
+          priority?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_rules_ledger_id_fkey"
+            columns: ["ledger_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_ledgers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_rules_office_id_fkey"
+            columns: ["office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_rules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_statement_lines: {
+        Row: {
+          amount: number
+          balance: number | null
+          categorized_account_id: string | null
+          created_at: string
+          date: string
+          description: string
+          id: string
+          matched_bill_id: string | null
+          matched_invoice_id: string | null
+          matched_journal_id: string | null
+          payee: string | null
+          reference: string | null
+          statement_id: string
+          status: Database["public"]["Enums"]["bank_statement_line_status"]
+        }
+        Insert: {
+          amount: number
+          balance?: number | null
+          categorized_account_id?: string | null
+          created_at?: string
+          date: string
+          description: string
+          id?: string
+          matched_bill_id?: string | null
+          matched_invoice_id?: string | null
+          matched_journal_id?: string | null
+          payee?: string | null
+          reference?: string | null
+          statement_id: string
+          status?: Database["public"]["Enums"]["bank_statement_line_status"]
+        }
+        Update: {
+          amount?: number
+          balance?: number | null
+          categorized_account_id?: string | null
+          created_at?: string
+          date?: string
+          description?: string
+          id?: string
+          matched_bill_id?: string | null
+          matched_invoice_id?: string | null
+          matched_journal_id?: string | null
+          payee?: string | null
+          reference?: string | null
+          statement_id?: string
+          status?: Database["public"]["Enums"]["bank_statement_line_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_statement_lines_categorized_account_id_fkey"
+            columns: ["categorized_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statement_lines_matched_bill_id_fkey"
+            columns: ["matched_bill_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_bills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statement_lines_matched_invoice_id_fkey"
+            columns: ["matched_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statement_lines_matched_journal_id_fkey"
+            columns: ["matched_journal_id"]
+            isOneToOne: false
+            referencedRelation: "journals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statement_lines_statement_id_fkey"
+            columns: ["statement_id"]
+            isOneToOne: false
+            referencedRelation: "bank_statements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_statements: {
+        Row: {
+          bank_account_id: string
+          created_at: string
+          end_date: string | null
+          file_name: string
+          id: string
+          idempotency_key: string | null
+          import_date: string
+          row_count: number
+          start_date: string | null
+        }
+        Insert: {
+          bank_account_id: string
+          created_at?: string
+          end_date?: string | null
+          file_name: string
+          id?: string
+          idempotency_key?: string | null
+          import_date?: string
+          row_count?: number
+          start_date?: string | null
+        }
+        Update: {
+          bank_account_id?: string
+          created_at?: string
+          end_date?: string | null
+          file_name?: string
+          id?: string
+          idempotency_key?: string | null
+          import_date?: string
+          row_count?: number
+          start_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_statements_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       billing_contacts: {
         Row: {
           created_at: string | null
@@ -19529,6 +19801,11 @@ export type Database = {
         | "design"
         | "case_study"
         | "general"
+      bank_statement_line_status:
+        | "unmatched"
+        | "matched"
+        | "reconciled"
+        | "excluded"
       candidate_source:
         | "careers_site"
         | "internal"
@@ -19849,6 +20126,12 @@ export const Constants = {
         "reviewed",
       ],
       assignment_type: ["coding", "writing", "design", "case_study", "general"],
+      bank_statement_line_status: [
+        "unmatched",
+        "matched",
+        "reconciled",
+        "excluded",
+      ],
       candidate_source: [
         "careers_site",
         "internal",

@@ -262,6 +262,68 @@ export interface AccountingBillPayment {
   created_at: string;
 }
 
+// Banking types
+export type BankStatementLineStatus = 'unmatched' | 'matched' | 'reconciled' | 'excluded';
+
+export interface BankAccount {
+  id: string;
+  organization_id: string;
+  ledger_id: string;
+  office_id: string;
+  name: string;
+  account_number: string | null;
+  bsb: string | null;
+  bank_name: string | null;
+  currency: string;
+  chart_account_id: string;
+  current_balance: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface BankStatement {
+  id: string;
+  bank_account_id: string;
+  file_name: string;
+  import_date: string;
+  start_date: string | null;
+  end_date: string | null;
+  row_count: number;
+  idempotency_key: string | null;
+  created_at: string;
+}
+
+export interface BankStatementLine {
+  id: string;
+  statement_id: string;
+  date: string;
+  description: string;
+  amount: number;
+  balance: number | null;
+  reference: string | null;
+  payee: string | null;
+  status: BankStatementLineStatus;
+  matched_journal_id: string | null;
+  matched_invoice_id: string | null;
+  matched_bill_id: string | null;
+  categorized_account_id: string | null;
+  created_at: string;
+}
+
+export interface BankRule {
+  id: string;
+  organization_id: string;
+  ledger_id: string;
+  office_id: string | null;
+  name: string;
+  priority: number;
+  conditions: Record<string, unknown>[];
+  actions: Record<string, unknown>;
+  auto_add: boolean;
+  is_active: boolean;
+  created_at: string;
+}
+
 // Setup wizard form types
 export interface SetupWizardFormData {
   scopeType: AccountingScopeType;
