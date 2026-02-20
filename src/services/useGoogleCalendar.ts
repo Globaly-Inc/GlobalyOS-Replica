@@ -9,7 +9,7 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
-export const useGoogleCalendarConnect = () => {
+export const useGoogleCalendarConnect = (source: 'scheduler' | 'inbox' = 'scheduler') => {
   const { currentOrg } = useOrganization();
   const { user } = useAuth();
 
@@ -41,7 +41,7 @@ export const useGoogleCalendarConnect = () => {
             'Authorization': `Bearer ${accessToken}`,
             'apikey': anonKey,
           },
-          body: JSON.stringify({ organization_id: currentOrg.id }),
+          body: JSON.stringify({ organization_id: currentOrg.id, source }),
         }
       );
 
