@@ -2,12 +2,13 @@ import { Inbox, Radio, FileText, BarChart3, Phone, Activity } from 'lucide-react
 import { OrgLink } from '@/components/OrgLink';
 import { useLocation, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useFeatureFlags } from '@/hooks/useFeatureFlags';
 
 const inboxSubNavItems = [
   { name: 'Inbox', href: '/crm/inbox', icon: Inbox, exact: true },
   { name: 'Channels', href: '/crm/inbox/channels', icon: Radio },
-  { name: 'Numbers', href: '/crm/inbox/numbers', icon: Phone },
-  { name: 'Usage', href: '/crm/inbox/usage', icon: Activity },
+  { name: 'Numbers', href: '/crm/inbox/numbers', icon: Phone, requiresTelephony: true },
+  { name: 'Usage', href: '/crm/inbox/usage', icon: Activity, requiresTelephony: true },
   { name: 'Templates', href: '/crm/inbox/templates', icon: FileText },
   { name: 'Analytics', href: '/crm/inbox/analytics', icon: BarChart3 },
 ];
@@ -15,6 +16,7 @@ const inboxSubNavItems = [
 export const InboxSubNav = () => {
   const location = useLocation();
   const { orgCode } = useParams<{ orgCode: string }>();
+  const { isEnabled } = useFeatureFlags();
 
   const basePath = orgCode ? `/org/${orgCode}` : '';
   const isInboxSection = location.pathname.includes('/crm/inbox');
@@ -25,7 +27,7 @@ export const InboxSubNav = () => {
     <div className="border-b border-border bg-card/80 backdrop-blur">
       <div className="container px-4 md:px-8">
         <nav className="flex items-center gap-1 -mb-px overflow-x-auto">
-          {inboxSubNavItems.map((item) => {
+          {inboxSubNavItems.filter((item) => !(item as any).requiresTelephony || isEnabled('telephony')).map((item) => {
             const fullPath = `${basePath}${item.href}`;
             const isActive = item.exact
               ? location.pathname === fullPath

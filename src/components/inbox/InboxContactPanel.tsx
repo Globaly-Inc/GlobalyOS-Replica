@@ -16,6 +16,7 @@ import { Phone, Mail, Clock, UserCheck, XCircle, Pause, ExternalLink, PhoneOutgo
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
+import { useFeatureFlags } from '@/hooks/useFeatureFlags';
 import { toast } from 'sonner';
 import type { InboxConversation, InboxContact, InboxConversationStatus } from '@/types/inbox';
 
@@ -29,6 +30,7 @@ interface InboxContactPanelProps {
 
 export const InboxContactPanel = ({ conversation, onUpdateStatus, onAssign, onUpdateTags, onUpdatePriority }: InboxContactPanelProps) => {
   const { currentOrg } = useOrganization();
+  const { isEnabled } = useFeatureFlags();
   const [isCalling, setIsCalling] = useState(false);
 
   if (!conversation) return null;
@@ -94,7 +96,7 @@ export const InboxContactPanel = ({ conversation, onUpdateStatus, onAssign, onUp
               <span className="text-primary text-xs">View in CRM</span>
             </div>
           )}
-          {canCall && (
+          {canCall && isEnabled('telephony') && (
             <Button
               variant="outline"
               size="sm"
