@@ -5589,6 +5589,286 @@ export type Database = {
           },
         ]
       }
+      form_audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json
+          form_id: string
+          id: string
+          organization_id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json
+          form_id: string
+          id?: string
+          organization_id: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json
+          form_id?: string
+          id?: string
+          organization_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_audit_logs_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_audit_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_submission_files: {
+        Row: {
+          created_at: string
+          field_id: string
+          file_name: string
+          file_size: number
+          id: string
+          mime_type: string
+          organization_id: string
+          storage_path: string
+          submission_id: string
+        }
+        Insert: {
+          created_at?: string
+          field_id: string
+          file_name: string
+          file_size?: number
+          id?: string
+          mime_type: string
+          organization_id: string
+          storage_path: string
+          submission_id: string
+        }
+        Update: {
+          created_at?: string
+          field_id?: string
+          file_name?: string
+          file_size?: number
+          id?: string
+          mime_type?: string
+          organization_id?: string
+          storage_path?: string
+          submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_submission_files_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_submission_files_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_submissions: {
+        Row: {
+          answers: Json
+          assignee_user_id: string | null
+          computed: Json
+          created_at: string
+          form_id: string
+          form_version_id: string
+          id: string
+          notes: Json
+          organization_id: string
+          payment: Json | null
+          status: string
+          submitted_at: string
+          submitter_meta: Json
+          tags: string[]
+          updated_at: string
+        }
+        Insert: {
+          answers?: Json
+          assignee_user_id?: string | null
+          computed?: Json
+          created_at?: string
+          form_id: string
+          form_version_id: string
+          id?: string
+          notes?: Json
+          organization_id: string
+          payment?: Json | null
+          status?: string
+          submitted_at?: string
+          submitter_meta?: Json
+          tags?: string[]
+          updated_at?: string
+        }
+        Update: {
+          answers?: Json
+          assignee_user_id?: string | null
+          computed?: Json
+          created_at?: string
+          form_id?: string
+          form_version_id?: string
+          id?: string
+          notes?: Json
+          organization_id?: string
+          payment?: Json | null
+          status?: string
+          submitted_at?: string
+          submitter_meta?: Json
+          tags?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_submissions_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_submissions_form_version_id_fkey"
+            columns: ["form_version_id"]
+            isOneToOne: false
+            referencedRelation: "form_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_submissions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_versions: {
+        Row: {
+          calculations: Json
+          created_at: string
+          created_by: string
+          form_id: string
+          id: string
+          layout_tree: Json
+          logic_rules: Json
+          organization_id: string
+          version_number: number
+        }
+        Insert: {
+          calculations?: Json
+          created_at?: string
+          created_by: string
+          form_id: string
+          id?: string
+          layout_tree?: Json
+          logic_rules?: Json
+          organization_id: string
+          version_number?: number
+        }
+        Update: {
+          calculations?: Json
+          created_at?: string
+          created_by?: string
+          form_id?: string
+          id?: string
+          layout_tree?: Json
+          logic_rules?: Json
+          organization_id?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_versions_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_versions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      forms: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          organization_id: string
+          published_version_id: string | null
+          settings: Json
+          slug: string
+          status: string
+          theme: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          organization_id: string
+          published_version_id?: string | null
+          settings?: Json
+          slug: string
+          status?: string
+          theme?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          organization_id?: string
+          published_version_id?: string | null
+          settings?: Json
+          slug?: string
+          status?: string
+          theme?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "forms_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "forms_published_version_id_fkey"
+            columns: ["published_version_id"]
+            isOneToOne: false
+            referencedRelation: "form_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hiring_activity_logs: {
         Row: {
           action: Database["public"]["Enums"]["hiring_activity_action"]

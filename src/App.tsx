@@ -91,6 +91,9 @@ const CompaniesPage = lazy(() => import('./pages/crm/CompaniesPage'));
 const CRMContactProfile = lazy(() => import('./pages/CRMContactProfile'));
 const CRMCompanyProfile = lazy(() => import('./pages/CRMCompanyProfile'));
 const CRMSettings = lazy(() => import('./pages/CRMSettings'));
+const FormsListPage = lazy(() => import('./pages/crm/forms/FormsListPage'));
+const FormBuilderPage = lazy(() => import('./pages/crm/forms/FormBuilderPage'));
+const FormDetailPage = lazy(() => import('./pages/crm/forms/FormDetailPage'));
 const SchedulerPage = lazy(() => import('./pages/crm/scheduler/SchedulerPage'));
 const CreateEventTypePage = lazy(() => import('./pages/crm/scheduler/CreateEventTypePage'));
 const CampaignsPage = lazy(() => import('./pages/crm/campaigns/CampaignsPage'));
@@ -323,6 +326,11 @@ const App = () => <QueryClientProvider client={queryClient}>
                    <Route path="crm/companies/:id" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CRMCompanyProfile /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/settings" element={<Navigate to="../settings/crm" replace />} />
                    <Route path="crm/scheduler" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><SchedulerPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   {/* Forms routes */}
+                   <Route path="crm/forms" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FormsListPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/forms/new" element={<OrgProtectedRoute withLayout={false}><FeatureProtectedRoute feature="crm"><FormBuilderPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/forms/:formId/builder" element={<OrgProtectedRoute withLayout={false}><FeatureProtectedRoute feature="crm"><FormBuilderPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/forms/:formId" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FormDetailPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/scheduler/new" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CreateEventTypePage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/scheduler/:id/edit" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CreateEventTypePage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    {/* Campaign routes — static routes before :id to avoid conflicts */}
