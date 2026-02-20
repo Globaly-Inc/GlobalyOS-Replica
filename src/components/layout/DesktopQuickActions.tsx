@@ -1,4 +1,5 @@
 import { Bell, CalendarPlus, ScanLine, Search, Settings, Clock, LogOut, LifeBuoy } from 'lucide-react';
+import { QuickDialer } from '@/components/layout/QuickDialer';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -119,6 +120,7 @@ export const DesktopQuickActions = ({
           <p>Notifications</p>
         </TooltipContent>
       </Tooltip>
+      {isEnabled('telephony') && <QuickDialer organizationId={currentOrgId} />}
       {(userProfile?.role === 'owner' || userProfile?.role === 'admin' || userProfile?.role === 'hr') && (
         <Tooltip>
           <TooltipTrigger asChild>
