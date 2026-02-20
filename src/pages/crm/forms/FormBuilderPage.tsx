@@ -60,6 +60,18 @@ export default function FormBuilderPage() {
 
   const selectedNode = state.layoutTree.find((n) => n.id === state.selectedNodeId) || null;
 
+  function handleDuplicateNode(nodeId: string) {
+    const original = state.layoutTree.find((n) => n.id === nodeId);
+    if (!original) return;
+    const idx = state.layoutTree.findIndex((n) => n.id === nodeId);
+    const clone: FormNode = {
+      ...JSON.parse(JSON.stringify(original)),
+      id: crypto.randomUUID(),
+    };
+    clone.properties.label = (clone.properties.label || '') + ' (copy)';
+    addNode(clone, idx + 1);
+  }
+
   async function handleSave() {
     let fId = currentFormId;
 
@@ -102,27 +114,10 @@ export default function FormBuilderPage() {
 
   return (
     <div className="flex flex-col h-screen bg-background">
-      {/* Builder body */}
-      <div className="flex flex-1 overflow-hidden">
-        <ElementsPalette onAddNode={addNode} />
-        <FormCanvas
-          nodes={state.layoutTree}
-          selectedNodeId={state.selectedNodeId}
-          onSelectNode={selectNode}
-          onRemoveNode={removeNode}
-          onReorder={reorderNodes}
-          formName={formName}
-          onFormNameChange={setFormName}
-        />
-        <SettingsPanel
-          selectedNode={selectedNode}
-          onUpdateNode={updateNode}
-          allNodes={state.layoutTree}
-        />
-      </div>
-
-      {/* Bottom toolbar */}
+      {/* Top toolbar */}
       <FormBuilderToolbar
+        formName={formName}
+        onFormNameChange={setFormName}
         onTheme={() => setShowTheme(true)}
         onPreview={() => setShowPreview(true)}
         onShare={() => setShowShare(true)}
@@ -137,6 +132,26 @@ export default function FormBuilderPage() {
         isSaving={saveDraft.isPending}
         isPublishing={publishForm.isPending}
       />
+
+      {/* Builder body */}
+      <div className="flex flex-1 overflow-hidden">
+        <ElementsPalette onAddNode={addNode} />
+        <FormCanvas
+          nodes={state.layoutTree}
+          selectedNodeId={state.selectedNodeId}
+          onSelectNode={selectNode}
+          onRemoveNode={removeNode}
+          onDuplicateNode={handleDuplicateNode}
+          onReorder={reorderNodes}
+          formName={formName}
+          onFormNameChange={setFormName}
+        />
+        <SettingsPanel
+          selectedNode={selectedNode}
+          onUpdateNode={updateNode}
+          allNodes={state.layoutTree}
+        />
+      </div>
 
       <ThemeDialog open={showTheme} onOpenChange={setShowTheme} theme={state.theme} onThemeChange={setTheme} />
       <PreviewDialog open={showPreview} onOpenChange={setShowPreview} nodes={state.layoutTree} theme={state.theme} formName={formName} />

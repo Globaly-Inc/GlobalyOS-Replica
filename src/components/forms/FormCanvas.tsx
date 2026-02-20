@@ -20,6 +20,7 @@ interface FormCanvasProps {
   selectedNodeId: string | null;
   onSelectNode: (id: string | null) => void;
   onRemoveNode: (id: string) => void;
+  onDuplicateNode: (id: string) => void;
   onReorder: (activeId: string, overId: string) => void;
   formName: string;
   onFormNameChange: (name: string) => void;
@@ -30,6 +31,7 @@ export function FormCanvas({
   selectedNodeId,
   onSelectNode,
   onRemoveNode,
+  onDuplicateNode,
   onReorder,
   formName,
   onFormNameChange,
@@ -72,6 +74,7 @@ export function FormCanvas({
                   isSelected={selectedNodeId === node.id}
                   onSelect={() => onSelectNode(node.id)}
                   onRemove={() => onRemoveNode(node.id)}
+                  onDuplicate={() => onDuplicateNode(node.id)}
                 />
               ))}
             </div>

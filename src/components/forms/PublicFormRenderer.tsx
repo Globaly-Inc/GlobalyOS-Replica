@@ -152,6 +152,31 @@ function renderNode(
           </Select>
         </div>
       );
+    case 'multi_select': {
+      const selected = (values[node.id] as string[] | undefined) || [];
+      return (
+        <div className="space-y-1.5">
+          <Label>{node.properties.label} {node.validation.required && <span className="text-destructive">*</span>}</Label>
+          <div className="space-y-1">
+            {(node.properties.options || []).map((opt) => (
+              <div key={opt.value} className="flex items-center gap-2">
+                <Checkbox
+                  checked={selected.includes(opt.value)}
+                  onCheckedChange={(checked) => {
+                    const next = checked
+                      ? [...selected, opt.value]
+                      : selected.filter((v) => v !== opt.value);
+                    setValue(node.id, next);
+                  }}
+                  id={`${node.id}-${opt.value}`}
+                />
+                <Label htmlFor={`${node.id}-${opt.value}`} className="text-sm font-normal">{opt.label}</Label>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
     case 'checkbox':
       return (
         <div className="flex items-center gap-2">
@@ -190,7 +215,25 @@ function renderNode(
           <div className="bg-muted rounded px-3 py-2 text-sm font-mono">{String(values[node.id] ?? '—')}</div>
         </div>
       );
+    case 'payment':
+      return (
+        <div className="space-y-1.5">
+          <Label>{node.properties.label} {node.validation.required && <span className="text-destructive">*</span>}</Label>
+          <div className="border border-border rounded-lg p-4 bg-muted/30 text-sm text-muted-foreground flex items-center gap-2">
+            <CreditCardIcon className="h-5 w-5" />
+            <span>Payment will be collected via Stripe on submission</span>
+          </div>
+        </div>
+      );
     default:
       return null;
   }
+}
+
+function CreditCardIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" x2="22" y1="10" y2="10" />
+    </svg>
+  );
 }

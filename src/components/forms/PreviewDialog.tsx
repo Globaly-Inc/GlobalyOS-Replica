@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { PublicFormRenderer } from './PublicFormRenderer';
 import type { FormNode, FormTheme } from '@/types/forms';
 
@@ -16,6 +16,7 @@ export function PreviewDialog({ open, onOpenChange, nodes, theme, formName }: Pr
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Form Preview</DialogTitle>
+          <DialogDescription>Preview how your form will look to respondents.</DialogDescription>
         </DialogHeader>
         <PublicFormRenderer nodes={nodes} theme={theme} formName={formName} preview />
       </DialogContent>

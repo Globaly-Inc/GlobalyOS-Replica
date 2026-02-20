@@ -1,6 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Trash2, Type, Heading1, Heading2, AlignLeft, Image, LayoutList, Minus, Mail, Phone, Calendar, FileText, Hash, ChevronDown, CheckSquare, CircleDot, Upload, Calculator, CreditCard, User } from 'lucide-react';
+import { GripVertical, Trash2, Copy, Type, Heading1, Heading2, AlignLeft, Image, LayoutList, Minus, Mail, Phone, Calendar, FileText, Hash, ChevronDown, CheckSquare, CircleDot, Upload, Calculator, CreditCard, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { FormNode } from '@/types/forms';
 
@@ -31,9 +31,10 @@ interface CanvasElementProps {
   isSelected: boolean;
   onSelect: () => void;
   onRemove: () => void;
+  onDuplicate: () => void;
 }
 
-export function CanvasElement({ node, isSelected, onSelect, onRemove }: CanvasElementProps) {
+export function CanvasElement({ node, isSelected, onSelect, onRemove, onDuplicate }: CanvasElementProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: node.id });
 
   const style = {
@@ -42,7 +43,6 @@ export function CanvasElement({ node, isSelected, onSelect, onRemove }: CanvasEl
   };
 
   const Icon = iconMap[node.type] || Type;
-  const isElement = ['heading', 'subheading', 'paragraph', 'image', 'section', 'divider'].includes(node.type);
 
   return (
     <div
@@ -99,12 +99,22 @@ export function CanvasElement({ node, isSelected, onSelect, onRemove }: CanvasEl
         )}
       </div>
 
-      <button
-        onClick={(e) => { e.stopPropagation(); onRemove(); }}
-        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
+          className="text-muted-foreground hover:text-foreground p-1 rounded"
+          title="Duplicate"
+        >
+          <Copy className="h-3.5 w-3.5" />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          className="text-muted-foreground hover:text-destructive p-1 rounded"
+          title="Delete"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
     </div>
   );
 }
