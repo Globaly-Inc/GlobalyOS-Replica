@@ -4,12 +4,12 @@ import { useLocation, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
 const callsSubNavItems = [
-  { name: 'Numbers', href: '/crm/calls', icon: Phone, exact: true },
+  { name: 'Analytics', href: '/crm/calls/usage', icon: Activity },
+  { name: 'Monitoring', href: '/crm/calls/monitoring', icon: Headphones },
+  { name: 'Queues', href: '/crm/calls/queues', icon: Users },
   { name: 'Recordings', href: '/crm/calls/recordings', icon: Mic },
   { name: 'Campaigns', href: '/crm/calls/campaigns', icon: PhoneCall },
-  { name: 'Queues', href: '/crm/calls/queues', icon: Users },
-  { name: 'Monitoring', href: '/crm/calls/monitoring', icon: Headphones },
-  { name: 'Usage', href: '/crm/calls/usage', icon: Activity },
+  { name: 'Numbers', href: '/crm/calls', icon: Phone, exact: true },
 ];
 
 export const CallsSubNav = () => {
