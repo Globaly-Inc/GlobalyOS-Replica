@@ -4,6 +4,7 @@ import { AdminSetup } from "@/components/AdminSetup";
 import { AddEmployeeDialog } from "@/components/dialogs/AddEmployeeDialog";
 import { AddLeaveRequestDialog } from "@/components/dialogs/AddLeaveRequestDialog";
 import { useUserRole } from "@/hooks/useUserRole";
+import { FeatureSetupGuide } from "@/components/home/FeatureSetupGuide";
 import { useHomeData } from "@/hooks/useHomeData";
 import { HomeHeroSection } from "@/components/home/HomeHeroSection";
 import { HomeSidebar } from "@/components/home/HomeSidebar";
@@ -12,7 +13,7 @@ import { HomeMobileLeaveSection } from "@/components/home/HomeMobileLeaveSection
 
 const Home = () => {
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
-  const { isHR } = useUserRole();
+  const { isHR, isAdmin, isOwner } = useUserRole();
   
   const {
     hasEmployeeProfile,
@@ -33,6 +34,9 @@ const Home = () => {
     <>
       <div className="space-y-4">
         <AdminSetup />
+
+        {/* Feature Setup Guidance for Admins/Owners */}
+        {(isAdmin || isOwner) && <FeatureSetupGuide />}
         
         {/* Page Title - Hero Section */}
         <HomeHeroSection

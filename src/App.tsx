@@ -62,6 +62,9 @@ const Settings = lazy(() => import('./pages/Settings'));
  const SettingsAI = lazy(() => import('./pages/settings/SettingsAI'));
  const SettingsBilling = lazy(() => import('./pages/settings/SettingsBilling'));
  const SettingsCRM = lazy(() => import('./pages/settings/SettingsCRM'));
+ const SettingsHiring = lazy(() => import('./pages/settings/SettingsHiring'));
+ const SettingsInbox = lazy(() => import('./pages/settings/SettingsInbox'));
+ const SettingsTelephony = lazy(() => import('./pages/settings/SettingsTelephony'));
 const Join = lazy(() => import('./pages/Join'));
 const Leave = lazy(() => import('./pages/Leave'));
 const BulkLeaveImport = lazy(() => import('./pages/BulkLeaveImport'));
@@ -295,6 +298,9 @@ const App = () => <QueryClientProvider client={queryClient}>
                   <Route path="settings/ai" element={<OrgProtectedRoute><FeatureProtectedRoute feature="ask-ai"><SettingsAI /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="settings/billing" element={<OrgProtectedRoute><SettingsBilling /></OrgProtectedRoute>} />
                   <Route path="settings/crm" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><SettingsCRM /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                  <Route path="settings/hiring" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><SettingsHiring /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                  <Route path="settings/inbox" element={<OrgProtectedRoute><FeatureProtectedRoute feature="omnichannel_inbox"><SettingsInbox /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                  <Route path="settings/telephony" element={<OrgProtectedRoute><FeatureProtectedRoute feature="telephony"><SettingsTelephony /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="settings/workflow/:templateId" element={<OrgProtectedRoute><WorkflowSettings /></OrgProtectedRoute>} />
                   <Route path="notifications" element={<OrgProtectedRoute><Notifications /></OrgProtectedRoute>} />
                   <Route path="notifications/preferences" element={<OrgProtectedRoute><NotificationPreferences /></OrgProtectedRoute>} />
