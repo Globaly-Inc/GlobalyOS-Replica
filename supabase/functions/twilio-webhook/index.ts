@@ -31,6 +31,10 @@ serve(async (req) => {
       return await handleStatusCallback(supabase, payload);
     }
 
+    if (type === "campaign_status") {
+      return await handleCampaignStatusCallback(supabase, payload, url);
+    }
+
     if (type === "voice") {
       return await handleVoiceInbound(supabase, payload);
     }
@@ -46,14 +50,14 @@ serve(async (req) => {
   }
 });
 
+// --- SMS Inbound ---
 async function handleSmsInbound(supabase: any, payload: Record<string, string>) {
-  const to = payload.To; // Our Twilio number
+  const to = payload.To;
   const from = payload.From;
   const body = payload.Body || "";
   const messageSid = payload.MessageSid || payload.SmsSid || "";
   const numSegments = parseInt(payload.NumSegments || "1", 10);
 
-  // Find org by phone number
   const { data: phoneRecord } = await supabase
     .from("org_phone_numbers")
     .select("*")
@@ -68,7 +72,6 @@ async function handleSmsInbound(supabase: any, payload: Record<string, string>) 
 
   const orgId = phoneRecord.organization_id;
 
-  // Upsert contact
   let { data: contact } = await supabase
     .from("inbox_contacts")
     .select("id")
@@ -94,7 +97,6 @@ async function handleSmsInbound(supabase: any, payload: Record<string, string>) 
     return new Response("<Response></Response>", { headers: { "Content-Type": "text/xml" } });
   }
 
-  // Find or create conversation
   let { data: conversation } = await supabase
     .from("inbox_conversations")
     .select("id, unread_count")
@@ -106,7 +108,6 @@ async function handleSmsInbound(supabase: any, payload: Record<string, string>) 
     .limit(1)
     .single();
 
-  // Find the SMS channel
   const { data: smsChannel } = await supabase
     .from("inbox_channels")
     .select("id")
@@ -148,7 +149,6 @@ async function handleSmsInbound(supabase: any, payload: Record<string, string>) 
     return new Response("<Response></Response>", { headers: { "Content-Type": "text/xml" } });
   }
 
-  // Insert message
   await supabase.from("inbox_messages").insert({
     organization_id: orgId,
     conversation_id: conversation.id,
@@ -160,7 +160,6 @@ async function handleSmsInbound(supabase: any, payload: Record<string, string>) 
     created_by_type: "contact",
   });
 
-  // Log usage
   await supabase.from("telephony_usage_logs").insert({
     organization_id: orgId,
     phone_number_id: phoneRecord.id,
@@ -172,18 +171,17 @@ async function handleSmsInbound(supabase: any, payload: Record<string, string>) 
     twilio_sid: messageSid,
   });
 
-  // Return empty TwiML (no auto-reply)
   return new Response("<Response></Response>", {
     headers: { "Content-Type": "text/xml" },
   });
 }
 
+// --- Voice Inbound ---
 async function handleVoiceInbound(supabase: any, payload: Record<string, string>) {
   const to = payload.To;
   const from = payload.From;
   const callSid = payload.CallSid || "";
 
-  // Find org by phone number
   const { data: phoneRecord } = await supabase
     .from("org_phone_numbers")
     .select("*")
@@ -200,6 +198,7 @@ async function handleVoiceInbound(supabase: any, payload: Record<string, string>
 
   const orgId = phoneRecord.organization_id;
   const ivrConfig = phoneRecord.ivr_config || {};
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 
   // Log usage
   await supabase.from("telephony_usage_logs").insert({
@@ -212,7 +211,8 @@ async function handleVoiceInbound(supabase: any, payload: Record<string, string>
     twilio_sid: callSid,
   });
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  // Check recording settings
+  const recordAttr = await getRecordAttribute(supabase, orgId, "inbound", supabaseUrl);
 
   // --- Tree-based IVR ---
   if (Array.isArray(ivrConfig?.nodes)) {
@@ -221,14 +221,13 @@ async function handleVoiceInbound(supabase: any, payload: Record<string, string>
 
     if (!rootNode) {
       return new Response(
-        `<Response><Say>Thank you for calling. Goodbye.</Say><Hangup/></Response>`,
+        `<Response>${recordAttr}<Say>Thank you for calling. Goodbye.</Say><Hangup/></Response>`,
         { headers: { "Content-Type": "text/xml" } }
       );
     }
 
-    // Generate TwiML by walking the tree from root
     const twiml = generateNodeTwiML(rootNode, nodes, supabaseUrl, phoneRecord.id);
-    return new Response(`<Response>${twiml}</Response>`, {
+    return new Response(`<Response>${recordAttr}${twiml}</Response>`, {
       headers: { "Content-Type": "text/xml" },
     });
   }
@@ -249,7 +248,7 @@ async function handleVoiceInbound(supabase: any, payload: Record<string, string>
       .join(" ");
 
     return new Response(
-      `<Response>
+      `<Response>${recordAttr}
         <Gather input="dtmf" numDigits="1" action="${ivrActionUrl}" method="POST" timeout="10">
           <Say>${greeting} ${menuPrompt}</Say>
         </Gather>
@@ -260,10 +259,9 @@ async function handleVoiceInbound(supabase: any, payload: Record<string, string>
     );
   }
 
-  // No IVR menu — go straight to voicemail
   if (legacyConfig.voicemail_enabled !== false) {
     return new Response(
-      `<Response>
+      `<Response>${recordAttr}
         <Say>${greeting}</Say>
         <Record maxLength="120" transcribe="true" playBeep="true" />
         <Say>Goodbye.</Say>
@@ -274,11 +272,38 @@ async function handleVoiceInbound(supabase: any, payload: Record<string, string>
   }
 
   return new Response(
-    `<Response><Say>${greeting}</Say><Hangup/></Response>`,
+    `<Response>${recordAttr}<Say>${greeting}</Say><Hangup/></Response>`,
     { headers: { "Content-Type": "text/xml" } }
   );
 }
 
+// --- Recording Settings Helper ---
+async function getRecordAttribute(supabase: any, orgId: string, direction: string, supabaseUrl: string): Promise<string> {
+  try {
+    const { data: settings } = await supabase
+      .from("call_recording_settings")
+      .select("auto_record_all, auto_record_inbound, auto_record_outbound")
+      .eq("organization_id", orgId)
+      .maybeSingle();
+
+    if (!settings) return "";
+
+    const shouldRecord =
+      settings.auto_record_all ||
+      (direction === "inbound" && settings.auto_record_inbound) ||
+      (direction === "outbound" && settings.auto_record_outbound);
+
+    if (shouldRecord) {
+      const recordingCallbackUrl = `${supabaseUrl}/functions/v1/twilio-recording-webhook`;
+      return `<Record recordingStatusCallback="${recordingCallbackUrl}" recordingStatusCallbackMethod="POST" recordingStatusCallbackEvent="completed" />`;
+    }
+  } catch (e) {
+    console.error("Error checking recording settings:", e);
+  }
+  return "";
+}
+
+// --- Generate TwiML for tree nodes ---
 function generateNodeTwiML(node: any, nodes: any[], supabaseUrl: string, phoneId: string): string {
   switch (node.type) {
     case "greeting":
@@ -289,7 +314,6 @@ function generateNodeTwiML(node: any, nodes: any[], supabaseUrl: string, phoneId
         const child = nodes.find((n: any) => n.id === childId);
         if (child) {
           if (child.type === "menu") {
-            // Inline the greeting into the gather
             const actionUrl = `${supabaseUrl}/functions/v1/twilio-ivr-action?phone_id=${phoneId}&node_id=${child.id}`;
             const menuPrompt = (child.menu_options || [])
               .map((opt: any) => `Press ${opt.digit} for ${opt.label}.`)
@@ -340,6 +364,7 @@ function generateNodeTwiML(node: any, nodes: any[], supabaseUrl: string, phoneId
   }
 }
 
+// --- Status Callback ---
 async function handleStatusCallback(supabase: any, payload: Record<string, string>) {
   const messageSid = payload.MessageSid || payload.SmsSid;
   const callSid = payload.CallSid;
@@ -369,7 +394,6 @@ async function handleStatusCallback(supabase: any, payload: Record<string, strin
   }
 
   if (callSid && callDuration) {
-    // Update call duration in usage logs
     await supabase
       .from("telephony_usage_logs")
       .update({
@@ -382,4 +406,85 @@ async function handleStatusCallback(supabase: any, payload: Record<string, strin
   return new Response("<Response></Response>", {
     headers: { "Content-Type": "text/xml" },
   });
+}
+
+// --- Campaign Status Callback ---
+async function handleCampaignStatusCallback(supabase: any, payload: Record<string, string>, reqUrl: URL) {
+  const campaignId = reqUrl.searchParams.get("campaign_id");
+  const contactId = reqUrl.searchParams.get("contact_id");
+  const callStatus = payload.CallStatus;
+  const callDuration = payload.CallDuration;
+  const answeredBy = payload.AnsweredBy; // human, machine, unknown
+
+  if (!campaignId || !contactId) {
+    return new Response("<Response></Response>", { headers: { "Content-Type": "text/xml" } });
+  }
+
+  // Update contact status based on call outcome
+  if (callStatus === "completed") {
+    const durationSec = parseInt(callDuration || "0", 10);
+    const outcome = answeredBy === "machine" ? "voicemail" : "connected";
+    const status = "completed";
+
+    await supabase
+      .from("call_campaign_contacts")
+      .update({
+        status,
+        outcome,
+        duration_seconds: durationSec,
+      })
+      .eq("id", contactId);
+
+    // Update campaign counters
+    const counterUpdates: any = {
+      completed_calls: supabase.rpc ? undefined : 0,
+    };
+
+    const { data: campaign } = await supabase
+      .from("call_campaigns")
+      .select("completed_calls, connected_calls, failed_calls")
+      .eq("id", campaignId)
+      .single();
+
+    if (campaign) {
+      const updates: any = {
+        completed_calls: (campaign.completed_calls || 0) + 1,
+      };
+      if (outcome === "connected") {
+        updates.connected_calls = (campaign.connected_calls || 0) + 1;
+      }
+      await supabase.from("call_campaigns").update(updates).eq("id", campaignId);
+    }
+  } else if (["busy", "no-answer", "failed", "canceled"].includes(callStatus)) {
+    await supabase
+      .from("call_campaign_contacts")
+      .update({ status: "failed", outcome: callStatus })
+      .eq("id", contactId);
+
+    const { data: campaign } = await supabase
+      .from("call_campaigns")
+      .select("failed_calls")
+      .eq("id", campaignId)
+      .single();
+
+    if (campaign) {
+      await supabase
+        .from("call_campaigns")
+        .update({ failed_calls: (campaign.failed_calls || 0) + 1 })
+        .eq("id", campaignId);
+    }
+  }
+
+  // Update usage log with duration
+  if (callDuration && payload.CallSid) {
+    await supabase
+      .from("telephony_usage_logs")
+      .update({
+        duration_seconds: parseInt(callDuration, 10),
+        metadata: { call_status: callStatus, answered_by: answeredBy },
+      })
+      .eq("twilio_sid", payload.CallSid);
+  }
+
+  return new Response("<Response></Response>", { headers: { "Content-Type": "text/xml" } });
 }
