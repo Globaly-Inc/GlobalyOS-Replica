@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ChannelBadge } from './ChannelBadge';
 import { InboxTagManager } from './InboxTagManager';
 import { InboxActivityTimeline } from './InboxActivityTimeline';
@@ -11,8 +12,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Phone, Mail, Clock, UserCheck, XCircle, Pause, ExternalLink } from 'lucide-react';
+import { Phone, Mail, Clock, UserCheck, XCircle, Pause, ExternalLink, PhoneOutgoing, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
+import { useOrganization } from '@/hooks/useOrganization';
+import { toast } from 'sonner';
 import type { InboxConversation, InboxContact, InboxConversationStatus } from '@/types/inbox';
 
 interface InboxContactPanelProps {
@@ -24,10 +28,34 @@ interface InboxContactPanelProps {
 }
 
 export const InboxContactPanel = ({ conversation, onUpdateStatus, onAssign, onUpdateTags, onUpdatePriority }: InboxContactPanelProps) => {
+  const { currentOrg } = useOrganization();
+  const [isCalling, setIsCalling] = useState(false);
+
   if (!conversation) return null;
 
   const contact = conversation.inbox_contacts;
   const displayName = contact?.name || contact?.phone || contact?.email || 'Unknown';
+  const canCall = !!contact?.phone && (conversation.channel_type === 'sms' || !!contact?.phone);
+
+  const handleCall = async () => {
+    if (!contact?.phone || !currentOrg?.id) return;
+    setIsCalling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('twilio-outbound-call', {
+        body: {
+          to_number: contact.phone,
+          organization_id: currentOrg.id,
+          conversation_id: conversation.id,
+        },
+      });
+      if (error) throw error;
+      toast.success(`Call initiated to ${contact.phone}`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to initiate call');
+    } finally {
+      setIsCalling(false);
+    }
+  };
 
   return (
     <ScrollArea className="h-full border-l border-border bg-card">
@@ -65,6 +93,22 @@ export const InboxContactPanel = ({ conversation, onUpdateStatus, onAssign, onUp
               <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-primary text-xs">View in CRM</span>
             </div>
+          )}
+          {canCall && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full text-xs"
+              onClick={handleCall}
+              disabled={isCalling}
+            >
+              {isCalling ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+              ) : (
+                <PhoneOutgoing className="h-3.5 w-3.5 mr-1" />
+              )}
+              {isCalling ? 'Calling...' : `Call ${contact?.phone}`}
+            </Button>
           )}
         </div>
 

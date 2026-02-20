@@ -75,10 +75,27 @@ serve(async (req) => {
         return new Response(
           `<Response>
             <Say>${selected.message || "Please leave a message after the beep."}</Say>
-            <Record maxLength="120" transcribe="true" playBeep="true" />
+            <Record maxLength="120" transcribe="true" playBeep="true" action="${supabaseUrl}/functions/v1/twilio-recording-webhook" method="POST" />
             <Say>Thank you. Goodbye.</Say>
             <Hangup/>
           </Response>`,
+          { headers: { "Content-Type": "text/xml" } }
+        );
+
+      case "forward":
+        if (selected.message) {
+          return new Response(
+            `<Response>
+              <Say>Connecting you now. Please hold.</Say>
+              <Dial callerId="${supabaseUrl}">${selected.message}</Dial>
+              <Say>The call could not be completed. Goodbye.</Say>
+              <Hangup/>
+            </Response>`,
+            { headers: { "Content-Type": "text/xml" } }
+          );
+        }
+        return new Response(
+          `<Response><Say>No forwarding number configured. Goodbye.</Say><Hangup/></Response>`,
           { headers: { "Content-Type": "text/xml" } }
         );
 
@@ -92,7 +109,6 @@ serve(async (req) => {
         );
 
       default:
-        // Default: play a message
         return new Response(
           `<Response>
             <Say>${selected.message || `You selected ${selected.label}. An agent will be with you shortly.`}</Say>

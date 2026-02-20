@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useInboxChannels } from '@/hooks/useInbox';
+import { useOrgPhoneNumbers } from '@/hooks/useTelephony';
 import { ChannelBadge } from '@/components/inbox/ChannelBadge';
 import { ConnectChannelDialog } from '@/components/inbox/ConnectChannelDialog';
 import { EditChannelDialog } from '@/components/inbox/EditChannelDialog';
@@ -28,7 +29,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Plus, Wifi, WifiOff, Bot, MoreVertical, Pencil, Trash2, MessageSquare } from 'lucide-react';
+import { Plus, Wifi, WifiOff, Bot, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
@@ -48,6 +49,7 @@ const availableChannels: { type: InboxChannelType; description: string; comingSo
 
 const InboxChannelsPage = () => {
   const { data: channels = [], isLoading } = useInboxChannels();
+  const { data: phoneNumbers = [] } = useOrgPhoneNumbers();
   const [connectChannel, setConnectChannel] = useState<InboxChannelType | null>(null);
   const [editChannel, setEditChannel] = useState<any | null>(null);
   const [deleteChannel, setDeleteChannel] = useState<any | null>(null);
@@ -88,6 +90,18 @@ const InboxChannelsPage = () => {
     }
   };
 
+  // Helper to find associated phone number for SMS channels
+  const getChannelPhoneNumber = (channel: any): string | null => {
+    const config = channel.config as Record<string, any> | null;
+    const phoneNumberId = config?.phone_number_id;
+    if (phoneNumberId) {
+      const pn = phoneNumbers.find((p) => p.id === phoneNumberId);
+      return pn?.phone_number || null;
+    }
+    const creds = channel.credentials as Record<string, any> | null;
+    return creds?.phone_number || null;
+  };
+
   return (
     <div>
       <InboxSubNav />
@@ -104,75 +118,82 @@ const InboxChannelsPage = () => {
         <div className="space-y-3">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Connected</h2>
           <div className="grid gap-3 md:grid-cols-2">
-            {channels.map((ch) => (
-              <Card key={ch.id} className="border">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <ChannelBadge channel={ch.channel_type as InboxChannelType} size="md" />
-                      <div>
-                        <CardTitle className="text-sm">{ch.display_name}</CardTitle>
-                        <CardDescription className="text-xs">
-                          {CHANNEL_META[ch.channel_type as InboxChannelType]?.label}
-                        </CardDescription>
+            {channels.map((ch) => {
+              const smsPhone = ch.channel_type === 'sms' ? getChannelPhoneNumber(ch) : null;
+              return (
+                <Card key={ch.id} className="border">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <ChannelBadge channel={ch.channel_type as InboxChannelType} size="md" />
+                        <div>
+                          <CardTitle className="text-sm">{ch.display_name}</CardTitle>
+                          <CardDescription className="text-xs">
+                            {smsPhone ? (
+                              <span className="font-mono">{smsPhone}</span>
+                            ) : (
+                              CHANNEL_META[ch.channel_type as InboxChannelType]?.label
+                            )}
+                          </CardDescription>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Badge variant={ch.webhook_status === 'connected' ? 'default' : 'secondary'} className="text-[10px]">
+                          {ch.webhook_status === 'connected' ? (
+                            <><Wifi className="h-3 w-3 mr-1" /> Connected</>
+                          ) : (
+                            <><WifiOff className="h-3 w-3 mr-1" /> {ch.webhook_status}</>
+                          )}
+                        </Badge>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7">
+                              <MoreVertical className="h-3.5 w-3.5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setEditChannel(ch)}>
+                              <Pencil className="h-3.5 w-3.5 mr-2" />
+                              Edit Channel
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => setDeleteChannel(ch)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="h-3.5 w-3.5 mr-2" />
+                              Delete Channel
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Badge variant={ch.webhook_status === 'connected' ? 'default' : 'secondary'} className="text-[10px]">
-                        {ch.webhook_status === 'connected' ? (
-                          <><Wifi className="h-3 w-3 mr-1" /> Connected</>
-                        ) : (
-                          <><WifiOff className="h-3 w-3 mr-1" /> {ch.webhook_status}</>
-                        )}
-                      </Badge>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7">
-                            <MoreVertical className="h-3.5 w-3.5" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setEditChannel(ch)}>
-                            <Pencil className="h-3.5 w-3.5 mr-2" />
-                            Edit Channel
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => setDeleteChannel(ch)}
-                            className="text-destructive focus:text-destructive"
-                          >
-                            <Trash2 className="h-3.5 w-3.5 mr-2" />
-                            Delete Channel
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                  </CardHeader>
+                  <CardContent className="pt-0 space-y-3">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>
+                        Last webhook: {ch.last_webhook_at
+                          ? format(new Date(ch.last_webhook_at), 'MMM d, HH:mm')
+                          : 'Never'}
+                      </span>
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0 space-y-3">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>
-                      Last webhook: {ch.last_webhook_at
-                        ? format(new Date(ch.last_webhook_at), 'MMM d, HH:mm')
-                        : 'Never'}
-                    </span>
-                  </div>
-                  {ch.last_error && (
-                    <p className="text-xs text-destructive truncate">{ch.last_error}</p>
-                  )}
-                  <div className="flex items-center justify-between pt-1 border-t border-border">
-                    <div className="flex items-center gap-1.5">
-                      <Bot className="h-3.5 w-3.5 text-violet-500" />
-                      <Label className="text-xs font-medium cursor-pointer">AI Auto-Reply</Label>
+                    {ch.last_error && (
+                      <p className="text-xs text-destructive truncate">{ch.last_error}</p>
+                    )}
+                    <div className="flex items-center justify-between pt-1 border-t border-border">
+                      <div className="flex items-center gap-1.5">
+                        <Bot className="h-3.5 w-3.5 text-violet-500" />
+                        <Label className="text-xs font-medium cursor-pointer">AI Auto-Reply</Label>
+                      </div>
+                      <Switch
+                        checked={(ch as any).ai_auto_reply_enabled || false}
+                        onCheckedChange={(checked) => toggleAutoReply(ch.id, checked)}
+                      />
                     </div>
-                    <Switch
-                      checked={(ch as any).ai_auto_reply_enabled || false}
-                      onCheckedChange={(checked) => toggleAutoReply(ch.id, checked)}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </div>
       )}

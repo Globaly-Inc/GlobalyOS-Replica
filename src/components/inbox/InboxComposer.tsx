@@ -1,4 +1,4 @@
-import { useState, useRef, KeyboardEvent, useCallback, useEffect } from 'react';
+import { useState, useRef, KeyboardEvent, useCallback, useEffect, useMemo } from 'react';
 import { Send, Sparkles, Paperclip, StickyNote, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -20,6 +20,18 @@ interface InboxComposerProps {
   windowExpired?: boolean;
 }
 
+function getSmsSegmentInfo(text: string) {
+  // GSM 7-bit: 160 chars per segment (or 153 for multi-part)
+  // UCS-2: 70 chars per segment (or 67 for multi-part)
+  const gsmRegex = /^[@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ ÆæßÉ!"#¤%&'()*+,\-.\/0-9:;<=>?¡A-ZÄÖÑÜa-zäöñüà\^{}\\\[~\]|€]*$/;
+  const isGsm = gsmRegex.test(text);
+  const charLimit = isGsm ? 160 : 70;
+  const multiLimit = isGsm ? 153 : 67;
+  const len = text.length;
+  const segments = len <= charLimit ? 1 : Math.ceil(len / multiLimit);
+  return { chars: len, charLimit, segments, isGsm };
+}
+
 export const InboxComposer = ({
   onSend,
   onSendNote,
@@ -37,6 +49,11 @@ export const InboxComposer = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+
+  const smsInfo = useMemo(() => {
+    if (channelType !== 'sms' || mode !== 'reply') return null;
+    return getSmsSegmentInfo(text);
+  }, [text, channelType, mode]);
 
   const handleSend = () => {
     const trimmed = text.trim();
@@ -59,7 +76,6 @@ export const InboxComposer = ({
 
   const handleTextChange = (value: string) => {
     setText(value);
-    // Typing indicator
     if (value.trim() && mode === 'reply') {
       onTypingChange?.(true);
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -144,6 +160,16 @@ export const InboxComposer = ({
           <StickyNote className="h-3 w-3" />
           Note
         </button>
+
+        {/* SMS segment counter */}
+        {smsInfo && text.length > 0 && (
+          <span className={cn(
+            'ml-auto text-[10px] font-mono tabular-nums',
+            smsInfo.segments > 1 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'
+          )}>
+            SMS · {smsInfo.chars}/{smsInfo.charLimit} · {smsInfo.segments} seg{smsInfo.segments > 1 ? 's' : ''}
+          </span>
+        )}
       </div>
 
       {/* Input area */}

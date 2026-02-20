@@ -15,7 +15,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, Loader2 } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { Plus, Trash2, Loader2, Volume2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface MenuOption {
   digit: string;
@@ -24,10 +26,19 @@ interface MenuOption {
   message?: string;
 }
 
+interface BusinessHours {
+  enabled: boolean;
+  start: string;
+  end: string;
+  timezone: string;
+  after_hours_greeting: string;
+}
+
 interface IvrConfig {
   greeting?: string;
   menu_options?: MenuOption[];
   voicemail_enabled?: boolean;
+  business_hours?: BusinessHours;
 }
 
 interface IvrBuilderDialogProps {
@@ -43,12 +54,31 @@ export function IvrBuilderDialog({ open, onOpenChange, phoneNumber }: IvrBuilder
   const [greeting, setGreeting] = useState(existing.greeting || '');
   const [voicemailEnabled, setVoicemailEnabled] = useState(existing.voicemail_enabled !== false);
   const [menuOptions, setMenuOptions] = useState<MenuOption[]>(existing.menu_options || []);
+  const [businessHours, setBusinessHours] = useState<BusinessHours>(
+    existing.business_hours || {
+      enabled: false,
+      start: '09:00',
+      end: '17:00',
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      after_hours_greeting: 'We are currently closed. Please leave a message after the beep.',
+    }
+  );
+  const [isPreviewing, setIsPreviewing] = useState(false);
 
   useEffect(() => {
     const cfg = (phoneNumber.ivr_config || {}) as IvrConfig;
     setGreeting(cfg.greeting || '');
     setVoicemailEnabled(cfg.voicemail_enabled !== false);
     setMenuOptions(cfg.menu_options || []);
+    setBusinessHours(
+      cfg.business_hours || {
+        enabled: false,
+        start: '09:00',
+        end: '17:00',
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        after_hours_greeting: 'We are currently closed. Please leave a message after the beep.',
+      }
+    );
   }, [phoneNumber.id]);
 
   const addOption = () => {
@@ -71,14 +101,39 @@ export function IvrBuilderDialog({ open, onOpenChange, phoneNumber }: IvrBuilder
         greeting,
         voicemail_enabled: voicemailEnabled,
         menu_options: menuOptions.filter((o) => o.label.trim()),
+        business_hours: businessHours,
       },
     });
     onOpenChange(false);
   };
 
+  const handlePreview = () => {
+    if (!greeting && menuOptions.length === 0) {
+      toast.info('Add a greeting or menu options first');
+      return;
+    }
+    setIsPreviewing(true);
+    const fullText = [
+      greeting || 'Thank you for calling.',
+      ...menuOptions.filter(o => o.label).map(o => `Press ${o.digit} for ${o.label}.`),
+    ].join(' ');
+
+    const utterance = new SpeechSynthesisUtterance(fullText);
+    utterance.rate = 0.9;
+    utterance.onend = () => setIsPreviewing(false);
+    utterance.onerror = () => setIsPreviewing(false);
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const stopPreview = () => {
+    window.speechSynthesis.cancel();
+    setIsPreviewing(false);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={(o) => { if (!o) stopPreview(); onOpenChange(o); }}>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>IVR Configuration</DialogTitle>
           <DialogDescription>
@@ -89,7 +144,18 @@ export function IvrBuilderDialog({ open, onOpenChange, phoneNumber }: IvrBuilder
         <div className="space-y-5">
           {/* Greeting */}
           <div className="space-y-2">
-            <Label>Greeting Message</Label>
+            <div className="flex items-center justify-between">
+              <Label>Greeting Message</Label>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={isPreviewing ? stopPreview : handlePreview}
+              >
+                <Volume2 className="h-3 w-3 mr-1" />
+                {isPreviewing ? 'Stop' : 'Preview'}
+              </Button>
+            </div>
             <Textarea
               placeholder="Thank you for calling Acme Corp. Please listen to the following options."
               value={greeting}
@@ -109,6 +175,59 @@ export function IvrBuilderDialog({ open, onOpenChange, phoneNumber }: IvrBuilder
             </div>
             <Switch checked={voicemailEnabled} onCheckedChange={setVoicemailEnabled} />
           </div>
+
+          <Separator />
+
+          {/* Business Hours */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Business Hours</Label>
+                <p className="text-xs text-muted-foreground">Play a different greeting outside office hours</p>
+              </div>
+              <Switch
+                checked={businessHours.enabled}
+                onCheckedChange={(enabled) => setBusinessHours({ ...businessHours, enabled })}
+              />
+            </div>
+
+            {businessHours.enabled && (
+              <div className="space-y-3 pl-1">
+                <div className="flex gap-2">
+                  <div className="space-y-1 flex-1">
+                    <Label className="text-xs">Opens at</Label>
+                    <Input
+                      type="time"
+                      value={businessHours.start}
+                      onChange={(e) => setBusinessHours({ ...businessHours, start: e.target.value })}
+                      className="text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1 flex-1">
+                    <Label className="text-xs">Closes at</Label>
+                    <Input
+                      type="time"
+                      value={businessHours.end}
+                      onChange={(e) => setBusinessHours({ ...businessHours, end: e.target.value })}
+                      className="text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">After-hours Greeting</Label>
+                  <Textarea
+                    placeholder="We are currently closed. Please leave a message..."
+                    value={businessHours.after_hours_greeting}
+                    onChange={(e) => setBusinessHours({ ...businessHours, after_hours_greeting: e.target.value })}
+                    rows={2}
+                    className="text-sm"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <Separator />
 
           {/* Menu Options */}
           <div className="space-y-3">
@@ -153,17 +272,26 @@ export function IvrBuilderDialog({ open, onOpenChange, phoneNumber }: IvrBuilder
                 </div>
                 <div className="flex gap-2">
                   <Select value={opt.action} onValueChange={(v) => updateOption(idx, { action: v })}>
-                    <SelectTrigger className="w-[140px] text-xs">
+                    <SelectTrigger className="w-[160px] text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="message">Play Message</SelectItem>
                       <SelectItem value="voicemail">Go to Voicemail</SelectItem>
+                      <SelectItem value="forward">Forward to Agent</SelectItem>
                     </SelectContent>
                   </Select>
                   {opt.action === 'message' && (
                     <Input
                       placeholder="Message to play..."
+                      value={opt.message || ''}
+                      onChange={(e) => updateOption(idx, { message: e.target.value })}
+                      className="flex-1 text-xs"
+                    />
+                  )}
+                  {opt.action === 'forward' && (
+                    <Input
+                      placeholder="Phone number to forward to..."
                       value={opt.message || ''}
                       onChange={(e) => updateOption(idx, { message: e.target.value })}
                       className="flex-1 text-xs"
@@ -176,7 +304,7 @@ export function IvrBuilderDialog({ open, onOpenChange, phoneNumber }: IvrBuilder
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => { stopPreview(); onOpenChange(false); }}>Cancel</Button>
           <Button onClick={handleSave} disabled={updateIvr.isPending}>
             {updateIvr.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
             Save Configuration

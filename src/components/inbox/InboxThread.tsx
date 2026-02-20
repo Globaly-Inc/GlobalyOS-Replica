@@ -3,7 +3,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChannelBadge } from './ChannelBadge';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Bot, User, CheckCheck, Check, Clock, AlertCircle } from 'lucide-react';
+import { Bot, CheckCheck, Check, Clock, AlertCircle, PhoneIncoming, PhoneOutgoing, Mic } from 'lucide-react';
 import type { InboxMessage, InboxConversation, InboxContact } from '@/types/inbox';
 
 interface InboxThreadProps {
@@ -19,6 +19,75 @@ const deliveryIcon = {
   read: <CheckCheck className="h-3 w-3 text-blue-500" />,
   failed: <AlertCircle className="h-3 w-3 text-destructive" />,
 };
+
+function isVoiceSystemMessage(msg: InboxMessage): boolean {
+  const content = msg.content as Record<string, unknown>;
+  return msg.msg_type === 'system' && !!(content?.call_sid || content?.recording_url || content?.recording_duration);
+}
+
+function VoiceCallBubble({ msg }: { msg: InboxMessage }) {
+  const content = msg.content as {
+    body?: string;
+    call_sid?: string;
+    call_status?: string;
+    recording_url?: string;
+    recording_duration?: number;
+    transcription?: string;
+  };
+
+  const isInbound = msg.direction === 'inbound';
+  const hasRecording = !!content.recording_url;
+  const duration = content.recording_duration;
+
+  return (
+    <div className="flex justify-center">
+      <div className="bg-muted/60 border border-border rounded-xl px-4 py-3 max-w-sm space-y-2">
+        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+          {isInbound ? (
+            <PhoneIncoming className="h-4 w-4 text-green-600" />
+          ) : (
+            <PhoneOutgoing className="h-4 w-4 text-blue-600" />
+          )}
+          <span>{content.body || (isInbound ? 'Inbound Call' : 'Outbound Call')}</span>
+        </div>
+
+        {duration !== undefined && duration > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Duration: {duration >= 60 ? `${Math.floor(duration / 60)}m ${duration % 60}s` : `${duration}s`}
+          </p>
+        )}
+
+        {hasRecording && (
+          <div className="space-y-1.5">
+            <audio
+              controls
+              className="w-full h-8"
+              src={content.recording_url}
+            >
+              <a href={content.recording_url} target="_blank" rel="noopener noreferrer">
+                Listen to recording
+              </a>
+            </audio>
+          </div>
+        )}
+
+        {content.transcription && (
+          <div className="bg-background/60 rounded-md px-2.5 py-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1 mb-1">
+              <Mic className="h-3 w-3" />
+              <span className="font-medium text-foreground">Transcription</span>
+            </div>
+            <p className="italic">"{content.transcription}"</p>
+          </div>
+        )}
+
+        <p className="text-[10px] text-muted-foreground">
+          {format(new Date(msg.created_at), 'MMM d, HH:mm')}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export const InboxThread = ({ conversation, messages, isLoading }: InboxThreadProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -90,6 +159,11 @@ export const InboxThread = ({ conversation, messages, isLoading }: InboxThreadPr
               const isNote = msg.msg_type === 'note';
               const isSystem = msg.msg_type === 'system';
               const body = (msg.content as { body?: string })?.body || '';
+
+              // Voice call bubble
+              if (isVoiceSystemMessage(msg)) {
+                return <VoiceCallBubble key={msg.id} msg={msg} />;
+              }
 
               if (isSystem) {
                 return (
