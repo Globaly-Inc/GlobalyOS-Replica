@@ -238,8 +238,59 @@ serve(async (req: Request) => {
       );
     }
 
+    // ── ACTION: create_meet ──
+    if (action === "create_meet") {
+      const { summary, start_time, end_time } = params;
+
+      const now = new Date();
+      const meetStart = start_time || now.toISOString();
+      const meetEnd = end_time || new Date(now.getTime() + 30 * 60 * 1000).toISOString();
+
+      const event: any = {
+        summary: summary || "Quick Meet",
+        start: { dateTime: meetStart, timeZone: "UTC" },
+        end: { dateTime: meetEnd, timeZone: "UTC" },
+        conferenceData: {
+          createRequest: {
+            requestId: crypto.randomUUID(),
+            conferenceSolutionKey: { type: "hangoutsMeet" },
+          },
+        },
+      };
+
+      const calendarId = settings.primary_calendar_id || "primary";
+      const createUrl = `${CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events?conferenceDataVersion=1`;
+
+      const createRes = await fetch(createUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(event),
+      });
+
+      const createdEvent = await createRes.json();
+      if (!createRes.ok) {
+        throw new Error(`Failed to create Meet event: ${JSON.stringify(createdEvent)}`);
+      }
+
+      const meetLink = createdEvent.conferenceData?.entryPoints?.find(
+        (ep: any) => ep.entryPointType === "video"
+      )?.uri || null;
+
+      return new Response(
+        JSON.stringify({
+          meet_link: meetLink,
+          google_event_id: createdEvent.id,
+          html_link: createdEvent.htmlLink,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(
-      JSON.stringify({ error: "Invalid action. Use: get_busy_times, create_event, delete_event" }),
+      JSON.stringify({ error: "Invalid action. Use: get_busy_times, create_event, delete_event, create_meet" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {

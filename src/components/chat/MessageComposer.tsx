@@ -21,7 +21,7 @@ import {
   X,
   FileIcon,
   AtSign,
-  Video,
+  Video as VideoIcon,
   List,
   ListOrdered,
 } from "lucide-react";
@@ -36,6 +36,8 @@ import MentionAutocomplete from "./MentionAutocomplete";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import ChatAIAssist from "./ChatAIAssist";
+import { useCreateMeetLink } from "@/hooks/useGoogleMeet";
+import { toast as sonnerToast } from "sonner";
 
 import EmojiPicker from "@/components/ui/EmojiPicker";
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
@@ -103,6 +105,7 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
   const { updateTypingStatus, clearTypingStatus } = useTypingIndicator();
   const isMobile = useIsMobile();
   const { data: currentEmployee } = useCurrentEmployee();
+  const createMeetLink = useCreateMeetLink();
   
   // Fetch members for mentions - space members or conversation participants only
   const { data: spaceMembers = [] } = useSpaceMembers(spaceId);
@@ -682,11 +685,38 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
                     className="w-full justify-start gap-2 h-9"
                     onClick={() => triggerFilePicker("video")}
                   >
-                    <Video className="h-4 w-4" />
+                    <VideoIcon className="h-4 w-4" />
                     Upload video
                   </Button>
                 </PopoverContent>
               </Popover>
+
+              {/* Google Meet */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "text-muted-foreground hover:text-foreground",
+                  isMobile ? "h-10 w-10" : "h-8 w-8"
+                )}
+                disabled={createMeetLink.isPending || sendMessage.isPending || isUploading}
+                title="Start Google Meet"
+                onClick={async () => {
+                  try {
+                    const link = await createMeetLink.mutateAsync();
+                    // Insert the meet link as a message and open in new tab
+                    setMessage((prev) => (prev ? `${prev}\n${link}` : link));
+                    window.open(link, '_blank', 'noopener,noreferrer');
+                    sonnerToast.success('Meet link created');
+                  } catch {}
+                }}
+              >
+                {createMeetLink.isPending ? (
+                  <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <VideoIcon className={cn("text-green-600", isMobile ? "h-5 w-5" : "h-4 w-4")} />
+                )}
+              </Button>
 
               {/* Emoji */}
               <EmojiPicker

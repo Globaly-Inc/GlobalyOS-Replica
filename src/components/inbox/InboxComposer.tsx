@@ -1,10 +1,11 @@
 import { useState, useRef, KeyboardEvent, useCallback, useEffect, useMemo } from 'react';
-import { Send, Sparkles, Paperclip, StickyNote, Loader2 } from 'lucide-react';
+import { Send, Sparkles, Paperclip, StickyNote, Loader2, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { TemplatePicker } from './TemplatePicker';
+import { useCreateMeetLink } from '@/hooks/useGoogleMeet';
 import type { InboxChannelType } from '@/types/inbox';
 
 interface InboxComposerProps {
@@ -49,6 +50,7 @@ export const InboxComposer = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const createMeetLink = useCreateMeetLink();
 
   const smsInfo = useMemo(() => {
     if (channelType !== 'sms' || mode !== 'reply') return null;
@@ -197,6 +199,27 @@ export const InboxComposer = ({
                 title="Attach file"
               >
                 <Paperclip className="h-4 w-4 text-muted-foreground" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9"
+                onClick={async () => {
+                  try {
+                    const link = await createMeetLink.mutateAsync();
+                    setText((prev) => (prev ? `${prev}\n${link}` : link));
+                    textareaRef.current?.focus();
+                    toast.success('Meet link created');
+                  } catch {}
+                }}
+                disabled={disabled || createMeetLink.isPending}
+                title="Google Meet"
+              >
+                {createMeetLink.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Video className="h-4 w-4 text-green-600" />
+                )}
               </Button>
               <Button
                 variant="ghost"
