@@ -35,7 +35,7 @@ export default function PublicFormPage() {
         const { data: org } = await (supabase as any)
           .from('organizations')
           .select('id')
-          .eq('org_code', orgSlug)
+          .eq('slug', orgSlug)
           .maybeSingle();
 
         if (!org) {
