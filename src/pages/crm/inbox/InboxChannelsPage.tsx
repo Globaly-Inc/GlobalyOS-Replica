@@ -3,13 +3,31 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { useInboxChannels } from '@/hooks/useInbox';
 import { ChannelBadge } from '@/components/inbox/ChannelBadge';
 import { ConnectChannelDialog } from '@/components/inbox/ConnectChannelDialog';
+import { EditChannelDialog } from '@/components/inbox/EditChannelDialog';
 import { InboxSubNav } from '@/components/inbox/InboxSubNav';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Plus, Settings, Wifi, WifiOff, Bot } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Plus, Wifi, WifiOff, Bot, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
@@ -29,6 +47,9 @@ const availableChannels: { type: InboxChannelType; description: string }[] = [
 const InboxChannelsPage = () => {
   const { data: channels = [], isLoading } = useInboxChannels();
   const [connectChannel, setConnectChannel] = useState<InboxChannelType | null>(null);
+  const [editChannel, setEditChannel] = useState<any | null>(null);
+  const [deleteChannel, setDeleteChannel] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const qc = useQueryClient();
 
   const toggleAutoReply = async (channelId: string, enabled: boolean) => {
@@ -41,6 +62,25 @@ const InboxChannelsPage = () => {
     } else {
       toast.success(enabled ? 'AI auto-reply enabled' : 'AI auto-reply disabled');
       qc.invalidateQueries({ queryKey: ['inbox-channels'] });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteChannel) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('inbox_channels')
+        .delete()
+        .eq('id', deleteChannel.id);
+      if (error) throw error;
+      toast.success(`${deleteChannel.display_name} deleted`);
+      qc.invalidateQueries({ queryKey: ['inbox-channels'] });
+      setDeleteChannel(null);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete channel');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -73,13 +113,36 @@ const InboxChannelsPage = () => {
                         </CardDescription>
                       </div>
                     </div>
-                    <Badge variant={ch.webhook_status === 'connected' ? 'default' : 'secondary'} className="text-[10px]">
-                      {ch.webhook_status === 'connected' ? (
-                        <><Wifi className="h-3 w-3 mr-1" /> Connected</>
-                      ) : (
-                        <><WifiOff className="h-3 w-3 mr-1" /> {ch.webhook_status}</>
-                      )}
-                    </Badge>
+                    <div className="flex items-center gap-1">
+                      <Badge variant={ch.webhook_status === 'connected' ? 'default' : 'secondary'} className="text-[10px]">
+                        {ch.webhook_status === 'connected' ? (
+                          <><Wifi className="h-3 w-3 mr-1" /> Connected</>
+                        ) : (
+                          <><WifiOff className="h-3 w-3 mr-1" /> {ch.webhook_status}</>
+                        )}
+                      </Badge>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                            <MoreVertical className="h-3.5 w-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setEditChannel(ch)}>
+                            <Pencil className="h-3.5 w-3.5 mr-2" />
+                            Edit Channel
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => setDeleteChannel(ch)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-2" />
+                            Delete Channel
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0 space-y-3">
@@ -89,9 +152,6 @@ const InboxChannelsPage = () => {
                         ? format(new Date(ch.last_webhook_at), 'MMM d, HH:mm')
                         : 'Never'}
                     </span>
-                    <Button variant="ghost" size="sm" className="h-7 text-xs">
-                      <Settings className="h-3 w-3 mr-1" /> Configure
-                    </Button>
                   </div>
                   {ch.last_error && (
                     <p className="text-xs text-destructive truncate">{ch.last_error}</p>
@@ -145,6 +205,34 @@ const InboxChannelsPage = () => {
         onOpenChange={(open) => !open && setConnectChannel(null)}
         channelType={connectChannel}
       />
+
+      <EditChannelDialog
+        open={!!editChannel}
+        onOpenChange={(open) => !open && setEditChannel(null)}
+        channel={editChannel}
+      />
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deleteChannel} onOpenChange={(open) => !open && setDeleteChannel(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {deleteChannel?.display_name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove this channel and disconnect it from your inbox. Any active conversations on this channel will no longer receive new messages.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Deleting...' : 'Delete Channel'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       </div>
     </div>
   );
