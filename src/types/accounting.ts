@@ -153,6 +153,63 @@ export interface LedgerEntry {
   created_at: string;
 }
 
+// Invoice types
+export type InvoiceStatus = 'draft' | 'approved' | 'sent' | 'paid' | 'partially_paid' | 'overdue' | 'voided';
+
+export interface AccountingInvoice {
+  id: string;
+  organization_id: string;
+  ledger_id: string;
+  office_id: string;
+  contact_id: string | null;
+  invoice_number: string;
+  reference: string | null;
+  status: InvoiceStatus;
+  date: string;
+  due_date: string;
+  subtotal: number;
+  tax_total: number;
+  total: number;
+  amount_paid: number;
+  amount_due: number;
+  currency: string;
+  notes: string | null;
+  terms: string | null;
+  is_recurring: boolean;
+  recurrence_rule: Record<string, unknown> | null;
+  stripe_payment_link_id: string | null;
+  created_by: string;
+  approved_by: string | null;
+  approved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AccountingInvoiceLine {
+  id: string;
+  invoice_id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  amount: number;
+  account_id: string;
+  tax_rate_id: string | null;
+  tax_amount: number;
+  sort_order: number;
+}
+
+export interface AccountingInvoicePayment {
+  id: string;
+  invoice_id: string;
+  amount: number;
+  date: string;
+  method: string;
+  reference: string | null;
+  stripe_payment_id: string | null;
+  journal_id: string | null;
+  created_at: string;
+}
+
 // Setup wizard form types
 export interface SetupWizardFormData {
   scopeType: AccountingScopeType;

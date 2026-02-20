@@ -124,6 +124,234 @@ export type Database = {
           },
         ]
       }
+      accounting_invoice_lines: {
+        Row: {
+          account_id: string
+          amount: number
+          description: string
+          id: string
+          invoice_id: string
+          quantity: number
+          sort_order: number
+          tax_amount: number
+          tax_rate_id: string | null
+          unit_price: number
+        }
+        Insert: {
+          account_id: string
+          amount?: number
+          description: string
+          id?: string
+          invoice_id: string
+          quantity?: number
+          sort_order?: number
+          tax_amount?: number
+          tax_rate_id?: string | null
+          unit_price?: number
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          description?: string
+          id?: string
+          invoice_id?: string
+          quantity?: number
+          sort_order?: number
+          tax_amount?: number
+          tax_rate_id?: string | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_invoice_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_invoice_lines_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_invoice_lines_tax_rate_id_fkey"
+            columns: ["tax_rate_id"]
+            isOneToOne: false
+            referencedRelation: "tax_rates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_invoice_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          date: string
+          id: string
+          invoice_id: string
+          journal_id: string | null
+          method: string
+          reference: string | null
+          stripe_payment_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          date?: string
+          id?: string
+          invoice_id: string
+          journal_id?: string | null
+          method?: string
+          reference?: string | null
+          stripe_payment_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          date?: string
+          id?: string
+          invoice_id?: string
+          journal_id?: string | null
+          method?: string
+          reference?: string | null
+          stripe_payment_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_invoice_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_invoice_payments_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: false
+            referencedRelation: "journals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_invoices: {
+        Row: {
+          amount_due: number | null
+          amount_paid: number
+          approved_at: string | null
+          approved_by: string | null
+          contact_id: string | null
+          created_at: string
+          created_by: string
+          currency: string
+          date: string
+          due_date: string
+          id: string
+          invoice_number: string
+          is_recurring: boolean
+          ledger_id: string
+          notes: string | null
+          office_id: string
+          organization_id: string
+          recurrence_rule: Json | null
+          reference: string | null
+          status: Database["public"]["Enums"]["accounting_invoice_status"]
+          stripe_payment_link_id: string | null
+          subtotal: number
+          tax_total: number
+          terms: string | null
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          amount_due?: number | null
+          amount_paid?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by: string
+          currency?: string
+          date?: string
+          due_date?: string
+          id?: string
+          invoice_number: string
+          is_recurring?: boolean
+          ledger_id: string
+          notes?: string | null
+          office_id: string
+          organization_id: string
+          recurrence_rule?: Json | null
+          reference?: string | null
+          status?: Database["public"]["Enums"]["accounting_invoice_status"]
+          stripe_payment_link_id?: string | null
+          subtotal?: number
+          tax_total?: number
+          terms?: string | null
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          amount_due?: number | null
+          amount_paid?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string
+          currency?: string
+          date?: string
+          due_date?: string
+          id?: string
+          invoice_number?: string
+          is_recurring?: boolean
+          ledger_id?: string
+          notes?: string | null
+          office_id?: string
+          organization_id?: string
+          recurrence_rule?: Json | null
+          reference?: string | null
+          status?: Database["public"]["Enums"]["accounting_invoice_status"]
+          stripe_payment_link_id?: string | null
+          subtotal?: number
+          tax_total?: number
+          terms?: string | null
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_invoices_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_invoices_ledger_id_fkey"
+            columns: ["ledger_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_ledgers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_invoices_office_id_fkey"
+            columns: ["office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_invoices_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accounting_ledgers: {
         Row: {
           created_at: string
@@ -19042,6 +19270,14 @@ export type Database = {
         | "revenue"
         | "expense"
       accounting_contact_type: "customer" | "supplier" | "both"
+      accounting_invoice_status:
+        | "draft"
+        | "approved"
+        | "sent"
+        | "paid"
+        | "partially_paid"
+        | "overdue"
+        | "voided"
       accounting_scope_type: "OFFICE_SINGLE" | "OFFICE_SET" | "ORG_WIDE"
       accounting_setup_status: "draft" | "active" | "archived"
       app_role: "admin" | "hr" | "user" | "super_admin" | "owner" | "member"
@@ -19347,6 +19583,15 @@ export const Constants = {
         "expense",
       ],
       accounting_contact_type: ["customer", "supplier", "both"],
+      accounting_invoice_status: [
+        "draft",
+        "approved",
+        "sent",
+        "paid",
+        "partially_paid",
+        "overdue",
+        "voided",
+      ],
       accounting_scope_type: ["OFFICE_SINGLE", "OFFICE_SET", "ORG_WIDE"],
       accounting_setup_status: ["draft", "active", "archived"],
       app_role: ["admin", "hr", "user", "super_admin", "owner", "member"],
