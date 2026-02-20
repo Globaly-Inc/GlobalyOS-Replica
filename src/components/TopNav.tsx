@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { Home, Users, MessageSquare, BookOpen, CheckSquare, Briefcase, Target, Sparkles, Inbox, Phone } from 'lucide-react';
+import { Home, Users, MessageSquare, BookOpen, CheckSquare, Briefcase, Target, Sparkles, Inbox, Phone, Calculator } from 'lucide-react';
 import { OrgLink } from './OrgLink';
 import { cn } from '@/lib/utils';
 import { useLocation, useParams } from 'react-router-dom';
@@ -33,7 +33,8 @@ const mainNavItems: NavItem[] = [
 { name: 'Tasks', href: '/tasks', icon: CheckSquare, adminOnly: false, featureFlag: 'tasks' },
 { name: 'CRM', href: '/crm', icon: Briefcase, adminOnly: false, featureFlag: 'crm' },
 { name: 'Inbox', href: '/crm/inbox', icon: Inbox, adminOnly: false, featureFlag: 'crm' },
-{ name: 'Calls', href: '/crm/calls', icon: Phone, adminOnly: false, featureFlag: 'crm' }];
+{ name: 'Calls', href: '/crm/calls', icon: Phone, adminOnly: false, featureFlag: 'crm' },
+{ name: 'Accounting', href: '/accounting', icon: Calculator, adminOnly: true, featureFlag: 'accounting' }];
 
 const EXPANDED_ITEM_WIDTH = 90;
 
@@ -98,6 +99,9 @@ export const TopNav = ({ isAdmin }: TopNavProps) => {
       const crmBase = `${basePath}/crm`;
       if (path.startsWith(`${crmBase}/inbox`) || path.startsWith(`${crmBase}/calls`)) return false;
       return path === crmBase || path.startsWith(`${crmBase}/`);
+    }
+    if (href === '/accounting') {
+      return location.pathname === `${basePath}/accounting` || location.pathname.startsWith(`${basePath}/accounting/`);
     }
     return location.pathname === fullPath || location.pathname.startsWith(`${fullPath}/`);
   };

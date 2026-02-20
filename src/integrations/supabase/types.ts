@@ -14,6 +14,235 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounting_audit_events: {
+        Row: {
+          action: string
+          actor_id: string
+          after_data: Json | null
+          before_data: Json | null
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          idempotency_key: string | null
+          ledger_id: string | null
+          office_id: string | null
+          organization_id: string
+        }
+        Insert: {
+          action: string
+          actor_id: string
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          idempotency_key?: string | null
+          ledger_id?: string | null
+          office_id?: string | null
+          organization_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          idempotency_key?: string | null
+          ledger_id?: string | null
+          office_id?: string | null
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_audit_events_ledger_id_fkey"
+            columns: ["ledger_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_ledgers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_audit_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_contacts: {
+        Row: {
+          billing_address: Json | null
+          contact_type: Database["public"]["Enums"]["accounting_contact_type"]
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean
+          name: string
+          organization_id: string
+          phone: string | null
+          tax_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          billing_address?: Json | null
+          contact_type?: Database["public"]["Enums"]["accounting_contact_type"]
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          organization_id: string
+          phone?: string | null
+          tax_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          billing_address?: Json | null
+          contact_type?: Database["public"]["Enums"]["accounting_contact_type"]
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          organization_id?: string
+          phone?: string | null
+          tax_number?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_contacts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_ledgers: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          organization_id: string
+          setup_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          organization_id: string
+          setup_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          organization_id?: string
+          setup_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_ledgers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_ledgers_setup_id_fkey"
+            columns: ["setup_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_setups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_setup_offices: {
+        Row: {
+          id: string
+          office_id: string
+          setup_id: string
+        }
+        Insert: {
+          id?: string
+          office_id: string
+          setup_id: string
+        }
+        Update: {
+          id?: string
+          office_id?: string
+          setup_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_setup_offices_office_id_fkey"
+            columns: ["office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_setup_offices_setup_id_fkey"
+            columns: ["setup_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_setups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_setups: {
+        Row: {
+          base_currency: string
+          created_at: string
+          created_by: string
+          id: string
+          organization_id: string
+          scope_type: Database["public"]["Enums"]["accounting_scope_type"]
+          status: Database["public"]["Enums"]["accounting_setup_status"]
+          tax_inclusive: boolean
+          updated_at: string
+        }
+        Insert: {
+          base_currency?: string
+          created_at?: string
+          created_by: string
+          id?: string
+          organization_id: string
+          scope_type: Database["public"]["Enums"]["accounting_scope_type"]
+          status?: Database["public"]["Enums"]["accounting_setup_status"]
+          tax_inclusive?: boolean
+          updated_at?: string
+        }
+        Update: {
+          base_currency?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          organization_id?: string
+          scope_type?: Database["public"]["Enums"]["accounting_scope_type"]
+          status?: Database["public"]["Enums"]["accounting_setup_status"]
+          tax_inclusive?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_setups_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       achievements: {
         Row: {
           achieved_at: string
@@ -2384,6 +2613,66 @@ export type Database = {
             columns: ["referred_by_employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chart_of_accounts: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_system: boolean
+          ledger_id: string
+          name: string
+          parent_id: string | null
+          sort_order: number
+          sub_type: string | null
+          type: Database["public"]["Enums"]["accounting_account_type"]
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          ledger_id: string
+          name: string
+          parent_id?: string | null
+          sort_order?: number
+          sub_type?: string | null
+          type: Database["public"]["Enums"]["accounting_account_type"]
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          ledger_id?: string
+          name?: string
+          parent_id?: string | null
+          sort_order?: number
+          sub_type?: string | null
+          type?: Database["public"]["Enums"]["accounting_account_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chart_of_accounts_ledger_id_fkey"
+            columns: ["ledger_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_ledgers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chart_of_accounts_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
             referencedColumns: ["id"]
           },
         ]
@@ -13825,6 +14114,44 @@ export type Database = {
           },
         ]
       }
+      tax_rates: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          organization_id: string
+          rate: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          organization_id: string
+          rate?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          organization_id?: string
+          rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_rates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_slabs: {
         Row: {
           country: string
@@ -18479,6 +18806,15 @@ export type Database = {
           }
     }
     Enums: {
+      accounting_account_type:
+        | "asset"
+        | "liability"
+        | "equity"
+        | "revenue"
+        | "expense"
+      accounting_contact_type: "customer" | "supplier" | "both"
+      accounting_scope_type: "OFFICE_SINGLE" | "OFFICE_SET" | "ORG_WIDE"
+      accounting_setup_status: "draft" | "active" | "archived"
       app_role: "admin" | "hr" | "user" | "super_admin" | "owner" | "member"
       application_stage:
         | "applied"
@@ -18773,6 +19109,16 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      accounting_account_type: [
+        "asset",
+        "liability",
+        "equity",
+        "revenue",
+        "expense",
+      ],
+      accounting_contact_type: ["customer", "supplier", "both"],
+      accounting_scope_type: ["OFFICE_SINGLE", "OFFICE_SET", "ORG_WIDE"],
+      accounting_setup_status: ["draft", "active", "archived"],
       app_role: ["admin", "hr", "user", "super_admin", "owner", "member"],
       application_stage: [
         "applied",
