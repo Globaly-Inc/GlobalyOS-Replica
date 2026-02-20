@@ -13,6 +13,17 @@ serve(async (req) => {
   }
 
   try {
+    // Handle TwiML callback from Twilio (GET or POST with action=twiml)
+    const reqUrl = new URL(req.url);
+    if (reqUrl.searchParams.get("action") === "twiml") {
+      const formData = await req.formData().catch(() => null);
+      const to = formData?.get("To") || reqUrl.searchParams.get("to") || "";
+      return new Response(
+        `<Response><Say>Connecting your call now.</Say><Dial><Number>${to}</Number></Dial></Response>`,
+        { headers: { "Content-Type": "text/xml" } }
+      );
+    }
+
     const { to_number, organization_id, phone_number_id, conversation_id } = await req.json();
 
     if (!to_number || !organization_id) {
@@ -136,15 +147,6 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
-    // Handle TwiML request for connecting agent
-    const url = new URL((err as any)?.url || "http://localhost");
-    if (url.searchParams.get("action") === "twiml") {
-      return new Response(
-        `<Response><Say>Connecting your call now.</Say><Dial><Number>${url.searchParams.get("to") || ""}</Number></Dial></Response>`,
-        { headers: { "Content-Type": "text/xml" } }
-      );
-    }
-
     console.error("twilio-outbound-call error:", err);
     return new Response(
       JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
