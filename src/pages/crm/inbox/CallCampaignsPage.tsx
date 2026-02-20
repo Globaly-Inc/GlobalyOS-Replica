@@ -3,7 +3,7 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { useOrgPhoneNumbers } from '@/hooks/useTelephony';
 import { useCallCampaigns, useCampaignContacts, useCreateCampaign, useUpdateCampaignStatus } from '@/hooks/useCallCampaigns';
 import { useDialCampaignContact } from '@/hooks/useCallMonitoring';
-import { InboxSubNav } from '@/components/inbox/InboxSubNav';
+import { CallsSubNav } from '@/components/calls/CallsSubNav';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -65,7 +65,7 @@ const CallCampaignsPage = () => {
 
   return (
     <div>
-      <InboxSubNav />
+      <CallsSubNav />
       <div className="container px-4 md:px-8 py-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>

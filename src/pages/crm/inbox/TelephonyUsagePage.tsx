@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useOrgPhoneNumbers, useTelephonyUsage } from '@/hooks/useTelephony';
-import { InboxSubNav } from '@/components/inbox/InboxSubNav';
+import { CallsSubNav } from '@/components/calls/CallsSubNav';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -46,7 +46,7 @@ const TelephonyUsagePage = () => {
 
   return (
     <div>
-      <InboxSubNav />
+      <CallsSubNav />
       <div className="container px-4 md:px-8 py-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>

@@ -3,7 +3,7 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useCallQueues, useQueueMembers, useCreateQueue, useUpdateQueue, useAddQueueMember, useRemoveQueueMember } from '@/hooks/useCallQueues';
-import { InboxSubNav } from '@/components/inbox/InboxSubNav';
+import { CallsSubNav } from '@/components/calls/CallsSubNav';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -69,7 +69,7 @@ const CallQueuesPage = () => {
 
   return (
     <div>
-      <InboxSubNav />
+      <CallsSubNav />
       <div className="container px-4 md:px-8 py-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>

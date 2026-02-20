@@ -23,7 +23,7 @@ const SettingsTelephony = () => {
             </p>
           </div>
           <Button asChild>
-            <OrgLink to="/crm/inbox/numbers" className="flex items-center gap-2">
+            <OrgLink to="/crm/calls" className="flex items-center gap-2">
               <Settings2 className="h-4 w-4" />
               Open Telephony Settings
               <ArrowRight className="h-4 w-4" />

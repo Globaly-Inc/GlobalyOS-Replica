@@ -230,7 +230,7 @@ const InboxChannelsPage = () => {
                     className="w-full text-xs"
                     onClick={() => {
                       if (ac.type === 'sms') {
-                        navigate(`/org/${orgCode}/crm/inbox/numbers`);
+                        navigate(`/org/${orgCode}/crm/calls`);
                       } else {
                         setConnectChannel(ac.type);
                       }
