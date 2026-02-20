@@ -1,4 +1,4 @@
- import { Building2, Briefcase, Target, ClipboardCheck, Sparkles, CreditCard, Settings, Users } from 'lucide-react';
+ import { Building2, Briefcase, Target, ClipboardCheck, Sparkles, CreditCard, Settings, Users, UserPlus, Inbox, Phone } from 'lucide-react';
  import { OrgLink } from './OrgLink';
  import { useLocation, useParams } from 'react-router-dom';
  import { cn } from '@/lib/utils';
@@ -18,9 +18,12 @@
    { name: 'Projects', href: '/settings/projects', icon: Briefcase },
    { name: 'KPIs', href: '/settings/kpis', icon: Target },
    { name: 'Workflows', href: '/settings/workflows', icon: ClipboardCheck, featureFlag: 'workflows' },
-   { name: 'CRM', href: '/settings/crm', icon: Users, featureFlag: 'crm' },
-   { name: 'AI', href: '/settings/ai', icon: Sparkles, featureFlag: 'ask-ai' },
-   { name: 'Billing', href: '/settings/billing', icon: CreditCard },
+  { name: 'CRM', href: '/settings/crm', icon: Users, featureFlag: 'crm' },
+  { name: 'Hiring', href: '/settings/hiring', icon: UserPlus, featureFlag: 'hiring' },
+  { name: 'Inbox', href: '/settings/inbox', icon: Inbox, featureFlag: 'omnichannel_inbox' },
+  { name: 'Telephony', href: '/settings/telephony', icon: Phone, featureFlag: 'telephony' },
+  { name: 'AI', href: '/settings/ai', icon: Sparkles, featureFlag: 'ask-ai' },
+  { name: 'Billing', href: '/settings/billing', icon: CreditCard },
  ];
  
  export const SettingsSubNav = () => {
