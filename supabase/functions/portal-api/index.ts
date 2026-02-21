@@ -1,0 +1,293 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-portal-token',
+};
+
+async function hashValue(value: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(value);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function validatePortalSession(supabase: any, token: string) {
+  if (!token) return null;
+  const tokenHash = await hashValue(token);
+  const { data: session } = await supabase
+    .from('client_portal_sessions')
+    .select('*, client_portal_users(*)')
+    .eq('token_hash', tokenHash)
+    .is('revoked_at', null)
+    .gt('expires_at', new Date().toISOString())
+    .single();
+  return session;
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  // Extract portal token from header
+  const portalToken = req.headers.get('x-portal-token') || '';
+  
+  // Parse URL to determine action
+  const url = new URL(req.url);
+  const action = url.searchParams.get('action');
+
+  // Public actions that don't need auth
+  if (action === 'check-portal') {
+    const orgSlug = url.searchParams.get('orgSlug');
+    if (!orgSlug) {
+      return jsonResponse({ error: 'orgSlug required' }, 400);
+    }
+    const { data: org } = await supabase
+      .from('organizations')
+      .select('id, name, slug')
+      .eq('slug', orgSlug)
+      .single();
+    if (!org) return jsonResponse({ error: 'Organization not found' }, 404);
+
+    const { data: settings } = await supabase
+      .from('client_portal_settings')
+      .select('is_enabled, branding_logo_url, branding_primary_color, branding_company_name')
+      .eq('organization_id', org.id)
+      .single();
+
+    return jsonResponse({
+      enabled: settings?.is_enabled || false,
+      branding: settings ? {
+        logo_url: settings.branding_logo_url,
+        primary_color: settings.branding_primary_color,
+        company_name: settings.branding_company_name || org.name,
+      } : { company_name: org.name },
+    });
+  }
+
+  // All other actions require auth
+  const session = await validatePortalSession(supabase, portalToken);
+  if (!session) {
+    return jsonResponse({ error: 'Unauthorized' }, 401);
+  }
+
+  const clientUser = session.client_portal_users;
+  const orgId = session.organization_id;
+  const clientUserId = clientUser.id;
+
+  try {
+    switch (action) {
+      // ─── Dashboard ───
+      case 'dashboard': {
+        const [casesRes, tasksRes, notifsRes] = await Promise.all([
+          supabase.from('client_cases').select('id, title, status, priority, updated_at')
+            .eq('organization_id', orgId).eq('client_user_id', clientUserId)
+            .neq('status', 'cancelled').order('updated_at', { ascending: false }).limit(20),
+          supabase.from('client_tasks').select('id, title, status, due_at, case_id')
+            .in('case_id', (await supabase.from('client_cases').select('id').eq('organization_id', orgId).eq('client_user_id', clientUserId)).data?.map((c: any) => c.id) || [])
+            .eq('status', 'pending').order('due_at', { ascending: true }).limit(10),
+          supabase.from('client_notifications').select('id, type, title, body, link, created_at')
+            .eq('client_user_id', clientUserId).is('read_at', null).order('created_at', { ascending: false }).limit(10),
+        ]);
+
+        // Get unread message count
+        const { data: threads } = await supabase
+          .from('client_threads').select('id, unread_by_client')
+          .eq('organization_id', orgId)
+          .in('case_id', casesRes.data?.map((c: any) => c.id) || []);
+        const totalUnread = threads?.reduce((sum: number, t: any) => sum + (t.unread_by_client || 0), 0) || 0;
+
+        return jsonResponse({
+          cases: casesRes.data || [],
+          pendingTasks: tasksRes.data || [],
+          notifications: notifsRes.data || [],
+          unreadMessages: totalUnread,
+        });
+      }
+
+      // ─── Case Detail ───
+      case 'case-detail': {
+        const caseId = url.searchParams.get('caseId');
+        if (!caseId) return jsonResponse({ error: 'caseId required' }, 400);
+
+        // Verify client owns this case
+        const { data: caseData } = await supabase
+          .from('client_cases').select('*')
+          .eq('id', caseId).eq('organization_id', orgId).eq('client_user_id', clientUserId)
+          .single();
+        if (!caseData) return jsonResponse({ error: 'Case not found' }, 404);
+
+        const [historyRes, milestonesRes, tasksRes, docsRes, threadRes] = await Promise.all([
+          supabase.from('client_case_status_history').select('*')
+            .eq('case_id', caseId).eq('client_visible', true).order('created_at', { ascending: true }),
+          supabase.from('client_case_milestones').select('*')
+            .eq('case_id', caseId).order('sort_order', { ascending: true }),
+          supabase.from('client_tasks').select('*')
+            .eq('case_id', caseId).order('created_at', { ascending: true }),
+          supabase.from('client_documents').select('*')
+            .eq('case_id', caseId).eq('organization_id', orgId).order('created_at', { ascending: false }),
+          supabase.from('client_threads').select('*')
+            .eq('case_id', caseId).eq('organization_id', orgId).limit(1).maybeSingle(),
+        ]);
+
+        return jsonResponse({
+          case: caseData,
+          statusHistory: historyRes.data || [],
+          milestones: milestonesRes.data || [],
+          tasks: tasksRes.data || [],
+          documents: docsRes.data || [],
+          thread: threadRes.data,
+        });
+      }
+
+      // ─── Messages ───
+      case 'messages': {
+        const threadId = url.searchParams.get('threadId');
+        if (!threadId) return jsonResponse({ error: 'threadId required' }, 400);
+
+        // Verify client has access to this thread
+        const { data: thread } = await supabase
+          .from('client_threads').select('*, client_cases!inner(client_user_id)')
+          .eq('id', threadId).eq('organization_id', orgId)
+          .single();
+        if (!thread || thread.client_cases?.client_user_id !== clientUserId) {
+          return jsonResponse({ error: 'Thread not found' }, 404);
+        }
+
+        const { data: messages } = await supabase
+          .from('client_messages').select('*')
+          .eq('thread_id', threadId).eq('client_visible', true)
+          .order('created_at', { ascending: true });
+
+        // Mark as read
+        await supabase.from('client_threads').update({ unread_by_client: 0 }).eq('id', threadId);
+
+        return jsonResponse({ messages: messages || [] });
+      }
+
+      case 'send-message': {
+        if (req.method !== 'POST') return jsonResponse({ error: 'POST required' }, 405);
+        const body = await req.json();
+        const { threadId, message, attachments } = body;
+        if (!threadId || !message) return jsonResponse({ error: 'threadId and message required' }, 400);
+
+        // Verify access
+        const { data: thread } = await supabase
+          .from('client_threads').select('*, client_cases!inner(client_user_id, organization_id)')
+          .eq('id', threadId).single();
+        if (!thread || thread.client_cases?.client_user_id !== clientUserId) {
+          return jsonResponse({ error: 'Thread not found' }, 404);
+        }
+
+        const { data: newMsg, error: msgError } = await supabase
+          .from('client_messages').insert({
+            thread_id: threadId,
+            sender_type: 'client',
+            sender_id: clientUserId,
+            message,
+            attachments: attachments || [],
+          }).select().single();
+
+        if (msgError) return jsonResponse({ error: 'Failed to send message' }, 500);
+
+        // Update thread
+        await supabase.from('client_threads').update({
+          unread_by_staff: (thread.unread_by_staff || 0) + 1,
+          last_message_at: new Date().toISOString(),
+        }).eq('id', threadId);
+
+        return jsonResponse({ message: newMsg });
+      }
+
+      // ─── Tasks ───
+      case 'complete-task': {
+        if (req.method !== 'POST') return jsonResponse({ error: 'POST required' }, 405);
+        const { taskId } = await req.json();
+        if (!taskId) return jsonResponse({ error: 'taskId required' }, 400);
+
+        // Verify ownership
+        const { data: task } = await supabase
+          .from('client_tasks').select('*, client_cases!inner(client_user_id, organization_id)')
+          .eq('id', taskId).single();
+        if (!task || task.client_cases?.client_user_id !== clientUserId) {
+          return jsonResponse({ error: 'Task not found' }, 404);
+        }
+
+        await supabase.from('client_tasks').update({
+          status: 'completed', completed_at: new Date().toISOString(),
+        }).eq('id', taskId);
+
+        return jsonResponse({ success: true });
+      }
+
+      // ─── Notifications ───
+      case 'notifications': {
+        const { data: notifs } = await supabase
+          .from('client_notifications').select('*')
+          .eq('client_user_id', clientUserId)
+          .order('created_at', { ascending: false }).limit(50);
+        return jsonResponse({ notifications: notifs || [] });
+      }
+
+      case 'mark-notification-read': {
+        if (req.method !== 'POST') return jsonResponse({ error: 'POST required' }, 405);
+        const { notificationId } = await req.json();
+        if (notificationId) {
+          await supabase.from('client_notifications').update({ read_at: new Date().toISOString() })
+            .eq('id', notificationId).eq('client_user_id', clientUserId);
+        } else {
+          // Mark all as read
+          await supabase.from('client_notifications').update({ read_at: new Date().toISOString() })
+            .eq('client_user_id', clientUserId).is('read_at', null);
+        }
+        return jsonResponse({ success: true });
+      }
+
+      // ─── Profile ───
+      case 'profile': {
+        return jsonResponse({ user: clientUser });
+      }
+
+      case 'update-profile': {
+        if (req.method !== 'POST') return jsonResponse({ error: 'POST required' }, 405);
+        const { full_name, phone } = await req.json();
+        const updateData: any = {};
+        if (full_name !== undefined) updateData.full_name = full_name;
+        if (phone !== undefined) updateData.phone = phone;
+        
+        const { data: updated } = await supabase
+          .from('client_portal_users').update(updateData)
+          .eq('id', clientUserId).select().single();
+        return jsonResponse({ user: updated });
+      }
+
+      // ─── Logout ───
+      case 'logout': {
+        await supabase.from('client_portal_sessions').update({ revoked_at: new Date().toISOString() })
+          .eq('id', session.id);
+        return jsonResponse({ success: true });
+      }
+
+      default:
+        return jsonResponse({ error: `Unknown action: ${action}` }, 400);
+    }
+  } catch (error) {
+    console.error('Portal API error:', error);
+    return jsonResponse({ error: 'Internal server error' }, 500);
+  }
+});
+
+function jsonResponse(data: any, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
