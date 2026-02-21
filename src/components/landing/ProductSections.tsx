@@ -4,9 +4,11 @@ import {
   Megaphone, MessageSquareText, Inbox, Bot, FileText,
   MessageCircle, Heart, Bell, Trophy,
   Calculator, BookOpen as BookOpenIcon, FileSpreadsheet, Receipt,
-  PieChart, ClipboardList, Phone, LineChart
+  PieChart, ClipboardList, Phone, LineChart,
+  Briefcase, UserPlus, UserMinus, ClipboardCheck, ArrowRight
 } from "lucide-react";
 import { CheckCircle2 } from "lucide-react";
+import { useScrollAnimation } from "@/hooks/useScrollAnimation";
 
 interface ProductSectionProps {
   id: string;
@@ -71,6 +73,142 @@ const HRMSMockup = () => (
     </div>
   </div>
 );
+
+const HiringPipelineMockup = () => (
+  <div className="bg-card rounded-2xl border border-border shadow-xl p-5 space-y-3">
+    <div className="flex items-center justify-between pb-3 border-b border-border">
+      <div className="flex items-center gap-2">
+        <Briefcase className="w-4 h-4 text-primary" />
+        <span className="font-semibold text-foreground text-sm">Hiring Pipeline</span>
+      </div>
+      <span className="text-xs text-muted-foreground">4 Open Positions</span>
+    </div>
+    <div className="grid grid-cols-4 gap-2">
+      {[
+        { stage: "Applied", count: 24, color: "bg-blue-500" },
+        { stage: "Screening", count: 12, color: "bg-amber-500" },
+        { stage: "Interview", count: 6, color: "bg-purple-500" },
+        { stage: "Offer", count: 2, color: "bg-success" },
+      ].map((s, i) => (
+        <div key={i} className="text-center p-2 rounded-lg bg-muted/50">
+          <div className={`w-2 h-2 rounded-full ${s.color} mx-auto mb-1`} />
+          <div className="text-lg font-bold text-foreground">{s.count}</div>
+          <div className="text-[10px] text-muted-foreground">{s.stage}</div>
+        </div>
+      ))}
+    </div>
+    <div className="space-y-1.5">
+      {[
+        { name: "Alex Rivera", role: "Frontend Dev", stage: "Interview" },
+        { name: "Priya Sharma", role: "Product Manager", stage: "Screening" },
+      ].map((c, i) => (
+        <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">{c.name.split(' ').map(n => n[0]).join('')}</div>
+            <div>
+              <div className="text-xs font-medium text-foreground">{c.name}</div>
+              <div className="text-[10px] text-muted-foreground">{c.role}</div>
+            </div>
+          </div>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">{c.stage}</span>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const OnboardingWorkflowMockup = () => (
+  <div className="bg-card rounded-2xl border border-border shadow-xl p-5 space-y-3">
+    <div className="flex items-center justify-between pb-3 border-b border-border">
+      <div className="flex items-center gap-2">
+        <ClipboardCheck className="w-4 h-4 text-primary" />
+        <span className="font-semibold text-foreground text-sm">Onboarding Workflow</span>
+      </div>
+      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">In Progress</span>
+    </div>
+    <div className="flex items-center gap-2 mb-1">
+      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">AR</div>
+      <div>
+        <div className="text-sm font-medium text-foreground">Alex Rivera</div>
+        <div className="text-[10px] text-muted-foreground">Starting Feb 24 • Frontend Developer</div>
+      </div>
+    </div>
+    <div className="space-y-1.5">
+      {[
+        { task: "IT Setup & Equipment", done: true },
+        { task: "HR Documents & Policies", done: true },
+        { task: "Team Introduction", done: false },
+        { task: "First Project Assignment", done: false },
+      ].map((t, i) => (
+        <div key={i} className="flex items-center gap-2 text-xs p-2 rounded-lg bg-muted/30">
+          <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 ${t.done ? 'text-success' : 'text-muted-foreground/40'}`} />
+          <span className={t.done ? 'text-muted-foreground line-through' : 'text-foreground'}>{t.task}</span>
+          {!t.done && <ArrowRight className="w-3 h-3 ml-auto text-muted-foreground/40" />}
+        </div>
+      ))}
+    </div>
+    <div className="space-y-1">
+      <div className="flex justify-between text-[10px] text-muted-foreground">
+        <span>Progress</span>
+        <span>50%</span>
+      </div>
+      <div className="h-1.5 w-full rounded-full bg-muted/50 overflow-hidden">
+        <div className="h-full w-1/2 rounded-full bg-primary transition-all" />
+      </div>
+    </div>
+  </div>
+);
+
+const HRMSStackedMockup = () => {
+  const { ref, isVisible } = useScrollAnimation({ threshold: 0.15 });
+
+  return (
+    <div ref={ref} className="relative" style={{ minHeight: '520px' }}>
+      {/* Card 3 - Back: Onboarding Workflow */}
+      <div
+        className="absolute top-0 left-0 right-0 transition-all duration-700 ease-out"
+        style={{
+          transitionDelay: '400ms',
+          opacity: isVisible ? 0.7 : 0,
+          transform: isVisible
+            ? 'translateY(40px) scale(0.92)'
+            : 'translateY(80px) scale(0.92)',
+          zIndex: 1,
+        }}
+      >
+        <OnboardingWorkflowMockup />
+      </div>
+
+      {/* Card 2 - Middle: Hiring Pipeline */}
+      <div
+        className="absolute top-0 left-0 right-0 transition-all duration-700 ease-out"
+        style={{
+          transitionDelay: '200ms',
+          opacity: isVisible ? 0.85 : 0,
+          transform: isVisible
+            ? 'translateY(20px) scale(0.96)'
+            : 'translateY(60px) scale(0.96)',
+          zIndex: 2,
+        }}
+      >
+        <HiringPipelineMockup />
+      </div>
+
+      {/* Card 1 - Front: Employee Profile */}
+      <div
+        className="relative transition-all duration-700 ease-out"
+        style={{
+          transitionDelay: '0ms',
+          opacity: isVisible ? 1 : 0,
+          transform: isVisible ? 'translateY(0)' : 'translateY(40px)',
+          zIndex: 3,
+        }}
+      >
+        <HRMSMockup />
+      </div>
+    </div>
+  );
+};
 
 const CRMMockup = () => (
   <div className="bg-card rounded-2xl border border-border shadow-xl p-6 space-y-4">
@@ -231,7 +369,7 @@ export const ProductSections = () => (
       badgeColor="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
       title="Complete HR Management, Simplified"
       description="From employee profiles to performance reviews — manage your entire workforce lifecycle in one place."
-      features={[
+       features={[
         { icon: Users, text: "Employee Profiles & Directory" },
         { icon: Calendar, text: "Leave & Attendance Tracking" },
         { icon: QrCode, text: "QR Code Check-in" },
@@ -240,8 +378,11 @@ export const ProductSections = () => (
         { icon: Award, text: "KPIs & OKRs Dashboard" },
         { icon: Network, text: "Org Chart & Hierarchy" },
         { icon: DollarSign, text: "Payroll Management" },
+        { icon: Briefcase, text: "Hiring & Recruitment" },
+        { icon: UserPlus, text: "Onboarding Workflows" },
+        { icon: UserMinus, text: "Offboarding Workflows" },
       ]}
-      mockup={<HRMSMockup />}
+      mockup={<HRMSStackedMockup />}
     />
 
     <div className="border-t border-border/50" />
