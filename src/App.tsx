@@ -17,6 +17,9 @@ import RouteTracker from '@/components/RouteTracker';
 import Landing from './pages/Landing';
 import { OrgProtectedRoute } from './components/OrgProtectedRoute';
 import { FeatureProtectedRoute } from './components/FeatureProtectedRoute';
+import { PortalAuthProvider } from './hooks/usePortalAuth';
+import { PortalProtectedRoute } from './components/portal/PortalProtectedRoute';
+import { PortalLayout } from './components/portal/PortalLayout';
 
 // Lazy load public website pages
 const Features = lazy(() => import('./pages/Features'));
@@ -65,6 +68,7 @@ const Settings = lazy(() => import('./pages/Settings'));
  const SettingsHiring = lazy(() => import('./pages/settings/SettingsHiring'));
  const SettingsInbox = lazy(() => import('./pages/settings/SettingsInbox'));
  const SettingsTelephony = lazy(() => import('./pages/settings/SettingsTelephony'));
+ const SettingsClientPortal = lazy(() => import('./pages/settings/SettingsClientPortal'));
 const Join = lazy(() => import('./pages/Join'));
 const Leave = lazy(() => import('./pages/Leave'));
 const BulkLeaveImport = lazy(() => import('./pages/BulkLeaveImport'));
@@ -337,6 +341,7 @@ const App = () => <QueryClientProvider client={queryClient}>
                   <Route path="settings/hiring" element={<OrgProtectedRoute><FeatureProtectedRoute feature="hiring"><SettingsHiring /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="settings/inbox" element={<OrgProtectedRoute><FeatureProtectedRoute feature="omnichannel_inbox"><SettingsInbox /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="settings/telephony" element={<OrgProtectedRoute><FeatureProtectedRoute feature="telephony"><SettingsTelephony /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                  <Route path="settings/client-portal" element={<OrgProtectedRoute><FeatureProtectedRoute feature="client_portal"><SettingsClientPortal /></FeatureProtectedRoute></OrgProtectedRoute>} />
                   <Route path="settings/workflow/:templateId" element={<OrgProtectedRoute><WorkflowSettings /></OrgProtectedRoute>} />
                   <Route path="notifications" element={<OrgProtectedRoute><Notifications /></OrgProtectedRoute>} />
                   <Route path="notifications/preferences" element={<OrgProtectedRoute><NotificationPreferences /></OrgProtectedRoute>} />
@@ -507,11 +512,13 @@ const App = () => <QueryClientProvider client={queryClient}>
                 <Route path="/e/unsub/:token" element={<UnsubscribePage />} />
 
                 {/* Client Portal routes (separate auth, no staff login needed) */}
-                <Route path="/org/:orgCode/portal/login" element={<PortalLoginPage />} />
-                <Route path="/org/:orgCode/portal/dashboard" element={<PortalDashboardPage />} />
-                <Route path="/org/:orgCode/portal/cases/:caseId" element={<PortalCasePage />} />
-                <Route path="/org/:orgCode/portal/messages" element={<PortalMessagesPage />} />
-                <Route path="/org/:orgCode/portal/profile" element={<PortalProfilePage />} />
+                <Route path="/org/:orgCode/portal/login" element={<PortalAuthProvider><PortalLoginPage /></PortalAuthProvider>} />
+                <Route path="/org/:orgCode/portal" element={<PortalAuthProvider><PortalProtectedRoute><PortalLayout /></PortalProtectedRoute></PortalAuthProvider>}>
+                  <Route path="dashboard" element={<PortalDashboardPage />} />
+                  <Route path="cases/:caseId" element={<PortalCasePage />} />
+                  <Route path="messages" element={<PortalMessagesPage />} />
+                  <Route path="profile" element={<PortalProfilePage />} />
+                </Route>
 
                 {/* Catch-all */}
                 <Route path="*" element={<NotFound />} />

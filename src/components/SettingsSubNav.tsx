@@ -22,6 +22,7 @@
   { name: 'Hiring', href: '/settings/hiring', icon: UserPlus, featureFlag: 'hiring' },
   { name: 'Inbox', href: '/settings/inbox', icon: Inbox, featureFlag: 'omnichannel_inbox' },
   { name: 'Telephony', href: '/settings/telephony', icon: Phone, featureFlag: 'telephony' },
+  { name: 'Client Portal', href: '/settings/client-portal', icon: Users, featureFlag: 'client_portal' },
   { name: 'AI', href: '/settings/ai', icon: Sparkles, featureFlag: 'ask-ai' },
   { name: 'Billing', href: '/settings/billing', icon: CreditCard },
  ];
