@@ -49,6 +49,12 @@ serve(async (req) => {
       .single();
     if (!membership) return jsonResponse({ error: 'Not an org member' }, 403);
 
+    // RBAC: only admin, hr, or owner can perform portal admin actions
+    const allowedRoles = ['admin', 'hr', 'owner'];
+    if (!allowedRoles.includes(membership.role)) {
+      return jsonResponse({ error: 'Insufficient permissions. Admin, HR, or Owner role required.' }, 403);
+    }
+
     switch (action) {
       // ─── Invite Client ───
       case 'invite-client': {
@@ -164,7 +170,12 @@ serve(async (req) => {
         const { caseId, status, note, clientVisible } = body;
         if (!caseId || !status) return jsonResponse({ error: 'caseId and status required' }, 400);
 
-        await supabase.from('client_cases').update({ status }).eq('id', caseId);
+        // Verify case belongs to org
+        const { data: caseCheck } = await supabase.from('client_cases')
+          .select('id').eq('id', caseId).eq('organization_id', organizationId).single();
+        if (!caseCheck) return jsonResponse({ error: 'Case not found in this organization' }, 404);
+
+        await supabase.from('client_cases').update({ status }).eq('id', caseId).eq('organization_id', organizationId);
         await supabase.from('client_case_status_history').insert({
           case_id: caseId,
           status,
@@ -183,9 +194,17 @@ serve(async (req) => {
         if (!threadId || !message) return jsonResponse({ error: 'threadId and message required' }, 400);
 
         // Get employee ID for sender
+        // Verify thread belongs to org
+        const { data: threadCheck } = await supabase.from('client_threads')
+          .select('id').eq('id', threadId).eq('organization_id', organizationId).single();
+        if (!threadCheck) return jsonResponse({ error: 'Thread not found in this organization' }, 404);
+
         const { data: employee } = await supabase
           .from('employees').select('id').eq('user_id', user.id)
           .eq('organization_id', organizationId).single();
+
+        // Validate message length
+        if (message.length > 5000) return jsonResponse({ error: 'Message too long (max 5000 characters)' }, 400);
 
         await supabase.from('client_messages').insert({
           thread_id: threadId,
@@ -213,6 +232,11 @@ serve(async (req) => {
       case 'create-task': {
         const { caseId, title, description: desc, taskType, dueAt } = body;
         if (!caseId || !title) return jsonResponse({ error: 'caseId and title required' }, 400);
+
+        // Verify case belongs to org
+        const { data: taskCaseCheck } = await supabase.from('client_cases')
+          .select('id').eq('id', caseId).eq('organization_id', organizationId).single();
+        if (!taskCaseCheck) return jsonResponse({ error: 'Case not found in this organization' }, 404);
 
         const { data: task } = await supabase.from('client_tasks').insert({
           case_id: caseId,
@@ -250,12 +274,17 @@ serve(async (req) => {
         const { documentId, status: docStatus, reviewNote } = body;
         if (!documentId || !docStatus) return jsonResponse({ error: 'documentId and status required' }, 400);
 
+        // Verify document belongs to org
+        const { data: docCheck } = await supabase.from('client_documents')
+          .select('id').eq('id', documentId).eq('organization_id', organizationId).single();
+        if (!docCheck) return jsonResponse({ error: 'Document not found in this organization' }, 404);
+
         await supabase.from('client_documents').update({
           status: docStatus,
           review_note: reviewNote || null,
           reviewed_by: user.id,
           reviewed_at: new Date().toISOString(),
-        }).eq('id', documentId);
+        }).eq('id', documentId).eq('organization_id', organizationId);
 
         return jsonResponse({ success: true });
       }

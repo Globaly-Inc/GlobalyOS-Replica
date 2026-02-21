@@ -179,6 +179,14 @@ serve(async (req) => {
         const { threadId, message, attachments } = body;
         if (!threadId || !message) return jsonResponse({ error: 'threadId and message required' }, 400);
 
+        // Input validation
+        if (typeof message !== 'string' || message.trim().length === 0) {
+          return jsonResponse({ error: 'Message cannot be empty' }, 400);
+        }
+        if (message.length > 5000) {
+          return jsonResponse({ error: 'Message too long (max 5000 characters)' }, 400);
+        }
+
         // Verify access
         const { data: thread } = await supabase
           .from('client_threads').select('*, client_cases!inner(client_user_id, organization_id)')
@@ -260,13 +268,77 @@ serve(async (req) => {
         if (req.method !== 'POST') return jsonResponse({ error: 'POST required' }, 405);
         const { full_name, phone } = await req.json();
         const updateData: any = {};
-        if (full_name !== undefined) updateData.full_name = full_name;
-        if (phone !== undefined) updateData.phone = phone;
-        
+
+        // Input validation & sanitization
+        if (full_name !== undefined) {
+          if (typeof full_name !== 'string') return jsonResponse({ error: 'Invalid full_name' }, 400);
+          const sanitized = full_name.trim().replace(/<[^>]*>/g, '').slice(0, 200);
+          if (sanitized.length === 0) return jsonResponse({ error: 'Name cannot be empty' }, 400);
+          updateData.full_name = sanitized;
+        }
+        if (phone !== undefined) {
+          if (typeof phone !== 'string') return jsonResponse({ error: 'Invalid phone' }, 400);
+          const sanitizedPhone = phone.trim().replace(/<[^>]*>/g, '').slice(0, 30);
+          updateData.phone = sanitizedPhone || null;
+        }
+
         const { data: updated } = await supabase
           .from('client_portal_users').update(updateData)
           .eq('id', clientUserId).select().single();
         return jsonResponse({ user: updated });
+      }
+
+      // ─── Upload Document ───
+      case 'upload-document': {
+        if (req.method !== 'POST') return jsonResponse({ error: 'POST required' }, 405);
+        const { caseId: uploadCaseId, fileName: uploadFileName, fileType: uploadFileType, fileBase64 } = await req.json();
+        if (!uploadCaseId || !uploadFileName || !fileBase64) {
+          return jsonResponse({ error: 'caseId, fileName, and fileBase64 required' }, 400);
+        }
+
+        // Verify client owns this case
+        const { data: uploadCase } = await supabase
+          .from('client_cases').select('id')
+          .eq('id', uploadCaseId).eq('organization_id', orgId).eq('client_user_id', clientUserId)
+          .single();
+        if (!uploadCase) return jsonResponse({ error: 'Case not found' }, 404);
+
+        // Decode base64 and upload to storage
+        const fileBytes = Uint8Array.from(atob(fileBase64), c => c.charCodeAt(0));
+        const storagePath = `${orgId}/${clientUserId}/${uploadCaseId}/${Date.now()}-${uploadFileName}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('client-portal-documents')
+          .upload(storagePath, fileBytes, {
+            contentType: uploadFileType || 'application/octet-stream',
+            upsert: false,
+          });
+
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          return jsonResponse({ error: 'Failed to upload file' }, 500);
+        }
+
+        const { data: publicUrlData } = supabase.storage
+          .from('client-portal-documents')
+          .getPublicUrl(storagePath);
+
+        // Create document record
+        const { data: newDoc, error: docError } = await supabase
+          .from('client_documents').insert({
+            organization_id: orgId,
+            case_id: uploadCaseId,
+            file_name: uploadFileName.slice(0, 255),
+            file_url: publicUrlData.publicUrl,
+            file_type: uploadFileType || null,
+            document_type: 'uploaded',
+            status: 'submitted',
+            uploaded_by_type: 'client',
+            uploaded_by_id: clientUserId,
+          }).select().single();
+
+        if (docError) return jsonResponse({ error: 'Failed to save document record' }, 500);
+        return jsonResponse({ document: newDoc });
       }
 
       // ─── Logout ───
