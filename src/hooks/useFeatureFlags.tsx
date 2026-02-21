@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "./useOrganization";
 
 // Known feature flags - these are Super Admin gated features
-export type FeatureName = "chat" | "tasks" | "crm" | "workflows" | "payroll" | "ask-ai" | "hiring" | "whatsapp" | "calls" | "omnichannel_inbox" | "ai_responder" | "telephony" | "forms" | "accounting";
+export type FeatureName = "chat" | "tasks" | "crm" | "workflows" | "payroll" | "ask-ai" | "hiring" | "whatsapp" | "calls" | "omnichannel_inbox" | "ai_responder" | "telephony" | "forms" | "accounting" | "client_portal";
 
 interface FeatureFlags {
   chat: boolean;
@@ -20,6 +20,7 @@ interface FeatureFlags {
   telephony: boolean;
   forms: boolean;
   accounting: boolean;
+  client_portal: boolean;
 }
 
 interface FeatureFlagsContextType {
@@ -44,6 +45,7 @@ const defaultFlags: FeatureFlags = {
   telephony: false,
   forms: false,
   accounting: false,
+  client_portal: false,
 };
 
 const FeatureFlagsContext = createContext<FeatureFlagsContextType | undefined>(undefined);

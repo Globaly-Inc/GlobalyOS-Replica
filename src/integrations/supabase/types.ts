@@ -4449,6 +4449,839 @@ export type Database = {
           },
         ]
       }
+      client_ai_interactions: {
+        Row: {
+          case_id: string | null
+          confidence_score: number | null
+          created_at: string
+          id: string
+          interaction_type: string
+          organization_id: string
+          prompt_summary: string | null
+          response: string | null
+          sources_used: Json | null
+          staff_feedback: string | null
+          staff_rating: number | null
+          thread_id: string | null
+          was_sent_to_client: boolean
+        }
+        Insert: {
+          case_id?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          interaction_type: string
+          organization_id: string
+          prompt_summary?: string | null
+          response?: string | null
+          sources_used?: Json | null
+          staff_feedback?: string | null
+          staff_rating?: number | null
+          thread_id?: string | null
+          was_sent_to_client?: boolean
+        }
+        Update: {
+          case_id?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          interaction_type?: string
+          organization_id?: string
+          prompt_summary?: string | null
+          response?: string | null
+          sources_used?: Json | null
+          staff_feedback?: string | null
+          staff_rating?: number | null
+          thread_id?: string | null
+          was_sent_to_client?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_ai_interactions_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "client_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_ai_interactions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_ai_interactions_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "client_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_case_milestones: {
+        Row: {
+          case_id: string
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          id: string
+          sort_order: number
+          status: string
+          title: string
+        }
+        Insert: {
+          case_id: string
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          sort_order?: number
+          status?: string
+          title: string
+        }
+        Update: {
+          case_id?: string
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          sort_order?: number
+          status?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_case_milestones_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "client_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_case_status_history: {
+        Row: {
+          case_id: string
+          client_visible: boolean
+          created_at: string
+          created_by_id: string | null
+          created_by_type: string
+          id: string
+          note: string | null
+          status: string
+        }
+        Insert: {
+          case_id: string
+          client_visible?: boolean
+          created_at?: string
+          created_by_id?: string | null
+          created_by_type?: string
+          id?: string
+          note?: string | null
+          status: string
+        }
+        Update: {
+          case_id?: string
+          client_visible?: boolean
+          created_at?: string
+          created_by_id?: string | null
+          created_by_type?: string
+          id?: string
+          note?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_case_status_history_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "client_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_cases: {
+        Row: {
+          assigned_to: string | null
+          client_user_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          metadata: Json | null
+          office_id: string | null
+          organization_id: string
+          priority: string
+          status: string
+          title: string
+          updated_at: string
+          workflow_template_id: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          client_user_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          office_id?: string | null
+          organization_id: string
+          priority?: string
+          status?: string
+          title: string
+          updated_at?: string
+          workflow_template_id?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          client_user_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          office_id?: string | null
+          organization_id?: string
+          priority?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          workflow_template_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_cases_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_cases_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_cases_client_user_id_fkey"
+            columns: ["client_user_id"]
+            isOneToOne: false
+            referencedRelation: "client_portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_cases_office_id_fkey"
+            columns: ["office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_cases_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_documents: {
+        Row: {
+          case_id: string
+          created_at: string
+          document_type: string
+          file_name: string
+          file_size: number | null
+          file_type: string | null
+          file_url: string | null
+          id: string
+          organization_id: string
+          parent_document_id: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          uploaded_by_id: string | null
+          uploaded_by_type: string | null
+          version: number
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          document_type?: string
+          file_name: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          organization_id: string
+          parent_document_id?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          uploaded_by_id?: string | null
+          uploaded_by_type?: string | null
+          version?: number
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          document_type?: string
+          file_name?: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          organization_id?: string
+          parent_document_id?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          uploaded_by_id?: string | null
+          uploaded_by_type?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_documents_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "client_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_documents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_documents_parent_document_id_fkey"
+            columns: ["parent_document_id"]
+            isOneToOne: false
+            referencedRelation: "client_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_messages: {
+        Row: {
+          ai_confidence: number | null
+          ai_sources: Json | null
+          attachments: Json | null
+          client_visible: boolean
+          created_at: string
+          id: string
+          is_internal_note: boolean
+          message: string
+          sender_id: string | null
+          sender_type: string
+          thread_id: string
+        }
+        Insert: {
+          ai_confidence?: number | null
+          ai_sources?: Json | null
+          attachments?: Json | null
+          client_visible?: boolean
+          created_at?: string
+          id?: string
+          is_internal_note?: boolean
+          message: string
+          sender_id?: string | null
+          sender_type: string
+          thread_id: string
+        }
+        Update: {
+          ai_confidence?: number | null
+          ai_sources?: Json | null
+          attachments?: Json | null
+          client_visible?: boolean
+          created_at?: string
+          id?: string
+          is_internal_note?: boolean
+          message?: string
+          sender_id?: string | null
+          sender_type?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_messages_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "client_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_notifications: {
+        Row: {
+          body: string | null
+          client_user_id: string
+          created_at: string
+          emailed_at: string | null
+          id: string
+          link: string | null
+          organization_id: string
+          read_at: string | null
+          title: string
+          type: string
+        }
+        Insert: {
+          body?: string | null
+          client_user_id: string
+          created_at?: string
+          emailed_at?: string | null
+          id?: string
+          link?: string | null
+          organization_id: string
+          read_at?: string | null
+          title: string
+          type?: string
+        }
+        Update: {
+          body?: string | null
+          client_user_id?: string
+          created_at?: string
+          emailed_at?: string | null
+          id?: string
+          link?: string | null
+          organization_id?: string
+          read_at?: string | null
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_notifications_client_user_id_fkey"
+            columns: ["client_user_id"]
+            isOneToOne: false
+            referencedRelation: "client_portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_notifications_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_portal_audit_logs: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_type: string
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          office_id: string | null
+          organization_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_type: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          office_id?: string | null
+          organization_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_type?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          office_id?: string | null
+          organization_id?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_portal_audit_logs_office_id_fkey"
+            columns: ["office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_portal_audit_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_portal_offices: {
+        Row: {
+          created_at: string
+          id: string
+          office_id: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          office_id: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          office_id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_portal_offices_office_id_fkey"
+            columns: ["office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_portal_offices_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_portal_otp_codes: {
+        Row: {
+          attempts: number
+          code_hash: string
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          ip_hash: string | null
+          locked_until: string | null
+          max_attempts: number
+          organization_id: string
+          user_agent_hash: string | null
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          ip_hash?: string | null
+          locked_until?: string | null
+          max_attempts?: number
+          organization_id: string
+          user_agent_hash?: string | null
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          ip_hash?: string | null
+          locked_until?: string | null
+          max_attempts?: number
+          organization_id?: string
+          user_agent_hash?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_portal_otp_codes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_portal_sessions: {
+        Row: {
+          client_user_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          ip_address: string | null
+          organization_id: string
+          revoked_at: string | null
+          token_hash: string
+          user_agent: string | null
+        }
+        Insert: {
+          client_user_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          ip_address?: string | null
+          organization_id: string
+          revoked_at?: string | null
+          token_hash: string
+          user_agent?: string | null
+        }
+        Update: {
+          client_user_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          ip_address?: string | null
+          organization_id?: string
+          revoked_at?: string | null
+          token_hash?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_portal_sessions_client_user_id_fkey"
+            columns: ["client_user_id"]
+            isOneToOne: false
+            referencedRelation: "client_portal_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_portal_sessions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_portal_settings: {
+        Row: {
+          ai_auto_reply_enabled: boolean
+          ai_confidence_threshold: number
+          branding_company_name: string | null
+          branding_logo_url: string | null
+          branding_primary_color: string | null
+          created_at: string
+          id: string
+          is_enabled: boolean
+          organization_id: string
+          otp_expiry_minutes: number
+          otp_lockout_minutes: number
+          otp_max_attempts: number
+          updated_at: string
+        }
+        Insert: {
+          ai_auto_reply_enabled?: boolean
+          ai_confidence_threshold?: number
+          branding_company_name?: string | null
+          branding_logo_url?: string | null
+          branding_primary_color?: string | null
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          organization_id: string
+          otp_expiry_minutes?: number
+          otp_lockout_minutes?: number
+          otp_max_attempts?: number
+          updated_at?: string
+        }
+        Update: {
+          ai_auto_reply_enabled?: boolean
+          ai_confidence_threshold?: number
+          branding_company_name?: string | null
+          branding_logo_url?: string | null
+          branding_primary_color?: string | null
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          organization_id?: string
+          otp_expiry_minutes?: number
+          otp_lockout_minutes?: number
+          otp_max_attempts?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_portal_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_portal_users: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          last_login_at: string | null
+          organization_id: string
+          phone: string | null
+          primary_office_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id?: string
+          last_login_at?: string | null
+          organization_id: string
+          phone?: string | null
+          primary_office_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          last_login_at?: string | null
+          organization_id?: string
+          phone?: string | null
+          primary_office_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_portal_users_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_portal_users_primary_office_id_fkey"
+            columns: ["primary_office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_tasks: {
+        Row: {
+          case_id: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          due_at: string | null
+          id: string
+          metadata: Json | null
+          status: string
+          task_type: string
+          title: string
+        }
+        Insert: {
+          case_id: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_at?: string | null
+          id?: string
+          metadata?: Json | null
+          status?: string
+          task_type?: string
+          title: string
+        }
+        Update: {
+          case_id?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_at?: string | null
+          id?: string
+          metadata?: Json | null
+          status?: string
+          task_type?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_tasks_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "client_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_threads: {
+        Row: {
+          case_id: string
+          created_at: string
+          id: string
+          last_message_at: string | null
+          organization_id: string
+          subject: string | null
+          unread_by_client: number
+          unread_by_staff: number
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          organization_id: string
+          subject?: string | null
+          unread_by_client?: number
+          unread_by_staff?: number
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          organization_id?: string
+          subject?: string | null
+          unread_by_client?: number
+          unread_by_staff?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_threads_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "client_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_threads_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comment_mentions: {
         Row: {
           comment_id: string

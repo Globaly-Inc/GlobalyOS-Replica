@@ -404,3 +404,18 @@ verify_jwt = false
 
 [functions.form-public-submit]
 verify_jwt = false
+
+[functions.portal-send-otp]
+verify_jwt = false
+
+[functions.portal-verify-otp]
+verify_jwt = false
+
+[functions.portal-api]
+verify_jwt = false
+
+[functions.portal-ai-assist]
+verify_jwt = false
+
+[functions.portal-admin]
+verify_jwt = false

@@ -134,6 +134,13 @@ const CallCampaignsPage = lazy(() => import('./pages/crm/inbox/CallCampaignsPage
 const CallQueuesPage = lazy(() => import('./pages/crm/inbox/CallQueuesPage'));
 const CallMonitoringPage = lazy(() => import('./pages/crm/inbox/CallMonitoringPage'));
 
+// Client Portal pages
+const PortalLoginPage = lazy(() => import('./pages/portal/PortalLoginPage'));
+const PortalDashboardPage = lazy(() => import('./pages/portal/PortalDashboardPage'));
+const PortalCasePage = lazy(() => import('./pages/portal/PortalCasePage'));
+const PortalMessagesPage = lazy(() => import('./pages/portal/PortalMessagesPage'));
+const PortalProfilePage = lazy(() => import('./pages/portal/PortalProfilePage'));
+
 const Payroll = lazy(() => import('./pages/Payroll'));
 
 // Sendbird Calls UI (lazy)
@@ -498,6 +505,13 @@ const App = () => <QueryClientProvider client={queryClient}>
 
                 {/* Public email campaign pages */}
                 <Route path="/e/unsub/:token" element={<UnsubscribePage />} />
+
+                {/* Client Portal routes (separate auth, no staff login needed) */}
+                <Route path="/org/:orgCode/portal/login" element={<PortalLoginPage />} />
+                <Route path="/org/:orgCode/portal/dashboard" element={<PortalDashboardPage />} />
+                <Route path="/org/:orgCode/portal/cases/:caseId" element={<PortalCasePage />} />
+                <Route path="/org/:orgCode/portal/messages" element={<PortalMessagesPage />} />
+                <Route path="/org/:orgCode/portal/profile" element={<PortalProfilePage />} />
 
                 {/* Catch-all */}
                 <Route path="*" element={<NotFound />} />
