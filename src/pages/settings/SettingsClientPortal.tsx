@@ -13,9 +13,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Globe, Shield, Sparkles, Users, Plus, Mail, MoreVertical, FolderOpen, Eye, UserX, RefreshCw, ExternalLink } from 'lucide-react';
+import { Loader2, Globe, Shield, Sparkles, Users, Plus, Mail, MoreVertical, FolderOpen, Eye, UserX, RefreshCw, ExternalLink, Briefcase } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Textarea } from '@/components/ui/textarea';
+import { PortalCaseManagement } from '@/components/settings/portal/PortalCaseManagement';
 
 const SettingsClientPortal = () => {
   const { currentOrg } = useOrganization();
@@ -262,6 +263,10 @@ const SettingsClientPortal = () => {
           <TabsTrigger value="clients" className="gap-2">
             <Users className="h-4 w-4" />
             Clients
+          </TabsTrigger>
+          <TabsTrigger value="cases" className="gap-2">
+            <Briefcase className="h-4 w-4" />
+            Cases
           </TabsTrigger>
         </TabsList>
 
@@ -635,6 +640,11 @@ const SettingsClientPortal = () => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Cases Tab */}
+        <TabsContent value="cases" className="space-y-6">
+          <PortalCaseManagement />
         </TabsContent>
       </Tabs>
     </div>
