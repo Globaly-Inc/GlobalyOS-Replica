@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { usePortalAuth } from '@/hooks/usePortalAuth';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,8 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Mail, ArrowLeft, Loader2 } from 'lucide-react';
+
+const RESEND_COOLDOWN_SECONDS = 60;
 
 const PortalLoginPage = () => {
   const { orgCode } = useParams<{ orgCode: string }>();
@@ -18,6 +20,8 @@ const PortalLoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [branding, setBranding] = useState<any>({});
   const [portalEnabled, setPortalEnabled] = useState<boolean | null>(null);
+  const [cooldown, setCooldown] = useState(0);
+  const submittingRef = useRef(false);
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 
@@ -41,8 +45,14 @@ const PortalLoginPage = () => {
     checkPortal();
   }, [orgCode, supabaseUrl]);
 
-  const handleSendOTP = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Cooldown timer
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => setCooldown(c => c - 1), 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
+  const sendOtp = useCallback(async () => {
     if (!email.trim()) return;
     setLoading(true);
     try {
@@ -57,22 +67,29 @@ const PortalLoginPage = () => {
         return;
       }
       setStep('otp');
+      setCooldown(RESEND_COOLDOWN_SECONDS);
       toast.success('Verification code sent to your email');
     } catch {
       toast.error('Failed to send verification code');
     } finally {
       setLoading(false);
     }
+  }, [email, orgCode, supabaseUrl]);
+
+  const handleSendOTP = (e: React.FormEvent) => {
+    e.preventDefault();
+    sendOtp();
   };
 
-  const handleVerifyOTP = async () => {
-    if (otp.length !== 6) return;
+  const handleVerifyOTP = useCallback(async (code: string) => {
+    if (code.length !== 6 || submittingRef.current) return;
+    submittingRef.current = true;
     setLoading(true);
     try {
       const res = await fetch(`${supabaseUrl}/functions/v1/portal-verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orgSlug: orgCode, email: email.trim(), code: otp }),
+        body: JSON.stringify({ orgSlug: orgCode, email: email.trim(), code }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -88,12 +105,13 @@ const PortalLoginPage = () => {
       setOtp('');
     } finally {
       setLoading(false);
+      submittingRef.current = false;
     }
-  };
+  }, [email, orgCode, supabaseUrl, setSession, navigate]);
 
   useEffect(() => {
-    if (otp.length === 6) handleVerifyOTP();
-  }, [otp]);
+    if (otp.length === 6) handleVerifyOTP(otp);
+  }, [otp, handleVerifyOTP]);
 
   if (portalEnabled === null) {
     return (
@@ -189,10 +207,10 @@ const PortalLoginPage = () => {
               <Button
                 variant="ghost"
                 className="w-full text-sm"
-                onClick={handleSendOTP}
-                disabled={loading}
+                onClick={sendOtp}
+                disabled={loading || cooldown > 0}
               >
-                Resend Code
+                {cooldown > 0 ? `Resend Code (${cooldown}s)` : 'Resend Code'}
               </Button>
             </div>
           )}

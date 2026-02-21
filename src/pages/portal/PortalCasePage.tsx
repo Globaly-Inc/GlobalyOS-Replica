@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { ArrowLeft, CheckCircle, Circle, Clock, FileText, MessageSquare, Send, Upload, Loader2, Download } from 'lucide-react';
 import { toast } from 'sonner';
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
 const statusColors: Record<string, string> = {
   draft: 'bg-muted text-muted-foreground',
   active: 'bg-blue-100 text-blue-800',
@@ -28,6 +30,8 @@ const PortalCasePage = () => {
   const [messageText, setMessageText] = useState('');
   const [sending, setSending] = useState(false);
   const [messages, setMessages] = useState<any[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const fetchCase = async () => {
@@ -77,6 +81,36 @@ const PortalCasePage = () => {
       fetchCase();
     } catch {
       toast.error('Failed to complete task');
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !caseId) return;
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error('File too large (max 10MB)');
+      return;
+    }
+    setUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = (reader.result as string).split(',')[1];
+        await portalFetch('upload-document', undefined, {
+          caseId,
+          fileName: file.name,
+          fileType: file.type,
+          fileBase64: base64,
+        });
+        toast.success('Document uploaded');
+        fetchCase();
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      toast.error('Failed to upload document');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -272,7 +306,27 @@ const PortalCasePage = () => {
         {/* Documents */}
         <TabsContent value="documents">
           <Card>
-            <CardHeader><CardTitle className="text-lg">Documents</CardTitle></CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-lg">Documents</CardTitle>
+              <div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  onChange={handleFileUpload}
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.xlsx,.xls,.csv,.txt"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                >
+                  {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Upload className="h-4 w-4 mr-1" />}
+                  Upload
+                </Button>
+              </div>
+            </CardHeader>
             <CardContent>
               {!data.documents?.length ? (
                 <p className="text-muted-foreground text-sm text-center py-4">No documents.</p>

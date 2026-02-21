@@ -186,7 +186,7 @@ serve(async (req) => {
     const { error: emailError } = await resend.emails.send({
       from: `${brandingName} <hello@globalyos.com>`,
       to: [normalizedEmail],
-      subject: `Your ${brandingName} portal verification code: ${otpCode}`,
+      subject: `Your ${brandingName} portal verification code`,
       html: `
         <!DOCTYPE html>
         <html>

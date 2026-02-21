@@ -514,6 +514,7 @@ const App = () => <QueryClientProvider client={queryClient}>
                 {/* Client Portal routes (separate auth, no staff login needed) */}
                 <Route path="/org/:orgCode/portal/login" element={<PortalAuthProvider><PortalLoginPage /></PortalAuthProvider>} />
                 <Route path="/org/:orgCode/portal" element={<PortalAuthProvider><PortalProtectedRoute><PortalLayout /></PortalProtectedRoute></PortalAuthProvider>}>
+                  <Route index element={<Navigate to="dashboard" replace />} />
                   <Route path="dashboard" element={<PortalDashboardPage />} />
                   <Route path="cases/:caseId" element={<PortalCasePage />} />
                   <Route path="messages" element={<PortalMessagesPage />} />
