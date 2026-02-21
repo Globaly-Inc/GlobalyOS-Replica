@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Outlet, Link, useParams, useLocation } from 'react-router-dom';
 import { usePortalAuth } from '@/hooks/usePortalAuth';
-import { LayoutDashboard, FolderOpen, MessageSquare, Bell, User, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, FolderOpen, MessageSquare, User, LogOut, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import { PortalNotifications } from './PortalNotifications';
 
 interface PortalBranding {
   logo_url?: string;
@@ -78,7 +79,8 @@ export const PortalLayout = () => {
             ))}
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <PortalNotifications />
             <Avatar className="h-8 w-8">
               <AvatarFallback className="text-xs bg-primary/10 text-primary">{initials}</AvatarFallback>
             </Avatar>
