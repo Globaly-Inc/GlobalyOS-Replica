@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCreateCRMService } from '@/services/useCRMServices';
+import { ServiceCategorySelect } from '@/components/crm/services/ServiceCategorySelect';
 import { toast } from 'sonner';
 
 interface AddServiceDialogProps {
@@ -66,8 +67,8 @@ export const AddServiceDialog = ({ open, onOpenChange }: AddServiceDialogProps) 
             <Input id="svc-name" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Student Visa Processing" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="svc-category">Category</Label>
-            <Input id="svc-category" value={category} onChange={e => setCategory(e.target.value)} placeholder="e.g. Visa Services" />
+            <Label>Category</Label>
+            <ServiceCategorySelect value={category} onValueChange={setCategory} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="svc-desc">Short Description</Label>

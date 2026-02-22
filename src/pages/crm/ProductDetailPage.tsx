@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PageBody } from '@/components/ui/page-body';
 import { useCRMService, useUpdateCRMService } from '@/services/useCRMServices';
+import { ServiceCategorySelect } from '@/components/crm/services/ServiceCategorySelect';
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
@@ -129,7 +130,7 @@ const ProductDetailPage = () => {
                       </div>
                       <div className="space-y-2">
                         <Label>Category</Label>
-                        <Input value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} />
+                        <ServiceCategorySelect value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))} />
                       </div>
                     </div>
                     <div className="space-y-2">
