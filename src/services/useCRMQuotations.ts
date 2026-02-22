@@ -500,6 +500,125 @@ export function useCRMQuotationTemplates() {
   });
 }
 
+// ─── Update Service Fee ───────────────────────────────
+
+export function useUpdateServiceFee() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, quotation_id, ...data }: {
+      id: string;
+      quotation_id: string;
+      fee_name?: string;
+      amount?: number;
+      tax_mode?: 'inclusive' | 'exclusive';
+      tax_rate?: number;
+      revenue_type?: string;
+      installment_type?: string;
+      num_installments?: number;
+      installment_details?: any[];
+    }) => {
+      // Recalculate tax if amount/rate/mode changed
+      const updateData: any = { ...data };
+      delete updateData.quotation_id;
+
+      if (data.amount !== undefined || data.tax_rate !== undefined || data.tax_mode !== undefined) {
+        const amount = data.amount ?? 0;
+        const taxRate = data.tax_rate ?? 0;
+        const taxMode = data.tax_mode ?? 'exclusive';
+
+        if (taxMode === 'inclusive') {
+          const base = amount / (1 + taxRate / 100);
+          updateData.tax_amount = Math.round((amount - base) * 100) / 100;
+          updateData.total_amount = amount;
+        } else {
+          updateData.tax_amount = Math.round(amount * (taxRate / 100) * 100) / 100;
+          updateData.total_amount = Math.round((amount + updateData.tax_amount) * 100) / 100;
+        }
+      }
+
+      const { error } = await supabase
+        .from('crm_quotation_service_fees')
+        .update(updateData)
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['crm-quotation', vars.quotation_id] });
+    },
+  });
+}
+
+// ─── Update Option Service ────────────────────────────
+
+export function useUpdateOptionService() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, quotation_id, ...data }: {
+      id: string;
+      quotation_id: string;
+      service_name?: string;
+      partner_id?: string | null;
+      service_date?: string | null;
+      sort_order?: number;
+    }) => {
+      const updateData: any = { ...data };
+      delete updateData.quotation_id;
+      const { error } = await supabase
+        .from('crm_quotation_option_services')
+        .update(updateData)
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['crm-quotation', vars.quotation_id] });
+    },
+  });
+}
+
+// ─── Reorder Options ──────────────────────────────────
+
+export function useReorderOptions() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ quotation_id, items }: { quotation_id: string; items: { id: string; sort_order: number }[] }) => {
+      for (const item of items) {
+        const { error } = await supabase
+          .from('crm_quotation_options')
+          .update({ sort_order: item.sort_order })
+          .eq('id', item.id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['crm-quotation', vars.quotation_id] });
+    },
+  });
+}
+
+// ─── Reorder Services ─────────────────────────────────
+
+export function useReorderServices() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ quotation_id, items }: { quotation_id: string; items: { id: string; sort_order: number }[] }) => {
+      for (const item of items) {
+        const { error } = await supabase
+          .from('crm_quotation_option_services')
+          .update({ sort_order: item.sort_order })
+          .eq('id', item.id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['crm-quotation', vars.quotation_id] });
+    },
+  });
+}
+
 // ─── Send Quotation ───────────────────────────────────
 
 export function useSendQuotation() {

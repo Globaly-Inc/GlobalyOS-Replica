@@ -2,3 +2,8 @@ export { QuotationOptionEditor } from './QuotationOptionEditor';
 export { QuotationFeeEditor } from './QuotationFeeEditor';
 export { QuotationSettingsForm } from './QuotationSettingsForm';
 export { QuotationContactList } from './QuotationContactList';
+export { QuotationLivePreview } from './QuotationLivePreview';
+export { AddFeeDialog } from './AddFeeDialog';
+export { AddServiceDialog } from './AddServiceDialog';
+export { SortableOptionItem } from './SortableOptionItem';
+export { SortableServiceItem } from './SortableServiceItem';
