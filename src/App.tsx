@@ -251,6 +251,7 @@ const SuperAdminErrorLogs = lazy(() => import('./pages/super-admin/SuperAdminErr
 const SuperAdminErrorLogDetail = lazy(() => import('./pages/super-admin/SuperAdminErrorLogDetail'));
 const SuperAdminHiringLogs = lazy(() => import('./pages/super-admin/SuperAdminHiringLogs'));
 const SuperAdminTemplates = lazy(() => import('./pages/super-admin/SuperAdminTemplates'));
+const SuperAdminFeatures = lazy(() => import('./pages/super-admin/SuperAdminFeatures'));
 const SuperAdminProtectedRoute = lazy(() => import('./components/super-admin/SuperAdminProtectedRoute'));
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -524,6 +525,9 @@ const App = () => <QueryClientProvider client={queryClient}>
                   </SuperAdminProtectedRoute>} />
                 <Route path="/super-admin/hiring-logs" element={<SuperAdminProtectedRoute>
                     <SuperAdminHiringLogs />
+                  </SuperAdminProtectedRoute>} />
+                <Route path="/super-admin/features" element={<SuperAdminProtectedRoute>
+                    <SuperAdminFeatures />
                   </SuperAdminProtectedRoute>} />
                 <Route path="/super-admin/plans/new" element={<SuperAdminProtectedRoute>
                     <SuperAdminPlanEditor />
