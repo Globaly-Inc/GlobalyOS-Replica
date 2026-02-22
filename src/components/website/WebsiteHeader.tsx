@@ -23,7 +23,7 @@ export const WebsiteHeader = () => {
   };
 
   const navLinks = [
-    { name: "Features", href: "/features" },
+    ...(user ? [{ name: "Features", href: "/features" }] : []),
     { name: "Pricing", href: "/pricing" },
     { name: "Blog", href: "/blog" },
   ];

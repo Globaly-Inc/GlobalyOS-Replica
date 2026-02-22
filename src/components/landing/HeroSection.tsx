@@ -50,7 +50,7 @@ export const HeroSection = () => {
               Start Free Trial <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           )}
-          <Button size="lg" variant="outline" className="text-lg px-8 h-14" onClick={() => navigate("/features")}>
+          <Button size="lg" variant="outline" className="text-lg px-8 h-14" onClick={() => navigate("/contact")}>
             Book a Demo
           </Button>
         </div>
