@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, ArrowLeft, Shield, Users, CreditCard, FileText } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, ArrowLeft, Shield, Users, CreditCard, FileText, Save } from "lucide-react";
 import { toast } from "sonner";
-import { MASTER_FEATURE_REGISTRY } from "@/constants/features";
+import { useFeatureRegistry, type FeatureEntry } from "@/hooks/useFeatureRegistry";
 
 interface OrgAccess {
   id: string;
@@ -22,34 +23,43 @@ const SUBSCRIPTION_TIERS = ["Free", "Starter", "Professional", "Enterprise"];
 const SuperAdminFeatureDetail = () => {
   const { featureName } = useParams<{ featureName: string }>();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
+  const { features, loading: registryLoading, refetch } = useFeatureRegistry();
   const [orgs, setOrgs] = useState<OrgAccess[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [selectedTiers, setSelectedTiers] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
+  const [category, setCategory] = useState<"core" | "flagged">("flagged");
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
 
-  const feature = MASTER_FEATURE_REGISTRY.find((f) => f.name === featureName);
+  const feature = features.find((f) => f.name === featureName);
+
+  // Sync local state when feature loads
+  useEffect(() => {
+    if (feature) {
+      setSelectedTiers(feature.subscription_tiers);
+      setNotes(feature.internal_notes);
+      setCategory(feature.category);
+      setDirty(false);
+    }
+  }, [feature?.id]);
 
   useEffect(() => {
-    if (!feature) {
-      setLoading(false);
-      return;
-    }
+    if (!featureName || registryLoading) return;
 
-    const fetchData = async () => {
+    const fetchOrgs = async () => {
       try {
         const [orgsRes, featuresRes] = await Promise.all([
           supabase.from("organizations").select("id, name").order("name"),
-          feature.category === "flagged"
-            ? supabase.from("organization_features").select("organization_id, is_enabled").eq("feature_name", featureName!)
-            : Promise.resolve({ data: [], error: null }),
+          supabase.from("organization_features").select("organization_id, is_enabled").eq("feature_name", featureName),
         ]);
 
         if (orgsRes.error) throw orgsRes.error;
         if (featuresRes.error) throw featuresRes.error;
 
         const enabledMap: Record<string, boolean> = {};
-        (featuresRes.data || []).forEach((f: any) => {
+        (featuresRes.data || []).forEach((f) => {
           enabledMap[f.organization_id] = f.is_enabled;
         });
 
@@ -57,19 +67,59 @@ const SuperAdminFeatureDetail = () => {
           (orgsRes.data || []).map((org) => ({
             id: org.id,
             name: org.name,
-            enabled: feature.category === "core" ? true : (enabledMap[org.id] ?? false),
+            enabled: enabledMap[org.id] ?? false,
           }))
         );
       } catch (err) {
         console.error("Error loading feature detail:", err);
         toast.error("Failed to load feature details");
       } finally {
-        setLoading(false);
+        setDataLoading(false);
       }
     };
 
-    fetchData();
-  }, [featureName, feature]);
+    fetchOrgs();
+  }, [featureName, registryLoading]);
+
+  const saveSettings = async () => {
+    if (!feature) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("feature_registry")
+        .update({
+          category,
+          subscription_tiers: selectedTiers,
+          internal_notes: notes,
+        })
+        .eq("id", feature.id);
+
+      if (error) throw error;
+
+      // If changed to core, enable for all orgs automatically
+      if (category === "core" && feature.category === "flagged") {
+        const upserts = orgs.map((org) => ({
+          organization_id: org.id,
+          feature_name: featureName!,
+          is_enabled: true,
+          updated_at: new Date().toISOString(),
+        }));
+        await supabase
+          .from("organization_features")
+          .upsert(upserts, { onConflict: "organization_id,feature_name" });
+        setOrgs((prev) => prev.map((o) => ({ ...o, enabled: true })));
+      }
+
+      await refetch();
+      setDirty(false);
+      toast.success("Feature settings saved");
+    } catch (error) {
+      console.error("Error saving:", error);
+      toast.error("Failed to save settings");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const toggleOrg = async (orgId: string, enabled: boolean) => {
     setUpdating(orgId);
@@ -85,12 +135,8 @@ const SuperAdminFeatureDetail = () => {
           },
           { onConflict: "organization_id,feature_name" }
         );
-
       if (error) throw error;
-
-      setOrgs((prev) =>
-        prev.map((org) => (org.id === orgId ? { ...org, enabled } : org))
-      );
+      setOrgs((prev) => prev.map((org) => (org.id === orgId ? { ...org, enabled } : org)));
     } catch (error) {
       console.error("Error toggling:", error);
       toast.error("Failed to update");
@@ -108,13 +154,10 @@ const SuperAdminFeatureDetail = () => {
         is_enabled: enabled,
         updated_at: new Date().toISOString(),
       }));
-
       const { error } = await supabase
         .from("organization_features")
         .upsert(upserts, { onConflict: "organization_id,feature_name" });
-
       if (error) throw error;
-
       setOrgs((prev) => prev.map((org) => ({ ...org, enabled })));
       toast.success(`${enabled ? "Enabled" : "Disabled"} for all organizations`);
     } catch (error) {
@@ -124,6 +167,8 @@ const SuperAdminFeatureDetail = () => {
       setUpdating(null);
     }
   };
+
+  const loading = registryLoading || dataLoading;
 
   if (loading) {
     return (
@@ -149,7 +194,6 @@ const SuperAdminFeatureDetail = () => {
   }
 
   const Icon = feature.icon;
-  const isCore = feature.category === "core";
   const enabledCount = orgs.filter((o) => o.enabled).length;
 
   return (
@@ -161,24 +205,32 @@ const SuperAdminFeatureDetail = () => {
             <ArrowLeft className="h-4 w-4 mr-1" />
             Back to Features
           </Button>
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-              <Icon className="h-6 w-6 text-primary" />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold text-foreground">{feature.label}</h1>
-                <Badge variant={isCore ? "secondary" : "default"}>
-                  {isCore ? "Core" : "Flagged"}
-                </Badge>
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+                <Icon className="h-6 w-6 text-primary" />
               </div>
-              <p className="text-sm text-muted-foreground mt-1">{feature.description}</p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-2xl font-bold text-foreground">{feature.label}</h1>
+                  <Badge variant={category === "core" ? "secondary" : "default"}>
+                    {category === "core" ? "Core" : "Flagged"}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">{feature.description}</p>
+              </div>
             </div>
+            {dirty && (
+              <Button onClick={saveSettings} disabled={saving}>
+                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                Save Changes
+              </Button>
+            )}
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Overview + Org Access */}
+          {/* Left Column */}
           <div className="lg:col-span-2 space-y-6">
             {/* Overview */}
             <Card>
@@ -218,27 +270,17 @@ const SuperAdminFeatureDetail = () => {
                       Organization Access
                     </CardTitle>
                     <CardDescription>
-                      {isCore
-                        ? "Core features are always enabled for all organizations"
+                      {category === "core"
+                        ? "Core features are enabled for all organizations. Change to Flagged to control per-org."
                         : "Toggle feature access per organization"}
                     </CardDescription>
                   </div>
-                  {!isCore && (
+                  {category === "flagged" && (
                     <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={updating === "bulk"}
-                        onClick={() => bulkToggle(true)}
-                      >
+                      <Button variant="outline" size="sm" disabled={updating === "bulk"} onClick={() => bulkToggle(true)}>
                         Enable All
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={updating === "bulk"}
-                        onClick={() => bulkToggle(false)}
-                      >
+                      <Button variant="outline" size="sm" disabled={updating === "bulk"} onClick={() => bulkToggle(false)}>
                         Disable All
                       </Button>
                     </div>
@@ -248,12 +290,9 @@ const SuperAdminFeatureDetail = () => {
               <CardContent>
                 <div className="space-y-2 max-h-[400px] overflow-y-auto">
                   {orgs.map((org) => (
-                    <div
-                      key={org.id}
-                      className="flex items-center justify-between rounded-lg border p-3"
-                    >
+                    <div key={org.id} className="flex items-center justify-between rounded-lg border p-3">
                       <span className="text-sm font-medium">{org.name}</span>
-                      {isCore ? (
+                      {category === "core" ? (
                         <Badge variant="secondary" className="text-[10px]">Always On</Badge>
                       ) : updating === org.id ? (
                         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -266,16 +305,47 @@ const SuperAdminFeatureDetail = () => {
                       )}
                     </div>
                   ))}
-                  {orgs.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4">No organizations found</p>
-                  )}
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Right Column - Subscription + Notes */}
+          {/* Right Column */}
           <div className="space-y-6">
+            {/* Feature Type */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Feature Type</CardTitle>
+                <CardDescription>
+                  Core = always on for all orgs. Flagged = per-org control.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Select
+                  value={category}
+                  onValueChange={(val: "core" | "flagged") => {
+                    setCategory(val);
+                    setDirty(true);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="core">Core (Always On)</SelectItem>
+                    <SelectItem value="flagged">Flagged (Per-Org Control)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {category !== feature.category && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                    {category === "core"
+                      ? "⚠ Changing to Core will enable this feature for all organizations."
+                      : "⚠ Changing to Flagged will allow per-org control. Current org access will be preserved."}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Subscription Tiers */}
             <Card>
               <CardHeader>
@@ -283,54 +353,45 @@ const SuperAdminFeatureDetail = () => {
                   <CreditCard className="h-4 w-4" />
                   Subscription Tiers
                 </CardTitle>
-                <CardDescription>
-                  Assign which plans include this feature
-                </CardDescription>
+                <CardDescription>Assign which plans include this feature</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
                   {SUBSCRIPTION_TIERS.map((tier) => (
-                    <div
-                      key={tier}
-                      className="flex items-center justify-between rounded-lg border p-3"
-                    >
+                    <div key={tier} className="flex items-center justify-between rounded-lg border p-3">
                       <span className="text-sm font-medium">{tier}</span>
                       <Switch
-                        checked={isCore || selectedTiers.includes(tier)}
-                        disabled={isCore}
+                        checked={selectedTiers.includes(tier)}
                         onCheckedChange={(checked) => {
                           setSelectedTiers((prev) =>
                             checked ? [...prev, tier] : prev.filter((t) => t !== tier)
                           );
+                          setDirty(true);
                         }}
                       />
                     </div>
                   ))}
                 </div>
-                {isCore && (
-                  <p className="text-xs text-muted-foreground mt-3">
-                    Core features are included in all plans.
-                  </p>
-                )}
               </CardContent>
             </Card>
 
-            {/* Release Notes */}
+            {/* Internal Notes */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
                   <FileText className="h-4 w-4" />
                   Internal Notes
                 </CardTitle>
-                <CardDescription>
-                  Notes about this feature (internal only)
-                </CardDescription>
+                <CardDescription>Notes about this feature (internal only)</CardDescription>
               </CardHeader>
               <CardContent>
                 <Textarea
                   placeholder="Add internal notes, release changelog, or configuration details..."
                   value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
+                  onChange={(e) => {
+                    setNotes(e.target.value);
+                    setDirty(true);
+                  }}
                   rows={6}
                 />
               </CardContent>

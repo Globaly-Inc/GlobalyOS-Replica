@@ -6,20 +6,21 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Search, Shield, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { FeatureAuditDialog } from "@/components/super-admin/FeatureAuditDialog";
-import { MASTER_FEATURE_REGISTRY, CORE_FEATURES, FLAGGED_FEATURES } from "@/constants/features";
+import { useFeatureRegistry } from "@/hooks/useFeatureRegistry";
 
 const SuperAdminFeatures = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
+  const { features, coreFeatures, flaggedFeatures, loading: registryLoading } = useFeatureRegistry();
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("all");
   const [auditOpen, setAuditOpen] = useState(false);
   const [orgCount, setOrgCount] = useState(0);
   const [featureCounts, setFeatureCounts] = useState<Record<string, number>>({});
+  const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -43,25 +44,27 @@ const SuperAdminFeatures = () => {
         console.error("Error fetching features data:", err);
         toast.error("Failed to load features data");
       } finally {
-        setLoading(false);
+        setDataLoading(false);
       }
     };
     fetchData();
   }, []);
 
+  const loading = registryLoading || dataLoading;
+
   const filteredFeatures = useMemo(() => {
-    let features = MASTER_FEATURE_REGISTRY;
-    if (tab === "core") features = CORE_FEATURES;
-    else if (tab === "flagged") features = FLAGGED_FEATURES;
+    let list = features;
+    if (tab === "core") list = coreFeatures;
+    else if (tab === "flagged") list = flaggedFeatures;
 
     if (search) {
       const q = search.toLowerCase();
-      features = features.filter(
+      list = list.filter(
         (f) => f.label.toLowerCase().includes(q) || f.description.toLowerCase().includes(q) || f.name.toLowerCase().includes(q)
       );
     }
-    return features;
-  }, [tab, search]);
+    return list;
+  }, [tab, search, features, coreFeatures, flaggedFeatures]);
 
   if (loading) {
     return (
@@ -76,12 +79,11 @@ const SuperAdminFeatures = () => {
   return (
     <SuperAdminLayout>
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Features</h1>
             <p className="text-sm text-muted-foreground">
-              {MASTER_FEATURE_REGISTRY.length} features · {CORE_FEATURES.length} core · {FLAGGED_FEATURES.length} flagged
+              {features.length} features · {coreFeatures.length} core · {flaggedFeatures.length} flagged
             </p>
           </div>
           <Button variant="outline" onClick={() => setAuditOpen(true)}>
@@ -92,7 +94,6 @@ const SuperAdminFeatures = () => {
 
         <FeatureAuditDialog open={auditOpen} onOpenChange={setAuditOpen} />
 
-        {/* Filter bar */}
         <div className="flex items-center gap-3">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -105,14 +106,13 @@ const SuperAdminFeatures = () => {
           </div>
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList>
-              <TabsTrigger value="all">All ({MASTER_FEATURE_REGISTRY.length})</TabsTrigger>
-              <TabsTrigger value="core">Core ({CORE_FEATURES.length})</TabsTrigger>
-              <TabsTrigger value="flagged">Flagged ({FLAGGED_FEATURES.length})</TabsTrigger>
+              <TabsTrigger value="all">All ({features.length})</TabsTrigger>
+              <TabsTrigger value="core">Core ({coreFeatures.length})</TabsTrigger>
+              <TabsTrigger value="flagged">Flagged ({flaggedFeatures.length})</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
 
-        {/* Features Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {filteredFeatures.map((feature) => {
             const Icon = feature.icon;
