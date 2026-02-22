@@ -91,7 +91,17 @@ export default defineConfig(({ mode }) => ({
     sourcemap: false,
     rollupOptions: {
       output: {
-        manualChunks: undefined,
+        manualChunks(id) {
+          // Split large vendor dependencies into separate chunks
+          if (id.includes('node_modules')) {
+            if (id.includes('@radix-ui')) return 'vendor-radix';
+            if (id.includes('recharts') || id.includes('d3-')) return 'vendor-charts';
+            if (id.includes('@blocknote') || id.includes('@mantine')) return 'vendor-editor';
+            if (id.includes('lucide-react')) return 'vendor-icons';
+            if (id.includes('@supabase')) return 'vendor-supabase';
+            if (id.includes('react-dom')) return 'vendor-react-dom';
+          }
+        },
       },
     },
   },
