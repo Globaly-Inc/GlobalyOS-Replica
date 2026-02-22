@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, ArrowLeft, Shield, Users, CreditCard, FileText, Save, Upload, Download, Eye, File, Trash2 } from "lucide-react";
+import { Loader2, ArrowLeft, Shield, Users, CreditCard, FileText, Save, Upload, Download, Eye, File, Trash2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useFeatureRegistry, type FeatureEntry } from "@/hooks/useFeatureRegistry";
 import { DocumentPreviewDialog } from "@/components/dialogs/DocumentPreviewDialog";
@@ -50,6 +50,7 @@ const SuperAdminFeatureDetail = () => {
   const [prdDocuments, setPrdDocuments] = useState<PrdDocument[]>([]);
   const [prdLoading, setPrdLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<{ file_name: string; file_path: string; file_type: string | null } | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -211,6 +212,37 @@ const SuperAdminFeatureDetail = () => {
       file_type: "application/pdf",
     });
     setPreviewOpen(true);
+  };
+
+  const handleGeneratePrd = async () => {
+    if (!featureName || !feature) return;
+    setGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-feature-prd", {
+        body: {
+          featureName: feature.name,
+          featureLabel: feature.label,
+          featureDescription: feature.description,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      // Refresh PRD list
+      const { data: prds } = await supabase
+        .from("feature_prd_documents")
+        .select("*")
+        .eq("feature_name", featureName)
+        .order("generated_at", { ascending: false });
+      setPrdDocuments((prds as PrdDocument[]) || []);
+      toast.success("PRD generated successfully!");
+    } catch (err: any) {
+      console.error("PRD generation error:", err);
+      toast.error(err.message || "Failed to generate PRD");
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const saveSettings = async () => {
@@ -473,7 +505,20 @@ const SuperAdminFeatureDetail = () => {
                         </CardTitle>
                         <CardDescription>AI-generated Product Requirements Documents</CardDescription>
                       </div>
-                      <div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={generating}
+                          onClick={handleGeneratePrd}
+                        >
+                          {generating ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : (
+                            <Sparkles className="h-4 w-4 mr-2 text-amber-500" />
+                          )}
+                          {generating ? "Generating..." : "AI Generate PRD"}
+                        </Button>
                         <input
                           ref={fileInputRef}
                           type="file"
@@ -506,7 +551,7 @@ const SuperAdminFeatureDetail = () => {
                       <div className="text-center py-8 text-muted-foreground">
                         <File className="h-10 w-10 mx-auto mb-3 opacity-40" />
                         <p className="text-sm">No PRD documents yet</p>
-                        <p className="text-xs mt-1">Upload a PDF to get started</p>
+                        <p className="text-xs mt-1">Generate one with AI or upload a PDF</p>
                       </div>
                     ) : (
                       <div className="space-y-3 max-h-[500px] overflow-y-auto">
