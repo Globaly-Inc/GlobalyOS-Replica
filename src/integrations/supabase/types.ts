@@ -7778,6 +7778,545 @@ export type Database = {
           },
         ]
       }
+      crm_quotation_comments: {
+        Row: {
+          author_id: string | null
+          author_name: string | null
+          author_type: Database["public"]["Enums"]["quotation_comment_author_type"]
+          content: string
+          created_at: string
+          id: string
+          organization_id: string
+          quotation_id: string
+        }
+        Insert: {
+          author_id?: string | null
+          author_name?: string | null
+          author_type?: Database["public"]["Enums"]["quotation_comment_author_type"]
+          content: string
+          created_at?: string
+          id?: string
+          organization_id: string
+          quotation_id: string
+        }
+        Update: {
+          author_id?: string | null
+          author_name?: string | null
+          author_type?: Database["public"]["Enums"]["quotation_comment_author_type"]
+          content?: string
+          created_at?: string
+          id?: string
+          organization_id?: string
+          quotation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_quotation_comments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_quotation_comments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_quotation_comments_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "crm_quotations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_quotation_option_services: {
+        Row: {
+          created_at: string
+          id: string
+          option_id: string
+          organization_id: string
+          partner_branch_id: string | null
+          partner_id: string | null
+          product_fee_option_id: string | null
+          service_date: string | null
+          service_id: string | null
+          service_name: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          option_id: string
+          organization_id: string
+          partner_branch_id?: string | null
+          partner_id?: string | null
+          product_fee_option_id?: string | null
+          service_date?: string | null
+          service_id?: string | null
+          service_name: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          option_id?: string
+          organization_id?: string
+          partner_branch_id?: string | null
+          partner_id?: string | null
+          product_fee_option_id?: string | null
+          service_date?: string | null
+          service_id?: string | null
+          service_name?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_quotation_option_services_option_id_fkey"
+            columns: ["option_id"]
+            isOneToOne: false
+            referencedRelation: "crm_quotation_options"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_quotation_option_services_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_quotation_option_services_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_quotation_option_services_partner_branch_id_fkey"
+            columns: ["partner_branch_id"]
+            isOneToOne: false
+            referencedRelation: "crm_partner_branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_quotation_option_services_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "crm_partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_quotation_option_services_product_fee_option_id_fkey"
+            columns: ["product_fee_option_id"]
+            isOneToOne: false
+            referencedRelation: "crm_product_fee_options"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_quotation_option_services_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "crm_services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_quotation_options: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_approved: boolean
+          name: string
+          organization_id: string
+          quotation_id: string
+          sort_order: number
+          subtotal: number | null
+          tax_total: number | null
+          total: number | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_approved?: boolean
+          name?: string
+          organization_id: string
+          quotation_id: string
+          sort_order?: number
+          subtotal?: number | null
+          tax_total?: number | null
+          total?: number | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_approved?: boolean
+          name?: string
+          organization_id?: string
+          quotation_id?: string
+          sort_order?: number
+          subtotal?: number | null
+          tax_total?: number | null
+          total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_quotation_options_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_quotation_options_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_quotation_options_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "crm_quotations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_quotation_service_fees: {
+        Row: {
+          amount: number
+          created_at: string
+          fee_name: string
+          fee_type_id: string | null
+          id: string
+          installment_details: Json | null
+          installment_type: Database["public"]["Enums"]["quotation_installment_type"]
+          num_installments: number
+          option_service_id: string
+          organization_id: string
+          revenue_type: Database["public"]["Enums"]["fee_revenue_type"]
+          tax_amount: number
+          tax_mode: Database["public"]["Enums"]["tax_mode"]
+          tax_rate: number
+          total_amount: number
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          fee_name: string
+          fee_type_id?: string | null
+          id?: string
+          installment_details?: Json | null
+          installment_type?: Database["public"]["Enums"]["quotation_installment_type"]
+          num_installments?: number
+          option_service_id: string
+          organization_id: string
+          revenue_type?: Database["public"]["Enums"]["fee_revenue_type"]
+          tax_amount?: number
+          tax_mode?: Database["public"]["Enums"]["tax_mode"]
+          tax_rate?: number
+          total_amount?: number
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          fee_name?: string
+          fee_type_id?: string | null
+          id?: string
+          installment_details?: Json | null
+          installment_type?: Database["public"]["Enums"]["quotation_installment_type"]
+          num_installments?: number
+          option_service_id?: string
+          organization_id?: string
+          revenue_type?: Database["public"]["Enums"]["fee_revenue_type"]
+          tax_amount?: number
+          tax_mode?: Database["public"]["Enums"]["tax_mode"]
+          tax_rate?: number
+          total_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_quotation_service_fees_fee_type_id_fkey"
+            columns: ["fee_type_id"]
+            isOneToOne: false
+            referencedRelation: "crm_product_fee_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_quotation_service_fees_option_service_id_fkey"
+            columns: ["option_service_id"]
+            isOneToOne: false
+            referencedRelation: "crm_quotation_option_services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_quotation_service_fees_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_quotation_service_fees_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_quotation_settings: {
+        Row: {
+          auto_create_invoice: boolean
+          auto_process_on_approve: boolean
+          created_at: string
+          default_cover_letter: string | null
+          default_currency: string
+          default_payment_details: Json | null
+          default_validity_days: number
+          id: string
+          next_quotation_number: number
+          organization_id: string
+          quotation_prefix: string
+          updated_at: string
+        }
+        Insert: {
+          auto_create_invoice?: boolean
+          auto_process_on_approve?: boolean
+          created_at?: string
+          default_cover_letter?: string | null
+          default_currency?: string
+          default_payment_details?: Json | null
+          default_validity_days?: number
+          id?: string
+          next_quotation_number?: number
+          organization_id: string
+          quotation_prefix?: string
+          updated_at?: string
+        }
+        Update: {
+          auto_create_invoice?: boolean
+          auto_process_on_approve?: boolean
+          created_at?: string
+          default_cover_letter?: string | null
+          default_currency?: string
+          default_payment_details?: Json | null
+          default_validity_days?: number
+          id?: string
+          next_quotation_number?: number
+          organization_id?: string
+          quotation_prefix?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_quotation_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_quotation_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_quotations: {
+        Row: {
+          approved_at: string | null
+          approved_by_email: string | null
+          approved_by_name: string | null
+          approved_option_id: string | null
+          assignee_id: string | null
+          company_id: string | null
+          contact_id: string | null
+          cover_letter: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          discount_amount: number | null
+          discount_description: string | null
+          grand_total: number | null
+          id: string
+          is_template: boolean
+          notes: string | null
+          office_id: string | null
+          organization_id: string
+          parent_quotation_id: string | null
+          payment_details: Json | null
+          processed_deal_id: string | null
+          processed_invoice_id: string | null
+          public_token: string | null
+          quotation_number: string
+          sent_at: string | null
+          status: Database["public"]["Enums"]["quotation_status"]
+          subtotal: number | null
+          tax_total: number | null
+          template_name: string | null
+          token_expires_at: string | null
+          updated_at: string
+          valid_until: string | null
+          version: number
+          viewed_at: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by_email?: string | null
+          approved_by_name?: string | null
+          approved_option_id?: string | null
+          assignee_id?: string | null
+          company_id?: string | null
+          contact_id?: string | null
+          cover_letter?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          discount_amount?: number | null
+          discount_description?: string | null
+          grand_total?: number | null
+          id?: string
+          is_template?: boolean
+          notes?: string | null
+          office_id?: string | null
+          organization_id: string
+          parent_quotation_id?: string | null
+          payment_details?: Json | null
+          processed_deal_id?: string | null
+          processed_invoice_id?: string | null
+          public_token?: string | null
+          quotation_number: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["quotation_status"]
+          subtotal?: number | null
+          tax_total?: number | null
+          template_name?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          valid_until?: string | null
+          version?: number
+          viewed_at?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by_email?: string | null
+          approved_by_name?: string | null
+          approved_option_id?: string | null
+          assignee_id?: string | null
+          company_id?: string | null
+          contact_id?: string | null
+          cover_letter?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          discount_amount?: number | null
+          discount_description?: string | null
+          grand_total?: number | null
+          id?: string
+          is_template?: boolean
+          notes?: string | null
+          office_id?: string | null
+          organization_id?: string
+          parent_quotation_id?: string | null
+          payment_details?: Json | null
+          processed_deal_id?: string | null
+          processed_invoice_id?: string | null
+          public_token?: string | null
+          quotation_number?: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["quotation_status"]
+          subtotal?: number | null
+          tax_total?: number | null
+          template_name?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          valid_until?: string | null
+          version?: number
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_quotations_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_quotations_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_quotations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "crm_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_quotations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_quotations_office_id_fkey"
+            columns: ["office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_quotations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_quotations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_quotations_parent_quotation_id_fkey"
+            columns: ["parent_quotation_id"]
+            isOneToOne: false
+            referencedRelation: "crm_quotations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_quotations_processed_deal_id_fkey"
+            columns: ["processed_deal_id"]
+            isOneToOne: false
+            referencedRelation: "crm_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_quotations_processed_invoice_id_fkey"
+            columns: ["processed_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_service_offices: {
         Row: {
           id: string
@@ -24714,6 +25253,10 @@ export type Database = {
         Returns: string
       }
       generate_invoice_number: { Args: never; Returns: string }
+      generate_quotation_number: {
+        Args: { p_organization_id: string }
+        Returns: string
+      }
       get_accessible_ai_content: {
         Args: {
           _content_types?: string[]
@@ -25308,6 +25851,17 @@ export type Database = {
       partner_user_status: "active" | "suspended" | "invited"
       payment_schedule_item_status: "pending" | "paid" | "overdue" | "cancelled"
       payment_schedule_type: "manual" | "auto"
+      quotation_comment_author_type: "staff" | "client" | "agent" | "system"
+      quotation_installment_type: "equal" | "custom"
+      quotation_status:
+        | "draft"
+        | "sent"
+        | "viewed"
+        | "approved"
+        | "rejected"
+        | "expired"
+        | "processed"
+        | "archived"
       service_application_priority: "low" | "medium" | "high"
       service_application_status:
         | "draft"
@@ -25695,6 +26249,18 @@ export const Constants = {
       partner_user_status: ["active", "suspended", "invited"],
       payment_schedule_item_status: ["pending", "paid", "overdue", "cancelled"],
       payment_schedule_type: ["manual", "auto"],
+      quotation_comment_author_type: ["staff", "client", "agent", "system"],
+      quotation_installment_type: ["equal", "custom"],
+      quotation_status: [
+        "draft",
+        "sent",
+        "viewed",
+        "approved",
+        "rejected",
+        "expired",
+        "processed",
+        "archived",
+      ],
       service_application_priority: ["low", "medium", "high"],
       service_application_status: [
         "draft",
