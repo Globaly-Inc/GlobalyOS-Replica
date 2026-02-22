@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import SuperAdminLayout from "@/components/super-admin/SuperAdminLayout";
@@ -8,9 +8,24 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, ArrowLeft, Shield, Users, CreditCard, FileText, Save } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, ArrowLeft, Shield, Users, CreditCard, FileText, Save, Upload, Download, Eye, File, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useFeatureRegistry, type FeatureEntry } from "@/hooks/useFeatureRegistry";
+import { DocumentPreviewDialog } from "@/components/dialogs/DocumentPreviewDialog";
+import { useRelativeTime } from "@/hooks/useRelativeTime";
+
+interface PrdDocument {
+  id: string;
+  feature_name: string;
+  title: string;
+  description: string | null;
+  file_path: string;
+  file_name: string;
+  generated_at: string;
+  created_by: string | null;
+  created_at: string;
+}
 
 interface OrgAccess {
   id: string;
@@ -32,6 +47,13 @@ const SuperAdminFeatureDetail = () => {
   const [category, setCategory] = useState<"core" | "flagged">("flagged");
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [prdDocuments, setPrdDocuments] = useState<PrdDocument[]>([]);
+  const [prdLoading, setPrdLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<{ file_name: string; file_path: string; file_type: string | null } | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { getShortRelativeTime } = useRelativeTime();
 
   const feature = features.find((f) => f.name === featureName);
 
@@ -80,6 +102,116 @@ const SuperAdminFeatureDetail = () => {
 
     fetchOrgs();
   }, [featureName, registryLoading]);
+
+  // Fetch PRD documents
+  useEffect(() => {
+    if (!featureName) return;
+    const fetchPrds = async () => {
+      setPrdLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("feature_prd_documents")
+          .select("*")
+          .eq("feature_name", featureName)
+          .order("generated_at", { ascending: false });
+        if (error) throw error;
+        setPrdDocuments((data as PrdDocument[]) || []);
+      } catch (err) {
+        console.error("Error loading PRDs:", err);
+      } finally {
+        setPrdLoading(false);
+      }
+    };
+    fetchPrds();
+  }, [featureName]);
+
+  const handleUploadPrd = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !featureName) return;
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("Only PDF files are allowed");
+      return;
+    }
+    setUploading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const fileId = crypto.randomUUID();
+      const filePath = `${featureName}/${fileId}.pdf`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("feature-prd-documents")
+        .upload(filePath, file);
+      if (uploadError) throw uploadError;
+
+      const { error: insertError } = await supabase
+        .from("feature_prd_documents")
+        .insert({
+          feature_name: featureName,
+          title: file.name.replace(/\.pdf$/i, ""),
+          file_path: filePath,
+          file_name: file.name,
+          generated_at: new Date().toISOString(),
+          created_by: user?.id || null,
+        });
+      if (insertError) throw insertError;
+
+      const { data } = await supabase
+        .from("feature_prd_documents")
+        .select("*")
+        .eq("feature_name", featureName)
+        .order("generated_at", { ascending: false });
+      setPrdDocuments((data as PrdDocument[]) || []);
+      toast.success("PRD uploaded successfully");
+    } catch (err: any) {
+      console.error("Upload error:", err);
+      toast.error(err.message || "Failed to upload PRD");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleDownloadPrd = async (prd: PrdDocument) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from("feature-prd-documents")
+        .download(prd.file_path);
+      if (error) throw error;
+      const url = URL.createObjectURL(data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = prd.file_name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Download failed:", err);
+      toast.error("Failed to download PRD");
+    }
+  };
+
+  const handleDeletePrd = async (prd: PrdDocument) => {
+    try {
+      await supabase.storage.from("feature-prd-documents").remove([prd.file_path]);
+      const { error } = await supabase.from("feature_prd_documents").delete().eq("id", prd.id);
+      if (error) throw error;
+      setPrdDocuments((prev) => prev.filter((d) => d.id !== prd.id));
+      toast.success("PRD deleted");
+    } catch (err) {
+      console.error("Delete failed:", err);
+      toast.error("Failed to delete PRD");
+    }
+  };
+
+  const handlePreviewPrd = (prd: PrdDocument) => {
+    setPreviewDoc({
+      file_name: prd.file_name,
+      file_path: prd.file_path,
+      file_type: "application/pdf",
+    });
+    setPreviewOpen(true);
+  };
 
   const saveSettings = async () => {
     if (!feature) return;
@@ -231,83 +363,188 @@ const SuperAdminFeatureDetail = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Overview */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
+          <div className="lg:col-span-2">
+            <Tabs defaultValue="overview" className="w-full">
+              <TabsList className="mb-4">
+                <TabsTrigger value="overview">
                   <Shield className="h-4 w-4" />
                   Overview
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center p-3 rounded-lg bg-muted/50">
-                    <p className="text-2xl font-bold text-foreground">{enabledCount}</p>
-                    <p className="text-xs text-muted-foreground">Orgs Enabled</p>
-                  </div>
-                  <div className="text-center p-3 rounded-lg bg-muted/50">
-                    <p className="text-2xl font-bold text-foreground">{orgs.length}</p>
-                    <p className="text-xs text-muted-foreground">Total Orgs</p>
-                  </div>
-                  <div className="text-center p-3 rounded-lg bg-muted/50">
-                    <p className="text-2xl font-bold text-foreground">
-                      {orgs.length > 0 ? Math.round((enabledCount / orgs.length) * 100) : 0}%
-                    </p>
-                    <p className="text-xs text-muted-foreground">Adoption</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </TabsTrigger>
+                <TabsTrigger value="organizations">
+                  <Users className="h-4 w-4" />
+                  Organizations
+                </TabsTrigger>
+                <TabsTrigger value="prd">
+                  <FileText className="h-4 w-4" />
+                  PRD Documents
+                </TabsTrigger>
+              </TabsList>
 
-            {/* Organization Access */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
+              {/* Overview Tab */}
+              <TabsContent value="overview">
+                <Card>
+                  <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-base">
-                      <Users className="h-4 w-4" />
-                      Organization Access
+                      <Shield className="h-4 w-4" />
+                      Overview
                     </CardTitle>
-                    <CardDescription>
-                      {category === "core"
-                        ? "Core features are enabled for all organizations. Change to Flagged to control per-org."
-                        : "Toggle feature access per organization"}
-                    </CardDescription>
-                  </div>
-                  {category === "flagged" && (
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" disabled={updating === "bulk"} onClick={() => bulkToggle(true)}>
-                        Enable All
-                      </Button>
-                      <Button variant="outline" size="sm" disabled={updating === "bulk"} onClick={() => bulkToggle(false)}>
-                        Disable All
-                      </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="text-center p-3 rounded-lg bg-muted/50">
+                        <p className="text-2xl font-bold text-foreground">{enabledCount}</p>
+                        <p className="text-xs text-muted-foreground">Orgs Enabled</p>
+                      </div>
+                      <div className="text-center p-3 rounded-lg bg-muted/50">
+                        <p className="text-2xl font-bold text-foreground">{orgs.length}</p>
+                        <p className="text-xs text-muted-foreground">Total Orgs</p>
+                      </div>
+                      <div className="text-center p-3 rounded-lg bg-muted/50">
+                        <p className="text-2xl font-bold text-foreground">
+                          {orgs.length > 0 ? Math.round((enabledCount / orgs.length) * 100) : 0}%
+                        </p>
+                        <p className="text-xs text-muted-foreground">Adoption</p>
+                      </div>
                     </div>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                  {orgs.map((org) => (
-                    <div key={org.id} className="flex items-center justify-between rounded-lg border p-3">
-                      <span className="text-sm font-medium">{org.name}</span>
-                      {category === "core" ? (
-                        <Badge variant="secondary" className="text-[10px]">Always On</Badge>
-                      ) : updating === org.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                      ) : (
-                        <Switch
-                          checked={org.enabled}
-                          onCheckedChange={(checked) => toggleOrg(org.id, checked)}
-                          disabled={updating === "bulk"}
-                        />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Organizations Tab */}
+              <TabsContent value="organizations">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-2 text-base">
+                          <Users className="h-4 w-4" />
+                          Organization Access
+                        </CardTitle>
+                        <CardDescription>
+                          {category === "core"
+                            ? "Core features are enabled for all organizations. Change to Flagged to control per-org."
+                            : "Toggle feature access per organization"}
+                        </CardDescription>
+                      </div>
+                      {category === "flagged" && (
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" disabled={updating === "bulk"} onClick={() => bulkToggle(true)}>
+                            Enable All
+                          </Button>
+                          <Button variant="outline" size="sm" disabled={updating === "bulk"} onClick={() => bulkToggle(false)}>
+                            Disable All
+                          </Button>
+                        </div>
                       )}
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                      {orgs.map((org) => (
+                        <div key={org.id} className="flex items-center justify-between rounded-lg border p-3">
+                          <span className="text-sm font-medium">{org.name}</span>
+                          {category === "core" ? (
+                            <Badge variant="secondary" className="text-[10px]">Always On</Badge>
+                          ) : updating === org.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                          ) : (
+                            <Switch
+                              checked={org.enabled}
+                              onCheckedChange={(checked) => toggleOrg(org.id, checked)}
+                              disabled={updating === "bulk"}
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* PRD Documents Tab */}
+              <TabsContent value="prd">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-2 text-base">
+                          <FileText className="h-4 w-4" />
+                          PRD Documents
+                        </CardTitle>
+                        <CardDescription>AI-generated Product Requirements Documents</CardDescription>
+                      </div>
+                      <div>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept=".pdf"
+                          className="hidden"
+                          onChange={handleUploadPrd}
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={uploading}
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          {uploading ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : (
+                            <Upload className="h-4 w-4 mr-2" />
+                          )}
+                          Upload PRD
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {prdLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : prdDocuments.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <File className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                        <p className="text-sm">No PRD documents yet</p>
+                        <p className="text-xs mt-1">Upload a PDF to get started</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                        {prdDocuments.map((prd) => (
+                          <div key={prd.id} className="flex items-center justify-between rounded-lg border p-3">
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
+                                <FileText className="h-4 w-4 text-destructive" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium truncate">{prd.title}</p>
+                                {prd.description && (
+                                  <p className="text-xs text-muted-foreground truncate">{prd.description}</p>
+                                )}
+                                <p className="text-xs text-muted-foreground">
+                                  {getShortRelativeTime(prd.generated_at)}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 ml-2">
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handlePreviewPrd(prd)}>
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownloadPrd(prd)}>
+                                <Download className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeletePrd(prd)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </div>
 
           {/* Right Column */}
@@ -399,6 +636,13 @@ const SuperAdminFeatureDetail = () => {
           </div>
         </div>
       </div>
+
+      <DocumentPreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        document={previewDoc}
+        bucket="feature-prd-documents"
+      />
     </SuperAdminLayout>
   );
 };

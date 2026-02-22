@@ -9617,6 +9617,42 @@ export type Database = {
           },
         ]
       }
+      feature_prd_documents: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          feature_name: string
+          file_name: string
+          file_path: string
+          generated_at: string
+          id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          feature_name: string
+          file_name: string
+          file_path: string
+          generated_at?: string
+          id?: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          feature_name?: string
+          file_name?: string
+          file_path?: string
+          generated_at?: string
+          id?: string
+          title?: string
+        }
+        Relationships: []
+      }
       feature_registry: {
         Row: {
           category: string

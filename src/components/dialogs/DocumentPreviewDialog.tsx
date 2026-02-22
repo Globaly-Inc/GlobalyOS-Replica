@@ -17,13 +17,16 @@ interface DocumentPreviewDialogProps {
     file_path: string;
     file_type: string | null;
   } | null;
+  bucket?: string;
 }
 
 export const DocumentPreviewDialog = ({
   open,
   onOpenChange,
   document,
+  bucket = "employee-documents",
 }: DocumentPreviewDialogProps) => {
+  const storageBucket = bucket;
   const [loading, setLoading] = useState(true);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +60,7 @@ export const DocumentPreviewDialog = ({
     
     try {
       const { data, error } = await supabase.storage
-        .from("employee-documents")
+        .from(storageBucket)
         .download(document.file_path);
 
       if (error) throw error;
@@ -76,7 +79,7 @@ export const DocumentPreviewDialog = ({
     
     try {
       const { data, error } = await supabase.storage
-        .from("employee-documents")
+        .from(storageBucket)
         .download(document.file_path);
 
       if (error) throw error;
