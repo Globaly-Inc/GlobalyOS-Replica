@@ -37,6 +37,7 @@ import {
 import { useCRMServices } from '@/services/useCRMServices';
 import { QuotationOptionEditor } from '@/components/crm/quotations/QuotationOptionEditor';
 import { QuotationSettingsForm } from '@/components/crm/quotations/QuotationSettingsForm';
+import { SendQuotationEmailDialog } from '@/components/crm/quotations/SendQuotationEmailDialog';
 
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -364,10 +365,12 @@ const QuotationDetailPage = () => {
           >
             {showPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </Button>
-          {isDraft && (
-            <Button onClick={handleSend} disabled={sendMutation.isPending} size="sm" className="gap-1.5">
-              <Send className="h-3.5 w-3.5" /> Send
-            </Button>
+          {(isDraft || quotation.status === 'sent' || quotation.status === 'viewed') && (
+            <SendQuotationEmailDialog quotation={quotation as any}>
+              <Button size="sm" className="gap-1.5" disabled={!quotation.contact?.email && isDraft}>
+                <Send className="h-3.5 w-3.5" /> {isDraft ? 'Send' : 'Resend'}
+              </Button>
+            </SendQuotationEmailDialog>
           )}
           {publicUrl && (
             <Button variant="outline" size="sm" onClick={() => {

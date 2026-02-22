@@ -7,3 +7,4 @@ export { AddFeeDialog } from './AddFeeDialog';
 export { AddServiceDialog } from './AddServiceDialog';
 export { SortableOptionItem } from './SortableOptionItem';
 export { SortableServiceItem } from './SortableServiceItem';
+export { SendQuotationEmailDialog } from './SendQuotationEmailDialog';
