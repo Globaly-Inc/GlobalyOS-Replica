@@ -1,8 +1,8 @@
 # GlobalyOS — Product Requirements Document
 
-**Version:** 1.0
-**Generated:** 2026-02-22
-**Source:** Derived from codebase analysis of `src/pages/`, `src/components/`, and `supabase/` schema
+**Version:** 1.1
+**Updated:** 2026-02-22
+**Source:** Derived from codebase analysis — `src/pages/` (165 pages), `src/components/` (713 components), `supabase/functions/` (197 edge functions), `supabase/migrations/` (478 files)
 
 ---
 
@@ -34,8 +34,10 @@
 24. [Module 22 — Org Settings & Administration](#24-module-22--org-settings--administration)
 25. [Module 23 — Billing & Subscriptions](#25-module-23--billing--subscriptions)
 26. [Module 24 — Super Admin](#26-module-24--super-admin)
-27. [Database Schema Summary](#27-database-schema-summary)
-28. [Non-Functional Requirements](#28-non-functional-requirements)
+27. [Route Map](#27-route-map)
+28. [Edge Functions](#28-edge-functions)
+29. [Database Schema Summary](#29-database-schema-summary)
+30. [Non-Functional Requirements](#30-non-functional-requirements)
 
 ---
 
@@ -1074,29 +1076,74 @@ Account types: `asset` | `liability` | `equity` | `revenue` | `expense`
 
 ### 22.1 Overview
 
-A dedicated, white-label portal for external clients/customers to interact with the organization.
+A dedicated, white-label portal for external clients/customers to interact with the organization. Recently fully implemented with both client-facing pages and a staff-side case management interface.
 
 ### 22.2 Authentication
 
 - OTP-based login for external users (no org account required)
+- Rate-limited OTP with 5-attempt lockout (15 min cooldown)
 - Session management (`client_portal_sessions`)
 - Audit logging (`client_portal_audit_logs`)
-- Office-specific portal configuration
+- Office-specific portal configuration (enable/disable per office)
+- Master access codes for staff preview (`super_admin_master_codes`)
 
-### 22.3 Portal Features
+**Edge Functions:** `portal-send-otp`, `portal-verify-otp`, `portal-api`, `portal-admin`, `create-portal-session`, `portal-ai-assist`
 
+### 22.3 Client-Facing Portal Pages
+
+**Routes:** `/org/:orgCode/portal/*` (session-gated — no Supabase auth required)
+
+| Route | Page | Description |
+|-------|------|-------------|
+| `/portal/login` | `PortalLoginPage` | OTP email login |
+| `/portal/dashboard` | `PortalDashboardPage` | Case overview + quick actions |
+| `/portal/cases/:caseId` | `PortalCasePage` | Case detail with threads, documents, tasks |
+| `/portal/messages` | `PortalMessagesPage` | All message threads |
+| `/portal/profile` | `PortalProfilePage` | Client profile management |
+
+**Client-facing features:**
 | Feature | Description |
 |---------|-------------|
 | **Cases** | Client submits and tracks service cases |
-| **Threads** | Messaging thread per case |
-| **Documents** | Shared document repository |
-| **Tasks** | Tasks assigned to client or org staff |
+| **Threads** | Per-case messaging thread with staff |
+| **Documents** | Shared document repository (upload + download) |
+| **Tasks** | Tasks assigned to client with status tracking |
 | **Notifications** | Real-time alerts on case updates |
-| **AI Interactions** | AI assistant for client queries |
-| **Milestones** | Case milestone tracking |
+| **AI Assistant** | AI assistant (`portal-ai-assist`) for client queries with confidence-threshold auto-reply |
+| **Milestones** | Case milestone/step tracking |
 | **Status History** | Full audit of case status changes |
 
-**Case statuses:** Custom, tracked via `client_case_status_history`
+### 22.4 Staff-Side Case Management (Settings)
+
+**Route:** `/org/:orgCode/settings/client-portal`
+
+Staff manage all client portal activity from a dedicated settings page with tabs:
+
+| Tab | Component | Description |
+|-----|-----------|-------------|
+| **General** | `PortalGeneralSettings` | Branding, OTP config, AI settings |
+| **Offices** | `PortalOfficeSettings` | Enable portal per office |
+| **Cases** | `PortalCaseManagement` | View and manage all client cases |
+| **Users** | `PortalUserSettings` | Client user accounts |
+| **Audit Log** | `PortalAuditLog` | Access audit trail |
+
+**`PortalCaseManagement` component features:**
+- List all cases with status filter (open, in-progress, resolved, closed)
+- Create cases on behalf of clients
+- Case detail view with full timeline
+- Staff-to-client messaging within threads
+- AI "Suggest Reply" / "Summarize Thread" AI tools
+- Document review and approval workflow
+- Task creation assigned to client or staff
+- Milestone management
+
+### 22.5 Configuration Options
+
+Configurable via `client_portal_settings`:
+- Custom branding (logo, colors, welcome message)
+- AI auto-reply toggle with confidence threshold
+- OTP expiry duration
+- Document versioning and approval workflow settings
 
 **Tables:** `client_portal_settings`, `client_portal_users`, `client_portal_sessions`, `client_portal_otp_codes`, `client_portal_offices`, `client_portal_audit_logs`, `client_cases`, `client_case_milestones`, `client_case_status_history`, `client_threads`, `client_messages`, `client_documents`, `client_tasks`, `client_notifications`, `client_ai_interactions`
 
@@ -1106,30 +1153,67 @@ A dedicated, white-label portal for external clients/customers to interact with 
 
 ### 23.1 Overview
 
-Integrated telephony system for inbound/outbound calling.
+Integrated Twilio-powered telephony system for inbound/outbound calling, IVR menus, call queues, campaigns, and real-time monitoring.
 
-### 23.2 Features
+**Provider:** Twilio (SIP trunking, PSTN, WebRTC)
 
-**Phone Numbers:**
-- Org-level phone number management (`org_phone_numbers`)
-- Recording settings (`call_recording_settings`)
+### 23.2 Routes
+
+| Route | Page | Description |
+|-------|------|-------------|
+| `/crm/calls` | `NumberMarketplacePage` | Browse/purchase phone numbers |
+| `/crm/calls/numbers/:phoneId/ivr` | `IvrBuilderPage` | Visual IVR menu builder |
+| `/crm/calls/usage` | `TelephonyUsagePage` | Usage stats and billing |
+| `/crm/calls/recordings` | `CallRecordingsPage` | Recording library + playback |
+| `/crm/calls/campaigns` | `CallCampaignsPage` | Outbound dial campaigns |
+| `/crm/calls/queues` | `CallQueuesPage` | Call queue configuration |
+| `/crm/calls/monitoring` | `CallMonitoringPage` | Live call monitoring dashboard |
+
+### 23.3 Features
+
+**Phone Numbers (Twilio Marketplace):**
+- Browse available numbers by country/area code
+- Provision numbers (`twilio-provision-number`)
+- Release numbers (`twilio-release-number`)
+- Search numbers (`twilio-search-numbers`)
+- Org-level number management (`org_phone_numbers`)
 
 **IVR (Interactive Voice Response):**
-- IVR menu builder
-- Call queue management (`call_queues`, `call_queue_members`)
+- Visual drag-and-drop IVR menu builder (`IvrBuilderPage`)
+- IVR action handling via `twilio-ivr-action`
+- Call queue routing (`call_queues`, `call_queue_members`)
+
+**Outbound Calling:**
+- Click-to-call from CRM contacts
+- **Quick Dialer** — accessible from navigation bar
+- Outbound call via `twilio-outbound-call`
+- Real-time call monitoring via `twilio-monitor-call`
 
 **Call Campaigns:**
-- Outbound call campaigns (`call_campaigns`)
+- Outbound dial campaigns (`call_campaigns`)
 - Campaign contact lists (`call_campaign_contacts`)
+- Progressive/predictive dialing via `twilio-campaign-dial`
 
 **Recordings:**
-- Call recording storage (`call_recordings`)
-- Recording playback
+- Automatic call recording
+- Recording webhook (`twilio-recording-webhook`)
+- Recording library with playback (`call_recordings`)
+- Recording settings per org (`call_recording_settings`)
 
-**Usage:**
+**WebRTC Signaling:**
+- Peer signaling data (`call_signaling`)
+- Call participant tracking (`call_participants`)
+- Active call sessions (`call_sessions`)
+
+**Usage & Billing:**
 - Per-call usage logging (`telephony_usage_logs`)
+- Twilio webhook for call events (`twilio-webhook`)
 
-**Tables:** `org_phone_numbers`, `call_queues`, `call_queue_members`, `call_campaigns`, `call_campaign_contacts`, `call_recordings`, `call_recording_settings`, `telephony_usage_logs`
+**Settings:** `/org/:orgCode/settings/telephony` — Twilio API credentials, recording defaults, recording retention
+
+**Edge Functions:** `twilio-provision-number`, `twilio-release-number`, `twilio-search-numbers`, `twilio-outbound-call`, `twilio-monitor-call`, `twilio-campaign-dial`, `twilio-ivr-action`, `twilio-recording-webhook`, `twilio-webhook`
+
+**Tables:** `org_phone_numbers`, `call_sessions`, `call_participants`, `call_signaling`, `call_queues`, `call_queue_members`, `call_campaigns`, `call_campaign_contacts`, `call_recordings`, `call_recording_settings`, `telephony_usage_logs`
 
 ---
 
@@ -1264,9 +1348,511 @@ Platform-level administrative dashboard accessible only to `super_admin` role us
 
 ---
 
-## 27. Database Schema Summary
+## 27. Route Map
 
-### 27.1 Schema Statistics
+Complete list of all application routes.
+
+### 27.1 Public / Marketing Routes (No Auth)
+
+| Path | Component |
+|------|-----------|
+| `/` | Landing page |
+| `/features` | Features page |
+| `/about` | About page |
+| `/pricing` | Pricing page |
+| `/blog` | Blog listing |
+| `/blog/:slug` | Blog post |
+| `/careers` | Careers info |
+| `/contact` | Contact page |
+| `/terms`, `/privacy`, `/acceptable-use`, `/dpa`, `/cookies` | Legal pages |
+| `/careers/:orgCode` | Public job board for org |
+| `/careers/:orgCode/:jobSlug` | Public job detail |
+| `/assignment/:token` | Token-gated assignment submission |
+| `/f/:orgSlug/:formSlug` | Public form submission |
+| `/s/:orgCode/scheduler/:eventSlug` | Public meeting booking |
+| `/s/:orgCode/scheduler/cancel/:token` | Cancel booking |
+| `/s/:orgCode/scheduler/reschedule/:token` | Reschedule booking |
+| `/e/unsub/:token` | Email campaign unsubscribe |
+
+### 27.2 Auth Routes
+
+| Path | Component |
+|------|-----------|
+| `/auth` | Login (OTP / Google OAuth) |
+| `/signup` | Org signup |
+| `/join` | Join existing org |
+| `/install` | App install |
+| `/pending-approval` | Awaiting org approval |
+
+### 27.3 Org-Scoped Routes (`/org/:orgCode/*`)
+
+#### Core & HR
+
+| Path | Module |
+|------|--------|
+| `/` | Home dashboard |
+| `/team` | Employee directory |
+| `/team/:id` | Employee profile |
+| `/team/:id/attendance` | Employee attendance history |
+| `/team/:id/reviews` | Employee performance reviews |
+| `/team/offices` | Office management |
+| `/team/bulk-import` | Bulk employee import |
+| `/org-chart` | Organization chart |
+| `/calendar` | Company calendar |
+| `/leave` | Leave self-service |
+| `/leave-history` | Org leave history |
+| `/leave/import` | Bulk leave import |
+| `/attendance-history` | Org attendance history |
+| `/payroll` | Payroll management |
+| `/my-payslips` | Employee payslips |
+| `/onboarding` | Org onboarding wizard |
+| `/onboarding/team` | Employee onboarding wizard |
+
+#### Social & Collaboration
+
+| Path | Module |
+|------|--------|
+| `/chat` | Team chat & spaces |
+| `/wiki` | Knowledge base |
+| `/wiki/edit/:pageId` | Wiki page editor |
+| `/ask-ai` | AI assistant |
+| `/tasks` | Task management |
+| `/workflows` | Workflow instances |
+| `/workflows/:workflowId` | Workflow detail |
+| `/notifications` | Notifications center |
+| `/notifications/preferences` | Notification preferences |
+
+#### Performance & Analytics
+
+| Path | Module |
+|------|--------|
+| `/growth` | KPI board |
+| `/kpi-dashboard` | KPI dashboard |
+| `/kpi/:kpiId` | KPI detail |
+| `/kpi/bulk-create` | Bulk KPI creation |
+| `/kpi/generation-history` | KPI AI generation history |
+
+#### CRM (`/crm/*`)
+
+| Path | Page |
+|------|------|
+| `/crm` | CRM dashboard |
+| `/crm/contacts` | Contacts list |
+| `/crm/contacts/:id` | Contact profile |
+| `/crm/companies` | Companies list |
+| `/crm/companies/:id` | Company profile |
+| `/crm/scheduler` | Event scheduler |
+| `/crm/scheduler/new` | Create event type |
+| `/crm/scheduler/:id/edit` | Edit event type |
+| `/crm/forms` | Forms list |
+| `/crm/forms/new` | Create form |
+| `/crm/forms/:formId/builder` | Form builder |
+| `/crm/forms/:formId` | Form detail |
+| `/crm/campaigns` | Email campaigns |
+| `/crm/campaigns/new` | New campaign |
+| `/crm/campaigns/templates` | Campaign templates |
+| `/crm/campaigns/settings` | Campaign settings |
+| `/crm/campaigns/:id` | Campaign setup |
+| `/crm/campaigns/:id/builder` | Campaign builder |
+| `/crm/campaigns/:id/report` | Campaign report |
+
+#### Omnichannel Inbox (`/crm/inbox/*`)
+
+| Path | Page |
+|------|------|
+| `/crm/inbox` | Unified inbox |
+| `/crm/inbox/channels` | Channel management |
+| `/crm/inbox/templates` | Message templates |
+| `/crm/inbox/analytics` | Inbox analytics |
+
+#### Telephony (`/crm/calls/*`)
+
+| Path | Page |
+|------|------|
+| `/crm/calls` | Phone number marketplace |
+| `/crm/calls/numbers/:phoneId/ivr` | IVR builder |
+| `/crm/calls/usage` | Usage stats |
+| `/crm/calls/recordings` | Recordings library |
+| `/crm/calls/campaigns` | Call campaigns |
+| `/crm/calls/queues` | Call queues |
+| `/crm/calls/monitoring` | Live call monitoring |
+
+#### WhatsApp (`/crm/whatsapp/*`)
+
+| Path | Page |
+|------|------|
+| `/crm/whatsapp` | WhatsApp overview |
+| `/crm/whatsapp/inbox` | WhatsApp inbox |
+| `/crm/whatsapp/templates` | Message templates |
+| `/crm/whatsapp/campaigns` | Campaigns list |
+| `/crm/whatsapp/campaigns/new` | New campaign |
+| `/crm/whatsapp/campaigns/:id` | Campaign report |
+| `/crm/whatsapp/automations` | Automations |
+| `/crm/whatsapp/flows` | WhatsApp flows |
+| `/crm/whatsapp/contacts` | WhatsApp contacts |
+| `/crm/whatsapp/sequences` | Message sequences |
+| `/crm/whatsapp/settings` | WhatsApp settings |
+
+#### Accounting (`/accounting/*`)
+
+| Path | Page |
+|------|------|
+| `/accounting` | Accounting dashboard |
+| `/accounting/setup` | Setup wizard |
+| `/accounting/chart-of-accounts` | Chart of accounts |
+| `/accounting/journals` | Journal entries |
+| `/accounting/general-ledger` | General ledger |
+| `/accounting/invoices` | Invoices list |
+| `/accounting/invoices/new` | Create invoice |
+| `/accounting/invoices/:invoiceId` | Invoice detail |
+| `/accounting/invoices/:invoiceId/edit` | Edit invoice |
+| `/accounting/bills` | Bills list |
+| `/accounting/bills/new` | Create bill |
+| `/accounting/bills/:billId` | Bill detail |
+| `/accounting/bills/:billId/edit` | Edit bill |
+| `/accounting/banking` | Bank accounts |
+| `/accounting/bank-rules` | Bank reconciliation rules |
+| `/accounting/reports` | Financial reports |
+| `/accounting/reports/:reportId` | Report viewer |
+
+#### Hiring (`/hiring/*`)
+
+| Path | Page |
+|------|------|
+| `/hiring` | Hiring dashboard |
+| `/hiring/jobs` | Job listings |
+| `/hiring/jobs/new` | Create job |
+| `/hiring/jobs/:jobSlug` | Job detail / pipeline |
+| `/hiring/jobs/:jobSlug/edit` | Edit job |
+| `/hiring/candidates` | Candidates list |
+| `/hiring/candidates/:candidateId` | Candidate profile |
+| `/hiring/applications/:applicationId` | Application detail |
+| `/hiring/settings` | Hiring settings |
+| `/hiring/settings/assignments/new` | Create assignment template |
+| `/hiring/settings/assignments/:templateId/edit` | Edit assignment template |
+
+#### Settings (`/settings/*`)
+
+| Path | Page |
+|------|------|
+| `/settings` | Organization settings |
+| `/settings/offices` | Office management |
+| `/settings/projects` | Project management |
+| `/settings/kpis` | KPI configuration |
+| `/settings/workflows` | Workflow templates |
+| `/settings/ai` | AI knowledge settings |
+| `/settings/billing` | Billing & plan |
+| `/settings/crm` | CRM settings |
+| `/settings/hiring` | Hiring settings |
+| `/settings/inbox` | Inbox settings |
+| `/settings/telephony` | Telephony settings |
+| `/settings/client-portal` | Client portal management |
+| `/settings/workflow/:templateId` | Workflow template editor |
+
+#### Client Portal (session-gated)
+
+| Path | Audience |
+|------|----------|
+| `/portal/login` | External client login |
+| `/portal/dashboard` | Client dashboard |
+| `/portal/cases/:caseId` | Client case detail |
+| `/portal/messages` | Client message threads |
+| `/portal/profile` | Client profile |
+
+### 27.4 Super Admin Routes (`/super-admin/*`)
+
+| Path | Page |
+|------|------|
+| `/super-admin/analytics` | Platform analytics |
+| `/super-admin/organisations` | All organizations |
+| `/super-admin/organisations/:orgId` | Org detail |
+| `/super-admin/users` | All users |
+| `/super-admin/payments` | Payment management |
+| `/super-admin/blog` | Blog management |
+| `/super-admin/blog/new` | Create blog post |
+| `/super-admin/blog/:postId/edit` | Edit blog post |
+| `/super-admin/testing` | Testing tools |
+| `/super-admin/customer-success` | Support requests |
+| `/super-admin/customer-success/:requestId` | Request detail |
+| `/super-admin/documentation` | API docs management |
+| `/super-admin/error-logs` | Error log viewer |
+| `/super-admin/error-logs/:errorId` | Error detail |
+| `/super-admin/templates` | Org template management |
+| `/super-admin/hiring-logs` | Hiring activity logs |
+| `/super-admin/plans/new` | Create pricing plan |
+| `/super-admin/plans/:planId/edit` | Edit pricing plan |
+
+### 27.5 Support Routes
+
+| Path | Page |
+|------|------|
+| `/support` | Support home |
+| `/support/getting-started` | Getting started guide |
+| `/support/faq` | FAQ |
+| `/support/features` | Features documentation |
+| `/support/features/:module` | Module documentation |
+| `/support/features/:module/:slug` | Article detail |
+| `/support/api` | API documentation |
+| `/support/get-help` | Submit help request |
+
+---
+
+## 28. Edge Functions
+
+197 Supabase Edge Functions (Deno/TypeScript) powering server-side logic.
+
+### 28.1 AI & Content Generation (19)
+
+| Function | Description |
+|----------|-------------|
+| `ai-chat-assist` | AI chat completions for Ask AI |
+| `ai-writing-assist` | AI content writing helper |
+| `ai-improve-subject` | Email subject line improvement |
+| `ai-analyze-screenshot` | Screenshot analysis |
+| `ai-suggest-screenshots` | Suggest app screenshots |
+| `blocknote-ai-proxy` | AI proxy for BlockNote editor |
+| `bulk-generate-kpis` | Batch KPI generation from AI |
+| `bulk-generate-position-descriptions` | Batch position descriptions |
+| `bulk-generate-employment-type-descriptions` | Employment type AI descriptions |
+| `bulk-generate-wiki-content` | Batch wiki page generation |
+| `bulk-generate-template-descriptions` | Template description generation |
+| `call-ai-summary` | AI summary of call recordings |
+| `generate-blog-posts` | Blog content generation |
+| `generate-position-description` | Single position description |
+| `generate-profile-summary` | Employee AI profile summary |
+| `generate-review-draft` | Performance review AI draft |
+| `generate-quote` | Quote generation |
+| `generate-job-description` | Job posting description |
+| `global-ask-ai` | Global AI assistant endpoint |
+
+### 28.2 Authentication & Organization (13)
+
+| Function | Description |
+|----------|-------------|
+| `send-otp` | Send OTP email |
+| `verify-otp` | Verify OTP code |
+| `sb-auth` | Supabase auth integration |
+| `sb-sync-user` | Sync auth user to profile |
+| `signup-organization` | New org registration |
+| `approve-organization` | Super admin org approval |
+| `reject-organization` | Super admin org rejection |
+| `check-approval-status` | Check org approval status |
+| `check-signup-email` | Email availability check |
+| `delete-organization` | Delete org and all data |
+| `get-auth-providers` | List enabled auth providers |
+| `get-turnstile-config` | Cloudflare Turnstile config |
+| `get-org-structure-templates` | Fetch org structure templates |
+
+### 28.3 Team & Hiring (17)
+
+| Function | Description |
+|----------|-------------|
+| `invite-team-member` | Send employee invite |
+| `resend-invite` | Resend invite email |
+| `delete-team-member` | Remove employee |
+| `delete-orphaned-user` | Remove orphaned auth user |
+| `list-orphaned-users` | Find orphaned auth users |
+| `recover-orphaned-user` | Recover orphaned account |
+| `get-invite-org-info` | Get org info for invite link |
+| `suggest-positions` | AI position suggestions |
+| `suggest-custom-department-positions` | Custom department positions |
+| `suggest-org-structure` | AI org structure suggestions |
+| `submit-public-application` | Public job application submission |
+| `parse-resume` | AI CV/resume parsing |
+| `convert-candidate-to-employee` | ATS → HRMS conversion |
+| `send-bulk-hiring-email` | Bulk candidate email |
+| `send-hiring-notification` | Hiring event notification |
+| `send-offer-email` | Offer letter delivery |
+| `generate-stage-email-templates` | AI email template generation |
+
+### 28.4 Attendance & Leave (7)
+
+| Function | Description |
+|----------|-------------|
+| `initialize-yearly-leave-balances` | Year-start balance setup |
+| `migrate-leave-to-offices` | Leave type office migration |
+| `notify-leave-decision` | Leave approval/rejection notification |
+| `notify-leave-request` | New leave request notification |
+| `process-attendance-adjustments` | Overtime → leave conversion |
+| `backfill-not-checked-in` | Backfill missing check-in alerts |
+| `capture-not-checked-in` | Daily not-checked-in capture |
+
+### 28.5 Campaigns & Communications (15)
+
+| Function | Description |
+|----------|-------------|
+| `send-campaign` | Send email campaign |
+| `send-test-campaign-email` | Test campaign send |
+| `process-scheduled-campaigns` | Scheduled campaign processor |
+| `estimate-campaign-recipients` | Recipient count estimate |
+| `track-campaign-event` | Email open/click tracking |
+| `campaign-unsubscribe` | Handle unsubscribe |
+| `custom-email` | General-purpose email send |
+| `gmail-send` | Gmail API send |
+| `gmail-sync` | Gmail inbox sync |
+| `inbox-send` | Omnichannel outbound message |
+| `inbox-webhook` | Incoming channel webhook |
+| `inbox-ai-respond` | AI-assisted inbox reply |
+| `send-contact-email` | CRM contact email |
+| `wa-send-broadcast` | WhatsApp broadcast send |
+| `resend-webhook` | Resend email webhook handler |
+
+### 28.6 Client Portal (8)
+
+| Function | Description |
+|----------|-------------|
+| `portal-send-otp` | Portal OTP generation + send |
+| `portal-verify-otp` | Portal OTP verification |
+| `portal-api` | Client portal data API |
+| `portal-admin` | Staff portal management API |
+| `portal-ai-assist` | AI assistant for portal clients |
+| `create-portal-session` | Portal session creation |
+| `generate-master-code` | Master access code for staff |
+| `delete-master-code` | Revoke master access code |
+
+### 28.7 Payments & Billing (6)
+
+| Function | Description |
+|----------|-------------|
+| `stripe-webhook` | Stripe event handler |
+| `create-checkout-session` | Stripe checkout |
+| `charge-payment-method` | Charge stored payment method |
+| `create-invoice-payment-link` | Stripe payment link for invoices |
+| `process-dunning` | Failed payment retry logic |
+| `process-trial-expirations` | Trial period management |
+
+### 28.8 Scheduling & Calendar (10)
+
+| Function | Description |
+|----------|-------------|
+| `create-scheduler-booking` | Create meeting booking |
+| `cancel-scheduler-booking` | Cancel booking |
+| `reschedule-scheduler-booking` | Reschedule booking |
+| `get-scheduler-slots` | Available time slots |
+| `send-scheduler-notification` | Booking confirmation/reminders |
+| `google-calendar-auth` | Google Calendar OAuth |
+| `google-calendar-proxy` | Google Calendar API proxy |
+| `setup-employee-schedules` | Initialize work schedules |
+| `setup-public-holidays` | Load public holidays |
+| `generate-country-holidays` | AI holiday generation per country |
+
+### 28.9 Telephony / Twilio (9)
+
+| Function | Description |
+|----------|-------------|
+| `twilio-outbound-call` | Initiate outbound call |
+| `twilio-webhook` | Twilio event handler |
+| `twilio-ivr-action` | IVR menu action handler |
+| `twilio-monitor-call` | Real-time call monitoring |
+| `twilio-campaign-dial` | Campaign progressive dialing |
+| `twilio-provision-number` | Purchase phone number |
+| `twilio-release-number` | Release phone number |
+| `twilio-search-numbers` | Search available numbers |
+| `twilio-recording-webhook` | Recording event handler |
+
+### 28.10 WhatsApp (5)
+
+| Function | Description |
+|----------|-------------|
+| `wa-connect` | Connect WhatsApp account |
+| `wa-webhook` | WhatsApp event handler |
+| `wa-send` | Send WhatsApp message |
+| `wa-template-sync` | Sync templates with BSP |
+| `wa-run-automation` | Execute automation rules |
+
+### 28.11 Knowledge & AI Indexing (10)
+
+| Function | Description |
+|----------|-------------|
+| `index-ai-content` | Index content for AI |
+| `index-knowledge` | Knowledge base indexing |
+| `generate-embeddings` | Vector embedding generation |
+| `auto-reindex-ai` | Scheduled knowledge reindexing |
+| `generate-wiki-policy-templates` | AI wiki policy templates |
+| `generate-wiki-sops` | AI SOP generation |
+| `parse-document-content` | Document content extraction |
+| `wiki-ask-ai` | Wiki-scoped AI queries |
+| `generate-support-content` | AI support article generation |
+| `improve-support-content` | AI support article improvement |
+
+### 28.12 Notifications & Reminders (9)
+
+| Function | Description |
+|----------|-------------|
+| `send-push-notification` | Web push notification |
+| `send-chat-push-notification` | Chat message push |
+| `send-checkin-reminder` | Attendance check-in reminder |
+| `send-onboarding-reminders` | Employee onboarding nudges |
+| `send-pending-invitations` | Pending invite reminders |
+| `notify-team-onboarding-complete` | Onboarding completion notification |
+| `notify-support-request-update` | Support ticket update |
+| `post-acknowledgment-reminders` | Post acknowledgment reminders |
+| `review-reminders` | Performance review reminders |
+
+### 28.13 Forms & Public Submissions (5)
+
+| Function | Description |
+|----------|-------------|
+| `form-public-submit` | Public form submission |
+| `upload-assignment-file` | Assignment file upload |
+| `send-assignment-otp` | Assignment OTP gate |
+| `verify-assignment-otp` | Verify assignment OTP |
+| `create-welcome-post` | Auto-create welcome post on join |
+
+### 28.14 Payroll & Finance (1)
+
+| Function | Description |
+|----------|-------------|
+| `calculate-payroll` | Payroll computation engine |
+
+### 28.15 KPI & Analytics (3)
+
+| Function | Description |
+|----------|-------------|
+| `generate-kpi-insights` | AI KPI performance insights |
+| `start-kpi-generation` | Bulk KPI generation job |
+| `suggest-kpi-content` | AI KPI suggestion |
+
+### 28.16 Super Admin & Monitoring (10)
+
+| Function | Description |
+|----------|-------------|
+| `analyze-error` | AI error root cause analysis |
+| `notify-critical-error` | Critical error alerting |
+| `run-security-tests` | Automated security test suite |
+| `run-tests` | Automated test runner |
+| `test-error-scenario` | Error scenario testing |
+| `auto-capture-screenshots` | Visual regression capture |
+| `capture-doc-screenshot` | Documentation screenshot |
+| `capture-module-screenshots` | Module screenshot automation |
+| `report-broken-link` | Broken link report |
+| `scan-api-documentation` | API doc scanner |
+
+### 28.17 Utility & Infrastructure (15)
+
+| Function | Description |
+|----------|-------------|
+| `bulk-import-employees` | Bulk employee CSV import |
+| `fetch-link-metadata` | URL metadata for link preview |
+| `get-google-maps-key` | Maps API key |
+| `get-vapid-public-key` | Push notification VAPID key |
+| `daily-horoscope` | Daily horoscope generation |
+| `prefetch-horoscopes` | Bulk horoscope prefetch |
+| `save-org-structure-learning` | Save org structure ML data |
+| `generate-coverage` | Test coverage generation |
+| `fix-blog-seo` | Blog SEO improvement |
+| `fix-test-with-ai` | AI test fix suggestions |
+| `suggest-coverage-improvements` | Coverage gap suggestions |
+| `generate-category-structure` | Category structure generation |
+| `auto-close-expired-jobs` | Auto-close expired job postings |
+| `update-user-email` | Update auth email |
+| `get-help` | Help request submission |
+
+---
+
+## 29. Database Schema Summary
+
+### 29.1 Schema Statistics
 
 Derived from **478 migration files** (35,304 lines of SQL):
 
@@ -1279,7 +1865,7 @@ Derived from **478 migration files** (35,304 lines of SQL):
 | Tables with RLS Policies | **322** (all tables) |
 | Indexed Tables | **229+** |
 
-### 27.2 Table Count by Module
+### 29.2 Table Count by Module
 
 | Module | Tables |
 |--------|--------|
@@ -1308,7 +1894,7 @@ Derived from **478 migration files** (35,304 lines of SQL):
 | Org / Settings / Auth / Misc | 20 |
 | **Total** | **322** |
 
-### 27.3 Key Enums
+### 29.3 Key Enums
 
 | Enum | Values |
 |------|--------|
@@ -1325,7 +1911,7 @@ Derived from **478 migration files** (35,304 lines of SQL):
 | `support_request_priority` | `low`, `medium`, `high`, `critical` |
 | `candidate_source` | `careers_site`, `internal`, `referral`, `manual`, `job_board`, `linkedin`, `other` |
 
-### 27.4 Key RPC / Database Functions
+### 29.4 Key RPC / Database Functions
 
 | Function | Purpose |
 |----------|---------|
@@ -1354,7 +1940,7 @@ Derived from **478 migration files** (35,304 lines of SQL):
 | `check_manager_circular_reference()` | Prevent circular manager chain |
 | `create_ledger_entries_on_post()` | Double-entry accounting trigger |
 
-### 27.5 Key Triggers (130+)
+### 29.5 Key Triggers (130+)
 
 | Category | Examples |
 |----------|---------|
@@ -1369,9 +1955,9 @@ Derived from **478 migration files** (35,304 lines of SQL):
 
 ---
 
-## 28. Non-Functional Requirements
+## 30. Non-Functional Requirements
 
-### 28.1 Performance
+### 30.1 Performance
 
 - **Virtualized lists** — `VirtualizedMessageList` for chat; `react-window` for large datasets
 - **Code splitting** — all page components lazy-loaded via `React.lazy()`
@@ -1379,19 +1965,19 @@ Derived from **478 migration files** (35,304 lines of SQL):
 - **Batch API calls** — `get_last_messages_batch()`, `get_unread_counts_batch()` reduce round-trips
 - **Supabase connection pooling** — via PgBouncer
 
-### 28.2 Real-Time
+### 30.2 Real-Time
 
 - Supabase Realtime subscriptions on: chat messages, leave requests, attendance, WFH, calendar events, KPIs, notifications, feed reactions, workflow tasks
 - Chat presence system (`chat_presence` table)
 
-### 28.3 Mobile
+### 30.3 Mobile
 
 - **PWA** — installable, offline support via Workbox service worker
 - **Capacitor** — native iOS and Android builds
 - **Mobile-optimized UI** — `useIsMobile()` hook drives layout switching; `MobileBottomNav`, `MobileMoreMenu`, `MobileSearch`, `PullToRefreshIndicator`
 - **Push notifications** — web push via `push_subscriptions`; native push via Capacitor
 
-### 28.4 Security
+### 30.4 Security
 
 - **Row Level Security (RLS)** — enforced at database level on all tables
 - **Passwordless auth** — OTP-based, no passwords stored
@@ -1401,14 +1987,14 @@ Derived from **478 migration files** (35,304 lines of SQL):
 - **Audit trails** — activity logs on all sensitive entities
 - **Error capture** — client errors logged to `user_error_logs`
 
-### 28.5 Internationalization
+### 30.5 Internationalization
 
 - **Multi-timezone** — all timestamps stored UTC; displayed in user's office timezone
 - **Multi-currency** — accounting and payroll support multiple currencies
 - **India payroll engine** — statutory calculations for PF, ESI, PT, income tax
 - **Date masking** — birthdays masked for privacy
 
-### 28.6 Extensibility
+### 30.6 Extensibility
 
 - **Feature flags** — `organization_features` table enables per-org module activation
 - **Custom fields** — CRM custom fields per org
@@ -1417,7 +2003,7 @@ Derived from **478 migration files** (35,304 lines of SQL):
 - **Workflow templates** — fully configurable process templates
 - **Form builder** — custom forms for hiring application, client intake, etc.
 
-### 28.7 Observability
+### 30.7 Observability
 
 - Client-side error capture with DB logging (`user_error_logs`)
 - Error pattern clustering (`error_patterns`)
