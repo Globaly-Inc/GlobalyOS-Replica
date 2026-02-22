@@ -20,6 +20,9 @@ import { FeatureProtectedRoute } from './components/FeatureProtectedRoute';
 import { PortalAuthProvider } from './hooks/usePortalAuth';
 import { PortalProtectedRoute } from './components/portal/PortalProtectedRoute';
 import { PortalLayout } from './components/portal/PortalLayout';
+import { AgentAuthProvider } from './hooks/useAgentAuth';
+import { AgentProtectedRoute } from './components/agent/AgentProtectedRoute';
+import { AgentLayout } from './components/agent/AgentLayout';
 
 // Lazy load public website pages
 const Features = lazy(() => import('./pages/Features'));
@@ -154,6 +157,14 @@ const PortalServicesPage = lazy(() => import('./pages/portal/PortalServicesPage'
 const PortalServiceDetailPage = lazy(() => import('./pages/portal/PortalServiceDetailPage'));
 const PortalApplicationsPage = lazy(() => import('./pages/portal/PortalApplicationsPage'));
 const PortalApplicationDetailPage = lazy(() => import('./pages/portal/PortalApplicationDetailPage'));
+
+// Agent Portal pages
+const AgentLoginPage = lazy(() => import('./pages/agent/AgentLoginPage'));
+const AgentDashboardPage = lazy(() => import('./pages/agent/AgentDashboardPage'));
+const AgentServicesPage = lazy(() => import('./pages/agent/AgentServicesPage'));
+const AgentCustomersPage = lazy(() => import('./pages/agent/AgentCustomersPage'));
+const AgentApplicationsPage = lazy(() => import('./pages/agent/AgentApplicationsPage'));
+const AgentApplicationDetailPage = lazy(() => import('./pages/agent/AgentApplicationDetailPage'));
 
 const Payroll = lazy(() => import('./pages/Payroll'));
 
@@ -539,6 +550,18 @@ const App = () => <QueryClientProvider client={queryClient}>
                   <Route path="cases/:caseId" element={<PortalCasePage />} />
                   <Route path="messages" element={<PortalMessagesPage />} />
                   <Route path="profile" element={<PortalProfilePage />} />
+                </Route>
+
+                {/* Agent Portal routes (separate auth, no staff login needed) */}
+                <Route path="/agent/:orgCode/login" element={<AgentAuthProvider><AgentLoginPage /></AgentAuthProvider>} />
+                <Route path="/agent/:orgCode" element={<AgentAuthProvider><AgentProtectedRoute><AgentLayout /></AgentProtectedRoute></AgentAuthProvider>}>
+                  <Route index element={<Navigate to="dashboard" replace />} />
+                  <Route path="dashboard" element={<AgentDashboardPage />} />
+                  <Route path="services" element={<AgentServicesPage />} />
+                  <Route path="services/:serviceId" element={<AgentServicesPage />} />
+                  <Route path="customers" element={<AgentCustomersPage />} />
+                  <Route path="applications" element={<AgentApplicationsPage />} />
+                  <Route path="applications/:applicationId" element={<AgentApplicationDetailPage />} />
                 </Route>
 
                 {/* Catch-all */}

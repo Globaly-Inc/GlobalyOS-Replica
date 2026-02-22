@@ -22,7 +22,8 @@ export const useCRMServices = (filters: CRMServiceFilters = {}) => {
         .order('created_at', { ascending: false });
 
       if (filters.search) {
-        query = query.or(`name.ilike.%${filters.search}%,category.ilike.%${filters.search}%,short_description.ilike.%${filters.search}%`);
+        const sanitized = filters.search.replace(/[%_\\'"()]/g, '');
+        query = query.or(`name.ilike.%${sanitized}%,category.ilike.%${sanitized}%,short_description.ilike.%${sanitized}%`);
       }
       if (filters.category) query = query.eq('category', filters.category);
       if (filters.visibility) query = query.eq('visibility', filters.visibility as any);
@@ -51,6 +52,7 @@ export const useCRMService = (id: string | null) => {
         .from('crm_services')
         .select('*, provider_partner:crm_partners(id, name, type)')
         .eq('id', id!)
+        .eq('organization_id', currentOrg!.id)
         .single();
       if (error) throw error;
 
@@ -120,7 +122,7 @@ export const useUpdateCRMService = () => {
 
   return useMutation({
     mutationFn: async ({ id, office_ids, ...updates }: { id: string; office_ids?: string[]; [key: string]: any }) => {
-      const { error } = await supabase.from('crm_services').update(updates).eq('id', id);
+      const { error } = await supabase.from('crm_services').update(updates).eq('id', id).eq('organization_id', currentOrg!.id);
       if (error) throw error;
 
       if (office_ids !== undefined) {
@@ -144,10 +146,11 @@ export const useUpdateCRMService = () => {
 };
 
 export const useDeleteCRMService = () => {
+  const { currentOrg } = useOrganization();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('crm_services').delete().eq('id', id);
+      const { error } = await supabase.from('crm_services').delete().eq('id', id).eq('organization_id', currentOrg!.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -172,7 +175,8 @@ export const useCRMPartners = (filters: CRMPartnerFilters = {}) => {
         .order('created_at', { ascending: false });
 
       if (filters.search) {
-        query = query.or(`name.ilike.%${filters.search}%,email.ilike.%${filters.search}%,trading_name.ilike.%${filters.search}%`);
+        const sanitized = filters.search.replace(/[%_\\'"()]/g, '');
+        query = query.or(`name.ilike.%${sanitized}%,email.ilike.%${sanitized}%,trading_name.ilike.%${sanitized}%`);
       }
       if (filters.type) query = query.eq('type', filters.type as any);
       if (filters.contract_status) query = query.eq('contract_status', filters.contract_status as any);
@@ -199,6 +203,7 @@ export const useCRMPartner = (id: string | null) => {
         .from('crm_partners')
         .select('*')
         .eq('id', id!)
+        .eq('organization_id', currentOrg!.id)
         .single();
       if (error) throw error;
       return data as unknown as CRMPartner;
@@ -228,10 +233,11 @@ export const useCreateCRMPartner = () => {
 };
 
 export const useUpdateCRMPartner = () => {
+  const { currentOrg } = useOrganization();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...updates }: { id: string; [key: string]: any }) => {
-      const { error } = await supabase.from('crm_partners').update(updates).eq('id', id);
+      const { error } = await supabase.from('crm_partners').update(updates).eq('id', id).eq('organization_id', currentOrg!.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -242,10 +248,11 @@ export const useUpdateCRMPartner = () => {
 };
 
 export const useDeleteCRMPartner = () => {
+  const { currentOrg } = useOrganization();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('crm_partners').delete().eq('id', id);
+      const { error } = await supabase.from('crm_partners').delete().eq('id', id).eq('organization_id', currentOrg!.id);
       if (error) throw error;
     },
     onSuccess: () => {
