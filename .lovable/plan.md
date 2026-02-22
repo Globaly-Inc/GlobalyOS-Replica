@@ -1,42 +1,60 @@
 
-# Super Admin Features Page
+
+# Add "Audit Features" Button to Super Admin Features Page
 
 ## Overview
-Add a new "Features" nav item and page to the Super Admin portal. This page will provide a centralized view of all feature flags across all organizations, allowing Super Admins to control feature access and visibility from one place.
+Add an "Audit System" button to the Super Admin Features page that scans the codebase's routes, navigation items, and feature flags to identify any features that exist in the system but are missing from the AVAILABLE_FEATURES list. The audit will cover HR features, home page features, and all implemented modules.
 
 ## What will be built
 
-### 1. New navigation item
-- Add "Features" to the Super Admin top nav bar (between "Templates" and "Subscription")
-- Route: `/super-admin/features`
-- Icon: Flag (from lucide-react)
+### Audit Button and Dialog
+- Add a "Audit System" button next to the page header
+- When clicked, it runs a local audit comparing:
+  - The current `AVAILABLE_FEATURES` list (15 feature flags)
+  - A comprehensive master registry of ALL implemented features in the system
+- Displays results in a dialog showing:
+  - **Registered features** -- already in the feature flags list (with status indicator)
+  - **Missing features** -- implemented in the system but not in the feature flags list
+  - **Core features** -- always-on features that don't need flags (Home, Team, Wiki, etc.)
+- Each missing feature will have a quick "Add to Feature Flags" button that inserts it into `organization_features`
 
-### 2. New SuperAdminFeatures page
-A comprehensive features management page with:
+### Master Feature Registry
+A complete inventory of all implemented features, categorized:
 
-**Features Master List (top section)**
-- Grid of all available feature flags (chat, tasks, CRM, workflows, payroll, ask-ai, hiring, whatsapp, calls, omnichannel_inbox, ai_responder, telephony, forms, accounting, client_portal)
-- Each card shows: icon, name, description, and how many organizations have it enabled (e.g., "12/45 orgs")
+**Core HRMS (always-on, no flag needed):**
+- Home / Dashboard
+- Team Directory
+- Team Calendar
+- Leave Management
+- Attendance Tracking
+- KPIs / OKRs
+- Wiki / Knowledge Base
+- Performance Reviews
+- Org Chart
+- Growth
+- Notifications
+- Settings
 
-**Organization Feature Matrix (main section)**
-- A searchable table listing all organizations
-- Columns: Organization name, then one column per feature with toggle switches
-- Search/filter by organization name
-- Bulk actions: "Enable All" / "Disable All" per feature column
-- Quick view of which orgs have which features enabled
+**Feature-Flagged (currently registered):**
+- Chat, Tasks, CRM, Workflows, Payroll, Ask AI, Hiring, WhatsApp, Calls, Omnichannel Inbox, AI Responder, Telephony, Forms, Accounting, Client Portal
 
-### 3. Files to create/modify
+**Potentially Missing (the audit will surface these):**
+- Any new modules added to routes/navigation but not yet added to AVAILABLE_FEATURES
+- Sub-features within CRM (Campaigns, Scheduler, Products, Partners, etc.) that could be independently controlled
+
+### Files to modify
 
 | File | Action |
 |------|--------|
-| `src/pages/super-admin/SuperAdminFeatures.tsx` | Create - new page component |
-| `src/components/super-admin/SuperAdminLayout.tsx` | Edit - add "Features" nav item |
-| `src/App.tsx` | Edit - add route + lazy import |
+| `src/pages/super-admin/SuperAdminFeatures.tsx` | Edit -- add Audit button, dialog, and master feature registry |
+
+No database changes needed. The audit is purely a UI-side comparison tool that helps Super Admins verify completeness.
 
 ## Technical Details
 
-- Queries `organization_features` table joined with `organizations` to build the matrix
-- Reuses the same `AVAILABLE_FEATURES` definition from `OrganizationFeaturesManager.tsx` (will extract to a shared constant)
-- Uses existing `supabase.from("organization_features").upsert()` pattern for toggling
-- Existing per-org feature manager on the org detail page remains unchanged
-- No database changes needed -- uses the existing `organization_features` table
+- The master feature registry will be a hardcoded constant listing all known features with their category (core vs flagged), route paths, and descriptions
+- The audit compares this registry against `AVAILABLE_FEATURES` to find gaps
+- Results are shown in a `Dialog` with three tabs/sections: Core Features, Registered Flags, and Missing/Unregistered
+- Missing features can be added to `AVAILABLE_FEATURES` (code-level) or flagged for developer action
+- The audit also checks the `FeatureName` type in `useFeatureFlags.tsx` and the `OrganizationFeaturesManager.tsx` to surface any sync issues between these three sources of truth
+
