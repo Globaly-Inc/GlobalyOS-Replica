@@ -45,7 +45,7 @@ export const mockPlans: SubscriptionPlan[] = [
   },
   {
     id: 'plan_enterprise', name: 'Enterprise', code: 'enterprise', description: 'Custom solutions for large organizations',
-    pricing_model: 'hybrid', base_price: 499, billing_frequencies: ['monthly', 'annual', 'custom'],
+    pricing_model: 'hybrid', base_price: 499, per_seat_price: 5, annual_price: 4790, annual_per_seat_price: 48, billing_frequencies: ['monthly', 'annual', 'custom'],
     trial_days: 30, status: 'active', subscriber_count: 96, mrr: 67589,
     features: [
       { name: 'Max Employees', limit_type: 'number', value: 9999, max: 9999 },
