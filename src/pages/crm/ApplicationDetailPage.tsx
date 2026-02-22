@@ -1,6 +1,6 @@
 import { useParams } from 'react-router-dom';
 import { useState } from 'react';
-import { ArrowLeft, FileStack, Clock, FileText, MessageSquare, CheckSquare } from 'lucide-react';
+import { ArrowLeft, FileStack, Clock, FileText, MessageSquare, CheckSquare, Sparkles, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -69,6 +69,26 @@ const ApplicationDetailPage = () => {
     enabled: !!id,
   });
 
+  const [aiSummary, setAiSummary] = useState<any>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const handleGenerateSummary = async () => {
+    if (!application) return;
+    setAiLoading(true);
+    try {
+      const res = await supabase.functions.invoke('ai-application-summary', {
+        body: { application_id: id, organization_id: application.organization_id },
+      });
+      if (res.error) throw res.error;
+      setAiSummary(res.data);
+      toast.success('AI summary generated');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to generate summary');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const updateStatusMutation = useMutation({
     mutationFn: async (newStatus: string) => {
       const { error: updateErr } = await supabase
@@ -135,6 +155,10 @@ const ApplicationDetailPage = () => {
               <SelectItem value="completed">Completed</SelectItem>
             </SelectContent>
           </Select>
+          <Button variant="outline" onClick={handleGenerateSummary} disabled={aiLoading}>
+            {aiLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+            AI Summary
+          </Button>
         </div>
 
         {/* Summary Cards */}
@@ -156,6 +180,34 @@ const ApplicationDetailPage = () => {
             <p className="font-medium">{documents?.length || 0}</p>
           </CardContent></Card>
         </div>
+
+        {/* AI Summary */}
+        {aiSummary && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Sparkles className="h-4 w-4 text-primary" />
+                AI Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <p>{aiSummary.summary}</p>
+              {aiSummary.applicant_background && (
+                <div><span className="font-medium">Applicant:</span> {aiSummary.applicant_background}</div>
+              )}
+              {aiSummary.document_status && (
+                <div><span className="font-medium">Documents:</span> {aiSummary.document_status}</div>
+              )}
+              {aiSummary.risks?.length > 0 && (
+                <div><span className="font-medium">Risks:</span> {aiSummary.risks.join(', ')}</div>
+              )}
+              {aiSummary.recommended_actions?.length > 0 && (
+                <div><span className="font-medium">Next Steps:</span> {aiSummary.recommended_actions.join(', ')}</div>
+              )}
+              <Badge variant="outline" className="text-xs">{aiSummary.sla_status}</Badge>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Tabs */}
         <Tabs defaultValue="timeline">
