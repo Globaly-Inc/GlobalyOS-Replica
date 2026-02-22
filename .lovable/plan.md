@@ -427,5 +427,5 @@ Insert the 29 predefined fee types as system defaults.
 - [x] **Phase 5** - Client Portal services marketplace (browse, apply, track applications)
 - [x] **Phase 6** - Agent Portal (auth, dashboard, customers, applications)
 - [x] **Phase 7** - AI features (recommender, doc check, summary)
-- [ ] **Phase 8** - Testing
+- [x] **Phase 8** - Testing (21 unit tests: permissions, visibility, fees, sanitization)
 
