@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAccountingSetup } from '@/hooks/useAccountingSetup';
 import { useOrganization } from '@/hooks/useOrganization';
-import { useAuth } from '@/hooks/useAuth';
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -12,78 +11,98 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, ArrowLeft } from 'lucide-react';
+import { Plus, ArrowLeft, Loader2 } from 'lucide-react';
 import { OrgLink } from '@/components/OrgLink';
-import type { ChartOfAccount, AccountingContact, TaxRate } from '@/types/accounting';
+import { InvoiceServiceBlock } from '@/components/accounting/InvoiceServiceBlock';
+import { useSaveInvoice, usePaymentOptions } from '@/services/useAccountingInvoices';
+import type {
+  ChartOfAccount, AccountingContact, TaxRate,
+  InvoiceFormData, InvoiceServiceFormData, InvoiceLineFormData,
+  CrmInvoiceType, CrmInvoiceRecipientType, InvoiceTaxType,
+} from '@/types/accounting';
 
-interface LineItem {
-  id: string;
-  description: string;
-  quantity: string;
-  unit_price: string;
-  account_id: string;
-  tax_rate_id: string;
-}
+const emptyLine = (): InvoiceLineFormData => ({
+  description: '', fee_type: '', account_category: '',
+  quantity: 1, unit_price: 0, amount: 0,
+  tax_rate_id: '', tax_amount: 0, is_discount: false, account_id: '',
+});
 
-const emptyLine = (): LineItem => ({
-  id: crypto.randomUUID(),
-  description: '',
-  quantity: '1',
-  unit_price: '',
-  account_id: '',
-  tax_rate_id: '',
+const emptyService = (): InvoiceServiceFormData => ({
+  service_name: '', provider_name: '', lines: [emptyLine()],
 });
 
 const InvoiceEditor = () => {
   const { invoiceId } = useParams<{ invoiceId: string }>();
   const isNew = !invoiceId || invoiceId === 'new';
   const { currentOrg } = useOrganization();
-  const { user } = useAuth();
   const { ledger, isSetupComplete, loading: setupLoading, setup } = useAccountingSetup();
   const { navigateOrg } = useOrgNavigation();
-  const queryClient = useQueryClient();
+  const saveInvoice = useSaveInvoice();
+  const { data: paymentOptions = [] } = usePaymentOptions();
 
+  // Form state
+  const [invoiceType, setInvoiceType] = useState<CrmInvoiceType>('general');
+  const [recipientType, setRecipientType] = useState<CrmInvoiceRecipientType>('contact');
   const [officeId, setOfficeId] = useState('');
   const [contactId, setContactId] = useState('');
+  const [crmContactId, setCrmContactId] = useState('');
+  const [crmPartnerId, setCrmPartnerId] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [reference, setReference] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [dueDate, setDueDate] = useState(
-    new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0]
-  );
+  const [dueDate, setDueDate] = useState(new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0]);
+  const [currency, setCurrency] = useState('');
+  const [taxType, setTaxType] = useState<InvoiceTaxType>('exclusive');
+  const [paymentOptionId, setPaymentOptionId] = useState('');
+  const [enableOnlinePayment, setEnableOnlinePayment] = useState(false);
   const [notes, setNotes] = useState('');
   const [terms, setTerms] = useState('');
-  const [lines, setLines] = useState<LineItem[]>([emptyLine()]);
-  const [saving, setSaving] = useState(false);
+  const [services, setServices] = useState<InvoiceServiceFormData[]>([emptyService()]);
 
-  // Fetch contacts, accounts, offices, tax rates
+  // Data queries
   const { data: contacts = [] } = useQuery({
     queryKey: ['accounting-contacts', currentOrg?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('accounting_contacts')
-        .select('*')
-        .eq('organization_id', currentOrg!.id)
-        .eq('is_active', true)
-        .in('contact_type', ['customer', 'both'])
-        .order('name');
+      const { data, error } = await supabase.from('accounting_contacts').select('*')
+        .eq('organization_id', currentOrg!.id).eq('is_active', true)
+        .in('contact_type', ['customer', 'both']).order('name');
       if (error) throw error;
       return data as AccountingContact[];
     },
     enabled: !!currentOrg?.id,
   });
 
+  const { data: crmContacts = [] } = useQuery({
+    queryKey: ['crm-contacts-for-invoice', currentOrg?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('crm_contacts').select('id, first_name, last_name, email')
+        .eq('organization_id', currentOrg!.id).order('first_name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!currentOrg?.id,
+  });
+
+  const { data: crmPartners = [] } = useQuery({
+    queryKey: ['crm-partners-for-invoice', currentOrg?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('crm_partners').select('id, name, email')
+        .eq('organization_id', currentOrg!.id).order('name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!currentOrg?.id && recipientType === 'partner',
+  });
+
   const { data: accounts = [] } = useQuery({
     queryKey: ['chart-of-accounts-revenue', ledger?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('chart_of_accounts')
-        .select('*')
-        .eq('ledger_id', ledger!.id)
-        .eq('is_active', true)
-        .order('code');
+      const { data, error } = await supabase.from('chart_of_accounts').select('*')
+        .eq('ledger_id', ledger!.id).eq('is_active', true).order('code');
       if (error) throw error;
       return data as ChartOfAccount[];
     },
@@ -93,11 +112,8 @@ const InvoiceEditor = () => {
   const { data: offices = [] } = useQuery({
     queryKey: ['offices-for-invoice', currentOrg?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('offices')
-        .select('id, name')
-        .eq('organization_id', currentOrg!.id)
-        .order('name');
+      const { data, error } = await supabase.from('offices').select('id, name')
+        .eq('organization_id', currentOrg!.id).order('name');
       if (error) throw error;
       return data || [];
     },
@@ -107,144 +123,95 @@ const InvoiceEditor = () => {
   const { data: taxRates = [] } = useQuery({
     queryKey: ['tax-rates', currentOrg?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('tax_rates')
-        .select('*')
-        .eq('organization_id', currentOrg!.id)
-        .eq('is_active', true)
-        .order('name');
+      const { data, error } = await supabase.from('tax_rates').select('*')
+        .eq('organization_id', currentOrg!.id).eq('is_active', true).order('name');
       if (error) throw error;
       return data as TaxRate[];
     },
     enabled: !!currentOrg?.id,
   });
 
-  // Generate next invoice number
+  // Auto-generate invoice number
   useEffect(() => {
     if (isNew && ledger?.id) {
-      supabase
-        .from('accounting_invoices')
-        .select('invoice_number')
-        .eq('ledger_id', ledger.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
+      supabase.from('accounting_invoices').select('invoice_number')
+        .eq('ledger_id', ledger.id).order('created_at', { ascending: false }).limit(1)
         .then(({ data }) => {
           const last = data?.[0]?.invoice_number;
-          if (last) {
-            const num = parseInt(last.replace(/\D/g, '')) || 0;
-            setInvoiceNumber(`INV-${String(num + 1).padStart(4, '0')}`);
-          } else {
-            setInvoiceNumber('INV-0001');
-          }
+          const num = last ? (parseInt(last.replace(/\D/g, '')) || 0) : 0;
+          setInvoiceNumber(`INV-${String(num + 1).padStart(4, '0')}`);
         });
     }
   }, [isNew, ledger?.id]);
 
-  const addLine = () => setLines((l) => [...l, emptyLine()]);
-  const removeLine = (id: string) => setLines((l) => l.filter((x) => x.id !== id));
-  const updateLine = (id: string, field: keyof LineItem, value: string) =>
-    setLines((l) => l.map((x) => (x.id === id ? { ...x, [field]: value } : x)));
+  useEffect(() => {
+    if (setup?.base_currency && !currency) setCurrency(setup.base_currency);
+  }, [setup?.base_currency]);
 
-  const computeLineAmount = (line: LineItem) => {
-    const qty = parseFloat(line.quantity) || 0;
-    const price = parseFloat(line.unit_price) || 0;
-    return qty * price;
+  const updateService = (index: number, service: InvoiceServiceFormData) => {
+    setServices((s) => s.map((sv, i) => (i === index ? service : sv)));
   };
 
-  const computeLineTax = (line: LineItem) => {
-    const amount = computeLineAmount(line);
-    const rate = taxRates.find((t) => t.id === line.tax_rate_id);
-    return rate ? amount * (rate.rate / 100) : 0;
+  const removeService = (index: number) => {
+    setServices((s) => {
+      const n = s.filter((_, i) => i !== index);
+      return n.length > 0 ? n : [emptyService()];
+    });
   };
 
-  const subtotal = lines.reduce((s, l) => s + computeLineAmount(l), 0);
-  const taxTotal = lines.reduce((s, l) => s + computeLineTax(l), 0);
-  const total = subtotal + taxTotal;
+  const addService = () => setServices((s) => [...s, emptyService()]);
 
-  const handleSave = async (andApprove = false) => {
-    if (!currentOrg || !user || !ledger || !officeId) {
-      toast.error('Please fill in all required fields');
-      return;
+  // Totals
+  const totals = (() => {
+    let subtotal = 0, taxTotal = 0, discountTotal = 0;
+    for (const svc of services) {
+      for (const l of svc.lines) {
+        if (l.is_discount) discountTotal += Math.abs(l.amount);
+        else subtotal += l.amount;
+        taxTotal += l.tax_amount;
+      }
     }
-    const validLines = lines.filter((l) => l.description && l.account_id && parseFloat(l.unit_price) > 0);
-    if (validLines.length === 0) {
-      toast.error('Add at least one line item');
-      return;
-    }
+    return { subtotal, taxTotal, discountTotal, total: subtotal - discountTotal + taxTotal };
+  })();
 
-    setSaving(true);
+  const formatAmount = (n: number) =>
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'AUD' }).format(n);
+
+  const handleSave = async (approve = false) => {
+    if (!officeId) { toast.error('Please select an office'); return; }
+    const hasLines = services.some((s) => s.lines.some((l) => l.description && l.account_id));
+    if (!hasLines) { toast.error('Add at least one fee line'); return; }
+
+    const formData: InvoiceFormData = {
+      invoice_type: invoiceType,
+      recipient_type: recipientType,
+      contact_id: contactId || undefined,
+      crm_contact_id: crmContactId || undefined,
+      crm_partner_id: crmPartnerId || undefined,
+      invoice_number: invoiceNumber,
+      reference: reference || undefined,
+      date, due_date: dueDate,
+      currency: currency || setup?.base_currency || 'AUD',
+      tax_type: taxType,
+      payment_option_id: paymentOptionId || undefined,
+      enable_online_payment: enableOnlinePayment,
+      notes: notes || undefined,
+      terms: terms || undefined,
+      services,
+      attachments: [],
+    };
+
     try {
-      // Create invoice
-      const { data: invoice, error: iErr } = await supabase
-        .from('accounting_invoices')
-        .insert({
-          organization_id: currentOrg.id,
-          ledger_id: ledger.id,
-          office_id: officeId,
-          contact_id: contactId || null,
-          invoice_number: invoiceNumber,
-          reference: reference || null,
-          date,
-          due_date: dueDate,
-          subtotal,
-          tax_total: taxTotal,
-          total,
-          currency: setup?.base_currency || 'AUD',
-          notes: notes || null,
-          terms: terms || null,
-          status: andApprove ? 'approved' : 'draft',
-          created_by: user.id,
-          approved_by: andApprove ? user.id : null,
-          approved_at: andApprove ? new Date().toISOString() : null,
-        })
-        .select()
-        .single();
-      if (iErr) throw iErr;
-
-      // Create lines
-      const { error: lErr } = await supabase.from('accounting_invoice_lines').insert(
-        validLines.map((l, i) => ({
-          invoice_id: invoice.id,
-          description: l.description,
-          quantity: parseFloat(l.quantity) || 1,
-          unit_price: parseFloat(l.unit_price) || 0,
-          amount: computeLineAmount(l),
-          account_id: l.account_id,
-          tax_rate_id: l.tax_rate_id || null,
-          tax_amount: computeLineTax(l),
-          sort_order: i,
-        }))
-      );
-      if (lErr) throw lErr;
-
-      // Audit
-      await supabase.from('accounting_audit_events').insert({
-        organization_id: currentOrg.id,
-        ledger_id: ledger.id,
-        office_id: officeId,
-        entity_type: 'accounting_invoice',
-        entity_id: invoice.id,
-        action: andApprove ? 'created_and_approved' : 'created_draft',
-        actor_id: user.id,
-        after_data: { invoice_number: invoiceNumber, total, lines: validLines.length },
-      });
-
-      queryClient.invalidateQueries({ queryKey: ['accounting-invoices'] });
-      toast.success(andApprove ? 'Invoice created & approved' : 'Invoice saved as draft');
+      await saveInvoice.mutateAsync({ formData, officeId, approve });
+      toast.success(approve ? 'Invoice created & approved' : 'Invoice saved as draft');
       navigateOrg('/accounting/invoices');
     } catch (err: any) {
       toast.error(err.message || 'Failed to save invoice');
-    } finally {
-      setSaving(false);
     }
   };
 
-  if (setupLoading) {
-    return <div className="flex items-center justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
-  }
-  if (!isSetupComplete) {
-    return <div className="text-center py-20 text-muted-foreground">Please complete accounting setup first.</div>;
-  }
+  if (setupLoading) return <div className="flex items-center justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
+  if (!isSetupComplete) return <div className="text-center py-20 text-muted-foreground">Please complete accounting setup first.</div>;
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -255,12 +222,19 @@ const InvoiceEditor = () => {
         <h1 className="text-2xl font-bold">{isNew ? 'New Invoice' : 'Edit Invoice'}</h1>
       </div>
 
+      {/* Invoice type tabs */}
+      <Tabs value={invoiceType} onValueChange={(v) => setInvoiceType(v as CrmInvoiceType)}>
+        <TabsList>
+          <TabsTrigger value="general">General Invoice</TabsTrigger>
+          <TabsTrigger value="commission">Commission Invoice</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {/* Header Fields */}
       <Card>
-        <CardHeader>
-          <CardTitle>Invoice Details</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <CardHeader><CardTitle className="text-base">Invoice Details</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>Invoice Number</Label>
               <Input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
@@ -269,27 +243,9 @@ const InvoiceEditor = () => {
               <Label>Office *</Label>
               <Select value={officeId} onValueChange={setOfficeId}>
                 <SelectTrigger><SelectValue placeholder="Select office" /></SelectTrigger>
-                <SelectContent>
-                  {offices.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
-                  ))}
-                </SelectContent>
+                <SelectContent>{offices.map((o) => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Customer</Label>
-              <Select value={contactId} onValueChange={setContactId}>
-                <SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger>
-                <SelectContent>
-                  {contacts.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Date</Label>
               <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -298,116 +254,148 @@ const InvoiceEditor = () => {
               <Label>Due Date</Label>
               <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
             </div>
+          </div>
+
+          <Separator />
+
+          {/* Recipient */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label>Recipient Type</Label>
+              <Select value={recipientType} onValueChange={(v) => setRecipientType(v as CrmInvoiceRecipientType)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="contact">Contact / Client</SelectItem>
+                  <SelectItem value="partner">Partner / Provider</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {recipientType === 'contact' && (
+              <>
+                <div className="space-y-2">
+                  <Label>CRM Contact</Label>
+                  <Select value={crmContactId} onValueChange={setCrmContactId}>
+                    <SelectTrigger><SelectValue placeholder="Select CRM contact" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      {crmContacts.map((c: any) => (
+                        <SelectItem key={c.id} value={c.id}>{c.first_name} {c.last_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Accounting Contact</Label>
+                  <Select value={contactId} onValueChange={setContactId}>
+                    <SelectTrigger><SelectValue placeholder="Or legacy contact" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      {contacts.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+
+            {recipientType === 'partner' && (
+              <div className="space-y-2">
+                <Label>Partner</Label>
+                <Select value={crmPartnerId} onValueChange={setCrmPartnerId}>
+                  <SelectTrigger><SelectValue placeholder="Select partner" /></SelectTrigger>
+                  <SelectContent>
+                    {crmPartners.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label>Reference</Label>
-              <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="PO number, etc." />
+              <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="PO #, etc." />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label>Currency</Label>
+              <Input value={currency} onChange={(e) => setCurrency(e.target.value)} placeholder="AUD" />
+            </div>
+            <div className="space-y-2">
+              <Label>Tax Type</Label>
+              <Select value={taxType} onValueChange={(v) => setTaxType(v as InvoiceTaxType)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="exclusive">Tax Exclusive</SelectItem>
+                  <SelectItem value="inclusive">Tax Inclusive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Payment Option</Label>
+              <Select value={paymentOptionId} onValueChange={setPaymentOptionId}>
+                <SelectTrigger><SelectValue placeholder="Select payment option" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">None</SelectItem>
+                  {paymentOptions.map((po) => <SelectItem key={po.id} value={po.id}>{po.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end pb-2 gap-2">
+              <Switch checked={enableOnlinePayment} onCheckedChange={setEnableOnlinePayment} />
+              <Label className="text-xs">Enable Online Payment</Label>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Line Items</CardTitle>
-          <Button variant="outline" size="sm" onClick={addLine}>
-            <Plus className="h-3 w-3 mr-1" /> Add Line
+      {/* Service Blocks */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Services & Fees</h2>
+          <Button variant="outline" size="sm" onClick={addService}>
+            <Plus className="h-3 w-3 mr-1" /> Add Service
           </Button>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Description</TableHead>
-                <TableHead className="w-[100px]">Qty</TableHead>
-                <TableHead className="w-[120px]">Unit Price</TableHead>
-                <TableHead className="w-[180px]">Account</TableHead>
-                <TableHead className="w-[140px]">Tax</TableHead>
-                <TableHead className="w-[100px] text-right">Amount</TableHead>
-                <TableHead className="w-[40px]" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {lines.map((line) => (
-                <TableRow key={line.id}>
-                  <TableCell>
-                    <Input
-                      value={line.description}
-                      onChange={(e) => updateLine(line.id, 'description', e.target.value)}
-                      placeholder="Item description"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      value={line.quantity}
-                      onChange={(e) => updateLine(line.id, 'quantity', e.target.value)}
-                      className="text-right"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      value={line.unit_price}
-                      onChange={(e) => updateLine(line.id, 'unit_price', e.target.value)}
-                      placeholder="0.00"
-                      className="text-right"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Select value={line.account_id} onValueChange={(v) => updateLine(line.id, 'account_id', v)}>
-                      <SelectTrigger className="text-xs"><SelectValue placeholder="Account" /></SelectTrigger>
-                      <SelectContent>
-                        {accounts.filter((a) => a.type === 'revenue').map((a) => (
-                          <SelectItem key={a.id} value={a.id}>{a.code} — {a.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell>
-                    <Select value={line.tax_rate_id} onValueChange={(v) => updateLine(line.id, 'tax_rate_id', v)}>
-                      <SelectTrigger className="text-xs"><SelectValue placeholder="No tax" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">No Tax</SelectItem>
-                        {taxRates.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>{t.name} ({t.rate}%)</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {computeLineAmount(line).toFixed(2)}
-                  </TableCell>
-                  <TableCell>
-                    {lines.length > 1 && (
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeLine(line.id)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+        </div>
+
+        {services.map((svc, i) => (
+          <InvoiceServiceBlock
+            key={i}
+            service={svc}
+            index={i}
+            accounts={accounts}
+            taxRates={taxRates}
+            currency={currency || 'AUD'}
+            onUpdate={updateService}
+            onRemove={removeService}
+          />
+        ))}
+      </div>
 
       {/* Totals */}
       <Card>
         <CardContent className="pt-4">
           <div className="flex flex-col items-end space-y-1">
-            <div className="flex justify-between w-60">
+            <div className="flex justify-between w-64">
               <span className="text-sm text-muted-foreground">Subtotal</span>
-              <span className="font-medium">{subtotal.toFixed(2)}</span>
+              <span className="font-medium">{formatAmount(totals.subtotal)}</span>
             </div>
-            {taxTotal > 0 && (
-              <div className="flex justify-between w-60">
-                <span className="text-sm text-muted-foreground">Tax</span>
-                <span className="font-medium">{taxTotal.toFixed(2)}</span>
+            {totals.discountTotal > 0 && (
+              <div className="flex justify-between w-64">
+                <span className="text-sm text-destructive">Discount</span>
+                <span className="text-destructive">-{formatAmount(totals.discountTotal)}</span>
               </div>
             )}
-            <div className="flex justify-between w-60 border-t pt-1">
+            {totals.taxTotal > 0 && (
+              <div className="flex justify-between w-64">
+                <span className="text-sm text-muted-foreground">Tax</span>
+                <span>{formatAmount(totals.taxTotal)}</span>
+              </div>
+            )}
+            <Separator className="w-64" />
+            <div className="flex justify-between w-64">
               <span className="font-semibold">Total</span>
-              <span className="font-bold text-lg">{total.toFixed(2)}</span>
+              <span className="font-bold text-lg">{formatAmount(totals.total)}</span>
             </div>
           </div>
         </CardContent>
@@ -431,11 +419,11 @@ const InvoiceEditor = () => {
 
       <div className="flex justify-end gap-3">
         <Button variant="outline" onClick={() => navigateOrg('/accounting/invoices')}>Cancel</Button>
-        <Button variant="secondary" onClick={() => handleSave(false)} disabled={saving}>
-          Save Draft
+        <Button variant="secondary" onClick={() => handleSave(false)} disabled={saveInvoice.isPending}>
+          {saveInvoice.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</> : 'Save Draft'}
         </Button>
-        <Button onClick={() => handleSave(true)} disabled={saving}>
-          {saving ? 'Saving…' : 'Save & Approve'}
+        <Button onClick={() => handleSave(true)} disabled={saveInvoice.isPending}>
+          {saveInvoice.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</> : 'Save & Approve'}
         </Button>
       </div>
     </div>
