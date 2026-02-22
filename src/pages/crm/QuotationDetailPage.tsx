@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Plus, Trash2, Save, Copy, FileText, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Send, Plus, Trash2, Save, Copy, FileText, MessageSquare, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,20 +11,24 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PageBody } from '@/components/ui/page-body';
 import { PageHeader } from '@/components/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   useCRMQuotationDetail,
   useUpdateQuotation,
   useDeleteQuotation,
   useAddQuotationOption,
   useDeleteQuotationOption,
+  useUpdateQuotationOption,
   useAddOptionService,
+  useDeleteOptionService,
   useAddServiceFee,
+  useDeleteServiceFee,
   useSendQuotation,
   useCRMQuotationComments,
   useAddQuotationComment,
 } from '@/services/useCRMQuotations';
 import { useCRMServices } from '@/services/useCRMServices';
+import { QuotationOptionEditor } from '@/components/crm/quotations/QuotationOptionEditor';
+import { QuotationSettingsForm } from '@/components/crm/quotations/QuotationSettingsForm';
 
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -48,8 +52,11 @@ const QuotationDetailPage = () => {
   const deleteMutation = useDeleteQuotation();
   const addOptionMutation = useAddQuotationOption();
   const deleteOptionMutation = useDeleteQuotationOption();
+  const updateOptionMutation = useUpdateQuotationOption();
   const addServiceMutation = useAddOptionService();
+  const deleteServiceMutation = useDeleteOptionService();
   const addFeeMutation = useAddServiceFee();
+  const deleteFeeMutation = useDeleteServiceFee();
   const sendMutation = useSendQuotation();
   const { data: comments } = useCRMQuotationComments(id);
   const addCommentMutation = useAddQuotationComment();
@@ -90,26 +97,6 @@ const QuotationDetailPage = () => {
       sort_order: (quotation.options?.length || 0),
     });
     setNewOptionName('');
-  };
-
-  const handleAddService = async (optionId: string, serviceId: string, serviceName: string) => {
-    await addServiceMutation.mutateAsync({
-      option_id: optionId,
-      quotation_id: quotation.id,
-      service_id: serviceId || null,
-      service_name: serviceName,
-    });
-  };
-
-  const handleAddFee = async (optionServiceId: string, feeName: string, amount: number) => {
-    await addFeeMutation.mutateAsync({
-      option_service_id: optionServiceId,
-      quotation_id: quotation.id,
-      fee_name: feeName,
-      amount,
-      tax_mode: 'exclusive',
-      tax_rate: 10,
-    });
   };
 
   const handleSend = async () => {
@@ -220,86 +207,49 @@ const QuotationDetailPage = () => {
           <TabsTrigger value="comments">
             <MessageSquare className="h-4 w-4 mr-1" /> Comments ({comments?.length || 0})
           </TabsTrigger>
+          <TabsTrigger value="settings">
+            <Settings className="h-4 w-4 mr-1" /> Settings
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="options" className="space-y-4 mt-4">
-          {/* Options */}
+          {/* Options using sub-component */}
           {quotation.options?.map(option => (
-            <Card key={option.id}>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">{option.name}</CardTitle>
-                  <div className="flex items-center gap-2">
-                    {option.is_approved && <Badge variant="default" className="bg-green-600">Approved</Badge>}
-                    <span className="text-sm font-medium">
-                      {quotation.currency} {option.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                    </span>
-                    {isDraft && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => deleteOptionMutation.mutateAsync({ id: option.id, quotation_id: quotation.id })}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {/* Services in this option */}
-                {option.services?.map(svc => (
-                  <div key={svc.id} className="border rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium text-sm">{svc.service_name}</span>
-                      {svc.partner && <Badge variant="outline" className="text-xs">{svc.partner.name}</Badge>}
-                    </div>
-                    {/* Fees */}
-                    {svc.fees && svc.fees.length > 0 ? (
-                      <div className="space-y-1">
-                        {svc.fees.map(fee => (
-                          <div key={fee.id} className="flex justify-between text-sm text-muted-foreground">
-                            <span>{fee.fee_name}</span>
-                            <span>{quotation.currency} {fee.total_amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      isDraft && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-xs"
-                          onClick={() => handleAddFee(svc.id, 'Service Fee', 1000)}
-                        >
-                          <Plus className="h-3 w-3 mr-1" /> Add Fee
-                        </Button>
-                      )
-                    )}
-                  </div>
-                ))}
-
-                {/* Add service button */}
-                {isDraft && (
-                  <div className="flex gap-2 mt-2">
-                    <Select onValueChange={(val) => {
-                      const svc = services.find(s => s.id === val);
-                      if (svc) handleAddService(option.id, svc.id, svc.name);
-                    }}>
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Add a service..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {services.map(s => (
-                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <QuotationOptionEditor
+              key={option.id}
+              option={option}
+              currency={quotation.currency}
+              isDraft={isDraft}
+              services={services}
+              onDeleteOption={() => deleteOptionMutation.mutateAsync({ id: option.id, quotation_id: quotation.id })}
+              onAddService={(serviceId, serviceName) =>
+                addServiceMutation.mutateAsync({
+                  option_id: option.id,
+                  quotation_id: quotation.id,
+                  service_id: serviceId,
+                  service_name: serviceName,
+                })
+              }
+              onDeleteService={(serviceId) =>
+                deleteServiceMutation.mutateAsync({ id: serviceId, quotation_id: quotation.id })
+              }
+              onAddFee={(optionServiceId, feeName, amount, taxMode, taxRate) =>
+                addFeeMutation.mutateAsync({
+                  option_service_id: optionServiceId,
+                  quotation_id: quotation.id,
+                  fee_name: feeName,
+                  amount,
+                  tax_mode: taxMode,
+                  tax_rate: taxRate,
+                })
+              }
+              onDeleteFee={(feeId) =>
+                deleteFeeMutation.mutateAsync({ id: feeId, quotation_id: quotation.id })
+              }
+              onUpdateOption={(data) =>
+                updateOptionMutation.mutateAsync({ id: option.id, quotation_id: quotation.id, ...data })
+              }
+            />
           ))}
 
           {/* Add option */}
@@ -311,6 +261,7 @@ const QuotationDetailPage = () => {
                   value={newOptionName}
                   onChange={e => setNewOptionName(e.target.value)}
                   className="flex-1"
+                  onKeyDown={e => e.key === 'Enter' && handleAddOption()}
                 />
                 <Button onClick={handleAddOption} disabled={addOptionMutation.isPending} size="sm">
                   <Plus className="h-4 w-4 mr-1" /> Add Option
@@ -374,6 +325,10 @@ const QuotationDetailPage = () => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="settings" className="mt-4">
+          <QuotationSettingsForm />
         </TabsContent>
       </Tabs>
     </PageBody>
