@@ -207,6 +207,7 @@ const AccountingBanking = lazy(() => import('./pages/accounting/Banking'));
 const AccountingBankRules = lazy(() => import('./pages/accounting/BankRules'));
 const AccountingReports = lazy(() => import('./pages/accounting/Reports'));
 const AccountingReportViewer = lazy(() => import('./pages/accounting/ReportViewer'));
+const InvoicePublicPage = lazy(() => import('./pages/accounting/InvoicePublicPage'));
 
 const HiringDashboard = lazy(() => import('./pages/hiring/HiringDashboard'));
 const JobsList = lazy(() => import('./pages/hiring/JobsList'));
@@ -333,6 +334,9 @@ const App = () => <QueryClientProvider client={queryClient}>
                 
                 {/* Public quotation approval page */}
                 <Route path="/quote/:token" element={<QuotationPublicPage />} />
+                
+                {/* Public invoice view */}
+                <Route path="/invoice/:token" element={<InvoicePublicPage />} />
 
                 {/* Root redirect - will redirect to /org/:orgId */}
                 <Route path="/" element={<RootRedirect />} />
