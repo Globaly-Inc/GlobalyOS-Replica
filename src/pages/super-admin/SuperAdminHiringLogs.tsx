@@ -164,7 +164,7 @@ export default function SuperAdminHiringLogs() {
         {/* Header */}
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Hiring Activity Logs</h1>
+            <h1 className="text-2xl font-bold text-foreground">Jobs</h1>
             <p className="text-muted-foreground">
               Monitor hiring activity across all organizations
             </p>
