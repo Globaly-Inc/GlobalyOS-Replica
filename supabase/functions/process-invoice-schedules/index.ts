@@ -20,7 +20,7 @@ serve(async (req) => {
     // Find pending schedules due today or earlier
     const { data: schedules, error: sErr } = await supabase
       .from('accounting_invoice_schedules')
-      .select('*, crm_deals(id, name, contact_id, organization_id), crm_deal_fees:deal_fee_id(id, fee_name, amount, currency, tax_amount)')
+      .select('*, crm_deals(id, title, contact_id, organization_id)')
       .eq('status', 'pending')
       .lte('scheduled_date', today)
       .limit(50);
@@ -39,9 +39,19 @@ serve(async (req) => {
     for (const schedule of schedules) {
       try {
         const deal = (schedule as any).crm_deals;
-        const fee = (schedule as any).crm_deal_fees;
-        if (!deal || !fee) {
-          errors.push(`Schedule ${schedule.id}: missing deal or fee data`);
+        if (!deal) {
+          errors.push(`Schedule ${schedule.id}: missing deal data`);
+          continue;
+        }
+
+        // Fetch fee separately (no FK relationship)
+        const { data: fee } = await supabase
+          .from('crm_deal_fees')
+          .select('id, fee_name, amount, currency, tax_amount')
+          .eq('id', schedule.deal_fee_id)
+          .maybeSingle();
+        if (!fee) {
+          errors.push(`Schedule ${schedule.id}: missing fee data`);
           continue;
         }
 

@@ -108,7 +108,7 @@ const InvoiceSchedules = () => {
                         {format(new Date(schedule.scheduled_date), 'dd MMM yyyy')}
                       </div>
                     </TableCell>
-                    <TableCell>{schedule.crm_deals?.name || '—'}</TableCell>
+                    <TableCell>{schedule.crm_deals?.title || '—'}</TableCell>
                     <TableCell>{schedule.crm_deal_fees?.fee_name || '—'}</TableCell>
                     <TableCell>
                       <Badge className={STATUS_COLORS[schedule.status] || ''} variant="secondary">

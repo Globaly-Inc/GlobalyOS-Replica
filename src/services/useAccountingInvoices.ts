@@ -294,7 +294,7 @@ export const useInvoiceSchedules = (filters?: { status?: string }) => {
     queryFn: async () => {
       let query = supabase
         .from('accounting_invoice_schedules')
-        .select('*, crm_deals(id, name), accounting_invoices(id, invoice_number, status)')
+        .select('*, crm_deals(id, title), crm_deal_fees(id, fee_name, amount, currency), accounting_invoices(id, invoice_number, status)')
         .eq('organization_id', currentOrg!.id)
         .order('scheduled_date');
       if (filters?.status && filters.status !== 'all') {
