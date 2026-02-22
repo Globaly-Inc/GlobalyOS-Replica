@@ -425,7 +425,7 @@ Insert the 29 predefined fee types as system defaults.
 - [x] **Phase 3** - Partners management UI (list, detail, create)
 - [x] **Phase 4** - Service Applications internal (list, detail, status management)
 - [x] **Phase 5** - Client Portal services marketplace (browse, apply, track applications)
-- [ ] **Phase 6** - Agent Portal (auth, dashboard, customers, applications)
+- [x] **Phase 6** - Agent Portal (auth, dashboard, customers, applications)
 - [ ] **Phase 7** - AI features (recommender, doc check, summary)
 - [ ] **Phase 8** - Testing
 
