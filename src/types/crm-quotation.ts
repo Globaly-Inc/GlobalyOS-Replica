@@ -58,7 +58,7 @@ export interface CRMQuotation {
   // Joined data
   contact?: { id: string; first_name: string; last_name: string | null; email: string | null } | null;
   company?: { id: string; name: string } | null;
-  assignee?: { id: string; first_name: string; last_name: string } | null;
+  assignee?: { id: string; profiles: { full_name: string; avatar_url: string | null } } | null;
   options?: CRMQuotationOption[];
 }
 

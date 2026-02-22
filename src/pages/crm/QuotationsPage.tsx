@@ -127,7 +127,7 @@ const QuotationsPage = () => {
                     </span>
                     {q.assignee && (
                       <span className="hidden md:block">
-                        {q.assignee.first_name} {q.assignee.last_name}
+                        {(q.assignee as any).profiles?.full_name || 'Unassigned'}
                       </span>
                     )}
                   </div>

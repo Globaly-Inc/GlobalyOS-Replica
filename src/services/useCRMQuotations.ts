@@ -39,7 +39,7 @@ export function useCRMQuotations(filters: QuotationFilters = {}) {
           *,
           contact:crm_contacts!crm_quotations_contact_id_fkey(id, first_name, last_name, email),
           company:crm_companies!crm_quotations_company_id_fkey(id, name),
-          assignee:employees!crm_quotations_assignee_id_fkey(id, first_name, last_name)
+          assignee:employees!crm_quotations_assignee_id_fkey(id, profiles(full_name, avatar_url))
         `, { count: 'exact' })
         .eq('organization_id', orgId)
         .eq('is_template', false)
@@ -86,7 +86,7 @@ export function useCRMQuotationDetail(id: string | undefined) {
           *,
           contact:crm_contacts!crm_quotations_contact_id_fkey(id, first_name, last_name, email, avatar_url, phone),
           company:crm_companies!crm_quotations_company_id_fkey(id, name),
-          assignee:employees!crm_quotations_assignee_id_fkey(id, first_name, last_name, avatar_url)
+          assignee:employees!crm_quotations_assignee_id_fkey(id, profiles(full_name, avatar_url))
         `)
         .eq('id', id)
         .eq('organization_id', orgId)

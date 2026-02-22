@@ -151,35 +151,32 @@ const QuotationPublicPage = () => {
 
     setApproving(true);
     try {
-      const { error: err } = await supabase
-        .from('crm_quotations')
-        .update({
-          status: 'approved' as any,
-          approved_option_id: selectedOptionId,
-          approved_at: new Date().toISOString(),
-          approved_by_name: approverName,
-          approved_by_email: approverEmail || null,
-        })
-        .eq('id', quotation!.id)
-        .eq('public_token', token!);
+      // Use the edge function for secure approval
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/approve-quotation`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({
+            token,
+            option_id: selectedOptionId,
+            approver_name: approverName,
+            approver_email: approverEmail || null,
+            comment: comment.trim() || null,
+          }),
+        }
+      );
 
-      if (err) throw err;
-
-      // Add comment if provided
-      if (comment.trim()) {
-        await supabase.from('crm_quotation_comments').insert({
-          quotation_id: quotation!.id,
-          organization_id: quotation!.id, // Will be resolved by RLS
-          author_type: 'client' as any,
-          author_name: approverName,
-          content: comment,
-        });
-      }
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Failed to approve');
 
       toast.success('Quotation approved successfully!');
       await fetchQuotation();
-    } catch {
-      toast.error('Failed to approve quotation');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to approve quotation');
     } finally {
       setApproving(false);
     }
