@@ -1,29 +1,73 @@
 
-# Icon-Only Nav for Super Admin Layout
 
-Apply the same compact/expanded pattern used in `TopNav.tsx` to the Super Admin sub-navigation: inactive items show icon-only with tooltips, while the active item shows icon + label.
+# Tabbed Feature Detail with PRD Documents
 
-## Changes
+Split the feature detail left column into three tabs and add a new PRD (Product Requirements Document) system where Super Admins can view AI-generated PRD PDFs.
 
-**File: `src/components/super-admin/SuperAdminLayout.tsx`**
+## Tab Structure
 
-1. Add imports for `useRef`, `useState`, `useEffect` from React, and `Tooltip`/`TooltipTrigger`/`TooltipContent`/`TooltipProvider` from the UI tooltip component.
+```text
++--------------------------------------------------+
+| [Overview]  [Organizations]  [PRD Documents]      |
++--------------------------------------------------+
+| Tab content area                                  |
++--------------------------------------------------+
+```
 
-2. Add a `ResizeObserver`-based compact mode detection (same pattern as `TopNav`):
-   - Track nav container width with a ref
-   - Calculate threshold as `navItems.length * EXPANDED_ITEM_WIDTH` (90px per item)
-   - When container is narrower than threshold, switch to compact mode
+- **Overview** tab: Contains the existing stats cards (Orgs Enabled, Total Orgs, Adoption %)
+- **Organizations** tab: Contains the existing org access list with toggles
+- **PRD Documents** tab: New feature -- lists AI-generated PRD PDFs with timestamps, allows viewing/downloading
 
-3. Update nav item rendering:
-   - **Active item**: Always shows icon + label (with padding `gap-2 px-3 py-2`)
-   - **Inactive items**: In compact mode, show icon-only as a 9x9 square button; in expanded mode, show icon + label
-   - Icon-only items get wrapped in a `Tooltip` to show the label on hover
+## Database Changes
 
-4. Update `isActive` to also match sub-paths (e.g. `/super-admin/features/crm` matches `/super-admin/features`)
+**New table: `feature_prd_documents`**
 
-## Technical Details
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid (PK) | Auto-generated |
+| feature_name | text | Links to feature registry |
+| title | text | PRD document title |
+| description | text (nullable) | Brief summary |
+| file_path | text | Path in storage bucket |
+| file_name | text | Original file name |
+| generated_at | timestamptz | When the PRD was generated |
+| created_by | uuid (nullable) | User who triggered generation |
+| created_at | timestamptz | Row creation time |
 
-- Reuses the exact same `ResizeObserver` + `isCompact` state pattern from `TopNav.tsx`
-- Uses the same `TooltipProvider` / `Tooltip` / `TooltipTrigger` / `TooltipContent` components
-- `EXPANDED_ITEM_WIDTH = 90` constant matches `TopNav`
-- No new files or dependencies needed -- single file edit
+**New storage bucket: `feature-prd-documents`** (public read for authenticated users)
+
+**RLS policies:**
+- Select: Authenticated users can read all PRD documents
+- Insert/Update/Delete: Restricted (super admin only via service role or custom policy)
+
+## File Changes
+
+**`src/pages/super-admin/SuperAdminFeatureDetail.tsx`**
+
+1. Import `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` from UI
+2. Wrap the left column content in a `Tabs` component with three tabs
+3. Move the Overview card into `TabsContent value="overview"`
+4. Move the Organization Access card into `TabsContent value="organizations"`
+5. Add new `TabsContent value="prd"` with:
+   - List of PRD documents fetched from `feature_prd_documents`
+   - Each item shows: title, description, generated date, and download/preview buttons
+   - Upload button for Super Admin to manually upload PRD PDFs
+   - Empty state when no PRDs exist
+   - Click to preview using the existing `DocumentPreviewDialog` component
+
+**`src/pages/super-admin/SuperAdminFeatureDetail.tsx` -- PRD tab content:**
+
+- Fetches PRDs from `feature_prd_documents` where `feature_name` matches
+- Displays as a list of cards with file info and timestamp
+- "Upload PRD" button opens a file input (PDF only)
+- Uploaded files go to `feature-prd-documents` storage bucket
+- Preview button opens `DocumentPreviewDialog` (already exists in the codebase)
+- Download button triggers direct download
+
+## Technical Notes
+
+- Reuses existing `DocumentPreviewDialog` component for PDF preview
+- Storage bucket path convention: `{feature_name}/{uuid}.pdf`
+- PRD documents are scoped per feature, not per organization
+- The tab state defaults to "overview"
+- Right sidebar (Feature Type, Subscription Tiers, Internal Notes) remains unchanged outside tabs
