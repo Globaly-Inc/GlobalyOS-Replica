@@ -1,431 +1,266 @@
 
 
-# Implementation Plan: CRM Services Marketplace + Partners + Agent Portal + Product Fees
+# CRM Pipeline/Workflow Management System
 
 ## Overview
 
-This is a large-scale expansion of GlobalyOS covering 7 major feature areas. Given the scale, the implementation must be phased carefully. No existing tables for services, partners, or agent portals exist yet -- this is a greenfield build on top of the existing CRM, Client Portal, and Offices infrastructure.
+This is a major feature that transforms the existing HR-only workflow system into a universal CRM Pipeline management system. The new system will support contact-centric workflows (service applications, opportunities, lead management) with configurable stage requirements, win/loss tracking, and agent portal integration.
 
-## Existing Infrastructure to Reuse
+## Current State Analysis
 
-- **CRM Contacts/Companies**: `crm_contacts`, `crm_companies` tables + UI components
-- **Client Portal**: `client_portal_users`, `client_portal_sessions`, `client_cases`, OTP auth (`portal-send-otp`, `portal-verify-otp`, `portal-api`)
-- **Offices**: `offices` table with org-scoped data
-- **Documents**: `client_documents` table + `client-portal-documents` storage bucket
-- **Messaging**: `client_case_threads`, `client_case_messages` tables
-- **Tasks**: `client_case_tasks` table
-- **Auth/Roles**: `user_roles` table with `has_role()` security definer function
-- **Feature Flags**: `useFeatureFlags` hook for gating modules
-- **CRM SubNav**: Existing tabbed navigation component
+The existing codebase has two separate workflow systems:
+1. **HR Workflows** (`workflow_templates`, `workflow_stages`, `employee_workflows`) - tied to employees, used for onboarding/offboarding
+2. **CRM Service Applications** (`service_applications`) - basic status-based tracking with no pipeline/stage concept
+
+The new system needs to unify these into a **CRM Pipeline** concept that is contact-centric rather than employee-centric, with rich stage requirements.
 
 ---
 
-## Phase 1: Database Foundation (Migration)
+## Architecture: New Tables
 
-Create all core tables in a single migration:
+### Core Pipeline Tables
 
-### 1a. CRM Services Catalog
-```
-crm_services
-  id, organization_id, name, category, short_description, long_description
-  service_type: 'direct' | 'represented_provider' | 'internal_only'
-  provider_partner_id (FK -> crm_partners, nullable)
-  visibility: 'internal' | 'client_portal' | 'agent_portal' | 'both_portals'
-  status: 'draft' | 'published' | 'archived'
-  tags (text[])
-  eligibility_notes (text)
-  required_docs_template (jsonb)
-  workflow_stages (jsonb)
-  sla_target_days (integer)
+| Table | Purpose |
+|-------|---------|
+| `crm_pipelines` | Pipeline definitions (e.g., "Visa Application Pipeline", "Lead Pipeline") |
+| `crm_pipeline_stages` | Stages within a pipeline, with sort order, color, and win/lost designation |
+| `crm_stage_requirements` | Requirements per stage (tasks, documents, fields, forms, notes/questions) |
+| `crm_deals` | Deal/Application instances - the active record moving through a pipeline |
+| `crm_deal_services` | Junction table linking deals to one or more services |
+| `crm_deal_requirements` | Instance-level requirement completion tracking per deal |
+| `crm_deal_notes` | Notes and question-answer threads on a deal |
+| `crm_deal_documents` | Document uploads per deal |
+| `crm_deal_tasks` | Tasks generated from stage requirements, assigned to team/contact/agent |
+| `crm_deal_activity_log` | Audit trail of all actions on a deal |
+| `crm_deal_fees` | Product fees attached to a deal |
+| `crm_deal_fee_instalments` | Fee instalment schedule |
+
+### Key Design Decisions
+
+**Pipeline vs Workflow naming**: Using "Pipeline" for the CRM system to differentiate from HR Workflows. The UI will call them "Pipelines" for admin config and "Deals/Applications" for active instances.
+
+**Stage requirement types** (stored in `crm_stage_requirements`):
+- `task` - A checklist task that must be completed
+- `document` - A required document upload
+- `field` - A required data field (e.g., date of birth, passport number)
+- `form` - A linked form that must be submitted
+- `note_question` - A question that must be answered as a note
+
+**Requirement target audience** (`target_role`):
+- `assignee` - The team member assigned to the deal
+- `contact` - The CRM contact (client)
+- `agent` - The partner/agent
+
+**Stage types**:
+- `normal` - Regular processing stage
+- `win` - Success/completion stage (admin marks one stage as win)
+- `lost` - Closed/lost (not a stage - tracked via deal status + reason)
+
+---
+
+## Database Schema (Migration)
+
+```text
+crm_pipelines
+  id, organization_id, name, description, is_default,
+  service_required (bool - false = opportunity/lead pipeline),
+  sort_order, created_by, created_at, updated_at
+
+crm_pipeline_stages
+  id, pipeline_id, organization_id, name, description,
+  color, sort_order, stage_type ('normal' | 'win'),
+  auto_advance (bool), created_at, updated_at
+
+crm_stage_requirements
+  id, stage_id, pipeline_id, organization_id,
+  requirement_type ('task' | 'document' | 'field' | 'form' | 'note_question'),
+  title, description, is_required (bool),
+  target_role ('assignee' | 'contact' | 'agent'),
+  config (jsonb - field name, form_id, doc template, etc.),
+  sort_order, created_at
+
+crm_deals
+  id, organization_id, pipeline_id, current_stage_id,
+  contact_id (FK crm_contacts), company_id (FK crm_companies),
+  assignee_id (FK employees), agent_partner_id (FK crm_partners),
+  agent_user_id (FK partner_users),
+  title, status ('active' | 'won' | 'lost' | 'cancelled'),
+  priority ('low' | 'medium' | 'high'),
+  lost_reason, lost_notes,
+  expected_close_date, actual_close_date,
+  deal_value, currency,
+  source ('staff' | 'agent' | 'client_portal' | 'form'),
   created_by, created_at, updated_at
 
-crm_service_offices (service <-> offices junction)
-  id, service_id, office_id, organization_id
-```
+crm_deal_services
+  id, deal_id, service_id, organization_id, created_at
 
-### 1b. Partners
-```
-crm_partners
-  id, organization_id
-  type: 'agent' | 'provider' | 'both'
-  name, trading_name, website, phone, email
-  address_street, address_city, address_state, address_postcode, address_country
-  primary_contact_name, primary_contact_email, primary_contact_phone
-  contract_status: 'active' | 'inactive'
-  tags (text[]), compliance_docs (jsonb)
-  notes (text)
-  created_by, created_at, updated_at
-
-crm_partner_branches
-  id, partner_id, organization_id
-  name, city, country
-  created_at
-
-partner_users (Agent portal accounts)
-  id, organization_id, partner_id
-  email, full_name, phone, avatar_url
-  status: 'active' | 'suspended' | 'invited'
-  last_login_at
+crm_deal_requirements
+  id, deal_id, stage_requirement_id, organization_id,
+  status ('pending' | 'completed' | 'skipped' | 'waived'),
+  completed_by, completed_at,
+  response_data (jsonb - for fields/forms/notes),
   created_at, updated_at
 
-partner_user_sessions (OTP sessions for agents)
-  id, partner_user_id, token_hash, expires_at, revoked_at, created_at
-
-partner_user_otp_codes
-  id, partner_user_id, code_hash, expires_at, used, created_at
-
-partner_customers (Agent-managed customers)
-  id, organization_id, partner_id, partner_user_id
-  first_name, last_name, email, phone
-  date_of_birth, nationality, country_of_residency
-  linked_crm_contact_id (FK -> crm_contacts, nullable)
-  notes, custom_fields (jsonb)
-  created_at, updated_at
-```
-
-### 1c. Service Applications
-```
-service_applications
-  id, organization_id, service_id, office_id
-  created_by_type: 'client' | 'agent' | 'staff'
-  client_portal_user_id (FK -> client_portal_users, nullable)
-  crm_contact_id (FK -> crm_contacts, nullable)
-  partner_customer_id (FK -> partner_customers, nullable)
-  agent_partner_id (FK -> crm_partners, nullable)
-  agent_user_id (FK -> partner_users, nullable)
-  provider_partner_id (FK -> crm_partners, nullable)
-  status: 'draft' | 'submitted' | 'in_review' | 'approved' | 'rejected' | 'completed'
-  priority: 'low' | 'medium' | 'high'
-  form_responses (jsonb)
-  submitted_at, created_at, updated_at
-
-service_application_status_history
-  id, application_id, organization_id
-  old_status, new_status, changed_by, notes, is_internal_note
+crm_deal_notes
+  id, deal_id, organization_id,
+  author_type ('staff' | 'agent' | 'contact' | 'system'),
+  author_id, content, is_internal (bool),
+  requirement_id (nullable - links to a note_question requirement),
   created_at
 
-service_application_documents
-  id, application_id, organization_id
-  document_type, file_name, file_url, file_size, file_type
-  status: 'pending' | 'approved' | 'rejected'
-  reviewed_by, review_notes
-  uploaded_by_type: 'client' | 'agent' | 'staff'
-  created_at
+crm_deal_documents
+  id, deal_id, organization_id,
+  requirement_id (nullable), file_name, file_path,
+  file_type, file_size,
+  uploaded_by_type ('staff' | 'agent' | 'contact'),
+  uploaded_by, status ('pending' | 'approved' | 'rejected'),
+  reviewer_notes, created_at
 
-service_application_tasks
-  id, application_id, organization_id
-  title, description, assigned_to_type, assigned_to_id
-  due_date, status: 'pending' | 'in_progress' | 'completed'
+crm_deal_tasks
+  id, deal_id, organization_id, stage_id,
+  requirement_id (nullable),
+  title, description,
+  assignee_id (FK employees), assignee_type,
+  target_role ('assignee' | 'contact' | 'agent'),
+  status ('pending' | 'in_progress' | 'completed' | 'skipped'),
+  due_date, completed_by, completed_at,
+  sort_order, created_at, updated_at
+
+crm_deal_activity_log
+  id, deal_id, organization_id,
+  action_type, actor_type, actor_id,
+  entity_type, entity_id,
+  old_value (jsonb), new_value (jsonb),
+  description, created_at
+
+crm_deal_fees
+  id, deal_id, organization_id,
+  fee_name, fee_type_id (nullable FK to system fee types),
+  amount, currency, tax_amount, discount_amount,
+  status ('pending' | 'invoiced' | 'paid' | 'waived'),
   created_at, updated_at
 
-service_application_messages
-  id, application_id, organization_id
-  sender_type: 'client' | 'agent' | 'staff'
-  sender_id, content, is_internal_note
-  created_at
-```
-
-### 1d. Product Fees (from uploaded documents)
-```
-crm_product_fee_types
-  id, organization_id
-  name (varchar)
-  is_system (boolean -- true for 29 predefined types)
-  created_at
-
-crm_product_fee_options
-  id, organization_id, service_id
-  name (varchar, "Default Fees" for default)
-  is_default (boolean)
-  applicable_partner_branches (jsonb -- array of branch IDs, null = all)
-  applicable_client_countries (jsonb -- array of country codes, null = all)
-  created_by, created_at, updated_at
-
-crm_product_fee_items
-  id, organization_id, fee_option_id
-  revenue_type: 'revenue_from_client' | 'commission_from_partner'
-  fee_structure_type: 'equal' | 'custom'
-  installment_alias: 'full_fee' | 'per_year' | 'per_month' | 'per_week' | 'per_term' | 'per_semester' | 'per_trimester'
-  installment_name (varchar, nullable -- for custom installments like "1st Semester")
-  installment_order (integer)
-  fee_type_id (FK -> crm_product_fee_types)
-  description (varchar(120))
-  classification: 'income' | 'payable' (for revenue_from_client only, nullable)
-  installment_amount (numeric)
-  num_installments (integer, for equal only)
-  total_fee (numeric)
-  claimable_terms (integer, for commission only)
-  commission_percentage (numeric, for commission only)
-  commission_amount (numeric, for commission only)
-  created_at, updated_at
-
-application_fee_overrides
-  id, organization_id, application_id
-  fee_option_id (FK -> crm_product_fee_options)
-  overridden_items (jsonb)
-  tax_mode: 'inclusive' | 'exclusive'
-  tax_rate_id (uuid, nullable)
-  discount_amount (numeric), discount_description (varchar)
-  created_by, created_at, updated_at
-
-payment_schedules
-  id, organization_id, application_id
-  schedule_type: 'manual' | 'auto'
-  installment_start_date (date)
-  installment_interval (varchar)
-  created_by, created_at, updated_at
-
-payment_schedule_items
-  id, schedule_id, organization_id
-  installment_name (varchar)
-  installment_type (varchar)
-  is_claimable (boolean)
-  installment_date (date)
-  invoice_date (date)
-  auto_invoicing (boolean)
-  invoice_type (varchar)
-  amount (numeric)
-  commission_amount (numeric)
-  discount_amount (numeric)
-  status: 'pending' | 'paid' | 'overdue' | 'cancelled'
-  created_at, updated_at
-```
-
-### 1e. Partner Promotions
-```
-partner_promotions
-  id, organization_id, partner_id
-  title (varchar, mandatory)
-  description (text, mandatory)
-  start_date (date), end_date (date)
-  apply_to_all_products (boolean, default true)
-  is_active (boolean, default true)
-  attachments (jsonb)
-  created_by, created_at, updated_at
-
-partner_promotion_products
-  id, promotion_id, service_id, branch_id (nullable)
-```
-
-### 1f. Activity Logs
-```
-product_fee_activity_logs
-  id, organization_id, service_id
-  user_id, action: 'created' | 'updated' | 'deleted'
-  field_name (varchar)
-  old_value (text), new_value (text)
-  batch_id (uuid)
-  created_at
-```
-
-### 1g. AI Insights
-```
-ai_service_insights
-  id, organization_id
-  insight_type: 'recommendation' | 'doc_check' | 'summary'
-  entity_type, entity_id
-  input_data (jsonb), output_data (jsonb)
-  confidence_score (numeric)
-  created_by_type, created_by_id
-  created_at
+crm_deal_fee_instalments
+  id, deal_fee_id, organization_id,
+  instalment_number, amount, due_date,
+  status ('pending' | 'paid' | 'overdue'),
+  paid_at, created_at
 ```
 
 ### RLS Policies
-All tables get strict org_id isolation policies using `auth.uid()` for internal tables and service-role access for edge functions handling portal/agent requests.
+All tables will have RLS enabled with `TO authenticated` policies using `is_org_member()` for SELECT and role-based checks for mutations. An explicit `anon` deny policy on each table.
 
-### Seed Data
-Insert the 29 predefined fee types as system defaults.
-
----
-
-## Phase 2: CRM Products and Services UI (Internal)
-
-### 2a. CRM Sub-Navigation
-- Add "Products" tab to CRMSubNav (between Contacts and Companies)
-- Add new route: `/org/:orgCode/crm/products`
-- Add new route: `/org/:orgCode/crm/products/:id` (detail page)
-- Add new route: `/org/:orgCode/crm/partners`
-- Add new route: `/org/:orgCode/crm/partners/:id` (detail page)
-
-### 2b. Products List Page
-- Search, filter by category/visibility/status/office
-- Card or table view with service name, type badge, visibility icons, status
-- "Create Service" button (admin/owner only)
-
-### 2c. Product Detail Page (Tabbed)
-- **Overview Tab**: Name, description, type, office availability, workflow stages, required docs editor
-- **Fees Tab**: Default fee section + "+Add" for additional fee options (from PRD docs)
-  - Revenue From Client section (Equal/Custom installments)
-  - Commission From Partner section (Equal/Custom installments)
-  - Installment alias dropdown (Full Fee, Per Year, Per Month, Per Week, Per Term, Per Semester, Per Trimester)
-  - Up to 20 fee types per installment period
-  - 120 char description limit
-- **Promotions Tab**: Read-only view of promotions from associated partners
-- **Activity Log Tab**: Tracked changes to product fields and fees
-
-### 2d. Product Create/Edit Dialog/Page
-- Form with all service fields
-- Office multi-select
-- Publish toggles (client portal, agent portal)
-- Validation: cannot publish without at least one office selected
+### Indexes
+Composite indexes on `(organization_id, pipeline_id)`, `(organization_id, contact_id)`, `(organization_id, status)`, `(deal_id, stage_requirement_id)` for high-traffic queries.
 
 ---
 
-## Phase 3: Partners Management UI (Internal)
+## UI Implementation Plan
 
-### 3a. Partners List Page
-- Route: `/org/:orgCode/crm/partners`
-- Filter by type (Agent/Provider/Both), status
-- Create Partner dialog
+### Phase 1: Admin Pipeline Configuration
 
-### 3b. Partner Detail Page (Tabbed)
-- **Overview Tab**: Contact info, branches, contract status
-- **Branches Tab**: CRUD partner branches (city, country)
-- **Products Tab**: Services associated with this partner (for providers)
-- **Agent Users Tab**: List/invite agent portal users (for agent partners)
-- **Promotions Tab**: CRUD promotions with:
-  - Title, Description, Start/End dates
-  - Apply To: All Products or Select Products (multi-select with branches)
-  - Card view listing with Active/Inactive status
-  - Show Inactive checkbox
-  - View, Edit, Make Inactive actions
-- **Customers Tab**: For agent partners, list their managed customers
+**Location**: Settings > Pipelines (new settings sub-nav item)
 
----
+- **Pipeline List**: Card-based list of pipelines with name, stage count, service required toggle
+- **Pipeline Detail Page**: 
+  - Pipeline info (name, description, service_required toggle)
+  - Stages list with drag-to-reorder, color picker, and "Mark as Win stage" toggle
+  - Per-stage expandable section showing requirements
+  - Add Requirement dialog with type selector (Task, Document, Field, Form, Note/Question) and target role picker
 
-## Phase 4: Service Applications (Internal)
+### Phase 2: Deals/Applications Kanban + List
 
-### 4a. Applications Dashboard
-- Route: `/org/:orgCode/crm/applications`
-- Filter by service, office, agent, provider, status
-- Table listing with key columns
+**Location**: CRM > Deals (new CRM sub-nav tab alongside Contacts, Products, Partners)
 
-### 4b. Application Detail Page
-- Route: `/org/:orgCode/crm/applications/:id`
-- Status timeline (reuse pattern from client portal cases)
-- Documents tab with checklist + review (approve/reject)
-- Messages tab with internal notes toggle
-- Tasks tab
-- Fee section showing application-specific fees (with override capability)
-- AI Summary button (generates structured summary via edge function)
+- **Kanban Board** (default view): Stages as columns, deal cards with contact name, value, assignee avatar, days-in-stage indicator. Drag-and-drop to move between stages.
+- **List View** toggle: Table with filters (pipeline, status, assignee, date range, agent)
+- **Start Deal dialog**: Select pipeline, contact, optional service(s), assignee, agent
+- **Deal Detail Page** (full page, two-column layout):
+  - Left: Deal header (title, contact, pipeline badge, stage indicator), tabbed content:
+    - **Requirements**: Grouped by stage, showing completion status with actions
+    - **Notes**: Threaded notes with internal/external toggle
+    - **Documents**: Upload, review (approve/reject), link to requirements
+    - **Tasks**: Task list with status, assignee, due dates
+    - **Fees**: Fee table with instalment schedule
+    - **Activity Log**: Full audit trail
+  - Right sidebar: Deal info card (assignee, agent, contact, services, value, dates), stage progress indicator, quick actions
 
-### 4c. Fee Override in Application
-- Drawer UI matching the PRD spec
-- Auto-populate from product default fee (matching partner branch + client country)
-- Override without changing product defaults
-- Tax mode (inclusive/exclusive), discount support
-- "Update and Schedule Payment" button
+### Phase 3: Deal Close Flow
 
-### 4d. Payment Schedule
-- Manual schedule: installment-by-installment detail entry
-- Auto schedule: start date + intervals
-- Invoice scheduling setup within payment schedule
+- **Win**: Move to win stage triggers a completion dialog (optional notes, actual close date)
+- **Lost/Cancelled**: "Close Deal" dropdown with reason picker (predefined + custom), notes field
+- **Reopen**: Allow reopening lost deals back to a selected stage
+
+### Phase 4: Agent Portal Integration
+
+- Extend existing agent portal to show deals where `agent_partner_id` matches
+- Agent can view deal progress, upload documents, add notes, complete agent-targeted requirements
+- Agent can start new deals for their customers
 
 ---
 
-## Phase 5: Client Portal Services Marketplace
+## Files to Create/Modify
 
-### 5a. Portal Services Page
-- New route within portal layout: `/org/:orgCode/portal/services`
-- Search + filters (category, tags)
-- Card listing of published services (visibility = 'client_portal' or 'both_portals')
-- Service detail view with description, requirements, expected timeline
+### New Files (~25 files)
 
-### 5b. Apply Flow
-- Step-based drawer/page:
-  1. Confirm personal details (pre-filled from portal profile)
-  2. Answer service-specific questions (from service config)
-  3. Upload required documents
-  4. Review and submit
-- Creates service_application record with `created_by_type = 'client'`
+**Types:**
+- `src/types/crm-pipeline.ts` - All pipeline/deal type definitions
 
-### 5c. Portal Dashboard Update
-- Show service applications alongside existing cases
-- Progress timeline for each application
+**Services:**
+- `src/services/useCRMPipelines.ts` - Pipeline CRUD hooks
+- `src/services/useCRMDeals.ts` - Deal CRUD, stage movement, filtering hooks
+- `src/services/useCRMDealMutations.ts` - Deal mutations (notes, docs, tasks, fees, requirements)
 
-### 5d. Backend: portal-api Extensions
-- New actions: `list-services`, `get-service`, `apply-service`, `list-my-applications`, `get-application`
-- Strict scoping: client sees only published services and own applications
+**Settings UI:**
+- `src/pages/settings/SettingsPipelines.tsx` - Pipeline settings page
+- `src/components/pipelines/PipelineSettings.tsx` - Pipeline list/management
+- `src/components/pipelines/PipelineDetailSettings.tsx` - Pipeline detail with stages and requirements
+- `src/components/pipelines/StageRequirementDialog.tsx` - Add/edit stage requirement dialog
 
----
+**CRM Deal UI:**
+- `src/pages/crm/DealsPage.tsx` - Deals list/kanban page
+- `src/pages/crm/DealDetailPage.tsx` - Deal detail page
+- `src/components/deals/DealKanbanBoard.tsx` - Kanban board component
+- `src/components/deals/DealKanbanCard.tsx` - Kanban card component
+- `src/components/deals/DealListView.tsx` - Table list view
+- `src/components/deals/StartDealDialog.tsx` - Create new deal dialog
+- `src/components/deals/DealRequirementsTab.tsx` - Requirements completion UI
+- `src/components/deals/DealNotesTab.tsx` - Notes panel
+- `src/components/deals/DealDocumentsTab.tsx` - Documents panel
+- `src/components/deals/DealTasksTab.tsx` - Tasks panel
+- `src/components/deals/DealFeesTab.tsx` - Fees and instalments panel
+- `src/components/deals/DealActivityLog.tsx` - Activity log
+- `src/components/deals/DealSidebar.tsx` - Right sidebar with deal info
+- `src/components/deals/CloseDealDialog.tsx` - Win/Lost/Cancel dialog
+- `src/components/deals/DealStageProgress.tsx` - Visual stage progress indicator
 
-## Phase 6: Agent Portal (New)
+### Modified Files
 
-### 6a. Agent Auth Edge Functions
-- `agent-send-otp`: Same pattern as portal-send-otp but for partner_users
-- `agent-verify-otp`: Validates OTP, creates session in partner_user_sessions
-- `agent-api`: Main API function for agent portal operations
-
-### 6b. Agent Frontend
-- New routes: `/agent/:orgCode/login`, `/agent/:orgCode/dashboard`, etc.
-- `AgentAuthProvider` (same pattern as PortalAuthProvider)
-- `AgentProtectedRoute` component
-- `AgentLayout` with sidebar navigation
-
-### 6c. Agent Pages
-- **Dashboard**: My Applications summary, quick stats
-- **Services**: Browse agent-visible catalog, "Apply for Customer" button
-- **My Customers**: CRUD customer profiles, upload docs
-- **My Applications**: List with status tracking, detail view with timeline/messages
-- **Apply Flow**: Select customer (or create new) -> select service -> fill form -> upload docs -> submit
-  - Creates service_application with `created_by_type = 'agent'`, `agent_partner_id`, `agent_user_id`
-
-### 6d. Scope Enforcement
-- Agent sees only: services visible to agent portal, their own customers, their own applications
-- All queries scoped by `partner_id` + `partner_user_id`
+- `src/components/crm/CRMSubNav.tsx` - Add "Deals" tab
+- `src/components/settings/SettingsSubNav.tsx` - Add "Pipelines" entry
+- Route configuration - Add new routes for pipeline settings and deal pages
+- Agent portal pages - Add deal tracking views
 
 ---
 
-## Phase 7: AI Features
+## Industry Best Practices Incorporated
 
-### 7a. Service Recommender Edge Function
-- `ai-service-recommend`: Takes client profile (location, goals) + queries published services
-- Returns ranked recommendations with explanations
-- Uses Lovable AI (google/gemini-3-flash-preview)
-- Available in both Client Portal and Agent Portal
+1. **Stage Gate Criteria**: Each stage has configurable exit requirements that must be met before progressing - following industry-standard stage-gate methodology
+2. **Weighted Pipeline**: Deal value and stage tracking enable revenue forecasting
+3. **Activity-Based Selling**: Every action is logged for coaching and compliance
+4. **Multi-channel Source Tracking**: Deals track whether they came from staff, agent, portal, or form submission
+5. **SLA Monitoring**: Days-in-stage tracking enables bottleneck detection
+6. **Role-Based Requirements**: Different requirements for different stakeholders (staff vs client vs agent) mirrors real-world process delegation
+7. **Opportunity-to-Deal Conversion**: Service-optional pipelines support lead/opportunity management that converts to service deals
 
-### 7b. Doc Completeness Checker
-- `ai-doc-check`: After upload, analyzes document type and quality
-- Returns structured result: ok / unclear / wrong doc / missing pages
-- Logs result in ai_service_insights table
+## Implementation Sequence
 
-### 7c. Application Summary for Staff
-- `ai-application-summary`: Generates structured summary for staff review
-- Client background, submitted docs, risks, recommended next steps
-- Available from Application Detail page
-
-### 7d. AI Fee Suggestion
-- When creating an application, suggest applicable fee option based on client country + partner branch + active promotions
-
----
-
-## Phase 8: Testing
-
-### Unit Tests
-- Permission boundary checks (client/agent/staff scope)
-- Publish visibility logic validation
-- Fee calculation (equal installment total = amount x installments)
-- Custom installment ordering auto-naming
-- Fee type limit enforcement (max 20 per period)
-- Description character limit (120)
-
-### Integration Tests
-- Client portal apply flow creates application + timeline entry
-- Agent portal apply flow creates application with agent linkage
-- Staff update status triggers timeline update
-- Fee override does not modify product default
-- Fee changes only affect new applications
-
----
-
-## Implementation Progress
-
-- [x] **Phase 1** - Database migration (22 tables, RLS, seed data)
-- [x] **Phase 2** - Products & Services internal UI (list, detail, create)
-- [x] **Phase 3** - Partners management UI (list, detail, create)
-- [x] **Phase 4** - Service Applications internal (list, detail, status management)
-- [x] **Phase 5** - Client Portal services marketplace (browse, apply, track applications)
-- [x] **Phase 6** - Agent Portal (auth, dashboard, customers, applications)
-- [x] **Phase 7** - AI features (recommender, doc check, summary)
-- [x] **Phase 8** - Testing (21 unit tests: permissions, visibility, fees, sanitization)
+Given the scope, this will be implemented in phases:
+1. Database migration (all tables, RLS, indexes)
+2. Admin pipeline configuration UI
+3. Deal kanban board + list view
+4. Deal detail page with all tabs
+5. Close deal flow (win/lost)
+6. Agent portal integration
 
