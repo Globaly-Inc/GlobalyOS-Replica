@@ -358,13 +358,215 @@ export type Database = {
           },
         ]
       }
+      accounting_income_sharing_payments: {
+        Row: {
+          amount: number
+          commission_invoice_id: string | null
+          created_at: string
+          id: string
+          income_sharing_id: string
+          organization_id: string
+          paid_at: string
+          reference: string | null
+        }
+        Insert: {
+          amount: number
+          commission_invoice_id?: string | null
+          created_at?: string
+          id?: string
+          income_sharing_id: string
+          organization_id: string
+          paid_at?: string
+          reference?: string | null
+        }
+        Update: {
+          amount?: number
+          commission_invoice_id?: string | null
+          created_at?: string
+          id?: string
+          income_sharing_id?: string
+          organization_id?: string
+          paid_at?: string
+          reference?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_income_sharing_payments_commission_invoice_id_fkey"
+            columns: ["commission_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_income_sharing_payments_income_sharing_id_fkey"
+            columns: ["income_sharing_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_invoice_income_sharing"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_income_sharing_payments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_income_sharing_payments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_invoice_comments: {
+        Row: {
+          author_name: string | null
+          author_type: Database["public"]["Enums"]["invoice_comment_author_type"]
+          content: string
+          created_at: string
+          id: string
+          invoice_id: string
+          organization_id: string
+        }
+        Insert: {
+          author_name?: string | null
+          author_type?: Database["public"]["Enums"]["invoice_comment_author_type"]
+          content: string
+          created_at?: string
+          id?: string
+          invoice_id: string
+          organization_id: string
+        }
+        Update: {
+          author_name?: string | null
+          author_type?: Database["public"]["Enums"]["invoice_comment_author_type"]
+          content?: string
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_invoice_comments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_invoice_comments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_invoice_comments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_invoice_income_sharing: {
+        Row: {
+          amount_paid: number | null
+          created_at: string
+          id: string
+          invoice_id: string
+          invoice_service_id: string | null
+          organization_id: string
+          receiver_id: string
+          receiver_name: string
+          receiver_type: Database["public"]["Enums"]["income_sharing_receiver_type"]
+          sharing_amount: number | null
+          status: Database["public"]["Enums"]["income_sharing_status"] | null
+          tax_amount: number | null
+          tax_mode: Database["public"]["Enums"]["invoice_tax_type"] | null
+          tax_rate: number | null
+          total_amount: number | null
+        }
+        Insert: {
+          amount_paid?: number | null
+          created_at?: string
+          id?: string
+          invoice_id: string
+          invoice_service_id?: string | null
+          organization_id: string
+          receiver_id: string
+          receiver_name: string
+          receiver_type: Database["public"]["Enums"]["income_sharing_receiver_type"]
+          sharing_amount?: number | null
+          status?: Database["public"]["Enums"]["income_sharing_status"] | null
+          tax_amount?: number | null
+          tax_mode?: Database["public"]["Enums"]["invoice_tax_type"] | null
+          tax_rate?: number | null
+          total_amount?: number | null
+        }
+        Update: {
+          amount_paid?: number | null
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          invoice_service_id?: string | null
+          organization_id?: string
+          receiver_id?: string
+          receiver_name?: string
+          receiver_type?: Database["public"]["Enums"]["income_sharing_receiver_type"]
+          sharing_amount?: number | null
+          status?: Database["public"]["Enums"]["income_sharing_status"] | null
+          tax_amount?: number | null
+          tax_mode?: Database["public"]["Enums"]["invoice_tax_type"] | null
+          tax_rate?: number | null
+          total_amount?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_invoice_income_sharing_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_invoice_income_sharing_invoice_service_id_fkey"
+            columns: ["invoice_service_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_invoice_services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_invoice_income_sharing_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_invoice_income_sharing_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accounting_invoice_lines: {
         Row: {
+          account_category: string | null
           account_id: string
           amount: number
           description: string
+          fee_type: string | null
           id: string
+          instalment_id: string | null
           invoice_id: string
+          invoice_service_id: string | null
+          is_discount: boolean | null
           quantity: number
           sort_order: number
           tax_amount: number
@@ -372,11 +574,16 @@ export type Database = {
           unit_price: number
         }
         Insert: {
+          account_category?: string | null
           account_id: string
           amount?: number
           description: string
+          fee_type?: string | null
           id?: string
+          instalment_id?: string | null
           invoice_id: string
+          invoice_service_id?: string | null
+          is_discount?: boolean | null
           quantity?: number
           sort_order?: number
           tax_amount?: number
@@ -384,11 +591,16 @@ export type Database = {
           unit_price?: number
         }
         Update: {
+          account_category?: string | null
           account_id?: string
           amount?: number
           description?: string
+          fee_type?: string | null
           id?: string
+          instalment_id?: string | null
           invoice_id?: string
+          invoice_service_id?: string | null
+          is_discount?: boolean | null
           quantity?: number
           sort_order?: number
           tax_amount?: number
@@ -408,6 +620,13 @@ export type Database = {
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "accounting_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_invoice_lines_invoice_service_id_fkey"
+            columns: ["invoice_service_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_invoice_services"
             referencedColumns: ["id"]
           },
           {
@@ -470,90 +689,283 @@ export type Database = {
           },
         ]
       }
+      accounting_invoice_schedules: {
+        Row: {
+          auto_send: boolean | null
+          created_at: string
+          deal_fee_id: string
+          deal_id: string
+          id: string
+          instalment_id: string
+          invoice_id: string | null
+          organization_id: string
+          scheduled_date: string
+          status: Database["public"]["Enums"]["invoice_schedule_status"] | null
+        }
+        Insert: {
+          auto_send?: boolean | null
+          created_at?: string
+          deal_fee_id: string
+          deal_id: string
+          id?: string
+          instalment_id: string
+          invoice_id?: string | null
+          organization_id: string
+          scheduled_date: string
+          status?: Database["public"]["Enums"]["invoice_schedule_status"] | null
+        }
+        Update: {
+          auto_send?: boolean | null
+          created_at?: string
+          deal_fee_id?: string
+          deal_id?: string
+          id?: string
+          instalment_id?: string
+          invoice_id?: string | null
+          organization_id?: string
+          scheduled_date?: string
+          status?: Database["public"]["Enums"]["invoice_schedule_status"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_invoice_schedules_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "crm_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_invoice_schedules_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_invoice_schedules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_invoice_schedules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_invoice_services: {
+        Row: {
+          created_at: string
+          deal_fee_id: string | null
+          id: string
+          invoice_id: string
+          organization_id: string
+          provider_name: string | null
+          service_id: string | null
+          service_name: string
+          sort_order: number | null
+          subtotal: number | null
+          tax_total: number | null
+          total: number | null
+        }
+        Insert: {
+          created_at?: string
+          deal_fee_id?: string | null
+          id?: string
+          invoice_id: string
+          organization_id: string
+          provider_name?: string | null
+          service_id?: string | null
+          service_name: string
+          sort_order?: number | null
+          subtotal?: number | null
+          tax_total?: number | null
+          total?: number | null
+        }
+        Update: {
+          created_at?: string
+          deal_fee_id?: string | null
+          id?: string
+          invoice_id?: string
+          organization_id?: string
+          provider_name?: string | null
+          service_id?: string | null
+          service_name?: string
+          sort_order?: number | null
+          subtotal?: number | null
+          tax_total?: number | null
+          total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_invoice_services_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_invoice_services_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_invoice_services_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_invoice_services_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "crm_services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accounting_invoices: {
         Row: {
           amount_due: number | null
           amount_paid: number
           approved_at: string | null
           approved_by: string | null
+          attachments: Json | null
+          billing_address: Json | null
           contact_id: string | null
           created_at: string
           created_by: string
+          crm_contact_id: string | null
+          crm_partner_id: string | null
           currency: string
           date: string
+          deal_id: string | null
+          discount_total: number | null
           due_date: string
+          enable_online_payment: boolean | null
           id: string
           invoice_number: string
+          invoice_type: Database["public"]["Enums"]["crm_invoice_type"] | null
           is_recurring: boolean
           ledger_id: string
           notes: string | null
           office_id: string
           organization_id: string
+          payment_option_id: string | null
+          public_token: string | null
+          recipient_type:
+            | Database["public"]["Enums"]["crm_invoice_recipient_type"]
+            | null
           recurrence_rule: Json | null
           reference: string | null
+          sent_at: string | null
           status: Database["public"]["Enums"]["accounting_invoice_status"]
           stripe_payment_link_id: string | null
           subtotal: number
           tax_total: number
+          tax_type: Database["public"]["Enums"]["invoice_tax_type"] | null
           terms: string | null
+          token_expires_at: string | null
           total: number
           updated_at: string
+          viewed_at: string | null
         }
         Insert: {
           amount_due?: number | null
           amount_paid?: number
           approved_at?: string | null
           approved_by?: string | null
+          attachments?: Json | null
+          billing_address?: Json | null
           contact_id?: string | null
           created_at?: string
           created_by: string
+          crm_contact_id?: string | null
+          crm_partner_id?: string | null
           currency?: string
           date?: string
+          deal_id?: string | null
+          discount_total?: number | null
           due_date?: string
+          enable_online_payment?: boolean | null
           id?: string
           invoice_number: string
+          invoice_type?: Database["public"]["Enums"]["crm_invoice_type"] | null
           is_recurring?: boolean
           ledger_id: string
           notes?: string | null
           office_id: string
           organization_id: string
+          payment_option_id?: string | null
+          public_token?: string | null
+          recipient_type?:
+            | Database["public"]["Enums"]["crm_invoice_recipient_type"]
+            | null
           recurrence_rule?: Json | null
           reference?: string | null
+          sent_at?: string | null
           status?: Database["public"]["Enums"]["accounting_invoice_status"]
           stripe_payment_link_id?: string | null
           subtotal?: number
           tax_total?: number
+          tax_type?: Database["public"]["Enums"]["invoice_tax_type"] | null
           terms?: string | null
+          token_expires_at?: string | null
           total?: number
           updated_at?: string
+          viewed_at?: string | null
         }
         Update: {
           amount_due?: number | null
           amount_paid?: number
           approved_at?: string | null
           approved_by?: string | null
+          attachments?: Json | null
+          billing_address?: Json | null
           contact_id?: string | null
           created_at?: string
           created_by?: string
+          crm_contact_id?: string | null
+          crm_partner_id?: string | null
           currency?: string
           date?: string
+          deal_id?: string | null
+          discount_total?: number | null
           due_date?: string
+          enable_online_payment?: boolean | null
           id?: string
           invoice_number?: string
+          invoice_type?: Database["public"]["Enums"]["crm_invoice_type"] | null
           is_recurring?: boolean
           ledger_id?: string
           notes?: string | null
           office_id?: string
           organization_id?: string
+          payment_option_id?: string | null
+          public_token?: string | null
+          recipient_type?:
+            | Database["public"]["Enums"]["crm_invoice_recipient_type"]
+            | null
           recurrence_rule?: Json | null
           reference?: string | null
+          sent_at?: string | null
           status?: Database["public"]["Enums"]["accounting_invoice_status"]
           stripe_payment_link_id?: string | null
           subtotal?: number
           tax_total?: number
+          tax_type?: Database["public"]["Enums"]["invoice_tax_type"] | null
           terms?: string | null
+          token_expires_at?: string | null
           total?: number
           updated_at?: string
+          viewed_at?: string | null
         }
         Relationships: [
           {
@@ -561,6 +973,27 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "accounting_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_invoices_crm_contact_id_fkey"
+            columns: ["crm_contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_invoices_crm_partner_id_fkey"
+            columns: ["crm_partner_id"]
+            isOneToOne: false
+            referencedRelation: "crm_partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_invoices_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "crm_deals"
             referencedColumns: ["id"]
           },
           {
@@ -589,6 +1022,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_invoices_payment_option_id_fkey"
+            columns: ["payment_option_id"]
+            isOneToOne: false
+            referencedRelation: "accounting_payment_options"
             referencedColumns: ["id"]
           },
         ]
@@ -638,6 +1078,54 @@ export type Database = {
             columns: ["setup_id"]
             isOneToOne: false
             referencedRelation: "accounting_setups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounting_payment_options: {
+        Row: {
+          bank_details: Json | null
+          created_at: string
+          id: string
+          is_active: boolean | null
+          is_default: boolean | null
+          name: string
+          organization_id: string
+          type: Database["public"]["Enums"]["payment_option_type"]
+        }
+        Insert: {
+          bank_details?: Json | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          name: string
+          organization_id: string
+          type?: Database["public"]["Enums"]["payment_option_type"]
+        }
+        Update: {
+          bank_details?: Json | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          name?: string
+          organization_id?: string
+          type?: Database["public"]["Enums"]["payment_option_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accounting_payment_options_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accounting_payment_options_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
             referencedColumns: ["id"]
           },
         ]
@@ -25740,6 +26228,8 @@ export type Database = {
       crm_deal_status: "active" | "won" | "lost" | "cancelled"
       crm_deal_task_status: "pending" | "in_progress" | "completed" | "skipped"
       crm_instalment_status: "pending" | "paid" | "overdue"
+      crm_invoice_recipient_type: "contact" | "partner"
+      crm_invoice_type: "general" | "commission"
       crm_partner_contract_status: "active" | "inactive"
       crm_partner_type: "agent" | "provider" | "both"
       crm_pipeline_stage_type: "normal" | "win"
@@ -25817,6 +26307,8 @@ export type Database = {
         | "interactive"
         | "system"
         | "note"
+      income_sharing_receiver_type: "partner" | "office" | "team"
+      income_sharing_status: "unpaid" | "partially_paid" | "paid"
       installment_alias:
         | "full_fee"
         | "per_year"
@@ -25832,6 +26324,9 @@ export type Database = {
         | "no"
         | "strong_no"
       interview_status: "scheduled" | "completed" | "cancelled" | "no_show"
+      invoice_comment_author_type: "staff" | "client" | "partner" | "system"
+      invoice_schedule_status: "pending" | "generated" | "skipped"
+      invoice_tax_type: "inclusive" | "exclusive"
       job_status:
         | "draft"
         | "submitted"
@@ -25849,6 +26344,7 @@ export type Database = {
         | "declined"
         | "expired"
       partner_user_status: "active" | "suspended" | "invited"
+      payment_option_type: "bank_transfer" | "stripe" | "other"
       payment_schedule_item_status: "pending" | "paid" | "overdue" | "cancelled"
       payment_schedule_type: "manual" | "auto"
       quotation_comment_author_type: "staff" | "client" | "agent" | "system"
@@ -26133,6 +26629,8 @@ export const Constants = {
       crm_deal_status: ["active", "won", "lost", "cancelled"],
       crm_deal_task_status: ["pending", "in_progress", "completed", "skipped"],
       crm_instalment_status: ["pending", "paid", "overdue"],
+      crm_invoice_recipient_type: ["contact", "partner"],
+      crm_invoice_type: ["general", "commission"],
       crm_partner_contract_status: ["active", "inactive"],
       crm_partner_type: ["agent", "provider", "both"],
       crm_pipeline_stage_type: ["normal", "win"],
@@ -26211,6 +26709,8 @@ export const Constants = {
         "system",
         "note",
       ],
+      income_sharing_receiver_type: ["partner", "office", "team"],
+      income_sharing_status: ["unpaid", "partially_paid", "paid"],
       installment_alias: [
         "full_fee",
         "per_year",
@@ -26228,6 +26728,9 @@ export const Constants = {
         "strong_no",
       ],
       interview_status: ["scheduled", "completed", "cancelled", "no_show"],
+      invoice_comment_author_type: ["staff", "client", "partner", "system"],
+      invoice_schedule_status: ["pending", "generated", "skipped"],
+      invoice_tax_type: ["inclusive", "exclusive"],
       job_status: [
         "draft",
         "submitted",
@@ -26247,6 +26750,7 @@ export const Constants = {
         "expired",
       ],
       partner_user_status: ["active", "suspended", "invited"],
+      payment_option_type: ["bank_transfer", "stripe", "other"],
       payment_schedule_item_status: ["pending", "paid", "overdue", "cancelled"],
       payment_schedule_type: ["manual", "auto"],
       quotation_comment_author_type: ["staff", "client", "agent", "system"],
