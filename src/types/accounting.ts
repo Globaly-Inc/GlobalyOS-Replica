@@ -332,3 +332,233 @@ export interface SetupWizardFormData {
   taxInclusive: boolean;
   templateId: string;
 }
+
+// ============================================================
+// Revised Invoicing System Types
+// ============================================================
+
+export type CrmInvoiceType = 'general' | 'commission';
+export type CrmInvoiceRecipientType = 'contact' | 'partner';
+export type IncomeSharingStatus = 'unpaid' | 'partially_paid' | 'paid';
+export type IncomeSharingReceiverType = 'partner' | 'office' | 'team';
+export type InvoiceScheduleStatus = 'pending' | 'generated' | 'skipped';
+export type InvoiceCommentAuthorType = 'staff' | 'client' | 'partner' | 'system';
+export type PaymentOptionType = 'bank_transfer' | 'stripe' | 'other';
+export type InvoiceTaxType = 'inclusive' | 'exclusive';
+
+// Extended invoice fields (beyond base AccountingInvoice)
+export interface AccountingInvoiceExtended extends AccountingInvoice {
+  invoice_type: CrmInvoiceType;
+  recipient_type: CrmInvoiceRecipientType;
+  crm_contact_id: string | null;
+  crm_partner_id: string | null;
+  deal_id: string | null;
+  billing_address: Record<string, unknown> | null;
+  tax_type: InvoiceTaxType;
+  payment_option_id: string | null;
+  enable_online_payment: boolean;
+  public_token: string | null;
+  token_expires_at: string | null;
+  sent_at: string | null;
+  viewed_at: string | null;
+  discount_total: number;
+  attachments: Record<string, unknown>[];
+  // Joined data
+  invoice_services?: AccountingInvoiceService[];
+  income_sharing?: AccountingInvoiceIncomeSharing[];
+  comments?: AccountingInvoiceComment[];
+  payment_option?: AccountingPaymentOption | null;
+  crm_contact?: { id: string; first_name: string; last_name: string | null; email: string | null } | null;
+  crm_partner?: { id: string; name: string; email: string | null } | null;
+  deal?: { id: string; name: string } | null;
+}
+
+export interface AccountingInvoiceService {
+  id: string;
+  invoice_id: string;
+  organization_id: string;
+  service_id: string | null;
+  service_name: string;
+  provider_name: string | null;
+  deal_fee_id: string | null;
+  sort_order: number;
+  subtotal: number;
+  tax_total: number;
+  total: number;
+  created_at: string;
+  // Joined
+  lines?: AccountingInvoiceLineExtended[];
+}
+
+export interface AccountingInvoiceLineExtended extends AccountingInvoiceLine {
+  invoice_service_id: string | null;
+  fee_type: string | null;
+  account_category: string | null;
+  is_discount: boolean;
+  instalment_id: string | null;
+}
+
+export interface AccountingInvoiceIncomeSharing {
+  id: string;
+  invoice_id: string;
+  organization_id: string;
+  invoice_service_id: string | null;
+  receiver_type: IncomeSharingReceiverType;
+  receiver_id: string;
+  receiver_name: string;
+  sharing_amount: number;
+  tax_mode: InvoiceTaxType;
+  tax_rate: number;
+  tax_amount: number;
+  total_amount: number;
+  status: IncomeSharingStatus;
+  amount_paid: number;
+  created_at: string;
+  // Joined
+  payments?: AccountingIncomeSharingPayment[];
+}
+
+export interface AccountingIncomeSharingPayment {
+  id: string;
+  income_sharing_id: string;
+  organization_id: string;
+  commission_invoice_id: string | null;
+  amount: number;
+  paid_at: string;
+  reference: string | null;
+  created_at: string;
+}
+
+export interface AccountingInvoiceSchedule {
+  id: string;
+  organization_id: string;
+  deal_id: string;
+  deal_fee_id: string;
+  instalment_id: string;
+  scheduled_date: string;
+  invoice_id: string | null;
+  status: InvoiceScheduleStatus;
+  auto_send: boolean;
+  created_at: string;
+  // Joined
+  deal?: { id: string; name: string } | null;
+  invoice?: { id: string; invoice_number: string; status: InvoiceStatus } | null;
+}
+
+export interface AccountingInvoiceComment {
+  id: string;
+  invoice_id: string;
+  organization_id: string;
+  author_type: InvoiceCommentAuthorType;
+  author_name: string | null;
+  content: string;
+  created_at: string;
+}
+
+export interface AccountingPaymentOption {
+  id: string;
+  organization_id: string;
+  name: string;
+  type: PaymentOptionType;
+  bank_details: {
+    account_name?: string;
+    bank_name?: string;
+    bsb?: string;
+    account_number?: string;
+    [key: string]: unknown;
+  } | null;
+  is_default: boolean;
+  is_active: boolean;
+  created_at: string;
+}
+
+// Invoice editor form types
+export interface InvoiceServiceFormData {
+  id?: string;
+  service_id?: string;
+  service_name: string;
+  provider_name?: string;
+  deal_fee_id?: string;
+  lines: InvoiceLineFormData[];
+}
+
+export interface InvoiceLineFormData {
+  id?: string;
+  description: string;
+  fee_type?: string;
+  account_category?: string;
+  quantity: number;
+  unit_price: number;
+  amount: number;
+  tax_rate_id?: string;
+  tax_amount: number;
+  is_discount: boolean;
+  instalment_id?: string;
+  account_id: string;
+}
+
+export interface InvoiceFormData {
+  invoice_type: CrmInvoiceType;
+  recipient_type: CrmInvoiceRecipientType;
+  crm_contact_id?: string;
+  crm_partner_id?: string;
+  contact_id?: string; // legacy accounting contact
+  deal_id?: string;
+  invoice_number: string;
+  reference?: string;
+  date: string;
+  due_date: string;
+  currency: string;
+  tax_type: InvoiceTaxType;
+  payment_option_id?: string;
+  enable_online_payment: boolean;
+  notes?: string;
+  terms?: string;
+  billing_address?: Record<string, unknown>;
+  services: InvoiceServiceFormData[];
+  attachments: Record<string, unknown>[];
+}
+
+// Tax calculation helpers
+export interface TaxCalculationResult {
+  subtotal: number;
+  taxTotal: number;
+  discountTotal: number;
+  total: number;
+  amountDue: number;
+}
+
+export function calculateLineTax(
+  amount: number,
+  taxRate: number,
+  taxType: InvoiceTaxType
+): { taxAmount: number; netAmount: number } {
+  if (taxType === 'inclusive') {
+    const netAmount = amount / (1 + taxRate / 100);
+    return { taxAmount: amount - netAmount, netAmount };
+  }
+  return { taxAmount: amount * (taxRate / 100), netAmount: amount };
+}
+
+export function calculateInvoiceTotals(
+  services: InvoiceServiceFormData[],
+  amountPaid: number = 0
+): TaxCalculationResult {
+  let subtotal = 0;
+  let taxTotal = 0;
+  let discountTotal = 0;
+
+  for (const svc of services) {
+    for (const line of svc.lines) {
+      if (line.is_discount) {
+        discountTotal += Math.abs(line.amount);
+      } else {
+        subtotal += line.amount;
+      }
+      taxTotal += line.tax_amount;
+    }
+  }
+
+  const total = subtotal - discountTotal + taxTotal;
+  return { subtotal, taxTotal, discountTotal, total, amountDue: total - amountPaid };
+}
