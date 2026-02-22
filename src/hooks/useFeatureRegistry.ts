@@ -43,6 +43,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   forms: FileText,
   accounting: Calculator,
   client_portal: Users,
+  quotations: FileText,
 };
 
 export function useFeatureRegistry() {

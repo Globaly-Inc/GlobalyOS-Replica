@@ -218,7 +218,12 @@ const SuperAdminFeatureDetail = () => {
     if (!featureName || !feature) return;
     setGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-feature-prd", {
+      // Use dedicated edge function for quotations, generic for others
+      const functionName = featureName === "quotations"
+        ? "generate-quotation-prd"
+        : "generate-feature-prd";
+
+      const { data, error } = await supabase.functions.invoke(functionName, {
         body: {
           featureName: feature.name,
           featureLabel: feature.label,

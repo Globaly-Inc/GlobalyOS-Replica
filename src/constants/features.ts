@@ -44,6 +44,7 @@ export const MASTER_FEATURE_REGISTRY: FeatureEntry[] = [
   { name: "forms", label: "Forms", description: "Form builder and submissions", icon: FileText, route: "/forms", category: "flagged" },
   { name: "accounting", label: "Accounting", description: "Ledgers, invoicing, and financial management", icon: Calculator, route: "/accounting", category: "flagged" },
   { name: "client_portal", label: "Client Portal", description: "Client self-service portal", icon: Users, route: "/client-portal", category: "flagged" },
+  { name: "quotations", label: "Quotations", description: "Quote-to-invoice management with multi-option quotations, service/fee configuration, tax handling, public approval links, PDF generation, templates, and AI-powered pricing", icon: FileText, route: "/crm/quotations", category: "flagged" },
 ];
 
 export const CORE_FEATURES = MASTER_FEATURE_REGISTRY.filter((f) => f.category === "core");
