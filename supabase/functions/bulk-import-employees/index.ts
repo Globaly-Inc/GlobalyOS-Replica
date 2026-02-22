@@ -199,6 +199,22 @@ Deno.serve(async (req) => {
       organizationId: string;
     };
 
+    // Verify user belongs to the target organization
+    const { data: orgMembership } = await supabase
+      .from('organization_members')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('organization_id', organizationId)
+      .maybeSingle();
+
+    if (!orgMembership) {
+      console.log(`User ${user.id} is not a member of organization ${organizationId}`);
+      return new Response(JSON.stringify({ error: 'Access denied: Not a member of this organization' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     if (!employees || !Array.isArray(employees) || employees.length === 0) {
       return new Response(JSON.stringify({ error: 'No employees provided' }), {
         status: 400,
