@@ -1,73 +1,64 @@
 
 
-# Tabbed Feature Detail with PRD Documents
+# AI Generate PRD Button
 
-Split the feature detail left column into three tabs and add a new PRD (Product Requirements Document) system where Super Admins can view AI-generated PRD PDFs.
+Add an "AI Generate PRD" button to the PRD Documents tab that calls a new edge function to research and audit the feature's codebase, then generates a comprehensive PRD document following industry best practices.
 
-## Tab Structure
+## How It Works
 
-```text
-+--------------------------------------------------+
-| [Overview]  [Organizations]  [PRD Documents]      |
-+--------------------------------------------------+
-| Tab content area                                  |
-+--------------------------------------------------+
-```
+1. Super Admin clicks "AI Generate PRD" on a feature's PRD tab
+2. A new edge function (`generate-feature-prd`) is called with the feature name, label, and description
+3. The AI (Lovable AI gateway) analyzes the feature context and generates a structured PRD in markdown
+4. The edge function converts the markdown to a PDF (using a simple HTML-to-PDF approach via jsPDF or raw text PDF), uploads it to the `feature-prd-documents` storage bucket, and inserts a record into the `feature_prd_documents` table
+5. The PRD list refreshes and the new document appears for preview/download
 
-- **Overview** tab: Contains the existing stats cards (Orgs Enabled, Total Orgs, Adoption %)
-- **Organizations** tab: Contains the existing org access list with toggles
-- **PRD Documents** tab: New feature -- lists AI-generated PRD PDFs with timestamps, allows viewing/downloading
+## PRD Content Structure
 
-## Database Changes
-
-**New table: `feature_prd_documents`**
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | uuid (PK) | Auto-generated |
-| feature_name | text | Links to feature registry |
-| title | text | PRD document title |
-| description | text (nullable) | Brief summary |
-| file_path | text | Path in storage bucket |
-| file_name | text | Original file name |
-| generated_at | timestamptz | When the PRD was generated |
-| created_by | uuid (nullable) | User who triggered generation |
-| created_at | timestamptz | Row creation time |
-
-**New storage bucket: `feature-prd-documents`** (public read for authenticated users)
-
-**RLS policies:**
-- Select: Authenticated users can read all PRD documents
-- Insert/Update/Delete: Restricted (super admin only via service role or custom policy)
+The AI-generated PRD will include industry-standard sections:
+- Executive Summary
+- Problem Statement and Goals
+- User Personas and Use Cases
+- Functional Requirements
+- Non-Functional Requirements (performance, security, scalability)
+- Data Model and API Design
+- UI/UX Considerations
+- Success Metrics and KPIs
+- Dependencies and Risks
+- Timeline and Milestones
 
 ## File Changes
 
-**`src/pages/super-admin/SuperAdminFeatureDetail.tsx`**
+### New Edge Function: `supabase/functions/generate-feature-prd/index.ts`
 
-1. Import `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` from UI
-2. Wrap the left column content in a `Tabs` component with three tabs
-3. Move the Overview card into `TabsContent value="overview"`
-4. Move the Organization Access card into `TabsContent value="organizations"`
-5. Add new `TabsContent value="prd"` with:
-   - List of PRD documents fetched from `feature_prd_documents`
-   - Each item shows: title, description, generated date, and download/preview buttons
-   - Upload button for Super Admin to manually upload PRD PDFs
-   - Empty state when no PRDs exist
-   - Click to preview using the existing `DocumentPreviewDialog` component
+- Accepts `{ featureName, featureLabel, featureDescription }` in the request body
+- Authenticates the caller via Supabase auth (must be logged in)
+- Calls the Lovable AI Gateway (`google/gemini-3-flash-preview`) with a detailed system prompt instructing it to produce a comprehensive PRD
+- Receives the PRD as markdown text
+- Generates a simple PDF from the text content
+- Uploads the PDF to `feature-prd-documents` bucket at `{featureName}/{uuid}.pdf`
+- Inserts a row into `feature_prd_documents` with title, description, file path, and user ID
+- Returns the new PRD record to the client
 
-**`src/pages/super-admin/SuperAdminFeatureDetail.tsx` -- PRD tab content:**
+### Modified: `src/pages/super-admin/SuperAdminFeatureDetail.tsx`
 
-- Fetches PRDs from `feature_prd_documents` where `feature_name` matches
-- Displays as a list of cards with file info and timestamp
-- "Upload PRD" button opens a file input (PDF only)
-- Uploaded files go to `feature-prd-documents` storage bucket
-- Preview button opens `DocumentPreviewDialog` (already exists in the codebase)
-- Download button triggers direct download
+- Add `Sparkles` icon import from lucide-react
+- Add `generating` state (boolean) to track AI generation in progress
+- Add `handleGeneratePrd` async function that:
+  - Calls `supabase.functions.invoke('generate-feature-prd', { body: { ... } })`
+  - On success, refreshes the PRD list
+  - Shows toast on success/error
+- Add "AI Generate PRD" button next to the existing "Upload PRD" button in the PRD tab header
+  - Uses `Sparkles` icon with the `text-ai` class
+  - Disabled while generating, shows spinner
+
+### Update: `supabase/config.toml`
+
+- Add `[functions.generate-feature-prd]` section with `verify_jwt = false`
 
 ## Technical Notes
 
-- Reuses existing `DocumentPreviewDialog` component for PDF preview
-- Storage bucket path convention: `{feature_name}/{uuid}.pdf`
-- PRD documents are scoped per feature, not per organization
-- The tab state defaults to "overview"
-- Right sidebar (Feature Type, Subscription Tiers, Internal Notes) remains unchanged outside tabs
+- Uses Lovable AI (no extra API key needed -- `LOVABLE_API_KEY` is auto-provisioned)
+- PDF generation happens server-side in the edge function using basic text-to-PDF conversion
+- The PRD is scoped per feature, not per organization
+- Generation may take 15-30 seconds due to AI processing; UI shows a loading state with progress indication
+
