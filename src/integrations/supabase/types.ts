@@ -9617,6 +9617,45 @@ export type Database = {
           },
         ]
       }
+      feature_registry: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          feature_name: string
+          id: string
+          internal_notes: string | null
+          label: string
+          sort_order: number | null
+          subscription_tiers: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          feature_name: string
+          id?: string
+          internal_notes?: string | null
+          label: string
+          sort_order?: number | null
+          subscription_tiers?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          feature_name?: string
+          id?: string
+          internal_notes?: string | null
+          label?: string
+          sort_order?: number | null
+          subscription_tiers?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       feed_reactions: {
         Row: {
           created_at: string
