@@ -9,15 +9,18 @@ import { MobileAppShowcase } from "@/components/landing/MobileAppShowcase";
 import { SecuritySection } from "@/components/landing/SecuritySection";
 import { TestimonialsSection } from "@/components/landing/TestimonialsSection";
 import { FinalCTASection } from "@/components/landing/FinalCTASection";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Landing() {
+  const { user } = useAuth();
+
   return (
     <div className="min-h-screen bg-background">
       <WebsiteHeader />
       <HeroSection />
       <TrustedBySection />
-      <ProductPillNav />
-      <ProductSections />
+      {user && <ProductPillNav />}
+      {user && <ProductSections />}
       <AIPoweredSection />
       <WikiSection />
       <MobileAppShowcase />
