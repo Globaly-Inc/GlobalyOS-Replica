@@ -62,12 +62,12 @@ export default function JobDetailPublic() {
     queryKey: ['public-org', orgCode],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('organizations')
+        .from('organizations_public' as any)
         .select('name, logo_url, website')
         .eq('slug', orgCode!)
         .single();
       if (error) throw error;
-      return data;
+      return data as any as { name: string; logo_url: string | null; website: string | null } | null;
     },
     enabled: !!orgCode,
   });
