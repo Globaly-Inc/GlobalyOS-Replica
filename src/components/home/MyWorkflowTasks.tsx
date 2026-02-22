@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Clock, User, ArrowRight } from "lucide-react";
 import { useMyWorkflowTasks, useCompleteWorkflowTask } from "@/services/useWorkflows";
-import { useWorkflowRealtime } from "@/services/useWorkflowRealtime";
+
 import { OrgLink } from "@/components/OrgLink";
 import { format } from "date-fns";
 import { TaskDetailSheet } from "@/components/workflows/TaskDetailSheet";
@@ -30,8 +30,6 @@ interface TaskData {
 }
 
 export function MyWorkflowTasks({ employeeId }: MyWorkflowTasksProps) {
-  // Enable realtime updates for workflow tasks
-  useWorkflowRealtime();
   
   const { data: tasks, isLoading } = useMyWorkflowTasks(employeeId);
   const completeTask = useCompleteWorkflowTask();

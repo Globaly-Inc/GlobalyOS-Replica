@@ -7,7 +7,7 @@ import { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { usePosts, PostType, Post } from '@/services/useSocialFeed';
-import { useFeedRealtime } from '@/services/useSocialFeedRealtime';
+
 import { useCurrentEmployee } from '@/services/useCurrentEmployee';
 import { PostCard } from './PostCard';
 import { CreatePostModal } from './CreatePostModal';
@@ -29,8 +29,7 @@ export const UnifiedFeed = ({
   const { data: posts = [], isLoading } = usePosts(postTypeFilter);
   const { data: currentEmployee } = useCurrentEmployee();
   
-  // Subscribe to real-time updates for posts, comments, and reactions
-  useFeedRealtime();
+  // Realtime updates handled by consolidated useOrgRealtime in Layout
   
   // Edit post state
   const [editingPost, setEditingPost] = useState<Post | null>(null);

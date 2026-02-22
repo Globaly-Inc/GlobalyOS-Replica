@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/PageHeader";
 import { Settings, CheckCircle2, Plus, ClipboardPlus, Workflow } from "lucide-react";
-import { useAllWorkflows, useWorkflowRealtime, useWorkflows } from "@/services/useWorkflows";
+import { useAllWorkflows, useWorkflows } from "@/services/useWorkflows";
 import { WorkflowKanbanBoard } from "@/components/workflows/WorkflowKanbanBoard";
 import { StartApplicationDialog } from "@/components/workflows/StartApplicationDialog";
 import { AddTaskToWorkflowDialog } from "@/components/workflows/AddTaskToWorkflowDialog";
@@ -25,8 +25,7 @@ export default function Workflows() {
   const [showStartDialog, setShowStartDialog] = useState(false);
   const [showAddTaskDialog, setShowAddTaskDialog] = useState(false);
 
-  // Enable realtime updates
-  useWorkflowRealtime();
+  // Realtime updates handled by consolidated useOrgRealtime in Layout
 
   // Fetch all workflow definitions (templates)
   const { data: workflowDefinitions, isLoading: workflowsLoading } = useWorkflows();

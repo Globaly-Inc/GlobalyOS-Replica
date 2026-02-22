@@ -22,7 +22,6 @@ import {
   useUpdateWfhRequest,
   useCancelWfhRequest,
 } from "@/services/useWfh";
-import { useWfhRealtime } from "@/services/useWfhRealtime";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { useUserRole } from "@/hooks/useUserRole";
 import { WfhRequest, WfhRequestWithEmployee } from "@/types/wfh";
@@ -32,8 +31,6 @@ interface PendingWfhApprovalsProps {
 }
 
 export const PendingWfhApprovals = ({ onApprovalChange }: PendingWfhApprovalsProps) => {
-  // Enable realtime updates for WFH requests
-  useWfhRealtime();
   
   const { data: currentEmployee } = useCurrentEmployee();
   const { isHR, isAdmin, isOwner } = useUserRole();
