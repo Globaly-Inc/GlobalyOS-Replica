@@ -4592,6 +4592,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "chat_space_departments_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "chat_space_departments_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
@@ -8204,6 +8211,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "employees_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "employees_legal_entity_id_fkey"
             columns: ["legal_entity_id"]
             isOneToOne: false
@@ -10436,6 +10450,13 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments_public"
             referencedColumns: ["id"]
           },
           {
@@ -15183,6 +15204,13 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "positions_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments_public"
             referencedColumns: ["id"]
           },
           {
@@ -23279,6 +23307,39 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      departments_public: {
+        Row: {
+          id: string | null
+          name: string | null
+          organization_id: string | null
+        }
+        Insert: {
+          id?: string | null
+          name?: string | null
+          organization_id?: string | null
+        }
+        Update: {
+          id?: string | null
+          name?: string | null
+          organization_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "departments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "departments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
             referencedColumns: ["id"]
           },
         ]
