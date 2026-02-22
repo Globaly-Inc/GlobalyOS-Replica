@@ -8812,6 +8812,60 @@ export type Database = {
           },
         ]
       }
+      crm_service_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          organization_id: string
+          slug: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          organization_id: string
+          slug: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          organization_id?: string
+          slug?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_service_categories_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_service_categories_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_service_offices: {
         Row: {
           id: string
@@ -25738,6 +25792,10 @@ export type Database = {
       delete_wiki_folder_recursive: {
         Args: { _folder_id: string }
         Returns: boolean
+      }
+      ensure_crm_service_categories_defaults: {
+        Args: { p_organization_id: string }
+        Returns: undefined
       }
       generate_error_pattern_key: {
         Args: {

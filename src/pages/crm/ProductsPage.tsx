@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { PageBody } from '@/components/ui/page-body';
 import { useCRMServices, useDeleteCRMService } from '@/services/useCRMServices';
+import { useCRMServiceCategories } from '@/services/useCRMServiceCategories';
 import { AddServiceDialog } from '@/components/crm/services/AddServiceDialog';
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -46,15 +47,18 @@ const TypeBadge = ({ type }: { type: string }) => {
 const ProductsPage = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [visibilityFilter, setVisibilityFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [addOpen, setAddOpen] = useState(false);
   const { navigateOrg } = useOrgNavigation();
   const { isAdmin } = useUserRole();
   const deleteMutation = useDeleteCRMService();
+  const { data: categories } = useCRMServiceCategories();
 
   const { data, isLoading } = useCRMServices({
     search: search || undefined,
+    category: categoryFilter !== 'all' ? categoryFilter : undefined,
     status: statusFilter !== 'all' ? statusFilter : undefined,
     visibility: visibilityFilter !== 'all' ? visibilityFilter : undefined,
     page,
@@ -103,6 +107,15 @@ const ProductsPage = () => {
               <SelectItem value="draft">Draft</SelectItem>
               <SelectItem value="published">Published</SelectItem>
               <SelectItem value="archived">Archived</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-[160px]"><SelectValue placeholder="Category" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {(categories || []).map(cat => (
+                <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select value={visibilityFilter} onValueChange={setVisibilityFilter}>
