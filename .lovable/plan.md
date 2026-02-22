@@ -1,49 +1,29 @@
 
+# Icon-Only Nav for Super Admin Layout
 
-# Redesign Features Page: All Features Listing with Detail Views
+Apply the same compact/expanded pattern used in `TopNav.tsx` to the Super Admin sub-navigation: inactive items show icon-only with tooltips, while the active item shows icon + label.
 
-## Overview
-Replace the current feature summary cards and organization matrix with a unified, comprehensive feature listing that includes both **Core** and **Feature-Flagged** features. Each feature will be clickable, leading to a Feature Detail page where Super Admins can manage all settings for that feature.
+## Changes
 
-## What will change
+**File: `src/components/super-admin/SuperAdminLayout.tsx`**
 
-### 1. Redesigned Features Page (`SuperAdminFeatures.tsx`)
-Replace the current two-section layout (summary cards + org matrix table) with a single, clean feature listing:
+1. Add imports for `useRef`, `useState`, `useEffect` from React, and `Tooltip`/`TooltipTrigger`/`TooltipContent`/`TooltipProvider` from the UI tooltip component.
 
-- **All Features Grid/List** showing every feature in the system (core + flagged)
-- Each feature card displays:
-  - Icon, name, description
-  - Category badge: "Core" (always-on) or "Flagged" (controllable)
-  - For flagged features: org adoption count (e.g., "3/7 orgs")
-  - For core features: "All orgs" indicator
-- Clicking a feature card navigates to `/super-admin/features/:featureName`
+2. Add a `ResizeObserver`-based compact mode detection (same pattern as `TopNav`):
+   - Track nav container width with a ref
+   - Calculate threshold as `navItems.length * EXPANDED_ITEM_WIDTH` (90px per item)
+   - When container is narrower than threshold, switch to compact mode
 
-### 2. New Feature Detail Page (`SuperAdminFeatureDetail.tsx`)
-A dedicated page for managing a single feature, with sections:
+3. Update nav item rendering:
+   - **Active item**: Always shows icon + label (with padding `gap-2 px-3 py-2`)
+   - **Inactive items**: In compact mode, show icon-only as a 9x9 square button; in expanded mode, show icon + label
+   - Icon-only items get wrapped in a `Tooltip` to show the label on hover
 
-- **Overview**: Feature name, description, category, status
-- **Feature Type**: Toggle between Core (always-on) and Flagged (controllable) -- informational display
-- **Organization Access** (for flagged features): The existing per-org toggle matrix but scoped to this single feature -- list of all orgs with enable/disable switches, bulk enable/disable
-- **Subscription Tier Assignment**: Assign which subscription plans include this feature (informational/future-ready section with plan badges)
-- **Release Notes / Changelog**: Simple text area for internal notes about the feature
+4. Update `isActive` to also match sub-paths (e.g. `/super-admin/features/crm` matches `/super-admin/features`)
 
-### 3. New Route
-- Add `/super-admin/features/:featureName` route to `App.tsx`
+## Technical Details
 
-### Files to create/modify
-
-| File | Action |
-|------|--------|
-| `src/pages/super-admin/SuperAdminFeatures.tsx` | Rewrite -- replace cards + matrix with unified feature listing |
-| `src/pages/super-admin/SuperAdminFeatureDetail.tsx` | Create -- new feature detail/management page |
-| `src/App.tsx` | Edit -- add new route for feature detail |
-
-### Technical Details
-
-- The `MASTER_FEATURE_REGISTRY` from `FeatureAuditDialog.tsx` will be extracted into a shared constant file (`src/constants/features.ts`) so both the audit dialog, features page, and detail page can reuse it
-- The feature detail page will use the same `organization_features` table and upsert pattern for toggling per-org access
-- Core features will show as read-only in the detail page (no org toggles needed since they are always on)
-- No database changes required -- all data comes from existing `organization_features` table and the hardcoded registry
-- The existing Audit System button and dialog remain unchanged
-- Navigation uses `react-router-dom` with the feature name as URL param
-
+- Reuses the exact same `ResizeObserver` + `isCompact` state pattern from `TopNav.tsx`
+- Uses the same `TooltipProvider` / `Tooltip` / `TooltipTrigger` / `TooltipContent` components
+- `EXPANDED_ITEM_WIDTH = 90` constant matches `TopNav`
+- No new files or dependencies needed -- single file edit
