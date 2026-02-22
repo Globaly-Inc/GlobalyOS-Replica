@@ -137,7 +137,7 @@ const SuperAdminCustomerSuccess = () => {
         <div className="flex items-center gap-1">
           <div className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground">
             <Headphones className="h-4 w-4" />
-            Support Requests
+            Support
           </div>
           <Link
             to="/super-admin/documentation"
@@ -150,7 +150,7 @@ const SuperAdminCustomerSuccess = () => {
 
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold">Support Requests</h1>
+          <h1 className="text-2xl font-bold">Support</h1>
           <p className="text-muted-foreground">Manage bug reports and feature requests</p>
         </div>
 

@@ -45,7 +45,7 @@ const SuperAdminErrorLogs = () => {
         {/* Header */}
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Error Logs</h1>
+            <h1 className="text-2xl font-bold text-foreground">Errors</h1>
             <p className="text-muted-foreground">
               Monitor and resolve application errors across all users and organizations
             </p>
@@ -67,7 +67,7 @@ const SuperAdminErrorLogs = () => {
           <TabsList>
             <TabsTrigger value="logs" className="gap-2">
               <List className="h-4 w-4" />
-              Error Logs
+              Errors
             </TabsTrigger>
             <TabsTrigger value="patterns" className="gap-2">
               <TrendingUp className="h-4 w-4" />
