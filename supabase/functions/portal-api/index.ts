@@ -341,6 +341,147 @@ serve(async (req) => {
         return jsonResponse({ document: newDoc });
       }
 
+      // ─── Services Marketplace ───
+      case 'list-services': {
+        const search = url.searchParams.get('search') || '';
+        const category = url.searchParams.get('category') || '';
+
+        let query = supabase
+          .from('crm_services')
+          .select('id, name, category, short_description, tags, sla_target_days')
+          .eq('organization_id', orgId)
+          .eq('status', 'published')
+          .in('visibility', ['client_portal', 'both_portals'])
+          .order('name', { ascending: true });
+
+        if (search) {
+          query = query.or(`name.ilike.%${search}%,short_description.ilike.%${search}%,category.ilike.%${search}%`);
+        }
+        if (category) {
+          query = query.eq('category', category);
+        }
+
+        const { data: services, error: svcErr } = await query;
+        if (svcErr) throw svcErr;
+        return jsonResponse({ services: services || [] });
+      }
+
+      case 'get-service': {
+        const serviceId = url.searchParams.get('serviceId');
+        if (!serviceId) return jsonResponse({ error: 'serviceId required' }, 400);
+
+        const { data: svc, error: svcErr } = await supabase
+          .from('crm_services')
+          .select('id, name, category, short_description, long_description, tags, sla_target_days, required_docs_template, workflow_stages')
+          .eq('id', serviceId)
+          .eq('organization_id', orgId)
+          .eq('status', 'published')
+          .in('visibility', ['client_portal', 'both_portals'])
+          .single();
+        if (svcErr || !svc) return jsonResponse({ error: 'Service not found' }, 404);
+        return jsonResponse({ service: svc });
+      }
+
+      case 'apply-service': {
+        if (req.method !== 'POST') return jsonResponse({ error: 'POST required' }, 405);
+        const { serviceId: applySvcId, officeId, formResponses } = await req.json();
+        if (!applySvcId) return jsonResponse({ error: 'serviceId required' }, 400);
+
+        // Verify service is published & visible to client portal
+        const { data: applySvc } = await supabase
+          .from('crm_services')
+          .select('id')
+          .eq('id', applySvcId)
+          .eq('organization_id', orgId)
+          .eq('status', 'published')
+          .in('visibility', ['client_portal', 'both_portals'])
+          .single();
+        if (!applySvc) return jsonResponse({ error: 'Service not found or not available' }, 404);
+
+        // Find linked CRM contact
+        const { data: linkedContact } = await supabase
+          .from('crm_contacts')
+          .select('id')
+          .eq('organization_id', orgId)
+          .eq('email', clientUser.email)
+          .limit(1)
+          .maybeSingle();
+
+        const { data: newApp, error: appErr } = await supabase
+          .from('service_applications')
+          .insert({
+            organization_id: orgId,
+            service_id: applySvcId,
+            office_id: officeId || null,
+            created_by_type: 'client',
+            client_portal_user_id: clientUserId,
+            crm_contact_id: linkedContact?.id || null,
+            status: 'submitted',
+            priority: 'medium',
+            form_responses: formResponses || null,
+            submitted_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+        if (appErr) throw appErr;
+
+        // Create initial status history entry
+        await supabase.from('service_application_status_history').insert({
+          application_id: newApp.id,
+          organization_id: orgId,
+          old_status: null,
+          new_status: 'submitted',
+          is_internal_note: false,
+          notes: 'Application submitted via client portal',
+        });
+
+        return jsonResponse({ application: newApp });
+      }
+
+      case 'list-my-applications': {
+        const { data: apps, error: appsErr } = await supabase
+          .from('service_applications')
+          .select('id, service_id, status, priority, submitted_at, created_at, updated_at, service:crm_services(id, name, category)')
+          .eq('organization_id', orgId)
+          .eq('client_portal_user_id', clientUserId)
+          .order('created_at', { ascending: false })
+          .limit(50);
+        if (appsErr) throw appsErr;
+        return jsonResponse({ applications: apps || [] });
+      }
+
+      case 'get-application': {
+        const appId = url.searchParams.get('applicationId');
+        if (!appId) return jsonResponse({ error: 'applicationId required' }, 400);
+
+        const { data: app } = await supabase
+          .from('service_applications')
+          .select('*, service:crm_services(id, name, category, short_description, workflow_stages)')
+          .eq('id', appId)
+          .eq('organization_id', orgId)
+          .eq('client_portal_user_id', clientUserId)
+          .single();
+        if (!app) return jsonResponse({ error: 'Application not found' }, 404);
+
+        const [historyRes, docsRes] = await Promise.all([
+          supabase.from('service_application_status_history')
+            .select('*')
+            .eq('application_id', appId)
+            .eq('is_internal_note', false)
+            .order('created_at', { ascending: true }),
+          supabase.from('service_application_documents')
+            .select('*')
+            .eq('application_id', appId)
+            .order('created_at', { ascending: false }),
+        ]);
+
+        return jsonResponse({
+          application: app,
+          statusHistory: historyRes.data || [],
+          documents: docsRes.data || [],
+        });
+      }
+
       // ─── Logout ───
       case 'logout': {
         await supabase.from('client_portal_sessions').update({ revoked_at: new Date().toISOString() })
