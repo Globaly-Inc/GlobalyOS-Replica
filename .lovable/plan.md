@@ -1,38 +1,33 @@
 
 
-## Issue: Blank Pages on Published URL
+## Hide Feature Content for Public (Non-Signed-In) Visitors
 
-### Root Cause
+Only non-authenticated visitors will have feature-related content hidden. Signed-in users will continue to see everything as before.
 
-The published site at `globalyos.lovable.app` is returning an empty HTML shell with no JavaScript bundles loaded. The fetched HTML shows only:
+### Changes
 
-```text
-<div id="root"></div>
-```
+**1. WebsiteHeader.tsx** - Conditionally show "Features" nav link
+- Filter out the "Features" link from `navLinks` when `user` is null (not signed in)
+- Applies to both desktop and mobile nav menus
 
-No `<script>` tags are present, which means the production build either:
-1. Has not been published with the latest code changes
-2. Had a build failure during the last publish attempt
+**2. Landing.tsx** - Conditionally show feature sections
+- Import `useAuth` hook
+- Wrap `ProductPillNav` and `ProductSections` in a conditional that only renders them when the user is signed in
 
-The **preview environment works correctly** -- it loads the full app with all routes and components.
+**3. HeroSection.tsx** - Update "Book a Demo" button
+- The "Book a Demo" button navigates to `/features`, which will be hidden for public users
+- Change it to navigate to `/contact` instead (or another public page), so it works for everyone regardless of auth state
 
-### What Needs to Happen
+### What Stays Visible for Everyone
+- Landing hero, trusted-by logos, AI section, Wiki section, mobile showcase, security, testimonials, CTA
+- All other public pages (Pricing, Blog, About, Contact, etc.)
 
-**You need to publish the latest changes to production.** This is not a code bug -- it's a deployment issue.
+### What Gets Hidden for Non-Signed-In Users Only
+- "Features" link in the website header nav
+- Product pill navigation on landing page
+- Product sections on landing page
 
-### Steps
-
-1. **Publish the app** -- Click the "Publish" button in the Lovable interface to deploy the latest test build to production
-2. **Clear service worker cache** -- After publishing, users may need to hard-refresh (`Ctrl+Shift+R` / `Cmd+Shift+R`) or clear their browser cache since the app uses a service worker (PWA with workbox) that may be caching the old broken build
-3. **Verify** -- After publishing, open `globalyos.lovable.app` in an incognito/private window to confirm the app loads
-
-### No Code Changes Required
-
-All imports, types, and routes are valid. The recently added accounting/invoicing code (InvoiceEditor, InvoicePublicPage, InvoiceSchedules, etc.) is correctly structured with proper exports and imports. There are no build errors in the codebase.
-
-### Technical Note: Service Worker Consideration
-
-The app uses `vite-plugin-pwa` with workbox for offline caching. If users continue to see blank pages after publishing, the old service worker may be serving stale content. The app already has an `UpdatePrompt` component and `useServiceWorkerUpdate` hook to handle this, but in extreme cases users may need to:
-- Unregister the service worker via browser DevTools (Application > Service Workers > Unregister)
-- Clear site data (Application > Storage > Clear site data)
-
+### Technical Details
+- Uses the existing `useAuth()` hook to check `user` state
+- No route changes needed -- the `/features` page route remains accessible (a signed-in user can still navigate there directly)
+- No database or backend changes required
