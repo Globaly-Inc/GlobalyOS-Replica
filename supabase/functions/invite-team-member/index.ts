@@ -117,23 +117,7 @@ serve(async (req: Request) => {
 
     console.log(`Authorized user ${user.id} with role: ${roleData[0].role}`);
 
-    // IP-based rate limiting using login_attempts table
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const { count: ipRequestCount } = await supabase
-      .from('login_attempts')
-      .select('*', { count: 'exact', head: true })
-      .eq('ip_address', clientIP)
-      .eq('attempt_type', 'invite')
-      .gte('created_at', oneHourAgo);
-
-    if (ipRequestCount !== null && ipRequestCount >= MAX_INVITES_PER_IP_PER_HOUR) {
-      console.log(`Rate limit exceeded for IP ${clientIP}: ${ipRequestCount} requests`);
-      return new Response(
-        JSON.stringify({ error: 'Too many requests. Please try again later.' }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
+    // Parse request body early to get organizationId for validation
     const data: InviteRequest = await req.json();
     const { 
       email, personalEmail, phone, fullName, firstName, lastName, dateOfBirth,
@@ -150,6 +134,39 @@ serve(async (req: Request) => {
       return new Response(
         JSON.stringify({ error: 'Missing required fields' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify user belongs to the target organization
+    const { data: orgMembership } = await supabase
+      .from('organization_members')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('organization_id', organizationId)
+      .maybeSingle();
+
+    if (!orgMembership) {
+      console.log(`User ${user.id} is not a member of organization ${organizationId}`);
+      return new Response(
+        JSON.stringify({ error: 'Access denied: Not a member of this organization' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // IP-based rate limiting using login_attempts table
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count: ipRequestCount } = await supabase
+      .from('login_attempts')
+      .select('*', { count: 'exact', head: true })
+      .eq('ip_address', clientIP)
+      .eq('attempt_type', 'invite')
+      .gte('created_at', oneHourAgo);
+
+    if (ipRequestCount !== null && ipRequestCount >= MAX_INVITES_PER_IP_PER_HOUR) {
+      console.log(`Rate limit exceeded for IP ${clientIP}: ${ipRequestCount} requests`);
+      return new Response(
+        JSON.stringify({ error: 'Too many requests. Please try again later.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

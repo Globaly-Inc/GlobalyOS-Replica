@@ -13,10 +13,11 @@ serve(async (req) => {
   }
 
   try {
-    const { recording_id } = await req.json();
-    if (!recording_id) {
-      return new Response(JSON.stringify({ error: "recording_id required" }), {
-        status: 400,
+    // --- Auth ---
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -24,6 +25,23 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !user) {
+      return new Response(JSON.stringify({ error: "Invalid token" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { recording_id } = await req.json();
+    if (!recording_id) {
+      return new Response(JSON.stringify({ error: "recording_id required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Get recording
     const { data: recording, error: recErr } = await supabase
@@ -35,6 +53,21 @@ serve(async (req) => {
     if (recErr || !recording) {
       return new Response(JSON.stringify({ error: "Recording not found" }), {
         status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Verify user belongs to the recording's organization
+    const { data: orgMembership } = await supabase
+      .from("organization_members")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("organization_id", recording.organization_id)
+      .maybeSingle();
+
+    if (!orgMembership) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
