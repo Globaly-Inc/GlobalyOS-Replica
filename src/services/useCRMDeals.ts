@@ -472,3 +472,138 @@ export function useDealRequirements(dealId: string | undefined) {
     enabled: !!dealId,
   });
 }
+
+export function useUpdateDealRequirement() {
+  const qc = useQueryClient();
+  const employee = useEmployee();
+
+  return useMutation({
+    mutationFn: async ({ id, deal_id, status }: { id: string; deal_id: string; status: string }) => {
+      const updates: any = { status };
+      if (status === 'completed' && employee) {
+        updates.completed_by = employee.id;
+        updates.completed_at = new Date().toISOString();
+      }
+      if (status === 'pending') {
+        updates.completed_by = null;
+        updates.completed_at = null;
+      }
+      const { error } = await supabase.from('crm_deal_requirements').update(updates).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['crm-deal-requirements', vars.deal_id] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ─── Deal Document Upload ───
+
+export function useUploadDealDocument() {
+  const qc = useQueryClient();
+  const employee = useEmployee();
+
+  return useMutation({
+    mutationFn: async ({ deal_id, file }: { deal_id: string; file: File }) => {
+      if (!employee) throw new Error('Not authenticated');
+      const filePath = `${employee.organization_id}/${deal_id}/${Date.now()}_${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from('deal-documents')
+        .upload(filePath, file);
+      if (uploadError) throw uploadError;
+
+      const { error } = await supabase.from('crm_deal_documents').insert({
+        deal_id,
+        organization_id: employee.organization_id,
+        file_name: file.name,
+        file_path: filePath,
+        file_type: file.type || null,
+        file_size: file.size,
+        uploaded_by_type: 'staff',
+        uploaded_by: employee.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['crm-deal-documents', vars.deal_id] });
+      toast.success('Document uploaded');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUpdateDealDocStatus() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, deal_id, status }: { id: string; deal_id: string; status: 'pending' | 'approved' | 'rejected' }) => {
+      const { error } = await supabase.from('crm_deal_documents').update({ status }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['crm-deal-documents', vars.deal_id] });
+      toast.success('Document status updated');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ─── Deal Fee Mutations ───
+
+export function useAddDealFee() {
+  const qc = useQueryClient();
+  const employee = useEmployee();
+
+  return useMutation({
+    mutationFn: async (input: { deal_id: string; fee_name: string; amount: number; currency?: string }) => {
+      if (!employee) throw new Error('Not authenticated');
+      const { error } = await supabase.from('crm_deal_fees').insert({
+        deal_id: input.deal_id,
+        organization_id: employee.organization_id,
+        fee_name: input.fee_name,
+        amount: input.amount,
+        currency: input.currency || 'USD',
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['crm-deal-fees', vars.deal_id] });
+      toast.success('Fee added');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useAddDealFeeInstalment() {
+  const qc = useQueryClient();
+  const employee = useEmployee();
+
+  return useMutation({
+    mutationFn: async (input: { deal_fee_id: string; amount: number; due_date: string }) => {
+      if (!employee) throw new Error('Not authenticated');
+      // Get current max instalment_number
+      const { data: existing } = await supabase
+        .from('crm_deal_fee_instalments')
+        .select('instalment_number')
+        .eq('deal_fee_id', input.deal_fee_id)
+        .order('instalment_number', { ascending: false })
+        .limit(1);
+      const nextNum = (existing?.[0]?.instalment_number || 0) + 1;
+
+      const { error } = await supabase.from('crm_deal_fee_instalments').insert({
+        deal_fee_id: input.deal_fee_id,
+        organization_id: employee.organization_id,
+        instalment_number: nextNum,
+        amount: input.amount,
+        due_date: input.due_date,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-deal-fees'] });
+      toast.success('Instalment added');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}

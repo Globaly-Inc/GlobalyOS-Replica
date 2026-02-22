@@ -14,6 +14,9 @@ import { useDealNotes, useAddDealNote, useDealTasks, useDealActivityLog } from '
 import { DealNotesTab } from '@/components/deals/DealNotesTab';
 import { DealTasksTab } from '@/components/deals/DealTasksTab';
 import { DealActivityLog } from '@/components/deals/DealActivityLog';
+import { DealDocumentsTab } from '@/components/deals/DealDocumentsTab';
+import { DealFeesTab } from '@/components/deals/DealFeesTab';
+import { DealRequirementsTab } from '@/components/deals/DealRequirementsTab';
 import { DealStageProgress } from '@/components/deals/DealStageProgress';
 import { CloseDealDialog } from '@/components/deals/CloseDealDialog';
 import { OrgLink } from '@/components/OrgLink';
@@ -101,17 +104,29 @@ const DealDetailPage = () => {
           )}
 
           {/* Tabs */}
-          <Tabs defaultValue="notes" className="mt-6">
-            <TabsList>
+          <Tabs defaultValue="requirements" className="mt-6">
+            <TabsList className="flex-wrap">
+              <TabsTrigger value="requirements">Requirements</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
+              <TabsTrigger value="documents">Documents</TabsTrigger>
               <TabsTrigger value="tasks">Tasks</TabsTrigger>
+              <TabsTrigger value="fees">Fees</TabsTrigger>
               <TabsTrigger value="activity">Activity</TabsTrigger>
             </TabsList>
+            <TabsContent value="requirements">
+              <DealRequirementsTab dealId={deal.id} />
+            </TabsContent>
             <TabsContent value="notes">
               <DealNotesTab dealId={deal.id} />
             </TabsContent>
+            <TabsContent value="documents">
+              <DealDocumentsTab dealId={deal.id} />
+            </TabsContent>
             <TabsContent value="tasks">
               <DealTasksTab dealId={deal.id} />
+            </TabsContent>
+            <TabsContent value="fees">
+              <DealFeesTab dealId={deal.id} />
             </TabsContent>
             <TabsContent value="activity">
               <DealActivityLog dealId={deal.id} />
