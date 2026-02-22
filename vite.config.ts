@@ -94,12 +94,17 @@ export default defineConfig(({ mode }) => ({
         manualChunks(id) {
           // Split large vendor dependencies into separate chunks
           if (id.includes('node_modules')) {
+            // IMPORTANT: Do NOT split react or react-dom into separate chunks.
+            // Doing so causes "Cannot read properties of undefined
+            // (__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED)" in production
+            // because the chunks may load out of order or libraries may resolve
+            // a different React instance.
+            if (id.includes('react-dom') || id.includes('react/')) return undefined;
             if (id.includes('@radix-ui')) return 'vendor-radix';
             if (id.includes('recharts') || id.includes('d3-')) return 'vendor-charts';
             if (id.includes('@blocknote') || id.includes('@mantine')) return 'vendor-editor';
             if (id.includes('lucide-react')) return 'vendor-icons';
             if (id.includes('@supabase')) return 'vendor-supabase';
-            if (id.includes('react-dom')) return 'vendor-react-dom';
           }
         },
       },
