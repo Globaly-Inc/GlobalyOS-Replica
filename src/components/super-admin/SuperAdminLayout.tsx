@@ -12,7 +12,8 @@ import {
   Headphones,
   AlertCircle,
   LayoutTemplate,
-  UserPlus
+  UserPlus,
+  Flag
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -25,6 +26,7 @@ const navItems = [
   { path: "/super-admin/organisations", label: "Organisations", icon: Building2 },
   { path: "/super-admin/users", label: "Users", icon: Users },
   { path: "/super-admin/templates", label: "Templates", icon: LayoutTemplate },
+  { path: "/super-admin/features", label: "Features", icon: Flag },
   { path: "/super-admin/payments", label: "Subscription", icon: CreditCard },
   { path: "/super-admin/customer-success", label: "Support", icon: Headphones },
   { path: "/super-admin/error-logs", label: "Errors", icon: AlertCircle },
