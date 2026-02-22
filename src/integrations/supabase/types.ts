@@ -728,6 +728,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "accounting_invoice_schedules_deal_fee_id_fkey"
+            columns: ["deal_fee_id"]
+            isOneToOne: false
+            referencedRelation: "crm_deal_fees"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "accounting_invoice_schedules_deal_id_fkey"
             columns: ["deal_id"]
             isOneToOne: false
