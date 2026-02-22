@@ -38,12 +38,12 @@ export default function CareersPage() {
     queryKey: ['public-org', orgCode],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('organizations')
+        .from('organizations_public' as any)
         .select('name, logo_url, website, careers_page_title, careers_page_subtitle, careers_header_color')
         .eq('slug', orgCode!)
         .single();
       if (error) throw error;
-      return data;
+      return data as any as { name: string; logo_url: string | null; website: string | null; careers_page_title: string | null; careers_page_subtitle: string | null; careers_header_color: string | null } | null;
     },
     enabled: !!orgCode,
   });

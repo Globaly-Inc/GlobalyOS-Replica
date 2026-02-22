@@ -749,12 +749,13 @@ export function useHiringMetrics() {
 
 export async function fetchPublicJobs(orgSlug: string): Promise<Job[]> {
   const { data: org, error: orgError } = await supabase
-    .from('organizations')
+    .from('organizations_public' as any)
     .select('id')
     .eq('slug', orgSlug)
     .single();
 
   if (orgError || !org) return [];
+  const orgData = org as any as { id: string };
 
   const { data, error } = await supabase
     .from('jobs')
@@ -766,7 +767,7 @@ export async function fetchPublicJobs(orgSlug: string): Promise<Job[]> {
       department:departments(id, name),
       office:offices(id, name, city, country)
     `)
-    .eq('organization_id', org.id)
+    .eq('organization_id', orgData.id)
     .eq('status', 'open')
     .eq('is_public_visible', true)
     .order('published_at', { ascending: false });
@@ -777,12 +778,13 @@ export async function fetchPublicJobs(orgSlug: string): Promise<Job[]> {
 
 export async function fetchPublicJob(orgSlug: string, jobSlug: string): Promise<Job | null> {
   const { data: org, error: orgError } = await supabase
-    .from('organizations')
+    .from('organizations_public' as any)
     .select('id, name, slug, logo_url, website')
     .eq('slug', orgSlug)
     .single();
 
   if (orgError || !org) return null;
+  const orgData = org as any as { id: string; name: string; slug: string; logo_url: string | null; website: string | null };
 
   const { data, error } = await supabase
     .from('jobs')
@@ -791,14 +793,14 @@ export async function fetchPublicJob(orgSlug: string, jobSlug: string): Promise<
       department:departments(id, name),
       office:offices(id, name, city, country)
     `)
-    .eq('organization_id', org.id)
+    .eq('organization_id', orgData.id)
     .eq('slug', jobSlug)
     .eq('status', 'open')
     .maybeSingle();
 
   if (error) throw error;
   if (!data) return null;
-  return { ...data, organization: { name: org.name, slug: org.slug, logo_url: (org as any).logo_url, website: (org as any).website } } as unknown as Job;
+  return { ...data, organization: { name: orgData.name, slug: orgData.slug, logo_url: orgData.logo_url, website: orgData.website } } as unknown as Job;
 }
 
 // ---- Hooks (thin wrappers around the pure functions above) ----
