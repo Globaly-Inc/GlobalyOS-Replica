@@ -1,4 +1,4 @@
-import { Users, Building2, Calendar, Mail, MessageCircle, FileText, Package, Handshake, FileStack, GitBranch } from 'lucide-react';
+import { Users, Building2, Calendar, Mail, MessageCircle, FileText, Package, Handshake, FileStack, GitBranch, Receipt } from 'lucide-react';
 import { OrgLink } from '@/components/OrgLink';
 import { useLocation, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -15,6 +15,7 @@ const crmSubNavItems = [
   { name: 'WhatsApp', href: '/crm/whatsapp', icon: MessageCircle, featureFlag: 'whatsapp' as const, hideWhenFlag: 'omnichannel_inbox' as const },
   { name: 'Scheduler', href: '/crm/scheduler', icon: Calendar },
   { name: 'Forms', href: '/crm/forms', icon: FileText },
+  { name: 'Quotations', href: '/crm/quotations', icon: Receipt, featureFlag: 'quotations' as const },
 ];
 
 export const CRMSubNav = () => {
