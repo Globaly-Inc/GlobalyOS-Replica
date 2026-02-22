@@ -307,6 +307,38 @@ export function useAddOptionService() {
   });
 }
 
+export function useDeleteOptionService() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, quotation_id }: { id: string; quotation_id: string }) => {
+      const { error } = await supabase.from('crm_quotation_option_services').delete().eq('id', id);
+      if (error) throw error;
+      return quotation_id;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['crm-quotation', vars.quotation_id] });
+    },
+  });
+}
+
+export function useUpdateQuotationOption() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, quotation_id, ...data }: { id: string; quotation_id: string; name?: string; description?: string }) => {
+      const { error } = await supabase
+        .from('crm_quotation_options')
+        .update(data as any)
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['crm-quotation', vars.quotation_id] });
+    },
+  });
+}
+
 // ─── Service Fees CRUD ────────────────────────────────
 
 export function useAddServiceFee() {
@@ -353,6 +385,21 @@ export function useAddServiceFee() {
         .single();
       if (error) throw error;
       return result;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['crm-quotation', vars.quotation_id] });
+    },
+  });
+}
+
+export function useDeleteServiceFee() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, quotation_id }: { id: string; quotation_id: string }) => {
+      const { error } = await supabase.from('crm_quotation_service_fees').delete().eq('id', id);
+      if (error) throw error;
+      return quotation_id;
     },
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: ['crm-quotation', vars.quotation_id] });
