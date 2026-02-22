@@ -24,7 +24,7 @@ import { Clock, Check, X, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "@/hooks/useOrganization";
 import { useUserRole } from "@/hooks/useUserRole";
-import { useLeaveRealtime } from "@/services/useLeaveRealtime";
+
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/errorUtils";
 import { format, parseISO } from "date-fns";
@@ -96,10 +96,8 @@ export const PendingLeaveApprovals = ({ onApprovalChange }: PendingLeaveApproval
   const { currentOrg } = useOrganization();
   const { isHR, isAdmin } = useUserRole();
   const isAdminOrHR = isAdmin || isHR;
-  
 
-  // Subscribe to real-time leave updates for immediate refresh
-  useLeaveRealtime();
+
 
 
   useEffect(() => {

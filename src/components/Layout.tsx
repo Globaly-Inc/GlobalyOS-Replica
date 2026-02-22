@@ -11,6 +11,7 @@ import { CRMSubNav } from "./crm/CRMSubNav";
 import { InboxSubNav } from "./inbox/InboxSubNav";
 import { CallsSubNav } from "./calls/CallsSubNav";
 import { AccountingSubNav } from "./accounting/AccountingSubNav";
+import { useOrgRealtime } from '@/services/useOrgRealtime';
 
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { PullToRefreshIndicator } from "./PullToRefreshIndicator";
@@ -25,6 +26,9 @@ import { MobileHeaderActions } from './layout/MobileHeaderActions';
 import { LayoutDialogs } from './layout/LayoutDialogs';
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
+  // Single consolidated realtime channel for all org-scoped tables
+  useOrgRealtime();
+
   const navigate = useNavigate();
   const location = useLocation();
   const { orgCode } = useParams<{ orgCode: string }>();

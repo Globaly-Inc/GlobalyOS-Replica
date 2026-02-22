@@ -397,24 +397,7 @@ export const useHomeData = () => {
     }
   }, [currentOrg?.id, isHR, currentEmployeeId, loadUpcomingCalendarEvents]);
 
-  // Real-time subscription for leave
-  useEffect(() => {
-    if (currentOrg?.id) {
-      const orgId = currentOrg.id;
-      const leaveChannel = supabase.channel('home-leave').on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'leave_requests',
-        filter: `organization_id=eq.${orgId}`
-      }, () => {
-        loadLeaveData();
-      }).subscribe();
-
-      return () => {
-        supabase.removeChannel(leaveChannel);
-      };
-    }
-  }, [currentOrg?.id, loadLeaveData]);
+  // Realtime for leave_requests handled by consolidated useOrgRealtime in Layout
 
   // Defer weather loading
   useEffect(() => {
