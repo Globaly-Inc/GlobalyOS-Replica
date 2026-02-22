@@ -419,3 +419,6 @@ verify_jwt = false
 
 [functions.portal-admin]
 verify_jwt = false
+
+[functions.generate-feature-prd]
+verify_jwt = false
