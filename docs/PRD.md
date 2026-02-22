@@ -1266,35 +1266,49 @@ Platform-level administrative dashboard accessible only to `super_admin` role us
 
 ## 27. Database Schema Summary
 
-### 27.1 Table Count by Module
+### 27.1 Schema Statistics
+
+Derived from **478 migration files** (35,304 lines of SQL):
+
+| Metric | Count |
+|--------|-------|
+| Total Tables | **322** |
+| Custom Enums | **43** |
+| Custom DB Functions | **142** |
+| Triggers | **130+** |
+| Tables with RLS Policies | **322** (all tables) |
+| Indexed Tables | **229+** |
+
+### 27.2 Table Count by Module
 
 | Module | Tables |
 |--------|--------|
-| Accounting | 16 |
+| Accounting | 18 |
 | AI / Knowledge | 12 |
 | Attendance | 10 |
-| Billing / Subscription | 8 |
+| Billing / Subscription | 10 |
 | Calendar | 2 |
 | Chat | 16 |
 | Client Portal | 15 |
 | CRM / Scheduler | 7 |
-| Feed / Social | 18 |
+| Feed / Social | 20 |
 | Hiring / ATS | 14 |
-| HR / Employees | 12 |
-| Inbox | 12 |
+| HR / Employees | 14 |
+| Inbox / Email | 14 |
 | KPI / Performance | 10 |
 | Leave | 8 |
-| Payroll | 10 |
-| Super Admin / Support | 18 |
+| Onboarding / Templates | 14 |
+| Payroll | 11 |
+| Super Admin / Support / Monitoring | 20 |
 | Tasks | 10 |
 | Telephony | 7 |
 | WhatsApp | 12 |
 | Wiki | 14 |
 | Workflow | 14 |
-| Org / Settings / Auth | 14 |
-| **Total** | **~280** |
+| Org / Settings / Auth / Misc | 20 |
+| **Total** | **322** |
 
-### 27.2 Key Enums
+### 27.3 Key Enums
 
 | Enum | Values |
 |------|--------|
@@ -1311,7 +1325,7 @@ Platform-level administrative dashboard accessible only to `super_admin` role us
 | `support_request_priority` | `low`, `medium`, `high`, `critical` |
 | `candidate_source` | `careers_site`, `internal`, `referral`, `manual`, `job_board`, `linkedin`, `other` |
 
-### 27.3 Key RPC / Database Functions
+### 27.4 Key RPC / Database Functions
 
 | Function | Purpose |
 |----------|---------|
@@ -1331,6 +1345,27 @@ Platform-level administrative dashboard accessible only to `super_admin` role us
 | `record_remote_attendance()` | GPS check-in processing |
 | `bulk_reassign_direct_reports()` | Org restructuring |
 | `transfer_wiki_ownership()` | Wiki reassignment |
+| `admin_exists()` | Bootstrap check for first admin |
+| `calculate_kpi_rollup()` | Parent KPI aggregation |
+| `calculate_trending_scores()` | Feed trending algorithm |
+| `cleanup_expired_otps()` | OTP expiry housekeeping |
+| `auto_generate_office_qr_code()` | QR provisioning trigger |
+| `allocate_default_leave_balances()` | Auto-allocate leave on hire |
+| `check_manager_circular_reference()` | Prevent circular manager chain |
+| `create_ledger_entries_on_post()` | Double-entry accounting trigger |
+
+### 27.5 Key Triggers (130+)
+
+| Category | Examples |
+|----------|---------|
+| **Timestamp auto-update** | `update_[table]_updated_at` on every table |
+| **Auto-provisioning** | QR codes on office create, space creator → admin, attendance settings on office create |
+| **Validation** | Circular manager reference prevention |
+| **Audit logging** | Activity log triggers on KPI, task, workflow, hiring entities |
+| **AI indexing** | `on_ai_message_insert()` for knowledge base |
+| **Accounting** | Ledger entries on journal post |
+| **Auth** | `on_auth_user_created()` → profile auto-creation |
+| **Leave** | `allocate_default_leave_balances()` on employee create |
 
 ---
 
