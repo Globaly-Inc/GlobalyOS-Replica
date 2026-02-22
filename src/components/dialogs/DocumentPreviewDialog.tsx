@@ -65,7 +65,11 @@ export const DocumentPreviewDialog = ({
 
       if (error) throw error;
 
-      const url = URL.createObjectURL(data);
+      // Ensure correct MIME type for PDF files
+      const blob = isPdf
+        ? new Blob([data], { type: 'application/pdf' })
+        : data;
+      const url = URL.createObjectURL(blob);
       setPreviewUrl(url);
     } catch (err: any) {
       setError(err.message || "Failed to load preview");
