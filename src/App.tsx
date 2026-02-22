@@ -151,6 +151,11 @@ const CallCampaignsPage = lazy(() => import('./pages/crm/inbox/CallCampaignsPage
 const CallQueuesPage = lazy(() => import('./pages/crm/inbox/CallQueuesPage'));
 const CallMonitoringPage = lazy(() => import('./pages/crm/inbox/CallMonitoringPage'));
 
+// Quotation pages
+const QuotationsPage = lazy(() => import('./pages/crm/QuotationsPage'));
+const QuotationDetailPage = lazy(() => import('./pages/crm/QuotationDetailPage'));
+const QuotationPublicPage = lazy(() => import('./pages/crm/QuotationPublicPage'));
+
 // Client Portal pages
 const PortalLoginPage = lazy(() => import('./pages/portal/PortalLoginPage'));
 const PortalDashboardPage = lazy(() => import('./pages/portal/PortalDashboardPage'));
@@ -325,6 +330,9 @@ const App = () => <QueryClientProvider client={queryClient}>
                 
                 {/* Public form route */}
                 <Route path="/f/:orgSlug/:formSlug" element={<PublicFormPage />} />
+                
+                {/* Public quotation approval page */}
+                <Route path="/quote/:token" element={<QuotationPublicPage />} />
 
                 {/* Root redirect - will redirect to /org/:orgId */}
                 <Route path="/" element={<RootRedirect />} />
@@ -397,6 +405,9 @@ const App = () => <QueryClientProvider client={queryClient}>
                    <Route path="crm/deals" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><DealsPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/deals/:id" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><DealDetailPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/scheduler" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><SchedulerPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   {/* Quotation routes */}
+                   <Route path="crm/quotations" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><QuotationsPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/quotations/:id" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><QuotationDetailPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    {/* Forms routes */}
                    <Route path="crm/forms" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FormsListPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/forms/new" element={<OrgProtectedRoute withLayout={false}><FeatureProtectedRoute feature="crm"><FormBuilderPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
