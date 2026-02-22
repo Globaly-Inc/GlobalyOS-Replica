@@ -96,6 +96,8 @@ const ProductsPage = lazy(() => import('./pages/crm/ProductsPage'));
 const ProductDetailPage = lazy(() => import('./pages/crm/ProductDetailPage'));
 const PartnersPage = lazy(() => import('./pages/crm/PartnersPage'));
 const PartnerDetailPage = lazy(() => import('./pages/crm/PartnerDetailPage'));
+const ApplicationsPage = lazy(() => import('./pages/crm/ApplicationsPage'));
+const ApplicationDetailPage = lazy(() => import('./pages/crm/ApplicationDetailPage'));
 const CRMContactProfile = lazy(() => import('./pages/CRMContactProfile'));
 const CRMCompanyProfile = lazy(() => import('./pages/CRMCompanyProfile'));
 const CRMSettings = lazy(() => import('./pages/CRMSettings'));
@@ -366,6 +368,8 @@ const App = () => <QueryClientProvider client={queryClient}>
                    <Route path="crm/products/:id" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><ProductDetailPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/partners" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><PartnersPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/partners/:id" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><PartnerDetailPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/applications" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><ApplicationsPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/applications/:id" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><ApplicationDetailPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/scheduler" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><SchedulerPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    {/* Forms routes */}
                    <Route path="crm/forms" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FormsListPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
