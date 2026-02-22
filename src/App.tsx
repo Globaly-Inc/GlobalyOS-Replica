@@ -150,6 +150,10 @@ const PortalDashboardPage = lazy(() => import('./pages/portal/PortalDashboardPag
 const PortalCasePage = lazy(() => import('./pages/portal/PortalCasePage'));
 const PortalMessagesPage = lazy(() => import('./pages/portal/PortalMessagesPage'));
 const PortalProfilePage = lazy(() => import('./pages/portal/PortalProfilePage'));
+const PortalServicesPage = lazy(() => import('./pages/portal/PortalServicesPage'));
+const PortalServiceDetailPage = lazy(() => import('./pages/portal/PortalServiceDetailPage'));
+const PortalApplicationsPage = lazy(() => import('./pages/portal/PortalApplicationsPage'));
+const PortalApplicationDetailPage = lazy(() => import('./pages/portal/PortalApplicationDetailPage'));
 
 const Payroll = lazy(() => import('./pages/Payroll'));
 
@@ -528,6 +532,10 @@ const App = () => <QueryClientProvider client={queryClient}>
                 <Route path="/org/:orgCode/portal" element={<PortalAuthProvider><PortalProtectedRoute><PortalLayout /></PortalProtectedRoute></PortalAuthProvider>}>
                   <Route index element={<Navigate to="dashboard" replace />} />
                   <Route path="dashboard" element={<PortalDashboardPage />} />
+                  <Route path="services" element={<PortalServicesPage />} />
+                  <Route path="services/:serviceId" element={<PortalServiceDetailPage />} />
+                  <Route path="applications" element={<PortalApplicationsPage />} />
+                  <Route path="applications/:applicationId" element={<PortalApplicationDetailPage />} />
                   <Route path="cases/:caseId" element={<PortalCasePage />} />
                   <Route path="messages" element={<PortalMessagesPage />} />
                   <Route path="profile" element={<PortalProfilePage />} />

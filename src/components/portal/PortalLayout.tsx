@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Outlet, Link, useParams, useLocation } from 'react-router-dom';
 import { usePortalAuth } from '@/hooks/usePortalAuth';
-import { LayoutDashboard, FolderOpen, MessageSquare, User, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, FolderOpen, MessageSquare, User, LogOut, Menu, X, Package, FileStack } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
@@ -35,6 +35,8 @@ export const PortalLayout = () => {
   const basePath = `/org/${orgCode}/portal`;
   const navItems = [
     { path: `${basePath}/dashboard`, label: 'Dashboard', icon: LayoutDashboard },
+    { path: `${basePath}/services`, label: 'Services', icon: Package },
+    { path: `${basePath}/applications`, label: 'Applications', icon: FileStack },
     { path: `${basePath}/messages`, label: 'Messages', icon: MessageSquare },
     { path: `${basePath}/profile`, label: 'Profile', icon: User },
   ];
