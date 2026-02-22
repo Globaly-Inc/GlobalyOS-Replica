@@ -167,12 +167,16 @@ serve(async (req) => {
         if (!customerId) return jsonResponse({ error: 'customerId required' }, 400);
 
         const body = await req.json();
+        // Whitelist allowed fields to prevent mass assignment
+        const allowedFields = ['first_name', 'last_name', 'email', 'phone', 'date_of_birth', 'nationality', 'country_of_residency', 'notes'];
+        const sanitized: Record<string, any> = { updated_at: new Date().toISOString() };
+        for (const key of allowedFields) {
+          if (body[key] !== undefined) sanitized[key] = body[key];
+        }
+
         const { data: customer, error } = await supabase
           .from('partner_customers')
-          .update({
-            ...body,
-            updated_at: new Date().toISOString(),
-          })
+          .update(sanitized)
           .eq('id', customerId)
           .eq('organization_id', orgId)
           .eq('partner_user_id', agentUserId)
@@ -340,6 +344,114 @@ serve(async (req) => {
           .update({ revoked_at: new Date().toISOString() })
           .eq('token_hash', tokenHash);
         return jsonResponse({ success: true });
+      }
+
+      // ─── Agent Deals (CRM Pipeline) ───
+
+      case 'list-deals': {
+        const { data: deals } = await supabase
+          .from('crm_deals')
+          .select(`
+            id, title, status, priority, deal_value, currency, created_at, updated_at,
+            current_stage:crm_pipeline_stages!crm_deals_current_stage_id_fkey(id, name, color, stage_type),
+            pipeline:crm_pipelines!crm_deals_pipeline_id_fkey(id, name),
+            contact:crm_contacts!crm_deals_contact_id_fkey(id, first_name, last_name, email)
+          `)
+          .eq('organization_id', orgId)
+          .eq('agent_partner_id', partnerId)
+          .order('updated_at', { ascending: false });
+
+        return jsonResponse({ deals: deals || [] });
+      }
+
+      case 'get-deal': {
+        const dealId = url.searchParams.get('dealId');
+        if (!dealId) return jsonResponse({ error: 'dealId required' }, 400);
+
+        const [dealResult, notesResult, docsResult, tasksResult, activityResult] = await Promise.all([
+          supabase
+            .from('crm_deals')
+            .select(`
+              *,
+              current_stage:crm_pipeline_stages!crm_deals_current_stage_id_fkey(id, name, color, stage_type, sort_order),
+              pipeline:crm_pipelines!crm_deals_pipeline_id_fkey(id, name),
+              contact:crm_contacts!crm_deals_contact_id_fkey(id, first_name, last_name, email)
+            `)
+            .eq('id', dealId)
+            .eq('organization_id', orgId)
+            .eq('agent_partner_id', partnerId)
+            .single(),
+          supabase
+            .from('crm_deal_notes')
+            .select('*')
+            .eq('deal_id', dealId)
+            .eq('organization_id', orgId)
+            .eq('is_internal', false)
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('crm_deal_documents')
+            .select('*')
+            .eq('deal_id', dealId)
+            .eq('organization_id', orgId),
+          supabase
+            .from('crm_deal_tasks')
+            .select('*')
+            .eq('deal_id', dealId)
+            .eq('organization_id', orgId)
+            .in('target_role', ['agent'])
+            .order('sort_order'),
+          supabase
+            .from('crm_deal_activity_log')
+            .select('*')
+            .eq('deal_id', dealId)
+            .eq('organization_id', orgId)
+            .order('created_at', { ascending: false })
+            .limit(50),
+        ]);
+
+        if (!dealResult.data) return jsonResponse({ error: 'Deal not found' }, 404);
+
+        return jsonResponse({
+          deal: dealResult.data,
+          notes: notesResult.data || [],
+          documents: docsResult.data || [],
+          tasks: tasksResult.data || [],
+          activity: activityResult.data || [],
+        });
+      }
+
+      case 'add-deal-note': {
+        const body = await req.json();
+        const { deal_id, content } = body;
+        if (!deal_id || !content?.trim()) {
+          return jsonResponse({ error: 'deal_id and content are required' }, 400);
+        }
+
+        // Verify deal belongs to this agent's partner
+        const { data: deal } = await supabase
+          .from('crm_deals')
+          .select('id')
+          .eq('id', deal_id)
+          .eq('organization_id', orgId)
+          .eq('agent_partner_id', partnerId)
+          .single();
+        if (!deal) return jsonResponse({ error: 'Deal not found' }, 404);
+
+        const { data: note, error } = await supabase
+          .from('crm_deal_notes')
+          .insert({
+            deal_id,
+            organization_id: orgId,
+            author_type: 'agent',
+            author_id: agentUserId,
+            content: content.trim(),
+            is_internal: false,
+          })
+          .select()
+          .single();
+
+        if (error) return jsonResponse({ error: error.message }, 400);
+        return jsonResponse({ note }, 201);
       }
 
       default:

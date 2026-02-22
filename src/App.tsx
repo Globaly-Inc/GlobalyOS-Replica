@@ -169,6 +169,7 @@ const AgentServicesPage = lazy(() => import('./pages/agent/AgentServicesPage'));
 const AgentCustomersPage = lazy(() => import('./pages/agent/AgentCustomersPage'));
 const AgentApplicationsPage = lazy(() => import('./pages/agent/AgentApplicationsPage'));
 const AgentApplicationDetailPage = lazy(() => import('./pages/agent/AgentApplicationDetailPage'));
+const AgentDealsPage = lazy(() => import('./pages/agent/AgentDealsPage'));
 
 const Payroll = lazy(() => import('./pages/Payroll'));
 
@@ -570,6 +571,7 @@ const App = () => <QueryClientProvider client={queryClient}>
                   <Route path="customers" element={<AgentCustomersPage />} />
                   <Route path="applications" element={<AgentApplicationsPage />} />
                   <Route path="applications/:applicationId" element={<AgentApplicationDetailPage />} />
+                  <Route path="deals" element={<AgentDealsPage />} />
                 </Route>
 
                 {/* Catch-all */}

@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Trophy, User, Building2, Users, Calendar, DollarSign, MoreHorizontal, CheckCircle2, XCircle } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { useCRMDeal, useCloseDeal } from '@/services/useCRMDeals';
+import { useCRMDeal, useCloseDeal, useReopenDeal } from '@/services/useCRMDeals';
 import { useCRMPipeline } from '@/services/useCRMPipelines';
 import { useDealNotes, useAddDealNote, useDealTasks, useDealActivityLog } from '@/services/useCRMDeals';
 import { DealNotesTab } from '@/components/deals/DealNotesTab';
@@ -22,6 +22,26 @@ import { CloseDealDialog } from '@/components/deals/CloseDealDialog';
 import { OrgLink } from '@/components/OrgLink';
 import { format } from 'date-fns';
 import { useState } from 'react';
+import { RotateCcw } from 'lucide-react';
+
+function ReopenButton({ dealId, pipelineId }: { dealId: string; pipelineId: string }) {
+  const { data: pipeline } = useCRMPipeline(pipelineId);
+  const reopenDeal = useReopenDeal();
+  const firstStage = pipeline?.stages?.sort((a, b) => a.sort_order - b.sort_order)?.[0];
+
+  if (!firstStage) return null;
+
+  return (
+    <Button
+      variant="outline"
+      className="gap-2"
+      disabled={reopenDeal.isPending}
+      onClick={() => reopenDeal.mutate({ dealId, stageId: firstStage.id })}
+    >
+      <RotateCcw className="h-4 w-4" /> Reopen Deal
+    </Button>
+  );
+}
 
 const DealDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -74,7 +94,7 @@ const DealDetailPage = () => {
               </div>
             </div>
 
-            {deal.status === 'active' && (
+            {deal.status === 'active' ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="gap-2">
@@ -93,6 +113,8 @@ const DealDetailPage = () => {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+            ) : (
+              <ReopenButton dealId={deal.id} pipelineId={deal.pipeline_id} />
             )}
           </div>
 

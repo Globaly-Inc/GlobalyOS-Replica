@@ -165,10 +165,10 @@ export function useUpdateDeal() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<CRMDeal> & { id: string }) => {
+    mutationFn: async ({ id, ...updates }: { id: string; title?: string; priority?: 'low' | 'medium' | 'high'; assignee_id?: string | null; contact_id?: string | null; company_id?: string | null; deal_value?: number | null; currency?: string; expected_close_date?: string | null }) => {
       const { error } = await supabase
         .from('crm_deals')
-        .update(updates as any)
+        .update(updates)
         .eq('id', id);
       if (error) throw error;
     },

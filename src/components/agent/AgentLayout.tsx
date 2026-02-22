@@ -1,6 +1,6 @@
 import { Outlet, Link, useParams, useLocation } from 'react-router-dom';
 import { useAgentAuth } from '@/hooks/useAgentAuth';
-import { LayoutDashboard, Package, Users, FileStack, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Package, Users, FileStack, Kanban, LogOut, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,7 @@ export const AgentLayout = () => {
     { path: `${basePath}/services`, label: 'Services', icon: Package },
     { path: `${basePath}/customers`, label: 'My Customers', icon: Users },
     { path: `${basePath}/applications`, label: 'Applications', icon: FileStack },
+    { path: `${basePath}/deals`, label: 'Deals', icon: Kanban },
   ];
 
   const initials = user?.full_name
