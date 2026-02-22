@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useRef, useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { 
@@ -16,6 +16,7 @@ import {
   Flag
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
 interface SuperAdminLayoutProps {
   children: ReactNode;
@@ -35,11 +36,33 @@ const navItems = [
   { path: "/super-admin/blog", label: "Blog", icon: FileText },
 ];
 
+const EXPANDED_ITEM_WIDTH = 90;
+
 const SuperAdminLayout = ({ children }: SuperAdminLayoutProps) => {
   const location = useLocation();
+  const navRef = useRef<HTMLDivElement>(null);
+  const [isCompact, setIsCompact] = useState(false);
 
   const isActive = (path: string) => {
-    return location.pathname === path;
+    return location.pathname === path || location.pathname.startsWith(`${path}/`);
+  };
+
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const threshold = navItems.length * EXPANDED_ITEM_WIDTH;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setIsCompact(entry.contentRect.width < threshold);
+      }
+    });
+    observer.observe(nav);
+    return () => observer.disconnect();
+  }, []);
+
+  const showLabel = (active: boolean) => {
+    if (!isCompact) return true;
+    return active;
   };
 
   return (
@@ -67,23 +90,45 @@ const SuperAdminLayout = ({ children }: SuperAdminLayoutProps) => {
       {/* Sub Navigation */}
       <nav className="sticky top-16 z-40 bg-card border-b border-border">
         <div className="container mx-auto px-4">
-          <div className="flex items-center gap-1 h-12">
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors",
-                  isActive(item.path)
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                )}
-              >
-                <item.icon className="h-4 w-4" />
-                {item.label}
-              </Link>
-            ))}
-          </div>
+          <TooltipProvider delayDuration={300}>
+            <div ref={navRef} className="flex items-center gap-1 h-12">
+              {navItems.map((item) => {
+                const active = isActive(item.path);
+                const labelVisible = showLabel(active);
+                const iconOnly = !labelVisible;
+
+                const link = (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={cn(
+                      "flex items-center rounded-md text-sm font-medium transition-colors",
+                      labelVisible
+                        ? "gap-2 px-3 py-2"
+                        : "h-9 w-9 justify-center",
+                      active
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    )}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    {labelVisible && item.label}
+                  </Link>
+                );
+
+                if (iconOnly) {
+                  return (
+                    <Tooltip key={item.path}>
+                      <TooltipTrigger asChild>{link}</TooltipTrigger>
+                      <TooltipContent side="bottom">{item.label}</TooltipContent>
+                    </Tooltip>
+                  );
+                }
+
+                return link;
+              })}
+            </div>
+          </TooltipProvider>
         </div>
       </nav>
 
