@@ -92,6 +92,10 @@ const Tasks = lazy(() => import('./pages/Tasks'));
 const CRM = lazy(() => import('./pages/CRM'));
 const ContactsPage = lazy(() => import('./pages/crm/ContactsPage'));
 const CompaniesPage = lazy(() => import('./pages/crm/CompaniesPage'));
+const ProductsPage = lazy(() => import('./pages/crm/ProductsPage'));
+const ProductDetailPage = lazy(() => import('./pages/crm/ProductDetailPage'));
+const PartnersPage = lazy(() => import('./pages/crm/PartnersPage'));
+const PartnerDetailPage = lazy(() => import('./pages/crm/PartnerDetailPage'));
 const CRMContactProfile = lazy(() => import('./pages/CRMContactProfile'));
 const CRMCompanyProfile = lazy(() => import('./pages/CRMCompanyProfile'));
 const CRMSettings = lazy(() => import('./pages/CRMSettings'));
@@ -358,6 +362,10 @@ const App = () => <QueryClientProvider client={queryClient}>
                    <Route path="crm/contacts/:id" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CRMContactProfile /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/companies/:id" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><CRMCompanyProfile /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/settings" element={<Navigate to="../settings/crm" replace />} />
+                   <Route path="crm/products" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><ProductsPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/products/:id" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><ProductDetailPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/partners" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><PartnersPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="crm/partners/:id" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><PartnerDetailPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="crm/scheduler" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><SchedulerPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    {/* Forms routes */}
                    <Route path="crm/forms" element={<OrgProtectedRoute><FeatureProtectedRoute feature="crm"><FormsListPage /></FeatureProtectedRoute></OrgProtectedRoute>} />
