@@ -28,7 +28,7 @@ const navItems = [
   { path: "/super-admin/users", label: "Users", icon: Users },
   { path: "/super-admin/templates", label: "Templates", icon: LayoutTemplate },
   { path: "/super-admin/features", label: "Features", icon: Flag },
-  { path: "/super-admin/payments", label: "Subscription", icon: CreditCard },
+  { path: "/super-admin/subscriptions", label: "Subscriptions", icon: CreditCard },
   { path: "/super-admin/customer-success", label: "Support", icon: Headphones },
   { path: "/super-admin/error-logs", label: "Errors", icon: AlertCircle },
   { path: "/super-admin/hiring-logs", label: "Jobs", icon: UserPlus },

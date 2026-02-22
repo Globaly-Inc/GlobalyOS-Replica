@@ -261,6 +261,18 @@ const SuperAdminTemplates = lazy(() => import('./pages/super-admin/SuperAdminTem
 const SuperAdminFeatures = lazy(() => import('./pages/super-admin/SuperAdminFeatures'));
 const SuperAdminFeatureDetail = lazy(() => import('./pages/super-admin/SuperAdminFeatureDetail'));
 const SuperAdminProtectedRoute = lazy(() => import('./components/super-admin/SuperAdminProtectedRoute'));
+
+// Subscription Management System pages
+const SuperAdminSubscriptions = lazy(() => import('./pages/super-admin/SuperAdminSubscriptions'));
+const SuperAdminSubscriptionPlans = lazy(() => import('./pages/super-admin/SuperAdminSubscriptionPlans'));
+const SuperAdminSubscriptionPlanDetail = lazy(() => import('./pages/super-admin/SuperAdminSubscriptionPlanDetail'));
+const SuperAdminSubscribers = lazy(() => import('./pages/super-admin/SuperAdminSubscribers'));
+const SuperAdminBilling = lazy(() => import('./pages/super-admin/SuperAdminBilling'));
+const SuperAdminDunning = lazy(() => import('./pages/super-admin/SuperAdminDunning'));
+const SuperAdminChurnPage = lazy(() => import('./pages/super-admin/SuperAdminChurn'));
+const SuperAdminCoupons = lazy(() => import('./pages/super-admin/SuperAdminCoupons'));
+const SuperAdminRevenueAnalytics = lazy(() => import('./pages/super-admin/SuperAdminRevenueAnalytics'));
+const SuperAdminAIInsights = lazy(() => import('./pages/super-admin/SuperAdminAIInsights'));
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -556,6 +568,18 @@ const App = () => <QueryClientProvider client={queryClient}>
                 <Route path="/super-admin/plans/:planId/edit" element={<SuperAdminProtectedRoute>
                     <SuperAdminPlanEditor />
                   </SuperAdminProtectedRoute>} />
+                
+                {/* Subscription Management System */}
+                <Route path="/super-admin/subscriptions" element={<SuperAdminProtectedRoute><SuperAdminSubscriptions /></SuperAdminProtectedRoute>} />
+                <Route path="/super-admin/subscriptions/plans" element={<SuperAdminProtectedRoute><SuperAdminSubscriptionPlans /></SuperAdminProtectedRoute>} />
+                <Route path="/super-admin/subscriptions/plans/:planId" element={<SuperAdminProtectedRoute><SuperAdminSubscriptionPlanDetail /></SuperAdminProtectedRoute>} />
+                <Route path="/super-admin/subscriptions/subscribers" element={<SuperAdminProtectedRoute><SuperAdminSubscribers /></SuperAdminProtectedRoute>} />
+                <Route path="/super-admin/subscriptions/billing" element={<SuperAdminProtectedRoute><SuperAdminBilling /></SuperAdminProtectedRoute>} />
+                <Route path="/super-admin/subscriptions/dunning" element={<SuperAdminProtectedRoute><SuperAdminDunning /></SuperAdminProtectedRoute>} />
+                <Route path="/super-admin/subscriptions/churn" element={<SuperAdminProtectedRoute><SuperAdminChurnPage /></SuperAdminProtectedRoute>} />
+                <Route path="/super-admin/subscriptions/coupons" element={<SuperAdminProtectedRoute><SuperAdminCoupons /></SuperAdminProtectedRoute>} />
+                <Route path="/super-admin/subscriptions/analytics" element={<SuperAdminProtectedRoute><SuperAdminRevenueAnalytics /></SuperAdminProtectedRoute>} />
+                <Route path="/super-admin/subscriptions/ai-insights" element={<SuperAdminProtectedRoute><SuperAdminAIInsights /></SuperAdminProtectedRoute>} />
                 
                 {/* Legacy routes redirect - for backward compatibility */}
                 <Route path="/team/*" element={<Navigate to="/" replace />} />
