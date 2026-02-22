@@ -6,9 +6,10 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Search, Flag, MessageSquare, CheckSquare, Briefcase, GitBranch, Wallet, Bot, UserPlus, MessageCircle, Phone, Inbox, FileText, Calculator, Users } from "lucide-react";
+import { Loader2, Search, Flag, MessageSquare, CheckSquare, Briefcase, GitBranch, Wallet, Bot, UserPlus, MessageCircle, Phone, Inbox, FileText, Calculator, Users, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { FeatureAuditDialog } from "@/components/super-admin/FeatureAuditDialog";
 
 const AVAILABLE_FEATURES = [
   { name: "chat", label: "Team Chat", description: "Real-time messaging", icon: MessageSquare },
@@ -39,6 +40,7 @@ const SuperAdminFeatures = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [updating, setUpdating] = useState<string | null>(null);
+  const [auditOpen, setAuditOpen] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -167,12 +169,20 @@ const SuperAdminFeatures = () => {
     <SuperAdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Features</h1>
-          <p className="text-sm text-muted-foreground">
-            Control feature access and visibility across all organizations
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Features</h1>
+            <p className="text-sm text-muted-foreground">
+              Control feature access and visibility across all organizations
+            </p>
+          </div>
+          <Button variant="outline" onClick={() => setAuditOpen(true)}>
+            <Shield className="h-4 w-4 mr-2" />
+            Audit System
+          </Button>
         </div>
+
+        <FeatureAuditDialog open={auditOpen} onOpenChange={setAuditOpen} />
 
         {/* Feature Summary Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-5 gap-3">
