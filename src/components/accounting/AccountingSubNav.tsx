@@ -9,6 +9,7 @@ const accountingSubNavItems = [
   { name: 'Journals', href: '/accounting/journals', icon: FileText },
   { name: 'General Ledger', href: '/accounting/general-ledger', icon: FileText },
   { name: 'Invoices', href: '/accounting/invoices', icon: FileText },
+  { name: 'Schedules', href: '/accounting/invoice-schedules', icon: FileText },
   { name: 'Bills', href: '/accounting/bills', icon: Receipt },
   { name: 'Banking', href: '/accounting/banking', icon: Landmark },
   { name: 'Reports', href: '/accounting/reports', icon: BarChart3 },
