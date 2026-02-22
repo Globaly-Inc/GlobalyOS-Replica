@@ -208,6 +208,7 @@ const AccountingBankRules = lazy(() => import('./pages/accounting/BankRules'));
 const AccountingReports = lazy(() => import('./pages/accounting/Reports'));
 const AccountingReportViewer = lazy(() => import('./pages/accounting/ReportViewer'));
 const InvoicePublicPage = lazy(() => import('./pages/accounting/InvoicePublicPage'));
+const InvoiceSchedules = lazy(() => import('./pages/accounting/InvoiceSchedules'));
 
 const HiringDashboard = lazy(() => import('./pages/hiring/HiringDashboard'));
 const JobsList = lazy(() => import('./pages/hiring/JobsList'));
@@ -467,6 +468,7 @@ const App = () => <QueryClientProvider client={queryClient}>
                    <Route path="accounting/invoices/new" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><InvoiceEditor /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="accounting/invoices/:invoiceId" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><InvoiceDetail /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="accounting/invoices/:invoiceId/edit" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><InvoiceEditor /></FeatureProtectedRoute></OrgProtectedRoute>} />
+                   <Route path="accounting/invoice-schedules" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><InvoiceSchedules /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="accounting/bills" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><AccountingBills /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="accounting/bills/new" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><BillEditor /></FeatureProtectedRoute></OrgProtectedRoute>} />
                    <Route path="accounting/bills/:billId" element={<OrgProtectedRoute><FeatureProtectedRoute feature="accounting"><BillDetail /></FeatureProtectedRoute></OrgProtectedRoute>} />
