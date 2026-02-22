@@ -1,4 +1,4 @@
-import { Users, Building2, Calendar, Mail, MessageCircle, FileText, Package, Handshake, FileStack } from 'lucide-react';
+import { Users, Building2, Calendar, Mail, MessageCircle, FileText, Package, Handshake, FileStack, GitBranch } from 'lucide-react';
 import { OrgLink } from '@/components/OrgLink';
 import { useLocation, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -7,6 +7,7 @@ import { useFeatureFlags } from '@/hooks/useFeatureFlags';
 const crmSubNavItems = [
   { name: 'Contacts', href: '/crm/contacts', icon: Users },
   { name: 'Companies', href: '/crm/companies', icon: Building2 },
+  { name: 'Deals', href: '/crm/deals', icon: GitBranch },
   { name: 'Products', href: '/crm/products', icon: Package },
   { name: 'Partners', href: '/crm/partners', icon: Handshake },
   { name: 'Applications', href: '/crm/applications', icon: FileStack },

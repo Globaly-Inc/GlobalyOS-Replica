@@ -1,4 +1,4 @@
- import { Building2, Briefcase, Target, ClipboardCheck, Sparkles, CreditCard, Settings, Users, UserPlus, Inbox, Phone } from 'lucide-react';
+ import { Building2, Briefcase, Target, ClipboardCheck, Sparkles, CreditCard, Settings, Users, UserPlus, Inbox, Phone, GitBranch } from 'lucide-react';
  import { OrgLink } from './OrgLink';
  import { useLocation, useParams } from 'react-router-dom';
  import { cn } from '@/lib/utils';
@@ -19,6 +19,7 @@
    { name: 'KPIs', href: '/settings/kpis', icon: Target },
    { name: 'Workflows', href: '/settings/workflows', icon: ClipboardCheck, featureFlag: 'workflows' },
   { name: 'CRM', href: '/settings/crm', icon: Users, featureFlag: 'crm' },
+  { name: 'Pipelines', href: '/settings/pipelines', icon: GitBranch, featureFlag: 'crm' },
   { name: 'Hiring', href: '/settings/hiring', icon: UserPlus, featureFlag: 'hiring' },
   { name: 'Inbox', href: '/settings/inbox', icon: Inbox, featureFlag: 'omnichannel_inbox' },
   { name: 'Telephony', href: '/settings/telephony', icon: Phone, featureFlag: 'telephony' },

@@ -6537,6 +6537,766 @@ export type Database = {
           },
         ]
       }
+      crm_deal_activity_log: {
+        Row: {
+          action_type: string
+          actor_id: string | null
+          actor_type: Database["public"]["Enums"]["crm_actor_type"]
+          created_at: string
+          deal_id: string
+          description: string | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          new_value: Json | null
+          old_value: Json | null
+          organization_id: string
+        }
+        Insert: {
+          action_type: string
+          actor_id?: string | null
+          actor_type?: Database["public"]["Enums"]["crm_actor_type"]
+          created_at?: string
+          deal_id: string
+          description?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          organization_id: string
+        }
+        Update: {
+          action_type?: string
+          actor_id?: string | null
+          actor_type?: Database["public"]["Enums"]["crm_actor_type"]
+          created_at?: string
+          deal_id?: string
+          description?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_deal_activity_log_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "crm_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_activity_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_activity_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_deal_documents: {
+        Row: {
+          created_at: string
+          deal_id: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          organization_id: string
+          requirement_id: string | null
+          reviewer_notes: string | null
+          status: Database["public"]["Enums"]["crm_deal_doc_status"]
+          uploaded_by: string | null
+          uploaded_by_type: Database["public"]["Enums"]["crm_actor_type"]
+        }
+        Insert: {
+          created_at?: string
+          deal_id: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          organization_id: string
+          requirement_id?: string | null
+          reviewer_notes?: string | null
+          status?: Database["public"]["Enums"]["crm_deal_doc_status"]
+          uploaded_by?: string | null
+          uploaded_by_type?: Database["public"]["Enums"]["crm_actor_type"]
+        }
+        Update: {
+          created_at?: string
+          deal_id?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          organization_id?: string
+          requirement_id?: string | null
+          reviewer_notes?: string | null
+          status?: Database["public"]["Enums"]["crm_deal_doc_status"]
+          uploaded_by?: string | null
+          uploaded_by_type?: Database["public"]["Enums"]["crm_actor_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_deal_documents_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "crm_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_documents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_documents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_documents_requirement_id_fkey"
+            columns: ["requirement_id"]
+            isOneToOne: false
+            referencedRelation: "crm_stage_requirements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_deal_fee_instalments: {
+        Row: {
+          amount: number
+          created_at: string
+          deal_fee_id: string
+          due_date: string
+          id: string
+          instalment_number: number
+          organization_id: string
+          paid_at: string | null
+          status: Database["public"]["Enums"]["crm_instalment_status"]
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          deal_fee_id: string
+          due_date: string
+          id?: string
+          instalment_number?: number
+          organization_id: string
+          paid_at?: string | null
+          status?: Database["public"]["Enums"]["crm_instalment_status"]
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          deal_fee_id?: string
+          due_date?: string
+          id?: string
+          instalment_number?: number
+          organization_id?: string
+          paid_at?: string | null
+          status?: Database["public"]["Enums"]["crm_instalment_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_deal_fee_instalments_deal_fee_id_fkey"
+            columns: ["deal_fee_id"]
+            isOneToOne: false
+            referencedRelation: "crm_deal_fees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_fee_instalments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_fee_instalments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_deal_fees: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          deal_id: string
+          discount_amount: number
+          fee_name: string
+          fee_option_id: string | null
+          id: string
+          organization_id: string
+          status: Database["public"]["Enums"]["crm_deal_fee_status"]
+          tax_amount: number
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          deal_id: string
+          discount_amount?: number
+          fee_name: string
+          fee_option_id?: string | null
+          id?: string
+          organization_id: string
+          status?: Database["public"]["Enums"]["crm_deal_fee_status"]
+          tax_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          deal_id?: string
+          discount_amount?: number
+          fee_name?: string
+          fee_option_id?: string | null
+          id?: string
+          organization_id?: string
+          status?: Database["public"]["Enums"]["crm_deal_fee_status"]
+          tax_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_deal_fees_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "crm_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_fees_fee_option_id_fkey"
+            columns: ["fee_option_id"]
+            isOneToOne: false
+            referencedRelation: "crm_product_fee_options"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_fees_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_fees_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_deal_notes: {
+        Row: {
+          author_id: string | null
+          author_type: Database["public"]["Enums"]["crm_actor_type"]
+          content: string
+          created_at: string
+          deal_id: string
+          id: string
+          is_internal: boolean
+          organization_id: string
+          requirement_id: string | null
+        }
+        Insert: {
+          author_id?: string | null
+          author_type?: Database["public"]["Enums"]["crm_actor_type"]
+          content: string
+          created_at?: string
+          deal_id: string
+          id?: string
+          is_internal?: boolean
+          organization_id: string
+          requirement_id?: string | null
+        }
+        Update: {
+          author_id?: string | null
+          author_type?: Database["public"]["Enums"]["crm_actor_type"]
+          content?: string
+          created_at?: string
+          deal_id?: string
+          id?: string
+          is_internal?: boolean
+          organization_id?: string
+          requirement_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_deal_notes_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "crm_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_notes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_notes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_notes_requirement_id_fkey"
+            columns: ["requirement_id"]
+            isOneToOne: false
+            referencedRelation: "crm_stage_requirements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_deal_requirements: {
+        Row: {
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          deal_id: string
+          id: string
+          organization_id: string
+          response_data: Json | null
+          stage_requirement_id: string
+          status: Database["public"]["Enums"]["crm_requirement_status"]
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          deal_id: string
+          id?: string
+          organization_id: string
+          response_data?: Json | null
+          stage_requirement_id: string
+          status?: Database["public"]["Enums"]["crm_requirement_status"]
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          deal_id?: string
+          id?: string
+          organization_id?: string
+          response_data?: Json | null
+          stage_requirement_id?: string
+          status?: Database["public"]["Enums"]["crm_requirement_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_deal_requirements_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_requirements_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_requirements_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "crm_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_requirements_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_requirements_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_requirements_stage_requirement_id_fkey"
+            columns: ["stage_requirement_id"]
+            isOneToOne: false
+            referencedRelation: "crm_stage_requirements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_deal_services: {
+        Row: {
+          created_at: string
+          deal_id: string
+          id: string
+          organization_id: string
+          service_id: string
+        }
+        Insert: {
+          created_at?: string
+          deal_id: string
+          id?: string
+          organization_id: string
+          service_id: string
+        }
+        Update: {
+          created_at?: string
+          deal_id?: string
+          id?: string
+          organization_id?: string
+          service_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_deal_services_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "crm_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_services_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_services_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_services_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "crm_services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_deal_tasks: {
+        Row: {
+          assignee_id: string | null
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          deal_id: string
+          description: string | null
+          due_date: string | null
+          id: string
+          organization_id: string
+          requirement_id: string | null
+          sort_order: number
+          stage_id: string | null
+          status: Database["public"]["Enums"]["crm_deal_task_status"]
+          target_role: Database["public"]["Enums"]["crm_target_role"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assignee_id?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          deal_id: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          organization_id: string
+          requirement_id?: string | null
+          sort_order?: number
+          stage_id?: string | null
+          status?: Database["public"]["Enums"]["crm_deal_task_status"]
+          target_role?: Database["public"]["Enums"]["crm_target_role"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assignee_id?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          deal_id?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          organization_id?: string
+          requirement_id?: string | null
+          sort_order?: number
+          stage_id?: string | null
+          status?: Database["public"]["Enums"]["crm_deal_task_status"]
+          target_role?: Database["public"]["Enums"]["crm_target_role"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_deal_tasks_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_tasks_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_tasks_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_tasks_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_tasks_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "crm_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_tasks_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_tasks_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_tasks_requirement_id_fkey"
+            columns: ["requirement_id"]
+            isOneToOne: false
+            referencedRelation: "crm_stage_requirements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deal_tasks_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "crm_pipeline_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_deals: {
+        Row: {
+          actual_close_date: string | null
+          agent_partner_id: string | null
+          agent_user_id: string | null
+          assignee_id: string | null
+          company_id: string | null
+          contact_id: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          current_stage_id: string | null
+          custom_fields: Json | null
+          deal_value: number | null
+          expected_close_date: string | null
+          id: string
+          lost_notes: string | null
+          lost_reason: string | null
+          organization_id: string
+          pipeline_id: string
+          priority: Database["public"]["Enums"]["crm_deal_priority"]
+          source: Database["public"]["Enums"]["crm_deal_source"]
+          status: Database["public"]["Enums"]["crm_deal_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          actual_close_date?: string | null
+          agent_partner_id?: string | null
+          agent_user_id?: string | null
+          assignee_id?: string | null
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          current_stage_id?: string | null
+          custom_fields?: Json | null
+          deal_value?: number | null
+          expected_close_date?: string | null
+          id?: string
+          lost_notes?: string | null
+          lost_reason?: string | null
+          organization_id: string
+          pipeline_id: string
+          priority?: Database["public"]["Enums"]["crm_deal_priority"]
+          source?: Database["public"]["Enums"]["crm_deal_source"]
+          status?: Database["public"]["Enums"]["crm_deal_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          actual_close_date?: string | null
+          agent_partner_id?: string | null
+          agent_user_id?: string | null
+          assignee_id?: string | null
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          current_stage_id?: string | null
+          custom_fields?: Json | null
+          deal_value?: number | null
+          expected_close_date?: string | null
+          id?: string
+          lost_notes?: string | null
+          lost_reason?: string | null
+          organization_id?: string
+          pipeline_id?: string
+          priority?: Database["public"]["Enums"]["crm_deal_priority"]
+          source?: Database["public"]["Enums"]["crm_deal_source"]
+          status?: Database["public"]["Enums"]["crm_deal_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_deals_agent_partner_id_fkey"
+            columns: ["agent_partner_id"]
+            isOneToOne: false
+            referencedRelation: "crm_partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_agent_user_id_fkey"
+            columns: ["agent_user_id"]
+            isOneToOne: false
+            referencedRelation: "partner_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "crm_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_current_stage_id_fkey"
+            columns: ["current_stage_id"]
+            isOneToOne: false
+            referencedRelation: "crm_pipeline_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "crm_pipelines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_partner_branches: {
         Row: {
           city: string | null
@@ -6675,6 +7435,141 @@ export type Database = {
           },
           {
             foreignKeyName: "crm_partners_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_pipeline_stages: {
+        Row: {
+          auto_advance: boolean
+          color: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          organization_id: string
+          pipeline_id: string
+          sort_order: number
+          stage_type: Database["public"]["Enums"]["crm_pipeline_stage_type"]
+          updated_at: string
+        }
+        Insert: {
+          auto_advance?: boolean
+          color?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          organization_id: string
+          pipeline_id: string
+          sort_order?: number
+          stage_type?: Database["public"]["Enums"]["crm_pipeline_stage_type"]
+          updated_at?: string
+        }
+        Update: {
+          auto_advance?: boolean
+          color?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          pipeline_id?: string
+          sort_order?: number
+          stage_type?: Database["public"]["Enums"]["crm_pipeline_stage_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_pipeline_stages_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_pipeline_stages_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_pipeline_stages_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "crm_pipelines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_pipelines: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          organization_id: string
+          service_required: boolean
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          organization_id: string
+          service_required?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          organization_id?: string
+          service_required?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_pipelines_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_pipelines_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_pipelines_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_pipelines_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations_public"
@@ -7014,6 +7909,80 @@ export type Database = {
             columns: ["provider_partner_id"]
             isOneToOne: false
             referencedRelation: "crm_partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_stage_requirements: {
+        Row: {
+          config: Json | null
+          created_at: string
+          description: string | null
+          id: string
+          is_required: boolean
+          organization_id: string
+          pipeline_id: string
+          requirement_type: Database["public"]["Enums"]["crm_requirement_type"]
+          sort_order: number
+          stage_id: string
+          target_role: Database["public"]["Enums"]["crm_target_role"]
+          title: string
+        }
+        Insert: {
+          config?: Json | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_required?: boolean
+          organization_id: string
+          pipeline_id: string
+          requirement_type: Database["public"]["Enums"]["crm_requirement_type"]
+          sort_order?: number
+          stage_id: string
+          target_role?: Database["public"]["Enums"]["crm_target_role"]
+          title: string
+        }
+        Update: {
+          config?: Json | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_required?: boolean
+          organization_id?: string
+          pipeline_id?: string
+          requirement_type?: Database["public"]["Enums"]["crm_requirement_type"]
+          sort_order?: number
+          stage_id?: string
+          target_role?: Database["public"]["Enums"]["crm_target_role"]
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_stage_requirements_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_stage_requirements_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_stage_requirements_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "crm_pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_stage_requirements_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "crm_pipeline_stages"
             referencedColumns: ["id"]
           },
         ]
@@ -24145,8 +25114,24 @@ export type Database = {
         | "members"
         | "custom"
       chat_space_type: "collaboration" | "announcements" | "project"
+      crm_actor_type: "staff" | "agent" | "contact" | "system"
+      crm_deal_doc_status: "pending" | "approved" | "rejected"
+      crm_deal_fee_status: "pending" | "invoiced" | "paid" | "waived"
+      crm_deal_priority: "low" | "medium" | "high"
+      crm_deal_source: "staff" | "agent" | "client_portal" | "form"
+      crm_deal_status: "active" | "won" | "lost" | "cancelled"
+      crm_deal_task_status: "pending" | "in_progress" | "completed" | "skipped"
+      crm_instalment_status: "pending" | "paid" | "overdue"
       crm_partner_contract_status: "active" | "inactive"
       crm_partner_type: "agent" | "provider" | "both"
+      crm_pipeline_stage_type: "normal" | "win"
+      crm_requirement_status: "pending" | "completed" | "skipped" | "waived"
+      crm_requirement_type:
+        | "task"
+        | "document"
+        | "field"
+        | "form"
+        | "note_question"
       crm_service_status: "draft" | "published" | "archived"
       crm_service_type: "direct" | "represented_provider" | "internal_only"
       crm_service_visibility:
@@ -24154,6 +25139,7 @@ export type Database = {
         | "client_portal"
         | "agent_portal"
         | "both_portals"
+      crm_target_role: "assignee" | "contact" | "agent"
       fee_activity_action: "created" | "updated" | "deleted"
       fee_classification: "income" | "payable"
       fee_revenue_type: "revenue_from_client" | "commission_from_partner"
@@ -24510,8 +25496,25 @@ export const Constants = {
         "custom",
       ],
       chat_space_type: ["collaboration", "announcements", "project"],
+      crm_actor_type: ["staff", "agent", "contact", "system"],
+      crm_deal_doc_status: ["pending", "approved", "rejected"],
+      crm_deal_fee_status: ["pending", "invoiced", "paid", "waived"],
+      crm_deal_priority: ["low", "medium", "high"],
+      crm_deal_source: ["staff", "agent", "client_portal", "form"],
+      crm_deal_status: ["active", "won", "lost", "cancelled"],
+      crm_deal_task_status: ["pending", "in_progress", "completed", "skipped"],
+      crm_instalment_status: ["pending", "paid", "overdue"],
       crm_partner_contract_status: ["active", "inactive"],
       crm_partner_type: ["agent", "provider", "both"],
+      crm_pipeline_stage_type: ["normal", "win"],
+      crm_requirement_status: ["pending", "completed", "skipped", "waived"],
+      crm_requirement_type: [
+        "task",
+        "document",
+        "field",
+        "form",
+        "note_question",
+      ],
       crm_service_status: ["draft", "published", "archived"],
       crm_service_type: ["direct", "represented_provider", "internal_only"],
       crm_service_visibility: [
@@ -24520,6 +25523,7 @@ export const Constants = {
         "agent_portal",
         "both_portals",
       ],
+      crm_target_role: ["assignee", "contact", "agent"],
       fee_activity_action: ["created", "updated", "deleted"],
       fee_classification: ["income", "payable"],
       fee_revenue_type: ["revenue_from_client", "commission_from_partner"],
