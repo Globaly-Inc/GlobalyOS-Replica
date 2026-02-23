@@ -3,7 +3,7 @@
  * Fixed fields pinned at top, sortable custom questions below with edit dialog.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -144,15 +144,18 @@ function EditFieldDialog({
 }) {
   const [draft, setDraft] = useState<CustomFieldConfig | null>(null);
 
-  // Sync draft when field changes
+  // Sync draft whenever dialog opens or field changes
+  useEffect(() => {
+    if (open && field) {
+      setDraft({ ...field, options: field.options ? [...field.options] : [] });
+    } else if (!open) {
+      setDraft(null);
+    }
+  }, [open, field]);
+
   const activeField = draft ?? field;
 
   const handleOpen = (isOpen: boolean) => {
-    if (isOpen && field) {
-      setDraft({ ...field, options: field.options ? [...field.options] : [] });
-    } else {
-      setDraft(null);
-    }
     onOpenChange(isOpen);
   };
 
