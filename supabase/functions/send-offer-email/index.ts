@@ -68,16 +68,27 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Verify user has hiring access
-    const { data: employee } = await supabase
+    const { data: employee, error: empError } = await supabase
       .from("employees")
       .select("id, role, full_name")
       .eq("user_id", user.id)
       .eq("organization_id", organization_id)
       .single();
 
-    if (!employee || !["owner", "admin", "hr"].includes(employee.role || "")) {
+    console.log("Employee lookup:", { employee, empError, userId: user.id, organization_id });
+
+    if (!employee) {
       return new Response(
-        JSON.stringify({ success: false, message: "Access denied" }),
+        JSON.stringify({ success: false, message: "Employee not found for this user" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Allow owner, admin, hr, and manager roles
+    const allowedRoles = ["owner", "admin", "hr", "manager"];
+    if (!allowedRoles.includes(employee.role || "")) {
+      return new Response(
+        JSON.stringify({ success: false, message: `Access denied. Role '${employee.role}' is not authorized.` }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -104,9 +115,11 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("organization_id", organization_id)
       .single();
 
+    console.log("Offer lookup:", { offer, offerError, offer_id, organization_id });
+
     if (offerError || !offer) {
       return new Response(
-        JSON.stringify({ success: false, message: "Offer not found" }),
+        JSON.stringify({ success: false, message: `Offer not found: ${offerError?.message || 'unknown error'}` }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

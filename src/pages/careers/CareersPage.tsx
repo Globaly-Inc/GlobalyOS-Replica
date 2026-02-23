@@ -222,9 +222,9 @@ export default function CareersPage() {
                           </div>
                         </div>
 
-                        <Button variant="ghost" size="icon" className="flex-shrink-0 self-center">
+                        <div className="flex-shrink-0 self-center text-muted-foreground group-hover:text-primary transition-colors">
                           <ArrowRight className="h-5 w-5" />
-                        </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>

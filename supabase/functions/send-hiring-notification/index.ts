@@ -5,7 +5,6 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-// import { Resend } from "npm:resend@2.0.0"; // Will be imported dynamically
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,7 +25,6 @@ interface HiringNotificationRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -41,7 +39,6 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Dynamic import resend
     const resendModule = await import("https://esm.sh/resend@2.0.0");
     const resend = new resendModule.Resend(resendApiKey);
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -132,6 +129,17 @@ const handler = async (req: Request): Promise<Response> => {
       assignmentInstance = data;
     }
 
+    // Get interview details if applicable
+    let interview = null;
+    if (body.interview_id) {
+      const { data } = await supabase
+        .from("hiring_interviews")
+        .select("scheduled_at, interview_type, duration_minutes, meeting_link, location")
+        .eq("id", body.interview_id)
+        .single();
+      interview = data;
+    }
+
     const siteUrl = Deno.env.get("SITE_URL") || "https://globalyos.lovable.app";
     const assignmentLink = assignmentInstance?.secure_token
       ? `${siteUrl}/assignment/${assignmentInstance.secure_token}`
@@ -139,6 +147,44 @@ const handler = async (req: Request): Promise<Response> => {
     const assignmentInstructions = assignmentInstance
       ? `To access your assignment:\n1. Click the link above\n2. Enter your email address\n3. Enter the verification code sent to your inbox\n4. Complete and submit your assignment before the deadline`
       : "";
+
+    // Format interview details
+    let interviewDate = "";
+    let interviewTime = "";
+    let interviewType = "";
+    let interviewLocation = "";
+    let interviewMeetingLink = "";
+    let interviewDuration = "";
+
+    if (interview?.scheduled_at) {
+      const scheduledDate = new Date(interview.scheduled_at);
+      interviewDate = scheduledDate.toLocaleDateString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      interviewTime = scheduledDate.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
+    }
+    if (interview?.interview_type) {
+      const typeLabels: Record<string, string> = {
+        phone: "Phone Screen",
+        video: "Video Call",
+        onsite: "On-site",
+        technical: "Technical Interview",
+        panel: "Panel Interview",
+        behavioral: "Behavioral Interview",
+        case_study: "Case Study",
+      };
+      interviewType = typeLabels[interview.interview_type] || interview.interview_type.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+    }
+    if (interview?.location) interviewLocation = interview.location;
+    if (interview?.meeting_link) interviewMeetingLink = interview.meeting_link;
+    if (interview?.duration_minutes) interviewDuration = `${interview.duration_minutes} minutes`;
 
     // Replace template variables
     const replacements: Record<string, string> = {
@@ -150,6 +196,12 @@ const handler = async (req: Request): Promise<Response> => {
       "{{application_link}}": `${siteUrl}/careers/${org?.slug || organization_id}`,
       "{{assignment_link}}": assignmentLink,
       "{{assignment_instructions}}": assignmentInstructions,
+      "{{interview_date}}": interviewDate,
+      "{{interview_time}}": interviewTime,
+      "{{interview_type}}": interviewType,
+      "{{interview_location}}": interviewLocation,
+      "{{meeting_link}}": interviewMeetingLink,
+      "{{interview_duration}}": interviewDuration,
     };
 
     let subject = template.subject;

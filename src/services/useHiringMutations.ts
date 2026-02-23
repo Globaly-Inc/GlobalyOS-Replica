@@ -671,13 +671,45 @@ export function useScheduleInterview() {
         { scheduled_at: input.scheduled_at, type: input.interview_type }
       );
 
-      // Trigger interview scheduled email
+      // Trigger interview scheduled email to candidate
       triggerHiringEmail({
         organizationId: currentOrg.id,
         triggerType: 'interview_scheduled',
         interviewId: data.id,
         applicationId: input.application_id,
       });
+
+      // Send in-app notifications to interviewers
+      if (input.interviewer_ids && input.interviewer_ids.length > 0) {
+        // Get candidate name for notification
+        const { data: appData } = await supabase
+          .from('candidate_applications')
+          .select('candidate:candidates(name)')
+          .eq('id', input.application_id)
+          .single();
+        const candidateName = (appData as any)?.candidate?.name || 'A candidate';
+
+        const scheduledDate = input.scheduled_at
+          ? new Date(input.scheduled_at).toLocaleString('en-US', {
+              month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+            })
+          : '';
+
+        const notifications = input.interviewer_ids.map((interviewerId: string) => ({
+          organization_id: currentOrg.id,
+          recipient_id: interviewerId,
+          sender_id: currentEmployee?.id || null,
+          type: 'interview_assigned',
+          title: 'Interview Scheduled',
+          message: `You have been assigned to interview ${candidateName}${scheduledDate ? ` on ${scheduledDate}` : ''}.`,
+          data: {
+            interview_id: data.id,
+            application_id: input.application_id,
+          },
+        }));
+
+        await (supabase.from('notifications') as any).insert(notifications);
+      }
 
       return data;
     },
