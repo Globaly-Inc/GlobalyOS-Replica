@@ -24,6 +24,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { Check, ChevronsUpDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { format, addDays } from 'date-fns';
 import { EMPLOYMENT_TYPE_LABELS, type HiringEmploymentType } from '@/types/hiring';
 
@@ -34,7 +49,58 @@ interface CreateOfferDialogProps {
   jobTitle?: string;
 }
 
-const CURRENCIES = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'INR', 'JPY'];
+const CURRENCIES = [
+  { code: 'USD', name: 'US Dollar' },
+  { code: 'EUR', name: 'Euro' },
+  { code: 'GBP', name: 'British Pound' },
+  { code: 'CAD', name: 'Canadian Dollar' },
+  { code: 'AUD', name: 'Australian Dollar' },
+  { code: 'INR', name: 'Indian Rupee' },
+  { code: 'JPY', name: 'Japanese Yen' },
+  { code: 'CHF', name: 'Swiss Franc' },
+  { code: 'CNY', name: 'Chinese Yuan' },
+  { code: 'SGD', name: 'Singapore Dollar' },
+  { code: 'HKD', name: 'Hong Kong Dollar' },
+  { code: 'NZD', name: 'New Zealand Dollar' },
+  { code: 'SEK', name: 'Swedish Krona' },
+  { code: 'NOK', name: 'Norwegian Krone' },
+  { code: 'DKK', name: 'Danish Krone' },
+  { code: 'AED', name: 'UAE Dirham' },
+  { code: 'SAR', name: 'Saudi Riyal' },
+  { code: 'QAR', name: 'Qatari Riyal' },
+  { code: 'KRW', name: 'South Korean Won' },
+  { code: 'MYR', name: 'Malaysian Ringgit' },
+  { code: 'THB', name: 'Thai Baht' },
+  { code: 'IDR', name: 'Indonesian Rupiah' },
+  { code: 'PHP', name: 'Philippine Peso' },
+  { code: 'VND', name: 'Vietnamese Dong' },
+  { code: 'BRL', name: 'Brazilian Real' },
+  { code: 'MXN', name: 'Mexican Peso' },
+  { code: 'ZAR', name: 'South African Rand' },
+  { code: 'PLN', name: 'Polish Zloty' },
+  { code: 'CZK', name: 'Czech Koruna' },
+  { code: 'TRY', name: 'Turkish Lira' },
+  { code: 'ILS', name: 'Israeli Shekel' },
+  { code: 'NPR', name: 'Nepalese Rupee' },
+  { code: 'PKR', name: 'Pakistani Rupee' },
+  { code: 'BDT', name: 'Bangladeshi Taka' },
+  { code: 'LKR', name: 'Sri Lankan Rupee' },
+  { code: 'NGN', name: 'Nigerian Naira' },
+  { code: 'EGP', name: 'Egyptian Pound' },
+  { code: 'KES', name: 'Kenyan Shilling' },
+  { code: 'GHS', name: 'Ghanaian Cedi' },
+  { code: 'TWD', name: 'Taiwan Dollar' },
+  { code: 'CLP', name: 'Chilean Peso' },
+  { code: 'COP', name: 'Colombian Peso' },
+  { code: 'ARS', name: 'Argentine Peso' },
+  { code: 'PEN', name: 'Peruvian Sol' },
+  { code: 'RON', name: 'Romanian Leu' },
+  { code: 'HUF', name: 'Hungarian Forint' },
+  { code: 'BGN', name: 'Bulgarian Lev' },
+  { code: 'HRK', name: 'Croatian Kuna' },
+  { code: 'RUB', name: 'Russian Ruble' },
+  { code: 'UAH', name: 'Ukrainian Hryvnia' },
+];
 
 export function CreateOfferDialog({
   open,
@@ -48,6 +114,7 @@ export function CreateOfferDialog({
   const [level, setLevel] = useState('');
   const [baseSalary, setBaseSalary] = useState('');
   const [currency, setCurrency] = useState('USD');
+  const [currencyOpen, setCurrencyOpen] = useState(false);
   const [employmentType, setEmploymentType] = useState<HiringEmploymentType>('full_time');
   const [startDate, setStartDate] = useState(format(addDays(new Date(), 14), 'yyyy-MM-dd'));
   const [expiresAt, setExpiresAt] = useState(format(addDays(new Date(), 7), 'yyyy-MM-dd'));
@@ -77,6 +144,8 @@ export function CreateOfferDialog({
     setExpiresAt(format(addDays(new Date(), 7), 'yyyy-MM-dd'));
     setNotes('');
   };
+
+  const selectedCurrency = CURRENCIES.find(c => c.code === currency);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -125,16 +194,48 @@ export function CreateOfferDialog({
             </div>
             <div className="space-y-2">
               <Label>Currency</Label>
-              <Select value={currency} onValueChange={setCurrency}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CURRENCIES.map(curr => (
-                    <SelectItem key={curr} value={curr}>{curr}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={currencyOpen} onOpenChange={setCurrencyOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={currencyOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    {selectedCurrency ? `${selectedCurrency.code} – ${selectedCurrency.name}` : 'Select currency'}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[280px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search currency..." />
+                    <CommandList>
+                      <CommandEmpty>No currency found.</CommandEmpty>
+                      <CommandGroup>
+                        {CURRENCIES.map((curr) => (
+                          <CommandItem
+                            key={curr.code}
+                            value={`${curr.code} ${curr.name}`}
+                            onSelect={() => {
+                              setCurrency(curr.code);
+                              setCurrencyOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                currency === curr.code ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <span className="font-mono mr-2">{curr.code}</span>
+                            <span className="text-muted-foreground">{curr.name}</span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 

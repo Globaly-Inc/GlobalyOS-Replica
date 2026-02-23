@@ -234,13 +234,42 @@ Deno.serve(async (req) => {
       candidateId = existingCandidate.id;
       console.log(`Found existing candidate: ${candidateId}`);
 
-      // If this is an internal application and the candidate doesn't have employee_id linked yet, update it
-      if (isInternalApplication && employeeId) {
-        await supabase
+      // Update candidate profile fields if they are currently empty
+      const updateFields: Record<string, string | null> = {};
+      if (sanitizedCandidate.name) updateFields.name = sanitizedCandidate.name;
+      if (sanitizedCandidate.phone) updateFields.phone = sanitizedCandidate.phone;
+      if (sanitizedCandidate.location) updateFields.location = sanitizedCandidate.location;
+      if (sanitizedCandidate.linkedin_url) updateFields.linkedin_url = sanitizedCandidate.linkedin_url;
+      if (sanitizedCandidate.portfolio_url) updateFields.portfolio_url = sanitizedCandidate.portfolio_url;
+      if (isInternalApplication && employeeId) updateFields.employee_id = employeeId;
+
+      if (Object.keys(updateFields).length > 0) {
+        // Use COALESCE-style update: only overwrite null/empty fields
+        const { data: currentCandidate } = await supabase
           .from('candidates')
-          .update({ employee_id: employeeId })
+          .select('name, phone, location, linkedin_url, portfolio_url, employee_id')
           .eq('id', candidateId)
-          .is('employee_id', null);
+          .single();
+
+        const finalUpdate: Record<string, string | null> = {};
+        for (const [key, value] of Object.entries(updateFields)) {
+          if (!currentCandidate?.[key as keyof typeof currentCandidate]) {
+            finalUpdate[key] = value;
+          }
+        }
+
+        // Always update name with latest submission (candidate may have fixed their name)
+        if (sanitizedCandidate.name && currentCandidate) {
+          finalUpdate.name = sanitizedCandidate.name;
+        }
+
+        if (Object.keys(finalUpdate).length > 0) {
+          await supabase
+            .from('candidates')
+            .update(finalUpdate)
+            .eq('id', candidateId);
+          console.log(`Updated existing candidate fields:`, Object.keys(finalUpdate));
+        }
       }
       
       // Check if already applied for this job
