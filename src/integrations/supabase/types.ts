@@ -2159,6 +2159,7 @@ export type Database = {
       }
       assignment_instances: {
         Row: {
+          accepted_at: string | null
           assigned_by: string | null
           candidate_application_id: string
           created_at: string | null
@@ -2167,6 +2168,7 @@ export type Database = {
           id: string
           instructions: string
           organization_id: string
+          overdue_notified_at: string | null
           rating: number | null
           reminder_sent_at: string | null
           reviewed_at: string | null
@@ -2181,6 +2183,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          accepted_at?: string | null
           assigned_by?: string | null
           candidate_application_id: string
           created_at?: string | null
@@ -2189,6 +2192,7 @@ export type Database = {
           id?: string
           instructions: string
           organization_id: string
+          overdue_notified_at?: string | null
           rating?: number | null
           reminder_sent_at?: string | null
           reviewed_at?: string | null
@@ -2203,6 +2207,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          accepted_at?: string | null
           assigned_by?: string | null
           candidate_application_id?: string
           created_at?: string | null
@@ -2211,6 +2216,7 @@ export type Database = {
           id?: string
           instructions?: string
           organization_id?: string
+          overdue_notified_at?: string | null
           rating?: number | null
           reminder_sent_at?: string | null
           reviewed_at?: string | null
@@ -2279,6 +2285,66 @@ export type Database = {
             columns: ["template_id"]
             isOneToOne: false
             referencedRelation: "assignment_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assignment_reviewers: {
+        Row: {
+          assignment_instance_id: string
+          created_at: string
+          employee_id: string
+          id: string
+          organization_id: string
+        }
+        Insert: {
+          assignment_instance_id: string
+          created_at?: string
+          employee_id: string
+          id?: string
+          organization_id: string
+        }
+        Update: {
+          assignment_instance_id?: string
+          created_at?: string
+          employee_id?: string
+          id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assignment_reviewers_assignment_instance_id_fkey"
+            columns: ["assignment_instance_id"]
+            isOneToOne: false
+            referencedRelation: "assignment_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignment_reviewers_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignment_reviewers_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignment_reviewers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignment_reviewers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
             referencedColumns: ["id"]
           },
         ]
@@ -12457,6 +12523,7 @@ export type Database = {
           salary_min: number | null
           salary_visible: boolean | null
           salary_visible_internal: boolean | null
+          show_work_links: boolean | null
           slug: string
           status: Database["public"]["Enums"]["job_status"] | null
           target_start_date: string | null
@@ -12499,6 +12566,7 @@ export type Database = {
           salary_min?: number | null
           salary_visible?: boolean | null
           salary_visible_internal?: boolean | null
+          show_work_links?: boolean | null
           slug: string
           status?: Database["public"]["Enums"]["job_status"] | null
           target_start_date?: string | null
@@ -12541,6 +12609,7 @@ export type Database = {
           salary_min?: number | null
           salary_visible?: boolean | null
           salary_visible_internal?: boolean | null
+          show_work_links?: boolean | null
           slug?: string
           status?: Database["public"]["Enums"]["job_status"] | null
           target_start_date?: string | null
@@ -26254,6 +26323,7 @@ export type Database = {
       application_task_status: "pending" | "in_progress" | "completed"
       assignment_status:
         | "assigned"
+        | "accepted"
         | "in_progress"
         | "submitted"
         | "overdue"
@@ -26656,6 +26726,7 @@ export const Constants = {
       application_task_status: ["pending", "in_progress", "completed"],
       assignment_status: [
         "assigned",
+        "accepted",
         "in_progress",
         "submitted",
         "overdue",

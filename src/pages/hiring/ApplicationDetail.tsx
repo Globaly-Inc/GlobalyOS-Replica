@@ -27,6 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { OrgLink } from '@/components/OrgLink';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   ArrowLeft,
   Mail,
@@ -46,7 +47,11 @@ import {
   Send,
   Star,
   Upload,
-  UserPlus
+  UserPlus,
+  Video,
+  Link as LinkIcon,
+  Copy,
+  ChevronDown
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -343,27 +348,97 @@ export default function ApplicationDetail() {
             <TabsContent value="interviews" className="space-y-4 mt-4">
               {interviews && interviews.length > 0 ? (
                 interviews.map((interview) => (
-                  <Card key={interview.id}>
-                    <CardContent className="py-4">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h4 className="font-medium">{interview.interview_type}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            {format(new Date(interview.scheduled_at), 'PPp')} ({interview.duration_minutes} min)
-                          </p>
-                          {interview.location && (
-                            <p className="text-sm text-muted-foreground">{interview.location}</p>
+                  <Collapsible key={interview.id}>
+                    <Card>
+                      <CollapsibleTrigger asChild>
+                        <CardContent className="py-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-medium">{interview.interview_type}</h4>
+                                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform [[data-state=open]_&]:rotate-180" />
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                {format(new Date(interview.scheduled_at), 'PPp')} ({interview.duration_minutes} min)
+                              </p>
+                              {interview.location && (
+                                <p className="text-sm text-muted-foreground">{interview.location}</p>
+                              )}
+                            </div>
+                            <Badge variant={
+                              interview.status === 'completed' ? 'default' :
+                              interview.status === 'cancelled' ? 'destructive' : 'outline'
+                            }>
+                              {INTERVIEW_STATUS_LABELS[interview.status]}
+                            </Badge>
+                          </div>
+                        </CardContent>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="px-6 pb-4 space-y-3 border-t pt-3">
+                          {/* Meeting Link */}
+                          {interview.meeting_link && (
+                            <div className="flex items-center gap-2">
+                              <Video className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <a
+                                href={interview.meeting_link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm text-primary hover:underline truncate"
+                              >
+                                {interview.meeting_link}
+                              </a>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 shrink-0"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigator.clipboard.writeText(interview.meeting_link!);
+                                  toast.success('Meeting link copied');
+                                }}
+                              >
+                                <Copy className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          )}
+
+                          {/* Interviewer IDs */}
+                          {interview.interviewer_ids && interview.interviewer_ids.length > 0 && (
+                            <div className="flex items-start gap-2">
+                              <User className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-1">Interviewers</p>
+                                <p className="text-sm">{interview.interviewer_ids.length} interviewer(s) assigned</p>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Notes */}
+                          {interview.notes && (
+                            <div className="flex items-start gap-2">
+                              <FileText className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-1">Notes</p>
+                                <p className="text-sm whitespace-pre-wrap">{interview.notes}</p>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Scorecards */}
+                          {interview.interview_scorecards && interview.interview_scorecards.length > 0 && (
+                            <div className="flex items-start gap-2">
+                              <Star className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-1">Scorecards</p>
+                                <p className="text-sm">{interview.interview_scorecards.length} scorecard(s) submitted</p>
+                              </div>
+                            </div>
                           )}
                         </div>
-                        <Badge variant={
-                          interview.status === 'completed' ? 'default' :
-                          interview.status === 'cancelled' ? 'destructive' : 'outline'
-                        }>
-                          {INTERVIEW_STATUS_LABELS[interview.status]}
-                        </Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </CollapsibleContent>
+                    </Card>
+                  </Collapsible>
                 ))
               ) : (
                 <Card>

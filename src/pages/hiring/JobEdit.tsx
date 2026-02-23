@@ -166,6 +166,7 @@ export default function JobEdit() {
     is_public_visible: true,
     pipeline_id: '',
     application_form_config: {} as ApplicationFormConfig,
+    show_work_links: false,
   });
 
   // Populate form when job loads
@@ -195,6 +196,7 @@ export default function JobEdit() {
         is_public_visible: job.is_public_visible ?? false,
         pipeline_id: (job as any).pipeline_id || '',
         application_form_config: migrateApplicationFormConfig(((job as any).application_form_config ?? {}) as ApplicationFormConfig),
+        show_work_links: (job as any).show_work_links ?? false,
       });
     }
   }, [job]);
@@ -249,6 +251,7 @@ export default function JobEdit() {
           is_internal_apply: formData.is_internal_apply,
           is_public_visible: formData.is_public_visible,
           application_form_config: formData.application_form_config,
+          show_work_links: formData.show_work_links,
           pipeline_id: formData.pipeline_id || null,
         },
       });
@@ -955,6 +958,21 @@ export default function JobEdit() {
             config={formData.application_form_config}
             onChange={(config) => handleChange('application_form_config', config)}
           />
+
+          <Card>
+            <CardContent className="py-4">
+              <div className="flex items-center gap-3">
+                <Switch
+                  id="show_work_links"
+                  checked={formData.show_work_links}
+                  onCheckedChange={(checked) => handleChange('show_work_links', checked)}
+                />
+                <Label htmlFor="show_work_links" className="cursor-pointer">
+                  Show work/portfolio link fields on application form (for technical positions)
+                </Label>
+              </div>
+            </CardContent>
+          </Card>
 
           <VacancyAssignmentCard jobTitle={formData.title} />
 
