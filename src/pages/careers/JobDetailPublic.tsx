@@ -175,6 +175,9 @@ export default function JobDetailPublic() {
     cover_letter: '',
     source_of_application: '',
     consent: false,
+    github_url: '',
+    portfolio_url: '',
+    other_links: '',
   });
   const [customTextValues, setCustomTextValues] = useState<Record<string, string>>({});
   const [customFileValues, setCustomFileValues] = useState<Record<string, File | null>>({});
@@ -291,7 +294,13 @@ export default function JobDetailPublic() {
         additionalFiles: resumeFiles.slice(1),
         cover_letter: formData.cover_letter || undefined,
         source_of_application: formData.source_of_application || undefined,
-        custom_fields_data: Object.keys(customTextValues).length > 0 ? customTextValues : undefined,
+        custom_fields_data: (() => {
+          const merged = { ...customTextValues };
+          if (formData.github_url) merged.github_url = formData.github_url;
+          if (formData.portfolio_url) merged.portfolio_url = formData.portfolio_url;
+          if (formData.other_links) merged.other_links = formData.other_links;
+          return Object.keys(merged).length > 0 ? merged : undefined;
+        })(),
         custom_files: Object.keys(customFilesMap).length > 0 ? customFilesMap : undefined,
       });
       
@@ -504,6 +513,26 @@ export default function JobDetailPublic() {
                       <Button asChild variant="outline" className="w-full">
                         <Link to={`/careers/${orgCode}`}>View More Jobs</Link>
                       </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full text-muted-foreground"
+                        onClick={() => {
+                          if (job && orgCode) {
+                            localStorage.removeItem(`applied-${orgCode}-${job.id}`);
+                          }
+                          setHasApplied(false);
+                          setAppliedAt(null);
+                          setFormData({ name: '', email: '', phone: '', linkedin_url: '', cover_letter: '', source_of_application: '', consent: false, github_url: '', portfolio_url: '', other_links: '' });
+                          setResumeFiles([]);
+                          setCustomTextValues({});
+                          setCustomFileValues({});
+                          setEmailTouched(false);
+                          setNameTouched(false);
+                        }}
+                      >
+                        Apply with a different email
+                      </Button>
                     </div>
                   ) : (
                     <div>
@@ -599,6 +628,65 @@ export default function JobDetailPublic() {
                                   />
                                 </label>
                               </div>
+
+                              {/* Cover Letter */}
+                              <div className="space-y-2">
+                                <Label htmlFor="cover_letter">Cover Letter (Optional)</Label>
+                                <p className="text-xs text-muted-foreground">
+                                  Explain why you're applying, what makes you a strong fit, and summarize your relevant experience. (Max 200 words)
+                                </p>
+                                <Textarea
+                                  id="cover_letter"
+                                  value={formData.cover_letter}
+                                  onChange={(e) => {
+                                    const words = e.target.value.trim().split(/\s+/).filter(Boolean);
+                                    if (words.length <= 200 || e.target.value.length < formData.cover_letter.length) {
+                                      setFormData({ ...formData, cover_letter: e.target.value });
+                                    }
+                                  }}
+                                  placeholder="Tell us why you're interested in this role..."
+                                  className="min-h-[120px]"
+                                />
+                                <p className="text-xs text-muted-foreground text-right">
+                                  {formData.cover_letter.trim().split(/\s+/).filter(Boolean).length}/200 words
+                                </p>
+                              </div>
+
+                              {/* Work Links (for technical positions) */}
+                              {(job as any)?.show_work_links && (
+                                <>
+                                  <div className="space-y-2">
+                                    <Label htmlFor="github_url">GitHub Profile URL</Label>
+                                    <Input
+                                      id="github_url"
+                                      type="url"
+                                      value={formData.github_url}
+                                      onChange={(e) => setFormData({ ...formData, github_url: e.target.value })}
+                                      placeholder="https://github.com/username"
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor="portfolio_url">Portfolio / Website URL</Label>
+                                    <Input
+                                      id="portfolio_url"
+                                      type="url"
+                                      value={formData.portfolio_url}
+                                      onChange={(e) => setFormData({ ...formData, portfolio_url: e.target.value })}
+                                      placeholder="https://yourportfolio.com"
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor="other_links">Other Project Links</Label>
+                                    <Textarea
+                                      id="other_links"
+                                      value={formData.other_links}
+                                      onChange={(e) => setFormData({ ...formData, other_links: e.target.value })}
+                                      placeholder="Add links to relevant projects, separated by commas"
+                                      className="min-h-[60px]"
+                                    />
+                                  </div>
+                                </>
+                              )}
 
                               {/* Custom fields – all types */}
                               {customFields.map((cf) => (

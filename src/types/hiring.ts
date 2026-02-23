@@ -494,6 +494,7 @@ export interface UpdateJobInput extends Partial<CreateJobInput> {
   is_public_visible?: boolean;
   auto_close_on_deadline?: boolean;
   application_form_config?: ApplicationFormConfig;
+  show_work_links?: boolean;
 }
 
 export interface CreateCandidateInput {
