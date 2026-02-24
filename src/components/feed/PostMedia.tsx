@@ -105,7 +105,7 @@ export const PostMedia = ({ media }: PostMediaProps) => {
     }
 
     return (
-      <div className="relative w-full h-full">
+      <div className="relative w-full h-full max-w-full overflow-hidden">
         <img
           src={item.file_url}
           alt=""
