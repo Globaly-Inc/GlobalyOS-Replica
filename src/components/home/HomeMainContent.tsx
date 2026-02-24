@@ -20,7 +20,7 @@ export const HomeMainContent = ({ hasEmployeeProfile }: HomeMainContentProps) =>
   } = useHomeFilters();
 
   return (
-    <div className="lg:col-span-2 lg:pr-2">
+    <div className="lg:col-span-2 lg:pr-2 min-w-0">
       {/* Self Check-In Card - Desktop */}
       <div className="mb-6 hidden lg:block">
         <SelfCheckInCard />
