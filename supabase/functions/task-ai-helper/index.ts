@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'generate_description') {
-      const response = await fetch('https://api.lovable.dev/v1/chat/completions', {
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -53,6 +53,15 @@ Deno.serve(async (req) => {
         }),
       });
 
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error('AI API error:', response.status, errText);
+        return new Response(JSON.stringify({ error: 'AI generation failed' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       const data = await response.json();
       const desc = data.choices?.[0]?.message?.content?.trim() || '';
 
@@ -66,7 +75,7 @@ Deno.serve(async (req) => {
         ? `Task: "${title}"\nDescription: "${description}"\n\nSuggest 3-5 actionable subtasks.`
         : `Task: "${title}"\n\nSuggest 3-5 actionable subtasks to complete this task.`;
 
-      const response = await fetch('https://api.lovable.dev/v1/chat/completions', {
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -85,6 +94,15 @@ Deno.serve(async (req) => {
           temperature: 0.7,
         }),
       });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error('AI API error:', response.status, errText);
+        return new Response(JSON.stringify({ error: 'AI generation failed' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
 
       const data = await response.json();
       const content = data.choices?.[0]?.message?.content?.trim() || '[]';
