@@ -14,8 +14,8 @@ import { toast } from 'sonner';
 const STATUS_GROUPS: { key: StatusGroup; label: string }[] = [
   { key: 'todo', label: 'To Do' },
   { key: 'in_progress', label: 'In Progress' },
-  { key: 'in_review', label: 'In Review' },
   { key: 'blocked', label: 'Blocked' },
+  { key: 'in_review', label: 'In Review' },
   { key: 'completed', label: 'Completed' },
 ];
 
