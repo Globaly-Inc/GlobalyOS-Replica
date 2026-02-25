@@ -39,7 +39,7 @@ export type TaskChecklistUpdate = Database['public']['Tables']['task_checklists'
 
 // Enriched types for UI
 export type TaskPriority = 'urgent' | 'high' | 'normal' | 'low';
-export type StatusGroup = 'todo' | 'in_progress' | 'in_review' | 'completed';
+export type StatusGroup = 'todo' | 'in_progress' | 'in_review' | 'blocked' | 'completed';
 
 export interface TaskSpaceTreeNode extends TaskSpaceRow {
   children: TaskSpaceTreeNode[];
