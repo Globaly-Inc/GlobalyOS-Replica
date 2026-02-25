@@ -1,32 +1,21 @@
 
 
-## Fix: Show selected assignee's name and avatar in the Assignee button
+## Fix: Show full-width images with natural height in the Social Feed
 
 ### Problem
-Line 129 shows `'Assigned'` as static text when an employee is picked. The user wants to see the actual employee's name and avatar instead.
+Single images in feed posts are forced into a 16:9 `aspect-video` container with `object-cover`, which crops images that don't match that ratio. The user wants the full image visible at full width, with height adjusting naturally.
 
-### Change — single file: `src/components/tasks/AddTaskDialog.tsx`
+### Changes — single file: `src/components/feed/PostMedia.tsx`
 
-1. Import and call `useEmployees` to get the employee list.
-2. Look up the selected employee: `employees.find(e => e.id === assigneeId)`.
-3. Replace the button content (line 128-130) to render:
-   - **When no assignee**: show "Unassigned"
-   - **When assignee selected**: show avatar + employee name (no "Assigned" text)
+**1. Single image container (line 144)**
+- Remove the fixed `aspect-video` class for single non-PDF images
+- Let the image's natural aspect ratio determine the height
+- Add a `max-h-[500px]` cap to prevent extremely tall images from dominating the feed
 
-```tsx
-// Button content becomes:
-{selectedEmployee ? (
-  <div className="flex items-center gap-2">
-    <Avatar className="h-5 w-5">
-      <AvatarImage src={selectedEmployee.profiles?.avatar_url || undefined} />
-      <AvatarFallback className="text-[8px]">
-        {selectedEmployee.profiles?.full_name?.charAt(0)}
-      </AvatarFallback>
-    </Avatar>
-    <span className="truncate">{selectedEmployee.profiles?.full_name}</span>
-  </div>
-) : 'Unassigned'}
-```
+**2. Image rendering (lines 109-116)**
+- Change from `object-cover` (crops) to `object-contain` (shows full image) for inline feed images
+- Keep `w-full` so the image spans the container width
+- Change from `h-full` to `h-auto` so height follows the image's natural ratio
 
-The unused `assigneeLabel` state (line 30) will also be removed since it is no longer needed.
+The result: images will always show their full content at the container's full width, with height adjusting to match the image's natural proportions, capped at a reasonable maximum.
 
