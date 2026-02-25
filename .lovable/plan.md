@@ -1,34 +1,32 @@
 
 
-## Plan: Bottom "+ Add Task" opens the same dialog as top-right "+ Add Task"
+## Fix: Show selected assignee's name and avatar in the Assignee button
 
-### What changes
+### Problem
+Line 129 shows `'Assigned'` as static text when an employee is picked. The user wants to see the actual employee's name and avatar instead.
 
-Currently, the "+ Add Task" at the bottom of each status group (in both **List View** and **Board View**) opens an inline quick-add input. The request is to make it open the **AddTaskDialog** popup instead — the same one triggered by the top-right "+ Add Task" button — with the clicked status pre-selected.
+### Change — single file: `src/components/tasks/AddTaskDialog.tsx`
 
-### Technical details
+1. Import and call `useEmployees` to get the employee list.
+2. Look up the selected employee: `employees.find(e => e.id === assigneeId)`.
+3. Replace the button content (line 128-130) to render:
+   - **When no assignee**: show "Unassigned"
+   - **When assignee selected**: show avatar + employee name (no "Assigned" text)
 
-**1. `AddTaskDialog.tsx`** — Accept an optional `defaultStatusId` prop  
-- When provided, use it as the initial value for the status select instead of the space's default status.
+```tsx
+// Button content becomes:
+{selectedEmployee ? (
+  <div className="flex items-center gap-2">
+    <Avatar className="h-5 w-5">
+      <AvatarImage src={selectedEmployee.profiles?.avatar_url || undefined} />
+      <AvatarFallback className="text-[8px]">
+        {selectedEmployee.profiles?.full_name?.charAt(0)}
+      </AvatarFallback>
+    </Avatar>
+    <span className="truncate">{selectedEmployee.profiles?.full_name}</span>
+  </div>
+) : 'Unassigned'}
+```
 
-**2. `TaskListView.tsx`** — Replace inline quick-add with a callback  
-- Remove the `addingInStatus` state and the `TaskQuickAdd` component usage.
-- Accept a new prop `onAddTaskInStatus: (statusId: string) => void`.
-- The bottom "+ Add Task" button and the header "+" icon will both call `onAddTaskInStatus(status.id)`.
-
-**3. `TaskBoardView.tsx`** — Same change as List View  
-- Remove `addingInStatus` state and `TaskQuickAdd` usage.
-- Accept a new prop `onAddTaskInStatus: (statusId: string) => void`.
-- Both the header "+" icon and the bottom "+ Add Task" button call `onAddTaskInStatus(status.id)`.
-
-**4. `Tasks.tsx` (page)** — Wire up the dialog with a pre-selected status  
-- Add state `addTaskDefaultStatusId` to track which status was clicked.
-- Pass `onAddTaskInStatus` callback to both `TaskListView` and `TaskBoardView` that sets the status ID and opens the `AddTaskDialog`.
-- Pass `defaultStatusId` to `AddTaskDialog`.
-
-### Summary of flow after the change
-
-1. User clicks "+ Add Task" at the bottom of a status column (or the "+" icon in the header).
-2. The `AddTaskDialog` popup opens with that status pre-selected.
-3. User fills in details and creates the task — same experience as the top-right button, but with the correct status pre-filled.
+The unused `assigneeLabel` state (line 30) will also be removed since it is no longer needed.
 
