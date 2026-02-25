@@ -15,6 +15,7 @@ const STATUS_GROUPS: { key: StatusGroup; label: string }[] = [
   { key: 'todo', label: 'To Do' },
   { key: 'in_progress', label: 'In Progress' },
   { key: 'in_review', label: 'In Review' },
+  { key: 'blocked', label: 'Blocked' },
   { key: 'completed', label: 'Completed' },
 ];
 
@@ -66,7 +67,7 @@ const StatusManager = ({ spaceId }: { spaceId: string }) => {
         name,
         status_group: group,
         sort_order: statuses.filter(s => s.status_group === group).length,
-        color: group === 'completed' ? '#10b981' : group === 'in_review' ? '#f59e0b' : group === 'in_progress' ? '#3b82f6' : '#6b7280',
+        color: group === 'completed' ? '#10b981' : group === 'blocked' ? '#ef4444' : group === 'in_review' ? '#f59e0b' : group === 'in_progress' ? '#3b82f6' : '#6b7280',
       });
       setNewNames(prev => ({ ...prev, [group]: '' }));
     } catch {
