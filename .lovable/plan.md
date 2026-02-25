@@ -1,63 +1,43 @@
 
 
-## Plan: Four-Tier Hierarchy with Color-Coded Levels
+## Plan: "All Tasks" view showing tasks from all projects
 
-### Understanding
-
-The current `task_spaces` table already supports unlimited nesting via `parent_id`. The sidebar renders all spaces in a flat tree with uniform styling. The user wants to enforce a **four-tier visual hierarchy** in the sidebar with distinct labels and colors per depth level:
-
-| Depth | Label | Color |
-|-------|-------|-------|
-| 0 | Projects | Green |
-| 1 | Sub-projects | Pink |
-| 2 | Tasks | Blue |
-| 3 | Subtasks | Yellow |
-
-No database changes are needed — the existing `parent_id` self-referencing structure already supports 4 levels of nesting. This is purely a **UI/UX change** in the sidebar and the create dialog.
+### Problem
+The "All Tasks" button in the sidebar is currently a no-op (`onClick={() => { }}`). When no space is selected, the main area shows an empty "Welcome to Tasks" placeholder instead of aggregating tasks from all spaces.
 
 ### Changes
 
-**1. `src/components/tasks/TaskInnerSidebar.tsx`**
+**1. `src/services/useTasks.ts` — Add `useAllTasks` hook**
+- New hook that fetches all tasks across all spaces for the current organization (no `space_id` filter)
+- Query: `supabase.from('tasks').select('*, status:task_statuses(*), category:task_categories(*)').eq('organization_id', orgId).eq('is_archived', false).order('created_at', { ascending: false })`
+- Enriches with assignee/reporter same as `useTasks`
+- Query key: `['all-tasks', orgId]`
 
-- Define a tier config map:
-  ```
-  depth 0 → { label: 'Projects', color: 'text-green-600', bg: 'bg-green-500/10', selectedBg: 'bg-green-500/20', icon: '📂' }
-  depth 1 → { label: 'Sub-projects', color: 'text-pink-600', bg: 'bg-pink-500/10', selectedBg: 'bg-pink-500/20', icon: '📁' }
-  depth 2 → { label: 'Tasks', color: 'text-blue-600', bg: 'bg-blue-500/10', selectedBg: 'bg-blue-500/20', icon: '📋' }
-  depth 3 → { label: 'Subtasks', color: 'text-yellow-600', bg: 'bg-yellow-500/10', selectedBg: 'bg-yellow-500/20', icon: '📌' }
-  ```
+**2. `src/services/useTasks.ts` — Add `useAllTaskStatuses` and `useAllTaskCategories` hooks**
+- Fetch all statuses/categories for the org (no `space_id` filter) so the list/board views can group by status
+- These are needed because the current `useTaskStatuses` and `useTaskCategories` are scoped to a single space
 
-- Update `renderNode` to accept `depth` (already does) and apply the tier-specific color classes:
-  - Selected state uses `selectedBg` + tier `color` instead of generic `bg-primary/10 text-primary`
-  - Unselected state uses tier `color` for the text instead of generic `text-muted-foreground`
-  - Add a small colored dot/indicator before the name to reinforce the tier color
+**3. `src/components/tasks/TaskInnerSidebar.tsx` — Wire up "All Tasks" click**
+- Change `onClick={() => { }}` to `onClick={() => onSelectSpace('__all__')}` (or use `null` to signal "all tasks")
+- Update the `onSelectSpace` signature to accept `string | null`
+- Highlight "All Tasks" when `selectedSpaceId` is `null`
 
-- Update the section header from "Spaces" to "Projects"
+**4. `src/pages/Tasks.tsx` — Handle the "All Tasks" state**
+- When `selectedSpaceId` is `null` (All Tasks mode):
+  - Use `useAllTasks`, `useAllTaskStatuses`, `useAllTaskCategories` instead of the space-scoped hooks
+  - Show a simplified header ("All Tasks" title, no breadcrumb, no Manage button, no list tabs)
+  - Hide the "Add Task" button (since there's no target space) or keep it disabled
+  - Render the same `TaskListView` / `TaskBoardView` with the aggregated data
+  - Pass a special `spaceId` value (empty string) to the views — inline creation will be hidden since there's no target space
+- When a specific space is selected, behavior stays exactly as it is now
 
-- Update the "Add Sub-space" context menu label to be tier-aware:
-  - On a Project (depth 0): "Add Sub-project"
-  - On a Sub-project (depth 1): "Add Task"
-  - On a Task (depth 2): "Add Subtask"
-  - On a Subtask (depth 3): no "Add" option (max depth reached)
-
-- Limit nesting to 4 levels — hide the "Add child" menu item when `depth >= 3`
-
-- Pass `depth` info when opening the `CreateSpaceDialog` so the dialog title is tier-aware
-
-**2. `src/components/tasks/CreateSpaceDialog.tsx`**
-
-- Accept an optional `depth` prop (the depth of the parent + 1, or 0 for root)
-- Use the tier config to set the dialog title dynamically:
-  - depth 0: "Create Project"
-  - depth 1: "Create Sub-project"
-  - depth 2: "Create Task"
-  - depth 3: "Create Subtask"
-- Update the placeholder text accordingly (e.g. "e.g. Marketing Campaign" for projects)
+**5. `src/components/tasks/TaskListView.tsx` and `TaskBoardView.tsx` — Handle "all tasks" mode**
+- When `spaceId` is empty/null, hide the inline "Add Task" row and the "+ Add Task" buttons (since we don't know which space to create in)
+- Everything else (grouping by status, bulk delete, selection) works as-is
 
 ### Technical details
-
-- The tier config is a simple array indexed by depth, clamped to index 3 for any depth ≥ 3
-- No database migration needed — the `parent_id` column already supports unlimited nesting
-- The `buildSpaceTree` function already computes the tree correctly; depth is derived during render traversal
-- Colors use Tailwind's built-in green/pink/blue/yellow palettes so they work in both light and dark mode
+- The `useAllTasks` query uses `organization_id` from session context (not from client), maintaining tenant isolation
+- Statuses from different spaces may share names but have different IDs — they will appear as separate groups, which is correct
+- Bulk delete still works since it operates on task IDs directly
+- The `useBulkDeleteTasks` hook will need a slight adjustment: in "all tasks" mode, invalidate `['all-tasks']` query key instead of (or in addition to) `['tasks', spaceId]`
 
