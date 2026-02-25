@@ -16,9 +16,10 @@ interface AddTaskDialogProps {
   onOpenChange: (open: boolean) => void;
   spaceId: string;
   listId?: string | null;
+  defaultStatusId?: string | null;
 }
 
-export const AddTaskDialog = ({ open, onOpenChange, spaceId, listId }: AddTaskDialogProps) => {
+export const AddTaskDialog = ({ open, onOpenChange, spaceId, listId, defaultStatusId }: AddTaskDialogProps) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [statusId, setStatusId] = useState<string>('');
@@ -32,7 +33,7 @@ export const AddTaskDialog = ({ open, onOpenChange, spaceId, listId }: AddTaskDi
   const { data: categories = [] } = useTaskCategories(spaceId);
   const createTask = useCreateTask();
 
-  const defaultStatusId = statuses.find(s => s.is_default)?.id || statuses[0]?.id || '';
+  const fallbackStatusId = defaultStatusId || statuses.find(s => s.is_default)?.id || statuses[0]?.id || '';
 
   const handleCreate = async () => {
     if (!title.trim()) return;
@@ -42,7 +43,7 @@ export const AddTaskDialog = ({ open, onOpenChange, spaceId, listId }: AddTaskDi
         list_id: listId || null,
         title: title.trim(),
         description: description.trim() || null,
-        status_id: statusId || defaultStatusId,
+        status_id: statusId || fallbackStatusId,
         category_id: categoryId === 'none' ? null : categoryId,
         priority,
         due_date: dueDate || null,
@@ -77,7 +78,7 @@ export const AddTaskDialog = ({ open, onOpenChange, spaceId, listId }: AddTaskDi
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Status</Label>
-              <Select value={statusId || defaultStatusId} onValueChange={setStatusId}>
+              <Select value={statusId || fallbackStatusId} onValueChange={setStatusId}>
                 <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select status" /></SelectTrigger>
                 <SelectContent>
                   {statuses.map(s => (
