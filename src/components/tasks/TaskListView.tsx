@@ -139,10 +139,32 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
     setShowBulkDeleteDialog(false);
   };
 
-  const tasksByStatus = statuses.map(status => ({
-    status,
-    tasks: tasks.filter(t => t.status_id === status.id),
-  }));
+  const tasksByStatus = (() => {
+    if (!isAllTasksMode) {
+      return statuses.map(status => ({
+        status,
+        tasks: tasks.filter(t => t.status_id === status.id),
+      }));
+    }
+    // In all-tasks mode, merge statuses with the same name to avoid duplicates
+    const merged: { status: TaskStatusRow; statusIds: Set<string>; tasks: TaskWithRelations[] }[] = [];
+    const nameIndex = new Map<string, number>();
+    for (const s of statuses) {
+      const key = s.name.toLowerCase();
+      if (nameIndex.has(key)) {
+        merged[nameIndex.get(key)!].statusIds.add(s.id);
+      } else {
+        nameIndex.set(key, merged.length);
+        merged.push({ status: s, statusIds: new Set([s.id]), tasks: [] });
+      }
+    }
+    for (const t of tasks) {
+      const group = merged.find(m => m.statusIds.has(t.status_id));
+      if (group) group.tasks.push(t);
+      else merged[0]?.tasks.push(t);
+    }
+    return merged.map(m => ({ status: m.status, tasks: m.tasks }));
+  })();
 
   const gridStyle = {
     gridTemplateColumns: (selectionActive ? '28px ' : '') + visibleColumns.map(col => {
