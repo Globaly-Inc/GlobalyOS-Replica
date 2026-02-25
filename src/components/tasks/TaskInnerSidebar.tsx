@@ -25,7 +25,7 @@ export const TaskInnerSidebar = ({ selectedSpaceId, onSelectSpace }: TaskInnerSi
   const navigate = useNavigate();
 
   const toggleExpand = (id: string) => {
-    setExpandedIds(prev => {
+    setExpandedIds((prev) => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
@@ -56,27 +56,27 @@ export const TaskInnerSidebar = ({ selectedSpaceId, onSelectSpace }: TaskInnerSi
         <div
           className={cn(
             'group flex items-center gap-1 px-2 py-1.5 rounded-md cursor-pointer text-sm transition-colors',
-            isSelected
-              ? 'bg-primary/10 text-primary font-medium'
-              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            isSelected ?
+            'bg-primary/10 text-primary font-medium' :
+            'text-muted-foreground hover:bg-muted hover:text-foreground'
           )}
-          style={{ paddingLeft: `${8 + depth * 16}px` }}
-        >
+          style={{ paddingLeft: `${8 + depth * 16}px` }}>
+
           <button
-            onClick={(e) => { e.stopPropagation(); toggleExpand(node.id); }}
-            className="p-0.5 shrink-0"
-          >
-            {hasChildren ? (
-              isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />
-            ) : (
-              <span className="w-3.5" />
-            )}
+            onClick={(e) => {e.stopPropagation();toggleExpand(node.id);}}
+            className="p-0.5 shrink-0">
+
+            {hasChildren ?
+            isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" /> :
+
+            <span className="w-3.5" />
+            }
           </button>
           <span className="text-base shrink-0">{node.icon || '📁'}</span>
           <span
             className="truncate flex-1"
-            onClick={() => onSelectSpace(node.id)}
-          >
+            onClick={() => onSelectSpace(node.id)}>
+
             {node.name}
           </span>
           <DropdownMenu>
@@ -91,18 +91,18 @@ export const TaskInnerSidebar = ({ selectedSpaceId, onSelectSpace }: TaskInnerSi
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => handleDeleteSpace(node.id)}
-                className="text-destructive focus:text-destructive"
-              >
+                className="text-destructive focus:text-destructive">
+
                 <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        {isExpanded && hasChildren && (
-          <div>{node.children.map(child => renderNode(child, depth + 1))}</div>
-        )}
-      </div>
-    );
+        {isExpanded && hasChildren &&
+        <div>{node.children.map((child) => renderNode(child, depth + 1))}</div>
+        }
+      </div>);
+
   };
 
   return (
@@ -113,14 +113,14 @@ export const TaskInnerSidebar = ({ selectedSpaceId, onSelectSpace }: TaskInnerSi
         <div
           className={cn(
             'flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer text-sm transition-colors',
-            !selectedSpaceId
-              ? 'bg-primary/10 text-primary font-medium'
-              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            !selectedSpaceId ?
+            'bg-primary/10 text-primary font-medium' :
+            'text-muted-foreground hover:bg-muted hover:text-foreground'
           )}
-          onClick={() => { /* My Tasks - reset space selection */ }}
-        >
+          onClick={() => {/* My Tasks - reset space selection */}}>
+
           <CheckSquare className="h-4 w-4" />
-          <span>My Tasks</span>
+          <span>All Tasks</span>
         </div>
       </div>
 
@@ -131,28 +131,28 @@ export const TaskInnerSidebar = ({ selectedSpaceId, onSelectSpace }: TaskInnerSi
           variant="ghost"
           size="icon"
           className="h-5 w-5"
-          onClick={() => { setCreateParentId(null); setShowCreateDialog(true); }}
-        >
+          onClick={() => {setCreateParentId(null);setShowCreateDialog(true);}}>
+
           <Plus className="h-3.5 w-3.5" />
         </Button>
       </div>
 
       <ScrollArea className="flex-1 px-1">
         <div className="py-1">
-          {tree.map(node => renderNode(node))}
-          {tree.length === 0 && (
-            <p className="px-3 py-4 text-xs text-muted-foreground text-center">
+          {tree.map((node) => renderNode(node))}
+          {tree.length === 0 &&
+          <p className="px-3 py-4 text-xs text-muted-foreground text-center">
               No spaces yet. Create one to get started.
             </p>
-          )}
+          }
         </div>
       </ScrollArea>
 
       <CreateSpaceDialog
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
-        parentId={createParentId}
-      />
-    </div>
-  );
+        parentId={createParentId} />
+
+    </div>);
+
 };
