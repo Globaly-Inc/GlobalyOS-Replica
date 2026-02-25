@@ -3,7 +3,6 @@ import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { TaskRow } from './TaskRow';
-import { TaskQuickAdd } from './TaskQuickAdd';
 import { useEmployees } from '@/services/useEmployees';
 import type { TaskStatusRow, TaskWithRelations, TaskCategoryRow } from '@/types/task';
 import type { ColumnConfig } from './TaskColumnCustomizer';
@@ -16,11 +15,11 @@ interface TaskListViewProps {
   listId?: string | null;
   onTaskClick: (taskId: string) => void;
   columns?: ColumnConfig[];
+  onAddTaskInStatus?: (statusId: string) => void;
 }
 
-export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onTaskClick, columns }: TaskListViewProps) => {
+export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onTaskClick, columns, onAddTaskInStatus }: TaskListViewProps) => {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
-  const [addingInStatus, setAddingInStatus] = useState<string | null>(null);
 
   const { data: employeesData } = useEmployees({ status: 'active' });
   const members = ((employeesData || []) as any[]).map((e: any) => ({
@@ -97,7 +96,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                 className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setAddingInStatus(status.id);
+                  onAddTaskInStatus?.(status.id);
                 }}
               >
                 <Plus className="h-3.5 w-3.5" />
@@ -138,26 +137,14 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                   />
                 ))}
 
-                {/* Quick add */}
-                {addingInStatus === status.id ? (
-                  <TaskQuickAdd
-                    spaceId={spaceId}
-                    statusId={status.id}
-                    categories={categories}
-                    listId={listId}
-                    onDone={() => setAddingInStatus(null)}
-                    visibleColumns={visibleColumns}
-                    gridStyle={gridStyle}
-                  />
-                ) : (
-                  <button
-                    className="flex items-center gap-1.5 px-3 py-2 w-full text-xs text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors border-t"
-                    onClick={() => setAddingInStatus(status.id)}
-                  >
-                    <Plus className="h-3 w-3" />
-                    <span>Add Task</span>
-                  </button>
-                )}
+                {/* Add task button */}
+                <button
+                  className="flex items-center gap-1.5 px-3 py-2 w-full text-xs text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors border-t"
+                  onClick={() => onAddTaskInStatus?.(status.id)}
+                >
+                  <Plus className="h-3 w-3" />
+                  <span>Add Task</span>
+                </button>
               </div>
             )}
           </div>

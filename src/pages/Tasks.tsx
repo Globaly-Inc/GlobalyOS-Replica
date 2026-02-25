@@ -27,6 +27,7 @@ const Tasks = () => {
   const [search, setSearch] = useState('');
   const [showManage, setShowManage] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
+  const [addTaskDefaultStatusId, setAddTaskDefaultStatusId] = useState<string | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [filters, setFilters] = useState<TaskFilters>({});
@@ -351,6 +352,10 @@ const Tasks = () => {
                   listId={activeListId}
                   onTaskClick={handleTaskClick}
                   columns={columns}
+                  onAddTaskInStatus={(statusId) => {
+                    setAddTaskDefaultStatusId(statusId);
+                    setShowAddTask(true);
+                  }}
                 />
               ) : (
                 <TaskBoardView
@@ -359,6 +364,10 @@ const Tasks = () => {
                   categories={categories}
                   spaceId={activeSpaceId}
                   onTaskClick={handleTaskClick}
+                  onAddTaskInStatus={(statusId) => {
+                    setAddTaskDefaultStatusId(statusId);
+                    setShowAddTask(true);
+                  }}
                 />
               )}
             </div>
@@ -366,9 +375,13 @@ const Tasks = () => {
             <ManageDialog open={showManage} onOpenChange={setShowManage} spaceId={activeSpaceId} />
             <AddTaskDialog
               open={showAddTask}
-              onOpenChange={setShowAddTask}
+              onOpenChange={(open) => {
+                setShowAddTask(open);
+                if (!open) setAddTaskDefaultStatusId(null);
+              }}
               spaceId={activeSpaceId}
               listId={activeListId}
+              defaultStatusId={addTaskDefaultStatusId}
             />
           </>
         ) : (

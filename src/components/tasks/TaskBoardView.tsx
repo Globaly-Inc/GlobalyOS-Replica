@@ -25,7 +25,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useUpdateTask } from '@/services/useTasks';
 import type { TaskStatusRow, TaskWithRelations, TaskCategoryRow } from '@/types/task';
-import { TaskQuickAdd } from './TaskQuickAdd';
 
 const priorityConfig: Record<string, { label: string; className: string }> = {
   urgent: { label: 'Urgent', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
@@ -40,11 +39,11 @@ interface TaskBoardViewProps {
   categories: TaskCategoryRow[];
   spaceId: string;
   onTaskClick: (taskId: string) => void;
+  onAddTaskInStatus?: (statusId: string) => void;
 }
 
-export const TaskBoardView = ({ statuses, tasks, categories, spaceId, onTaskClick }: TaskBoardViewProps) => {
+export const TaskBoardView = ({ statuses, tasks, categories, spaceId, onTaskClick, onAddTaskInStatus }: TaskBoardViewProps) => {
   const [activeTask, setActiveTask] = useState<TaskWithRelations | null>(null);
-  const [addingInStatus, setAddingInStatus] = useState<string | null>(null);
   const updateTask = useUpdateTask();
 
   const sensors = useSensors(
@@ -107,9 +106,7 @@ export const TaskBoardView = ({ statuses, tasks, categories, spaceId, onTaskClic
             categories={categories}
             spaceId={spaceId}
             onTaskClick={onTaskClick}
-            isAddingTask={addingInStatus === status.id}
-            onAddTask={() => setAddingInStatus(status.id)}
-            onDoneAdding={() => setAddingInStatus(null)}
+            onAddTask={() => onAddTaskInStatus?.(status.id)}
           />
         ))}
       </div>
@@ -129,12 +126,10 @@ interface BoardColumnProps {
   categories: TaskCategoryRow[];
   spaceId: string;
   onTaskClick: (taskId: string) => void;
-  isAddingTask: boolean;
   onAddTask: () => void;
-  onDoneAdding: () => void;
 }
 
-const BoardColumn = ({ status, tasks, categories, spaceId, onTaskClick, isAddingTask, onAddTask, onDoneAdding }: BoardColumnProps) => {
+const BoardColumn = ({ status, tasks, categories, spaceId, onTaskClick, onAddTask }: BoardColumnProps) => {
   const taskIds = tasks.map(t => t.id);
   const { setNodeRef: setDropRef } = useDroppable({ id: status.id });
 
@@ -166,23 +161,16 @@ const BoardColumn = ({ status, tasks, categories, spaceId, onTaskClick, isAdding
           </div>
         </SortableContext>
 
-        {isAddingTask && (
-          <div className="mt-2">
-            <TaskQuickAdd spaceId={spaceId} statusId={status.id} categories={categories} onDone={onDoneAdding} />
-          </div>
-        )}
       </ScrollArea>
 
       {/* Add task button at bottom */}
-      {!isAddingTask && (
-        <button
-          className="flex items-center gap-1.5 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors border-t"
-          onClick={onAddTask}
-        >
-          <Plus className="h-3 w-3" />
-          <span>Add Task</span>
-        </button>
-      )}
+      <button
+        className="flex items-center gap-1.5 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors border-t"
+        onClick={onAddTask}
+      >
+        <Plus className="h-3 w-3" />
+        <span>Add Task</span>
+      </button>
     </div>
   );
 };
