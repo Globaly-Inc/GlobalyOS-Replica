@@ -279,7 +279,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                 className="h-2 w-2 rounded-full shrink-0"
                 style={{ backgroundColor: status.color || '#6b7280' }}
               />
-              <span className="text-sm font-medium">{status.name}</span>
+              <span className="text-sm font-medium" style={{ color: status.color || undefined }}>{status.name}</span>
               <Badge variant="secondary" className="text-xs h-5 px-1.5">
                 {statusTasks.length}
               </Badge>
