@@ -112,8 +112,10 @@ export const PostMedia = ({ media }: PostMediaProps) => {
           className={cn(
             "object-cover",
             isInLightbox 
-              ? "max-w-full max-h-[80vh] mx-auto rounded-lg" 
-              : "w-full h-full cursor-pointer hover:opacity-95 transition-opacity"
+              ? "max-w-full max-h-[80vh] mx-auto rounded-lg object-contain" 
+              : media.length === 1
+                ? "w-full h-auto cursor-pointer hover:opacity-95 transition-opacity object-contain"
+                : "w-full h-full cursor-pointer hover:opacity-95 transition-opacity object-cover"
           )}
           onClick={isInLightbox ? undefined : () => openLightbox(index)}
         />
@@ -141,7 +143,7 @@ export const PostMedia = ({ media }: PostMediaProps) => {
               // Single PDF: no fixed aspect ratio, let content determine height, edge-to-edge on mobile
               isSinglePdf && "sm:rounded-lg",
               // Single non-PDF media
-              media.length === 1 && !isSinglePdf && "aspect-video rounded-lg",
+              media.length === 1 && !isSinglePdf && "max-h-[500px] rounded-lg",
               // Multiple items - always rounded
               media.length >= 2 && "rounded-lg",
               media.length === 2 && "aspect-square",
