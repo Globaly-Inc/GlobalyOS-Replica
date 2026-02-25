@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -9,7 +9,6 @@ import {
   useSensors,
   type DragStartEvent,
   type DragEndEvent,
-  type DragOverEvent,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -24,10 +23,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { TaskBulkActionsBar } from './TaskBulkActionsBar';
 import { cn } from '@/lib/utils';
-import { useUpdateTask, useDeleteTask } from '@/services/useTasks';
+import { useUpdateTask, useDeleteTask, useBulkDeleteTasks } from '@/services/useTasks';
 import type { TaskStatusRow, TaskWithRelations, TaskCategoryRow } from '@/types/task';
 import { toast } from 'sonner';
 
@@ -50,7 +51,12 @@ interface TaskBoardViewProps {
 
 export const TaskBoardView = ({ statuses, tasks, categories, spaceId, onTaskClick, onAddTaskInStatus, onAddTaskWithTitle }: TaskBoardViewProps) => {
   const [activeTask, setActiveTask] = useState<TaskWithRelations | null>(null);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const updateTask = useUpdateTask();
+  const bulkDelete = useBulkDeleteTasks();
+
+  const selectionActive = selectedTaskIds.size > 0;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -71,15 +77,11 @@ export const TaskBoardView = ({ statuses, tasks, categories, spaceId, onTaskClic
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
 
-    // Determine target status - over could be a task or a column
     let targetStatusId: string | null = null;
-
-    // Check if dropped over a status column
     const overStatus = statuses.find(s => s.id === over.id);
     if (overStatus) {
       targetStatusId = overStatus.id;
     } else {
-      // Dropped over another task - find that task's status
       const overTask = tasks.find(t => t.id === over.id);
       if (overTask) {
         targetStatusId = overTask.status_id;
@@ -91,37 +93,94 @@ export const TaskBoardView = ({ statuses, tasks, categories, spaceId, onTaskClic
     }
   };
 
+  const handleToggleSelect = useCallback((taskId: string) => {
+    setSelectedTaskIds(prev => {
+      const next = new Set(prev);
+      next.has(taskId) ? next.delete(taskId) : next.add(taskId);
+      return next;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    setSelectedTaskIds(new Set(tasks.map(t => t.id)));
+  }, [tasks]);
+
+  const handleDeselectAll = useCallback(() => {
+    setSelectedTaskIds(new Set());
+  }, []);
+
+  const handleBulkDelete = () => {
+    bulkDelete.mutate({ ids: [...selectedTaskIds], spaceId }, {
+      onSuccess: () => {
+        toast.success(`${selectedTaskIds.size} task(s) deleted`);
+        setSelectedTaskIds(new Set());
+      },
+      onError: () => toast.error('Failed to delete tasks'),
+    });
+    setShowBulkDeleteDialog(false);
+  };
+
   const tasksByStatus = statuses.map(status => ({
     status,
     tasks: tasks.filter(t => t.status_id === status.id),
   }));
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCorners}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-    >
-      <div className="flex gap-4 h-full overflow-x-auto pb-4">
-        {tasksByStatus.map(({ status, tasks: columnTasks }) => (
-          <BoardColumn
-            key={status.id}
-            status={status}
-            tasks={columnTasks}
-            categories={categories}
-            spaceId={spaceId}
-            onTaskClick={onTaskClick}
-            onAddTask={() => onAddTaskInStatus?.(status.id)}
-            onAddTaskWithTitle={onAddTaskWithTitle ? (title) => onAddTaskWithTitle(status.id, title) : undefined}
-          />
-        ))}
-      </div>
+    <>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="flex gap-4 h-full overflow-x-auto pb-4">
+          {tasksByStatus.map(({ status, tasks: columnTasks }) => (
+            <BoardColumn
+              key={status.id}
+              status={status}
+              tasks={columnTasks}
+              categories={categories}
+              spaceId={spaceId}
+              onTaskClick={onTaskClick}
+              onAddTask={() => onAddTaskInStatus?.(status.id)}
+              onAddTaskWithTitle={onAddTaskWithTitle ? (title) => onAddTaskWithTitle(status.id, title) : undefined}
+              selectionActive={selectionActive}
+              selectedTaskIds={selectedTaskIds}
+              onToggleSelect={handleToggleSelect}
+            />
+          ))}
+        </div>
 
-      <DragOverlay>
-        {activeTask && <TaskCard task={activeTask} onClick={() => {}} isDragging spaceId={spaceId} />}
-      </DragOverlay>
-    </DndContext>
+        <DragOverlay>
+          {activeTask && <TaskCard task={activeTask} onClick={() => {}} isDragging spaceId={spaceId} selectionActive={false} selected={false} onToggleSelect={() => {}} />}
+        </DragOverlay>
+      </DndContext>
+
+      <TaskBulkActionsBar
+        selectedCount={selectedTaskIds.size}
+        totalItems={tasks.length}
+        onSelectAll={handleSelectAll}
+        onDeselectAll={handleDeselectAll}
+        onDelete={() => setShowBulkDeleteDialog(true)}
+      />
+
+      <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedTaskIds.size} task(s)</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedTaskIds.size} task(s)? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 
@@ -135,9 +194,12 @@ interface BoardColumnProps {
   onTaskClick: (taskId: string) => void;
   onAddTask: () => void;
   onAddTaskWithTitle?: (title: string) => void;
+  selectionActive: boolean;
+  selectedTaskIds: Set<string>;
+  onToggleSelect: (taskId: string) => void;
 }
 
-const BoardColumn = ({ status, tasks, categories, spaceId, onTaskClick, onAddTask, onAddTaskWithTitle }: BoardColumnProps) => {
+const BoardColumn = ({ status, tasks, categories, spaceId, onTaskClick, onAddTask, onAddTaskWithTitle, selectionActive, selectedTaskIds, onToggleSelect }: BoardColumnProps) => {
   const taskIds = tasks.map(t => t.id);
   const { setNodeRef: setDropRef } = useDroppable({ id: status.id });
   const [isAddingInline, setIsAddingInline] = useState(false);
@@ -196,7 +258,15 @@ const BoardColumn = ({ status, tasks, categories, spaceId, onTaskClick, onAddTas
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy} id={status.id}>
           <div className="space-y-2 min-h-[40px]">
             {tasks.map(task => (
-              <SortableTaskCard key={task.id} task={task} onClick={() => onTaskClick(task.id)} spaceId={spaceId} />
+              <SortableTaskCard
+                key={task.id}
+                task={task}
+                onClick={() => onTaskClick(task.id)}
+                spaceId={spaceId}
+                selectionActive={selectionActive}
+                selected={selectedTaskIds.has(task.id)}
+                onToggleSelect={onToggleSelect}
+              />
             ))}
           </div>
         </SortableContext>
@@ -241,7 +311,7 @@ const BoardColumn = ({ status, tasks, categories, spaceId, onTaskClick, onAddTas
 
 // ─── Sortable Card Wrapper ───
 
-const SortableTaskCard = ({ task, onClick, spaceId }: { task: TaskWithRelations; onClick: () => void; spaceId: string }) => {
+const SortableTaskCard = ({ task, onClick, spaceId, selectionActive, selected, onToggleSelect }: { task: TaskWithRelations; onClick: () => void; spaceId: string; selectionActive: boolean; selected: boolean; onToggleSelect: (id: string) => void }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
 
   const style = {
@@ -251,14 +321,14 @@ const SortableTaskCard = ({ task, onClick, spaceId }: { task: TaskWithRelations;
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <TaskCard task={task} onClick={onClick} isDragging={isDragging} spaceId={spaceId} />
+      <TaskCard task={task} onClick={onClick} isDragging={isDragging} spaceId={spaceId} selectionActive={selectionActive} selected={selected} onToggleSelect={onToggleSelect} />
     </div>
   );
 };
 
 // ─── Card ───
 
-const TaskCard = ({ task, onClick, isDragging, spaceId }: { task: TaskWithRelations; onClick: () => void; isDragging?: boolean; spaceId: string }) => {
+const TaskCard = ({ task, onClick, isDragging, spaceId, selectionActive, selected, onToggleSelect }: { task: TaskWithRelations; onClick: () => void; isDragging?: boolean; spaceId: string; selectionActive: boolean; selected: boolean; onToggleSelect: (id: string) => void }) => {
   const priority = priorityConfig[task.priority] || priorityConfig.normal;
   const deleteTask = useDeleteTask();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -275,13 +345,30 @@ const TaskCard = ({ task, onClick, isDragging, spaceId }: { task: TaskWithRelati
     <>
       <div
         className={cn(
-          'bg-card rounded-lg border p-3 cursor-pointer hover:shadow-sm transition-shadow space-y-2 group',
-          isDragging && 'opacity-50 shadow-lg ring-2 ring-primary/20'
+          'bg-card rounded-lg border p-3 cursor-pointer hover:shadow-sm transition-shadow space-y-2 group relative',
+          isDragging && 'opacity-50 shadow-lg ring-2 ring-primary/20',
+          selected && 'ring-2 ring-primary'
         )}
         onClick={onClick}
       >
+        {/* Checkbox overlay */}
+        <div
+          className={cn(
+            'absolute top-2 left-2 z-10',
+            selectionActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
+            'transition-opacity'
+          )}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Checkbox
+            checked={selected}
+            onCheckedChange={() => onToggleSelect(task.id)}
+            className="bg-card"
+          />
+        </div>
+
         {/* Title + actions */}
-        <div className="flex items-start justify-between gap-1">
+        <div className={cn('flex items-start justify-between gap-1', selectionActive && 'pl-6')}>
           <p className="text-sm font-medium leading-snug flex-1">{task.title}</p>
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
