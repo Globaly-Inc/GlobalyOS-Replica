@@ -1,40 +1,27 @@
 
 
-## Plan: Inline Task Name Input on Board "+ Add Task" → Opens AddTaskDialog with Pre-filled Title
+## Refactor EmployeePickerPopover to use Command-based searchable dropdown
 
 ### What changes
 
-**1. `src/components/tasks/TaskBoardView.tsx`** — Add inline input state to `BoardColumn`
-- When user clicks "+ Add Task" (bottom button or header +), instead of immediately calling `onAddTask`, show an inline text input at the bottom of the card list.
-- On Enter: hide the input and call a new callback `onAddTaskWithTitle(statusId, title)` passing the typed title.
-- On Escape or empty blur: hide the input, no action.
+Update `src/components/tasks/EmployeePickerPopover.tsx` to use the `Command` / `CommandInput` / `CommandList` / `CommandItem` / `CommandEmpty` components (same pattern as the Leave Records employee filter) instead of the current raw `Input` + `ScrollArea` approach.
 
-**2. `src/components/tasks/TaskBoardView.tsx`** — Update props
-- Add new prop: `onAddTaskWithTitle?: (statusId: string, title: string) => void`
-- `BoardColumn` receives and uses this new callback.
+### Changes — single file: `src/components/tasks/EmployeePickerPopover.tsx`
 
-**3. `src/components/tasks/AddTaskDialog.tsx`** — Accept optional `defaultTitle` prop
-- Add `defaultTitle?: string` to props.
-- Initialize `title` state from `defaultTitle` when the dialog opens.
-- Use a `useEffect` to sync `defaultTitle` into `title` when the dialog opens.
+1. **Replace imports**: Swap `Input`, `ScrollArea`, `Search` imports for `Command`, `CommandInput`, `CommandList`, `CommandItem`, `CommandEmpty`, `CommandGroup` from `@/components/ui/command`.
 
-**4. `src/pages/Tasks.tsx`** — Wire up the new flow for board view
-- Add state: `addTaskDefaultTitle` (string).
-- For the board view's `onAddTaskInStatus`, change to use the new `onAddTaskWithTitle` callback that sets both the status ID and the title, then opens the dialog.
-- Pass `defaultTitle={addTaskDefaultTitle}` to `AddTaskDialog`.
+2. **Replace inner content of `PopoverContent`**: Remove the manual search input + ScrollArea and replace with:
+   - `Command` wrapper
+   - `CommandInput` with placeholder "Search employees..."
+   - `CommandList` containing `CommandEmpty` ("No employees found.") and `CommandGroup`
+   - Each employee rendered as a `CommandItem` with avatar + name (the Command component handles search/filtering natively via the `value` prop)
+   - Keep the "Unassign" option when a value is selected
+   - Keep the selected highlight styling
 
-### Flow
-```text
-User clicks "+ Add Task" on board column
-  → Inline text input appears at bottom of column
-  → User types task name, presses Enter
-  → Input disappears
-  → AddTaskDialog opens with title pre-filled and status pre-selected
-  → User fills remaining fields and clicks "Create Task"
-```
+3. **Remove manual search state and filtering**: The `cmdk` `Command` component handles search filtering internally via `CommandInput`, so the `search` state and `filtered` memo can be removed.
 
-### Files to edit
-- `src/components/tasks/TaskBoardView.tsx`
-- `src/components/tasks/AddTaskDialog.tsx`
-- `src/pages/Tasks.tsx`
+4. **Increase popover width** from `w-64` to `w-[280px]` to match the Leave Records pattern.
+
+### Result
+The dropdown will look and behave like the Leave Records employee filter: a searchable command palette with a scrollable list, native keyboard navigation, and consistent styling.
 
