@@ -1,46 +1,34 @@
 
 
-# Inline Editing for "Add Task" with Auto-Save
+## Plan: Bottom "+ Add Task" opens the same dialog as top-right "+ Add Task"
 
-## Current Behaviour
-When you click **+ Add Task**, a single text input appears (`TaskQuickAdd`). You type a title, press Enter, and the task is created with only a title. To set category, assignee, priority, or due date you must open the task detail afterwards.
+### What changes
 
-## Proposed Behaviour
-Replace the single-input quick-add with a **full inline row** that matches the list view grid columns. After typing a title and pressing Enter (or Tab), the task is created immediately. The remaining fields (category, assignee, priority, due date) appear as **clickable inline cells** on the newly created row and auto-save on selection — no explicit Save button needed.
+Currently, the "+ Add Task" at the bottom of each status group (in both **List View** and **Board View**) opens an inline quick-add input. The request is to make it open the **AddTaskDialog** popup instead — the same one triggered by the top-right "+ Add Task" button — with the clicked status pre-selected.
 
-### How It Works
+### Technical details
 
-1. **Click "+ Add Task"** → an inline row appears at the bottom of the status group, matching the grid column layout.
-2. **Title cell** is an auto-focused text input. Press **Enter** to create the task (title only, like today).
-3. Once created, the row stays in "edit mode" briefly — each cell (category, assignee, priority, due date) is clickable with a dropdown/popover selector.
-4. Selecting a value **auto-saves** via `useUpdateTask` and shows no confirmation dialog — the change is persisted immediately.
-5. Pressing **Escape** or clicking away closes the inline editing.
-6. The same inline-edit behaviour also works on **existing task rows** — clicking a cell opens the selector and auto-saves.
+**1. `AddTaskDialog.tsx`** — Accept an optional `defaultStatusId` prop  
+- When provided, use it as the initial value for the status select instead of the space's default status.
 
-### Files to Change
+**2. `TaskListView.tsx`** — Replace inline quick-add with a callback  
+- Remove the `addingInStatus` state and the `TaskQuickAdd` component usage.
+- Accept a new prop `onAddTaskInStatus: (statusId: string) => void`.
+- The bottom "+ Add Task" button and the header "+" icon will both call `onAddTaskInStatus(status.id)`.
 
-| File | Change |
-|------|--------|
-| `src/components/tasks/TaskQuickAdd.tsx` | Rewrite to render as a grid row matching `TaskRow` columns. After title submit, keep the row visible with editable cells for the newly created task. |
-| `src/components/tasks/TaskRow.tsx` | Add optional inline-edit mode for each cell (category dropdown, assignee picker, priority selector, due date picker). Each fires `useUpdateTask` on change. |
-| `src/components/tasks/TaskListView.tsx` | Pass `visibleColumns` and `gridStyle` to `TaskQuickAdd` so it aligns with the table. After creation, transition the quick-add row into an editable `TaskRow`. |
-| `src/components/tasks/TaskBoardView.tsx` | Minor: after quick-add creation, allow the new card to be clicked for editing (no grid alignment needed in board view — board cards already open detail). |
-| `src/services/useTasks.ts` | No changes needed — `useUpdateTask` already supports partial updates and invalidates the correct queries. |
+**3. `TaskBoardView.tsx`** — Same change as List View  
+- Remove `addingInStatus` state and `TaskQuickAdd` usage.
+- Accept a new prop `onAddTaskInStatus: (statusId: string) => void`.
+- Both the header "+" icon and the bottom "+ Add Task" button call `onAddTaskInStatus(status.id)`.
 
-### Technical Details
+**4. `Tasks.tsx` (page)** — Wire up the dialog with a pre-selected status  
+- Add state `addTaskDefaultStatusId` to track which status was clicked.
+- Pass `onAddTaskInStatus` callback to both `TaskListView` and `TaskBoardView` that sets the status ID and opens the `AddTaskDialog`.
+- Pass `defaultStatusId` to `AddTaskDialog`.
 
-**Inline cell editing pattern (TaskRow):**
-- Each column cell wraps in a click handler that stops propagation (so it doesn't open task detail).
-- On click, it renders a small `Popover` or `Select` inline.
-- On value change, call `updateTask.mutate({ id: task.id, [field]: newValue })`.
-- Close the popover automatically after selection.
+### Summary of flow after the change
 
-**TaskQuickAdd grid alignment:**
-- Accept `visibleColumns` and `gridStyle` props.
-- Render as `<div className="grid ..." style={gridStyle}>` with the title input in the name column and placeholder dashes in other columns.
-- After creation, the component calls back with the new task ID so `TaskListView` can mark that row as "just created" and keep it editable.
-
-**Auto-save debounce:**
-- For text fields (if any future inline text editing), use a 500ms debounce.
-- For select/dropdown fields (category, priority, assignee, due date), save immediately on selection.
+1. User clicks "+ Add Task" at the bottom of a status column (or the "+" icon in the header).
+2. The `AddTaskDialog` popup opens with that status pre-selected.
+3. User fills in details and creates the task — same experience as the top-right button, but with the correct status pre-filled.
 
