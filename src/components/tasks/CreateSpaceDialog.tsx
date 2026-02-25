@@ -7,17 +7,25 @@ import { Textarea } from '@/components/ui/textarea';
 import { useCreateTaskSpace } from '@/services/useTasks';
 import { toast } from 'sonner';
 
+const TIER_META = [
+  { title: 'Create Project', placeholder: 'e.g. Marketing Campaign', icon: '📂' },
+  { title: 'Create Sub-project', placeholder: 'e.g. Social Media Strategy', icon: '📁' },
+  { title: 'Create Task', placeholder: 'e.g. Design Landing Page', icon: '📋' },
+  { title: 'Create Subtask', placeholder: 'e.g. Write Copy for Hero Section', icon: '📌' },
+];
+
 interface CreateSpaceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   parentId: string | null;
+  depth?: number;
 }
 
-export const CreateSpaceDialog = ({ open, onOpenChange, parentId }: CreateSpaceDialogProps) => {
+export const CreateSpaceDialog = ({ open, onOpenChange, parentId, depth = 0 }: CreateSpaceDialogProps) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [icon, setIcon] = useState('📁');
   const createSpace = useCreateTaskSpace();
+  const tier = TIER_META[Math.min(depth, 3)];
 
   const handleCreate = async () => {
     if (!name.trim()) return;
@@ -25,16 +33,15 @@ export const CreateSpaceDialog = ({ open, onOpenChange, parentId }: CreateSpaceD
       await createSpace.mutateAsync({
         name: name.trim(),
         description: description.trim() || null,
-        icon,
+        icon: tier.icon,
         parent_id: parentId,
       });
-      toast.success('Space created');
+      toast.success(`${tier.title.replace('Create ', '')} created`);
       setName('');
       setDescription('');
-      setIcon('📁');
       onOpenChange(false);
     } catch {
-      toast.error('Failed to create space');
+      toast.error('Failed to create');
     }
   };
 
@@ -42,7 +49,7 @@ export const CreateSpaceDialog = ({ open, onOpenChange, parentId }: CreateSpaceD
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{parentId ? 'Create Sub-space' : 'Create Space'}</DialogTitle>
+          <DialogTitle>{tier.title}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
@@ -50,7 +57,7 @@ export const CreateSpaceDialog = ({ open, onOpenChange, parentId }: CreateSpaceD
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Marketing Tasks"
+              placeholder={tier.placeholder}
               autoFocus
               onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
             />
@@ -60,7 +67,7 @@ export const CreateSpaceDialog = ({ open, onOpenChange, parentId }: CreateSpaceD
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="What is this space for?"
+              placeholder="What is this for?"
               rows={2}
             />
           </div>
