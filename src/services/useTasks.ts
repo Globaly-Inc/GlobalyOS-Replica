@@ -460,6 +460,18 @@ export const useDeleteTask = () => {
   });
 };
 
+export const useBulkDeleteTasks = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ ids, spaceId }: { ids: string[]; spaceId: string }) => {
+      const { error } = await supabase.from('tasks').delete().in('id', ids);
+      if (error) throw error;
+      return spaceId;
+    },
+    onSuccess: (spaceId) => qc.invalidateQueries({ queryKey: ['tasks', spaceId] }),
+  });
+};
+
 // ─── Checklists ───
 
 export const useTaskChecklists = (taskId: string | undefined) => {

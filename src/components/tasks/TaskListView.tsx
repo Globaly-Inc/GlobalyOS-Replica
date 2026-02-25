@@ -1,13 +1,16 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { ChevronDown, ChevronRight, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { TaskRow } from './TaskRow';
 import { useEmployees } from '@/services/useEmployees';
-import { useCreateTask } from '@/services/useTasks';
+import { useCreateTask, useBulkDeleteTasks } from '@/services/useTasks';
 import { PrioritySelector, CategorySelector, AssigneeSelector, DueDateSelector } from './TaskInlineCellEditors';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { TaskBulkActionsBar } from './TaskBulkActionsBar';
 import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
 import type { TaskStatusRow, TaskWithRelations, TaskCategoryRow } from '@/types/task';
@@ -39,9 +42,12 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
   const [inlineCategoryId, setInlineCategoryId] = useState<string | null>(null);
   const [inlineAssigneeId, setInlineAssigneeId] = useState<string | null>(null);
   const [inlineDueDate, setInlineDueDate] = useState<string | null>(null);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const createTask = useCreateTask();
+  const bulkDelete = useBulkDeleteTasks();
 
   const { data: employeesData } = useEmployees({ status: 'active' });
   const members = ((employeesData || []) as any[]).map((e: any) => ({
@@ -59,6 +65,8 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
     { key: 'attachments', label: 'Attachments', visible: true },
     { key: 'priority', label: 'Priority', visible: true },
   ];
+
+  const selectionActive = selectedTaskIds.size > 0;
 
   const toggleGroup = (statusId: string) => {
     setCollapsedGroups(prev => {
@@ -103,13 +111,40 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
     }
   };
 
+  const handleToggleSelect = useCallback((taskId: string) => {
+    setSelectedTaskIds(prev => {
+      const next = new Set(prev);
+      next.has(taskId) ? next.delete(taskId) : next.add(taskId);
+      return next;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    setSelectedTaskIds(new Set(tasks.map(t => t.id)));
+  }, [tasks]);
+
+  const handleDeselectAll = useCallback(() => {
+    setSelectedTaskIds(new Set());
+  }, []);
+
+  const handleBulkDelete = () => {
+    bulkDelete.mutate({ ids: [...selectedTaskIds], spaceId }, {
+      onSuccess: () => {
+        toast.success(`${selectedTaskIds.size} task(s) deleted`);
+        setSelectedTaskIds(new Set());
+      },
+      onError: () => toast.error('Failed to delete tasks'),
+    });
+    setShowBulkDeleteDialog(false);
+  };
+
   const tasksByStatus = statuses.map(status => ({
     status,
     tasks: tasks.filter(t => t.status_id === status.id),
   }));
 
   const gridStyle = {
-    gridTemplateColumns: visibleColumns.map(col => {
+    gridTemplateColumns: (selectionActive ? '28px ' : '') + visibleColumns.map(col => {
       switch (col.key) {
         case 'name': return '1fr';
         case 'category': return '120px';
@@ -202,6 +237,9 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
     <div className="space-y-1">
       {tasksByStatus.map(({ status, tasks: statusTasks }) => {
         const isCollapsed = collapsedGroups.has(status.id);
+        const allStatusSelected = statusTasks.length > 0 && statusTasks.every(t => selectedTaskIds.has(t.id));
+        const someStatusSelected = statusTasks.some(t => selectedTaskIds.has(t.id));
+
         return (
           <div key={status.id} className="rounded-lg border bg-card overflow-hidden">
             {/* Status header */}
@@ -243,6 +281,28 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                     className={cn('grid gap-2', 'px-3 py-1 text-xs text-muted-foreground border-t bg-muted/20')}
                     style={gridStyle}
                   >
+                    {selectionActive && (
+                      <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={allStatusSelected}
+                          onCheckedChange={() => {
+                            if (allStatusSelected) {
+                              setSelectedTaskIds(prev => {
+                                const next = new Set(prev);
+                                statusTasks.forEach(t => next.delete(t.id));
+                                return next;
+                              });
+                            } else {
+                              setSelectedTaskIds(prev => {
+                                const next = new Set(prev);
+                                statusTasks.forEach(t => next.add(t.id));
+                                return next;
+                              });
+                            }
+                          }}
+                        />
+                      </div>
+                    )}
                     {visibleColumns.map(col => (
                       <span
                         key={col.key}
@@ -266,6 +326,8 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                     categories={categories}
                     members={members}
                     spaceId={spaceId}
+                    selected={selectedTaskIds.has(task.id)}
+                    onToggleSelect={selectionActive ? handleToggleSelect : undefined}
                   />
                 ))}
 
@@ -275,6 +337,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                     className="grid gap-2 px-3 py-2 items-center border-t bg-primary/5 text-sm"
                     style={gridStyle}
                   >
+                    {selectionActive && <div />}
                     {visibleColumns.map(col => (
                       <div key={col.key}>{renderInlineCell(col, status.id)}</div>
                     ))}
@@ -299,6 +362,31 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
           </div>
         );
       })}
+
+      <TaskBulkActionsBar
+        selectedCount={selectedTaskIds.size}
+        totalItems={tasks.length}
+        onSelectAll={handleSelectAll}
+        onDeselectAll={handleDeselectAll}
+        onDelete={() => setShowBulkDeleteDialog(true)}
+      />
+
+      <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedTaskIds.size} task(s)</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedTaskIds.size} task(s)? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

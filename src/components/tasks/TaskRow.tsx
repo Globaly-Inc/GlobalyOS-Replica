@@ -6,6 +6,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { cn } from '@/lib/utils';
 import { useUpdateTask, useDeleteTask } from '@/services/useTasks';
 import { PrioritySelector, CategorySelector, AssigneeSelector, DueDateSelector } from './TaskInlineCellEditors';
+import { Checkbox } from '@/components/ui/checkbox';
 import type { TaskWithRelations, TaskCategoryRow } from '@/types/task';
 import type { ColumnConfig } from './TaskColumnCustomizer';
 import { format, parseISO } from 'date-fns';
@@ -27,9 +28,11 @@ interface TaskRowProps {
   categories?: TaskCategoryRow[];
   members?: { id: string; full_name: string; avatar_url: string | null }[];
   spaceId: string;
+  selected?: boolean;
+  onToggleSelect?: (taskId: string) => void;
 }
 
-export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories = [], members = [], spaceId }: TaskRowProps) => {
+export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories = [], members = [], spaceId, selected, onToggleSelect }: TaskRowProps) => {
   const priority = priorityConfig[task.priority] || priorityConfig.normal;
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
@@ -165,6 +168,14 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
         style={gridStyle}
         onClick={onClick}
       >
+        {onToggleSelect && (
+          <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            <Checkbox
+              checked={selected}
+              onCheckedChange={() => onToggleSelect(task.id)}
+            />
+          </div>
+        )}
         {cols.map(col => (
           <div key={col.key}>{renderCell(col)}</div>
         ))}
