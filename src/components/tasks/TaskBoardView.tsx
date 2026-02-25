@@ -18,7 +18,8 @@ import {
 } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { MoreHorizontal, Plus, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Plus, Trash2, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -202,7 +203,7 @@ const BoardColumn = ({ status, tasks, categories, spaceId, onTaskClick, onAddTas
 
         {/* Inline add input */}
         {isAddingInline && (
-          <div className="mt-2">
+          <div className="mt-2 flex items-center gap-1">
             <Input
               ref={inputRef}
               value={inlineTitle}
@@ -212,14 +213,16 @@ const BoardColumn = ({ status, tasks, categories, spaceId, onTaskClick, onAddTas
                 if (e.key === 'Escape') handleInlineCancel();
               }}
               onBlur={() => {
-                // Small delay to allow Enter to fire first
                 setTimeout(() => {
                   if (isAddingInline) handleInlineCancel();
                 }, 150);
               }}
               placeholder="Task name..."
-              className="h-8 text-sm"
+              className="h-8 text-sm flex-1"
             />
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={handleInlineCancel}>
+              <X className="h-3.5 w-3.5" />
+            </Button>
           </div>
         )}
       </ScrollArea>

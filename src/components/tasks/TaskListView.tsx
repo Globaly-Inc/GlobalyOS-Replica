@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
-import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { TaskRow } from './TaskRow';
@@ -277,6 +278,11 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                     {visibleColumns.map(col => (
                       <div key={col.key}>{renderInlineCell(col, status.id)}</div>
                     ))}
+                    <div className="flex justify-center">
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={resetInline}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 )}
 
