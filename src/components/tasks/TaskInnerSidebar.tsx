@@ -14,7 +14,7 @@ const TIER_CONFIG = [
   { label: 'Project', childLabel: 'Sub-project', color: 'text-green-600', bg: 'bg-green-500/10', selectedBg: 'bg-green-500/20', dot: 'bg-green-500', icon: '📂' },
   { label: 'Sub-project', childLabel: 'Task', color: 'text-pink-600', bg: 'bg-pink-500/10', selectedBg: 'bg-pink-500/20', dot: 'bg-pink-500', icon: '📁' },
   { label: 'Task', childLabel: 'Subtask', color: 'text-blue-600', bg: 'bg-blue-500/10', selectedBg: 'bg-blue-500/20', dot: 'bg-blue-500', icon: '📋' },
-  { label: 'Subtask', childLabel: '', color: 'text-yellow-600', bg: 'bg-yellow-500/10', selectedBg: 'bg-yellow-500/20', dot: 'bg-yellow-500', icon: '📌' },
+  { label: 'Subtask', childLabel: '', color: 'text-purple-600', bg: 'bg-purple-500/10', selectedBg: 'bg-purple-500/20', dot: 'bg-purple-500', icon: '📌' },
 ];
 
 const getTier = (depth: number) => TIER_CONFIG[Math.min(depth, 3)];
