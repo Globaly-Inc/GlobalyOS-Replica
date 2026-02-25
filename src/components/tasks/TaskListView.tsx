@@ -120,7 +120,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
         case 'due_date': return '100px';
         default: return '100px';
       }
-    }).join(' '),
+    }).join(' ') + ' 40px',
   };
 
   const renderInlineCell = (col: ColumnConfig, statusId: string) => {
@@ -264,6 +264,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                     gridStyle={gridStyle}
                     categories={categories}
                     members={members}
+                    spaceId={spaceId}
                   />
                 ))}
 

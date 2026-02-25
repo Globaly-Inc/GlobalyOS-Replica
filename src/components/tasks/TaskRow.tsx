@@ -1,11 +1,16 @@
+import { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
-import { useUpdateTask } from '@/services/useTasks';
+import { useUpdateTask, useDeleteTask } from '@/services/useTasks';
 import { PrioritySelector, CategorySelector, AssigneeSelector, DueDateSelector } from './TaskInlineCellEditors';
 import type { TaskWithRelations, TaskCategoryRow } from '@/types/task';
 import type { ColumnConfig } from './TaskColumnCustomizer';
 import { format, parseISO } from 'date-fns';
+import { MoreHorizontal, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 const priorityConfig: Record<string, { label: string; className: string }> = {
   urgent: { label: 'Urgent', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
@@ -21,14 +26,25 @@ interface TaskRowProps {
   gridStyle?: React.CSSProperties;
   categories?: TaskCategoryRow[];
   members?: { id: string; full_name: string; avatar_url: string | null }[];
+  spaceId: string;
 }
 
-export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories = [], members = [] }: TaskRowProps) => {
+export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories = [], members = [], spaceId }: TaskRowProps) => {
   const priority = priorityConfig[task.priority] || priorityConfig.normal;
   const updateTask = useUpdateTask();
+  const deleteTask = useDeleteTask();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const handleUpdate = (field: string, value: unknown) => {
     updateTask.mutate({ id: task.id, [field]: value });
+  };
+
+  const handleDelete = () => {
+    deleteTask.mutate({ id: task.id, spaceId }, {
+      onSuccess: () => toast.success('Task deleted'),
+      onError: () => toast.error('Failed to delete task'),
+    });
+    setShowDeleteDialog(false);
   };
 
   const cols = visibleColumns || [
@@ -143,14 +159,52 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
   };
 
   return (
-    <div
-      className="grid gap-2 px-3 py-2 items-center border-t hover:bg-muted/30 cursor-pointer transition-colors text-sm"
-      style={gridStyle}
-      onClick={onClick}
-    >
-      {cols.map(col => (
-        <div key={col.key}>{renderCell(col)}</div>
-      ))}
-    </div>
+    <>
+      <div
+        className="grid gap-2 px-3 py-2 items-center border-t hover:bg-muted/30 cursor-pointer transition-colors text-sm group"
+        style={gridStyle}
+        onClick={onClick}
+      >
+        {cols.map(col => (
+          <div key={col.key}>{renderCell(col)}</div>
+        ))}
+        {/* Actions column - always rendered at the end */}
+        <div className="flex justify-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+              <button className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-36">
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={(e) => { e.stopPropagation(); setShowDeleteDialog(true); }}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete task</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{task.title}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
