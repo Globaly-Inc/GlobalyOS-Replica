@@ -1,28 +1,21 @@
 
 
-## Replace inline Assignee selector with Command-based searchable dropdown
+## Plan: Add cancel/delete button to the inline "+ Add Task" row
 
-### What changes
+### What the user wants
+When the inline "+ Add Task" row is active in both the List View and Board View, there is no visible way to cancel/dismiss it (only Escape key works). The user wants a visible delete/cancel button on the inline creation row.
 
-Update the `AssigneeSelector` in `src/components/tasks/TaskInlineCellEditors.tsx` to use the `Command` / `CommandInput` / `CommandList` / `CommandItem` / `CommandEmpty` / `CommandGroup` components — the same pattern used in the `EmployeePickerPopover` and Leave Records employee filter.
+### Changes
 
-### Single file: `src/components/tasks/TaskInlineCellEditors.tsx`
+**1. `src/components/tasks/TaskListView.tsx`**
+- In the inline creation row (lines 272-280), add a cancel button in the trailing actions column (the `40px` column already exists in the grid but is empty for the inline row)
+- Render an `X` icon button that calls `resetInline()` to dismiss the inline row
+- Style it consistently with the existing row action buttons
 
-**Changes to `AssigneeSelector` component (lines ~96–145):**
-
-1. **Replace imports**: Add `Command`, `CommandInput`, `CommandList`, `CommandItem`, `CommandEmpty`, `CommandGroup` from `@/components/ui/command`. Remove the manual `<input>` search field.
-
-2. **Replace inner `PopoverContent` body**: Remove the raw `<input>` search box and manual `<div className="max-h-48 overflow-y-auto">` list. Replace with:
-   - `Command` wrapper
-   - `CommandInput` with placeholder `"Search..."`
-   - `CommandList` containing `CommandEmpty` ("No members found.") and `CommandGroup`
-   - "Unassigned" option as a `CommandItem`
-   - Each member rendered as a `CommandItem` with `value={m.full_name}` so search filtering works natively
-
-3. **Remove manual search state**: Drop the `search` state and `filtered` array — the `Command` component handles filtering internally.
-
-4. **Widen popover**: Change from `w-48` to `w-[220px]` for better readability.
+**2. `src/components/tasks/TaskBoardView.tsx`**
+- In the inline add input section (lines 204-224), add an `X` icon button next to the input to cancel inline creation
+- Wrap the input and button in a flex container so the cancel button sits beside the input
 
 ### Result
-The inline assignee dropdown in "+ Add Task" will look and behave like the Leave Records employee filter: searchable via Command input, scrollable list, native keyboard navigation, and consistent styling.
+Both views will have a visible cancel/dismiss button on the inline task creation row, making it discoverable without relying solely on the Escape key.
 
