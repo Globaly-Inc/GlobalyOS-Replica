@@ -3,8 +3,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Calendar } from '@/components/ui/calendar';
+import { Command, CommandInput, CommandList, CommandItem, CommandEmpty, CommandGroup } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
-import { Check } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import type { TaskCategoryRow } from '@/types/task';
 
@@ -107,52 +108,41 @@ interface AssigneeSelectorProps {
 
 export const AssigneeSelector = ({ value, members, onChange, children }: AssigneeSelectorProps) => {
   const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const filtered = members.filter(m =>
-    m.full_name?.toLowerCase().includes(search.toLowerCase())
-  );
 
   return (
-    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSearch(''); }}>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
         {children}
       </PopoverTrigger>
-      <PopoverContent className="w-48 p-1 z-50" align="start" onClick={(e) => e.stopPropagation()}>
-        <input
-          className="w-full px-2 py-1.5 text-xs border-b bg-transparent outline-none placeholder:text-muted-foreground"
-          placeholder="Search..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          onClick={(e) => e.stopPropagation()}
-        />
-        <div className="max-h-48 overflow-y-auto">
-          <button
-            className={cn(
-              'flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-muted transition-colors',
-              !value && 'bg-muted'
-            )}
-            onClick={() => { onChange(null); setOpen(false); }}
-          >
-            <span className="text-muted-foreground">Unassigned</span>
-          </button>
-          {filtered.map(m => (
-            <button
-              key={m.id}
-              className={cn(
-                'flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-muted transition-colors',
-                value === m.id && 'bg-muted'
+      <PopoverContent className="w-[220px] p-0 z-50" align="start" onClick={(e) => e.stopPropagation()}>
+        <Command>
+          <CommandInput placeholder="Search..." />
+          <CommandList>
+            <CommandEmpty>No members found.</CommandEmpty>
+            <CommandGroup>
+              {value && (
+                <CommandItem onSelect={() => { onChange(null); setOpen(false); }} value="__unassign__">
+                  <X className="h-3 w-3 mr-2 text-muted-foreground" />
+                  <span className="text-muted-foreground">Unassigned</span>
+                </CommandItem>
               )}
-              onClick={() => { onChange(m.id); setOpen(false); }}
-            >
-              <Avatar className="h-5 w-5">
-                <AvatarImage src={m.avatar_url || undefined} />
-                <AvatarFallback className="text-[10px]">{m.full_name?.charAt(0) || '?'}</AvatarFallback>
-              </Avatar>
-              <span className="truncate">{m.full_name}</span>
-              {value === m.id && <Check className="h-3 w-3 ml-auto text-primary" />}
-            </button>
-          ))}
-        </div>
+              {members.map(m => (
+                <CommandItem
+                  key={m.id}
+                  value={m.full_name}
+                  onSelect={() => { onChange(m.id); setOpen(false); }}
+                  className={value === m.id ? 'bg-primary/10 text-primary' : ''}
+                >
+                  <Avatar className="h-5 w-5 mr-2">
+                    <AvatarImage src={m.avatar_url || undefined} />
+                    <AvatarFallback className="text-[10px]">{m.full_name?.charAt(0) || '?'}</AvatarFallback>
+                  </Avatar>
+                  <span className="truncate">{m.full_name}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
       </PopoverContent>
     </Popover>
   );
