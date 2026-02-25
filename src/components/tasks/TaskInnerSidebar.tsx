@@ -21,7 +21,7 @@ const getTier = (depth: number) => TIER_CONFIG[Math.min(depth, 3)];
 
 interface TaskInnerSidebarProps {
   selectedSpaceId: string | null;
-  onSelectSpace: (spaceId: string) => void;
+  onSelectSpace: (spaceId: string | null) => void;
 }
 
 export const TaskInnerSidebar = ({ selectedSpaceId, onSelectSpace }: TaskInnerSidebarProps) => {
@@ -126,7 +126,7 @@ export const TaskInnerSidebar = ({ selectedSpaceId, onSelectSpace }: TaskInnerSi
               'bg-primary/10 text-primary font-medium' :
               'text-muted-foreground hover:bg-muted hover:text-foreground'
           )}
-          onClick={() => { }}>
+          onClick={() => onSelectSpace(null)}>
           <CheckSquare className="h-4 w-4" />
           <span>All Tasks</span>
         </div>
