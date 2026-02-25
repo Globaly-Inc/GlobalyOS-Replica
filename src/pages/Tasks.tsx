@@ -1,11 +1,11 @@
 import { useState, useMemo } from 'react';
-import { Search, Plus, Settings, LayoutList, Columns3, X, ListPlus, Pencil, Trash2, MoreHorizontal } from 'lucide-react';
+import { Search, Plus, Settings, LayoutList, Columns3, X, ListPlus, Pencil, Trash2, MoreHorizontal, CheckSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { useTasks, useTaskStatuses, useTaskCategories, useTaskSpaces, useTaskLists, useCreateTaskList, useUpdateTaskList, useDeleteTaskList } from '@/services/useTasks';
+import { useTasks, useTaskStatuses, useTaskCategories, useTaskSpaces, useTaskLists, useCreateTaskList, useUpdateTaskList, useDeleteTaskList, useAllTasks, useAllTaskStatuses, useAllTaskCategories } from '@/services/useTasks';
 import { TaskListView } from '../components/tasks/TaskListView';
 import { TaskBoardView } from '../components/tasks/TaskBoardView';
 import { TaskInnerSidebar } from '../components/tasks/TaskInnerSidebar';
@@ -23,6 +23,7 @@ type ViewMode = 'list' | 'board';
 
 const Tasks = () => {
   const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(null);
+  const [isAllTasksMode, setIsAllTasksMode] = useState(false);
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [showManage, setShowManage] = useState(false);
@@ -40,17 +41,15 @@ const Tasks = () => {
 
   const { data: spaces = [] } = useTaskSpaces();
 
-  const activeSpaceId = selectedSpaceId || spaces[0]?.id || null;
-  const activeSpace = spaces.find(s => s.id === activeSpaceId);
+  const activeSpaceId = isAllTasksMode ? null : (selectedSpaceId || spaces[0]?.id || null);
+  const activeSpace = activeSpaceId ? spaces.find(s => s.id === activeSpaceId) : null;
 
   const { data: taskLists = [] } = useTaskLists(activeSpaceId || undefined);
   const createList = useCreateTaskList();
   const updateList = useUpdateTaskList();
   const deleteList = useDeleteTaskList();
 
-  // Auto-select first list when space changes or lists load
   const activeListId = selectedListId || taskLists[0]?.id || null;
-  const activeList = taskLists.find(l => l.id === activeListId);
 
   useTaskListRealtime(activeSpaceId);
 
@@ -68,20 +67,37 @@ const Tasks = () => {
   const combinedFilters: TaskFilters = useMemo(() => ({
     ...filters,
     ...(search ? { search } : {}),
-    ...(activeListId ? { list_id: activeListId } : {}),
-  }), [filters, search, activeListId]);
+    ...(!isAllTasksMode && activeListId ? { list_id: activeListId } : {}),
+  }), [filters, search, activeListId, isAllTasksMode]);
 
   const hasActiveFilters = Object.keys(filters).some(k => {
     const v = (filters as any)[k];
     return Array.isArray(v) ? v.length > 0 : !!v;
   }) || !!search;
 
-  const { data: statuses = [] } = useTaskStatuses(activeSpaceId || undefined);
-  const { data: categories = [] } = useTaskCategories(activeSpaceId || undefined);
-  const { data: tasks = [] } = useTasks(activeSpaceId || undefined, combinedFilters);
+  // Space-scoped hooks
+  const { data: spaceStatuses = [] } = useTaskStatuses(activeSpaceId || undefined);
+  const { data: spaceCategories = [] } = useTaskCategories(activeSpaceId || undefined);
+  const { data: spaceTasks = [] } = useTasks(activeSpaceId || undefined, isAllTasksMode ? undefined : combinedFilters);
 
-  const handleSelectSpace = (spaceId: string) => {
-    setSelectedSpaceId(spaceId);
+  // Org-wide hooks for All Tasks mode
+  const { data: allStatuses = [] } = useAllTaskStatuses();
+  const { data: allCategories = [] } = useAllTaskCategories();
+  const { data: allTasks = [] } = useAllTasks(isAllTasksMode ? combinedFilters : undefined);
+
+  // Pick the right data based on mode
+  const statuses = isAllTasksMode ? allStatuses : spaceStatuses;
+  const categories = isAllTasksMode ? allCategories : spaceCategories;
+  const tasks = isAllTasksMode ? allTasks : spaceTasks;
+
+  const handleSelectSpace = (spaceId: string | null) => {
+    if (spaceId === null) {
+      setIsAllTasksMode(true);
+      setSelectedSpaceId(null);
+    } else {
+      setIsAllTasksMode(false);
+      setSelectedSpaceId(spaceId);
+    }
     setSelectedListId(null);
     setSelectedTaskId(null);
     setFilters({});
@@ -139,9 +155,11 @@ const Tasks = () => {
 
   const clearFilters = () => { setFilters({}); setSearch(''); };
 
+  const showContent = isAllTasksMode || (activeSpaceId && activeSpace);
+
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
-      <TaskInnerSidebar selectedSpaceId={activeSpaceId} onSelectSpace={handleSelectSpace} />
+      <TaskInnerSidebar selectedSpaceId={isAllTasksMode ? null : activeSpaceId} onSelectSpace={handleSelectSpace} />
 
       {/* Task Detail Dialog */}
       <Dialog open={!!selectedTaskId} onOpenChange={(open) => { if (!open) setSelectedTaskId(null); }}>
@@ -158,11 +176,11 @@ const Tasks = () => {
       </Dialog>
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        {activeSpaceId && activeSpace ? (
+        {showContent ? (
           <>
-            {/* Space Header */}
+            {/* Header */}
             <div className="px-6 pt-4 pb-0">
-              {breadcrumb.length > 1 && (
+              {!isAllTasksMode && breadcrumb.length > 1 && (
                 <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
                   {breadcrumb.map((s, i) => (
                     <span key={s.id} className="flex items-center gap-1">
@@ -176,106 +194,120 @@ const Tasks = () => {
               )}
               <div className="flex items-center justify-between">
                 <h1 className="text-xl font-semibold flex items-center gap-2">
-                  <span>{activeSpace.icon || '📁'}</span>
-                  {activeSpace.name}
+                  {isAllTasksMode ? (
+                    <>
+                      <CheckSquare className="h-5 w-5" />
+                      All Tasks
+                    </>
+                  ) : (
+                    <>
+                      <span>{activeSpace?.icon || '📁'}</span>
+                      {activeSpace?.name}
+                    </>
+                  )}
                 </h1>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => setShowManage(true)}>
-                    <Settings className="h-3.5 w-3.5" />
-                    Manage
-                  </Button>
-                  <Button size="sm" className="h-8 gap-1.5" onClick={() => setShowAddTask(true)}>
-                    <Plus className="h-3.5 w-3.5" />
-                    Add Task
-                  </Button>
+                  {!isAllTasksMode && (
+                    <>
+                      <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => setShowManage(true)}>
+                        <Settings className="h-3.5 w-3.5" />
+                        Manage
+                      </Button>
+                      <Button size="sm" className="h-8 gap-1.5" onClick={() => setShowAddTask(true)}>
+                        <Plus className="h-3.5 w-3.5" />
+                        Add Task
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Task Lists Tabs + Toolbar */}
+            {/* Toolbar */}
             <div className="px-6 pt-3 border-b">
-              {/* List tabs */}
-              <div className="flex items-center gap-0.5 overflow-x-auto">
-                {taskLists.map(list => (
-                  <div
-                    key={list.id}
-                    className={cn(
-                      'group relative flex items-center gap-1 px-3 py-2 text-sm cursor-pointer border-b-2 transition-colors whitespace-nowrap shrink-0',
-                      activeListId === list.id
-                        ? 'border-primary text-primary font-medium'
-                        : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
-                    )}
-                    onClick={() => setSelectedListId(list.id)}
-                  >
-                    {editingListId === list.id ? (
-                      <Input
-                        value={editingListName}
-                        onChange={e => setEditingListName(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') handleRenameList(list.id);
-                          if (e.key === 'Escape') setEditingListId(null);
-                        }}
-                        onBlur={() => handleRenameList(list.id)}
-                        className="h-6 text-sm w-28 px-1"
-                        autoFocus
-                        onClick={e => e.stopPropagation()}
-                      />
-                    ) : (
-                      <>
-                        <span>{list.name}</span>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button
-                              className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-muted transition-opacity"
-                              onClick={e => e.stopPropagation()}
-                            >
-                              <MoreHorizontal className="h-3.5 w-3.5" />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start">
-                            <DropdownMenuItem onClick={() => { setEditingListId(list.id); setEditingListName(list.name); }}>
-                              <Pencil className="h-3.5 w-3.5 mr-2" /> Rename
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDeleteList(list)}>
-                              <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </>
-                    )}
-                  </div>
-                ))}
+              {/* List tabs - only in space mode */}
+              {!isAllTasksMode && (
+                <div className="flex items-center gap-0.5 overflow-x-auto">
+                  {taskLists.map(list => (
+                    <div
+                      key={list.id}
+                      className={cn(
+                        'group relative flex items-center gap-1 px-3 py-2 text-sm cursor-pointer border-b-2 transition-colors whitespace-nowrap shrink-0',
+                        activeListId === list.id
+                          ? 'border-primary text-primary font-medium'
+                          : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                      )}
+                      onClick={() => setSelectedListId(list.id)}
+                    >
+                      {editingListId === list.id ? (
+                        <Input
+                          value={editingListName}
+                          onChange={e => setEditingListName(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') handleRenameList(list.id);
+                            if (e.key === 'Escape') setEditingListId(null);
+                          }}
+                          onBlur={() => handleRenameList(list.id)}
+                          className="h-6 text-sm w-28 px-1"
+                          autoFocus
+                          onClick={e => e.stopPropagation()}
+                        />
+                      ) : (
+                        <>
+                          <span>{list.name}</span>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-muted transition-opacity"
+                                onClick={e => e.stopPropagation()}
+                              >
+                                <MoreHorizontal className="h-3.5 w-3.5" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              <DropdownMenuItem onClick={() => { setEditingListId(list.id); setEditingListName(list.name); }}>
+                                <Pencil className="h-3.5 w-3.5 mr-2" /> Rename
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDeleteList(list)}>
+                                <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </>
+                      )}
+                    </div>
+                  ))}
 
-                {/* Add list button/input */}
-                {addingList ? (
-                  <div className="flex items-center gap-1 px-2">
-                    <Input
-                      value={newListName}
-                      onChange={e => setNewListName(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') handleAddList();
-                        if (e.key === 'Escape') { setAddingList(false); setNewListName(''); }
-                      }}
-                      placeholder="List name..."
-                      className="h-7 text-xs w-28"
-                      autoFocus
-                    />
-                    <Button size="sm" className="h-7 px-2 text-xs" onClick={handleAddList} disabled={!newListName.trim()}>Add</Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setAddingList(false); setNewListName(''); }}>
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                ) : (
-                  <button
-                    className="flex items-center gap-1 px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                    onClick={() => setAddingList(true)}
-                  >
-                    <ListPlus className="h-3.5 w-3.5" />
-                    New List
-                  </button>
-                )}
-              </div>
+                  {addingList ? (
+                    <div className="flex items-center gap-1 px-2">
+                      <Input
+                        value={newListName}
+                        onChange={e => setNewListName(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') handleAddList();
+                          if (e.key === 'Escape') { setAddingList(false); setNewListName(''); }
+                        }}
+                        placeholder="List name..."
+                        className="h-7 text-xs w-28"
+                        autoFocus
+                      />
+                      <Button size="sm" className="h-7 px-2 text-xs" onClick={handleAddList} disabled={!newListName.trim()}>Add</Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setAddingList(false); setNewListName(''); }}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <button
+                      className="flex items-center gap-1 px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                      onClick={() => setAddingList(true)}
+                    >
+                      <ListPlus className="h-3.5 w-3.5" />
+                      New List
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* Toolbar row */}
               <div className="flex items-center gap-2 py-2">
@@ -309,14 +341,12 @@ const Tasks = () => {
 
                 <div className="flex-1" />
 
-                {/* Active filter chips */}
                 {filters.priority?.map(p => (
                   <Badge key={p} variant="secondary" className="text-xs gap-1 cursor-pointer" onClick={() => setFilters(f => ({ ...f, priority: f.priority?.filter(x => x !== p) }))}>
                     {p} <X className="h-2.5 w-2.5" />
                   </Badge>
                 ))}
 
-                {/* View toggle */}
                 <div className="flex items-center border rounded-md overflow-hidden">
                   <button
                     className={cn(
@@ -349,21 +379,22 @@ const Tasks = () => {
                   statuses={statuses}
                   tasks={tasks}
                   categories={categories}
-                  spaceId={activeSpaceId}
-                  listId={activeListId}
+                  spaceId={activeSpaceId || ''}
+                  listId={isAllTasksMode ? undefined : activeListId}
                   onTaskClick={handleTaskClick}
                   columns={columns}
                   onAddTaskInStatus={(statusId) => {
                     setAddTaskDefaultStatusId(statusId);
                     setShowAddTask(true);
                   }}
+                  isAllTasksMode={isAllTasksMode}
                 />
               ) : (
                 <TaskBoardView
                   statuses={statuses}
                   tasks={tasks}
                   categories={categories}
-                  spaceId={activeSpaceId}
+                  spaceId={activeSpaceId || ''}
                   onTaskClick={handleTaskClick}
                   onAddTaskInStatus={(statusId) => {
                     setAddTaskDefaultStatusId(statusId);
@@ -374,25 +405,30 @@ const Tasks = () => {
                     setAddTaskDefaultTitle(title);
                     setShowAddTask(true);
                   }}
+                  isAllTasksMode={isAllTasksMode}
                 />
               )}
             </div>
 
-            <ManageDialog open={showManage} onOpenChange={setShowManage} spaceId={activeSpaceId} />
-            <AddTaskDialog
-              open={showAddTask}
-              onOpenChange={(open) => {
-                setShowAddTask(open);
-                if (!open) {
-                  setAddTaskDefaultStatusId(null);
-                  setAddTaskDefaultTitle('');
-                }
-              }}
-              spaceId={activeSpaceId}
-              listId={activeListId}
-              defaultStatusId={addTaskDefaultStatusId}
-              defaultTitle={addTaskDefaultTitle}
-            />
+            {!isAllTasksMode && activeSpaceId && (
+              <>
+                <ManageDialog open={showManage} onOpenChange={setShowManage} spaceId={activeSpaceId} />
+                <AddTaskDialog
+                  open={showAddTask}
+                  onOpenChange={(open) => {
+                    setShowAddTask(open);
+                    if (!open) {
+                      setAddTaskDefaultStatusId(null);
+                      setAddTaskDefaultTitle('');
+                    }
+                  }}
+                  spaceId={activeSpaceId}
+                  listId={activeListId}
+                  defaultStatusId={addTaskDefaultStatusId}
+                  defaultTitle={addTaskDefaultTitle}
+                />
+              </>
+            )}
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">

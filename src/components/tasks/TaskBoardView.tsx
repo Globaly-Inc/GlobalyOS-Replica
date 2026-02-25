@@ -47,9 +47,10 @@ interface TaskBoardViewProps {
   onTaskClick: (taskId: string) => void;
   onAddTaskInStatus?: (statusId: string) => void;
   onAddTaskWithTitle?: (statusId: string, title: string) => void;
+  isAllTasksMode?: boolean;
 }
 
-export const TaskBoardView = ({ statuses, tasks, categories, spaceId, onTaskClick, onAddTaskInStatus, onAddTaskWithTitle }: TaskBoardViewProps) => {
+export const TaskBoardView = ({ statuses, tasks, categories, spaceId, onTaskClick, onAddTaskInStatus, onAddTaskWithTitle, isAllTasksMode }: TaskBoardViewProps) => {
   const [activeTask, setActiveTask] = useState<TaskWithRelations | null>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
@@ -147,6 +148,7 @@ export const TaskBoardView = ({ statuses, tasks, categories, spaceId, onTaskClic
               selectionActive={selectionActive}
               selectedTaskIds={selectedTaskIds}
               onToggleSelect={handleToggleSelect}
+              isAllTasksMode={isAllTasksMode}
             />
           ))}
         </div>
@@ -197,9 +199,10 @@ interface BoardColumnProps {
   selectionActive: boolean;
   selectedTaskIds: Set<string>;
   onToggleSelect: (taskId: string) => void;
+  isAllTasksMode?: boolean;
 }
 
-const BoardColumn = ({ status, tasks, categories, spaceId, onTaskClick, onAddTask, onAddTaskWithTitle, selectionActive, selectedTaskIds, onToggleSelect }: BoardColumnProps) => {
+const BoardColumn = ({ status, tasks, categories, spaceId, onTaskClick, onAddTask, onAddTaskWithTitle, selectionActive, selectedTaskIds, onToggleSelect, isAllTasksMode }: BoardColumnProps) => {
   const taskIds = tasks.map(t => t.id);
   const { setNodeRef: setDropRef } = useDroppable({ id: status.id });
   const [isAddingInline, setIsAddingInline] = useState(false);
@@ -245,12 +248,14 @@ const BoardColumn = ({ status, tasks, categories, spaceId, onTaskClick, onAddTas
         />
         <span className="text-sm font-medium flex-1 truncate">{status.name}</span>
         <Badge variant="secondary" className="text-[10px] h-5 px-1.5">{tasks.length}</Badge>
-        <button
-          className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-          onClick={handleAddClick}
-        >
-          <Plus className="h-3.5 w-3.5" />
-        </button>
+        {!isAllTasksMode && (
+          <button
+            className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            onClick={handleAddClick}
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
 
       {/* Cards */}
@@ -298,13 +303,15 @@ const BoardColumn = ({ status, tasks, categories, spaceId, onTaskClick, onAddTas
       </ScrollArea>
 
       {/* Add task button at bottom */}
-      <button
-        className="flex items-center gap-1.5 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors border-t"
-        onClick={handleAddClick}
-      >
-        <Plus className="h-3 w-3" />
-        <span>Add Task</span>
-      </button>
+      {!isAllTasksMode && (
+        <button
+          className="flex items-center gap-1.5 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors border-t"
+          onClick={handleAddClick}
+        >
+          <Plus className="h-3 w-3" />
+          <span>Add Task</span>
+        </button>
+      )}
     </div>
   );
 };

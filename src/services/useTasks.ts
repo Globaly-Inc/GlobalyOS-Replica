@@ -297,6 +297,97 @@ export const useDeleteTaskCategory = () => {
   });
 };
 
+// ─── Org-wide hooks (All Tasks) ───
+
+export const useAllTaskStatuses = () => {
+  const { currentOrg } = useOrganization();
+  return useQuery({
+    queryKey: ['all-task-statuses', currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [];
+      const { data, error } = await supabase
+        .from('task_statuses')
+        .select('*')
+        .eq('organization_id', currentOrg.id)
+        .order('sort_order');
+      if (error) throw error;
+      return data as TaskStatusRow[];
+    },
+    enabled: !!currentOrg?.id,
+  });
+};
+
+export const useAllTaskCategories = () => {
+  const { currentOrg } = useOrganization();
+  return useQuery({
+    queryKey: ['all-task-categories', currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [];
+      const { data, error } = await supabase
+        .from('task_categories')
+        .select('*')
+        .eq('organization_id', currentOrg.id)
+        .order('sort_order');
+      if (error) throw error;
+      return data as TaskCategoryRow[];
+    },
+    enabled: !!currentOrg?.id,
+  });
+};
+
+export const useAllTasks = (filters?: TaskFilters) => {
+  const { currentOrg } = useOrganization();
+  return useQuery({
+    queryKey: ['all-tasks', currentOrg?.id, filters],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [];
+      let query = supabase
+        .from('tasks')
+        .select(`
+          *,
+          status:task_statuses(*),
+          category:task_categories(*)
+        `)
+        .eq('organization_id', currentOrg.id)
+        .eq('is_archived', false)
+        .order('created_at', { ascending: false });
+
+      if (filters?.status_ids?.length) query = query.in('status_id', filters.status_ids);
+      if (filters?.assignee_ids?.length) query = query.in('assignee_id', filters.assignee_ids);
+      if (filters?.priority?.length) query = query.in('priority', filters.priority);
+      if (filters?.category_ids?.length) query = query.in('category_id', filters.category_ids);
+      if (filters?.search) query = query.ilike('title', `%${filters.search}%`);
+      if (filters?.due_date_from) query = query.gte('due_date', filters.due_date_from);
+      if (filters?.due_date_to) query = query.lte('due_date', filters.due_date_to);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const empIds = new Set<string>();
+      (data || []).forEach((t: any) => {
+        if (t.assignee_id) empIds.add(t.assignee_id);
+        if (t.reporter_id) empIds.add(t.reporter_id);
+      });
+
+      let empMap = new Map<string, { id: string; full_name: string; avatar_url: string | null }>();
+      if (empIds.size > 0) {
+        const { data: emps } = await supabase
+          .from('employee_directory')
+          .select('id, full_name, avatar_url')
+          .in('id', [...empIds]);
+        (emps || []).forEach((e: any) => empMap.set(e.id, e));
+      }
+
+      return (data || []).map((t: any) => ({
+        ...t,
+        assignee: t.assignee_id ? empMap.get(t.assignee_id) || null : null,
+        reporter: t.reporter_id ? empMap.get(t.reporter_id) || null : null,
+      })) as TaskWithRelations[];
+    },
+    enabled: !!currentOrg?.id,
+  });
+};
+
 // ─── Tasks ───
 
 export const useTasks = (spaceId: string | undefined, filters?: TaskFilters) => {
@@ -468,7 +559,10 @@ export const useBulkDeleteTasks = () => {
       if (error) throw error;
       return spaceId;
     },
-    onSuccess: (spaceId) => qc.invalidateQueries({ queryKey: ['tasks', spaceId] }),
+    onSuccess: (spaceId) => {
+      qc.invalidateQueries({ queryKey: ['tasks', spaceId] });
+      qc.invalidateQueries({ queryKey: ['all-tasks'] });
+    },
   });
 };
 

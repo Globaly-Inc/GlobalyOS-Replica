@@ -32,9 +32,10 @@ interface TaskListViewProps {
   onTaskClick: (taskId: string) => void;
   columns?: ColumnConfig[];
   onAddTaskInStatus?: (statusId: string) => void;
+  isAllTasksMode?: boolean;
 }
 
-export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onTaskClick, columns }: TaskListViewProps) => {
+export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onTaskClick, columns, isAllTasksMode }: TaskListViewProps) => {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [addingInStatusId, setAddingInStatusId] = useState<string | null>(null);
   const [inlineTitle, setInlineTitle] = useState('');
@@ -261,15 +262,17 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                 {statusTasks.length}
               </Badge>
               <div className="flex-1" />
-              <button
-                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleStartInline(status.id);
-                }}
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </button>
+              {!isAllTasksMode && (
+                <button
+                  className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleStartInline(status.id);
+                  }}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
 
             {/* Task rows */}
@@ -332,7 +335,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                 ))}
 
                 {/* Inline creation row */}
-                {addingInStatusId === status.id && (
+                {!isAllTasksMode && addingInStatusId === status.id && (
                   <div
                     className="grid gap-2 px-3 py-2 items-center border-t bg-primary/5 text-sm"
                     style={gridStyle}
@@ -350,13 +353,15 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                 )}
 
                 {/* Add task button */}
-                <button
-                  className="flex items-center gap-1.5 px-3 py-2 w-full text-xs text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors border-t"
-                  onClick={() => handleStartInline(status.id)}
-                >
-                  <Plus className="h-3 w-3" />
-                  <span>Add Task</span>
-                </button>
+                {!isAllTasksMode && (
+                  <button
+                    className="flex items-center gap-1.5 px-3 py-2 w-full text-xs text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors border-t"
+                    onClick={() => handleStartInline(status.id)}
+                  >
+                    <Plus className="h-3 w-3" />
+                    <span>Add Task</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
