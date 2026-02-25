@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,16 +18,23 @@ interface AddTaskDialogProps {
   spaceId: string;
   listId?: string | null;
   defaultStatusId?: string | null;
+  defaultTitle?: string;
 }
 
-export const AddTaskDialog = ({ open, onOpenChange, spaceId, listId, defaultStatusId }: AddTaskDialogProps) => {
-  const [title, setTitle] = useState('');
+export const AddTaskDialog = ({ open, onOpenChange, spaceId, listId, defaultStatusId, defaultTitle }: AddTaskDialogProps) => {
+  const [title, setTitle] = useState(defaultTitle || '');
   const [description, setDescription] = useState('');
   const [statusId, setStatusId] = useState<string>('');
   const [categoryId, setCategoryId] = useState<string>('none');
   const [priority, setPriority] = useState<TaskPriority>('normal');
   const [dueDate, setDueDate] = useState('');
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setTitle(defaultTitle || '');
+    }
+  }, [open, defaultTitle]);
 
   const { data: statuses = [] } = useTaskStatuses(spaceId);
   const { data: employees = [] } = useEmployees({ status: 'active', includeOffice: false });

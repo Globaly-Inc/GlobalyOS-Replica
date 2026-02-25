@@ -28,6 +28,7 @@ const Tasks = () => {
   const [showManage, setShowManage] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
   const [addTaskDefaultStatusId, setAddTaskDefaultStatusId] = useState<string | null>(null);
+  const [addTaskDefaultTitle, setAddTaskDefaultTitle] = useState('');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [filters, setFilters] = useState<TaskFilters>({});
@@ -368,6 +369,11 @@ const Tasks = () => {
                     setAddTaskDefaultStatusId(statusId);
                     setShowAddTask(true);
                   }}
+                  onAddTaskWithTitle={(statusId, title) => {
+                    setAddTaskDefaultStatusId(statusId);
+                    setAddTaskDefaultTitle(title);
+                    setShowAddTask(true);
+                  }}
                 />
               )}
             </div>
@@ -377,11 +383,15 @@ const Tasks = () => {
               open={showAddTask}
               onOpenChange={(open) => {
                 setShowAddTask(open);
-                if (!open) setAddTaskDefaultStatusId(null);
+                if (!open) {
+                  setAddTaskDefaultStatusId(null);
+                  setAddTaskDefaultTitle('');
+                }
               }}
               spaceId={activeSpaceId}
               listId={activeListId}
               defaultStatusId={addTaskDefaultStatusId}
+              defaultTitle={addTaskDefaultTitle}
             />
           </>
         ) : (

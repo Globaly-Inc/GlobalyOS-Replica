@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -22,6 +22,7 @@ import { Plus } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useUpdateTask } from '@/services/useTasks';
 import type { TaskStatusRow, TaskWithRelations, TaskCategoryRow } from '@/types/task';
@@ -40,9 +41,10 @@ interface TaskBoardViewProps {
   spaceId: string;
   onTaskClick: (taskId: string) => void;
   onAddTaskInStatus?: (statusId: string) => void;
+  onAddTaskWithTitle?: (statusId: string, title: string) => void;
 }
 
-export const TaskBoardView = ({ statuses, tasks, categories, spaceId, onTaskClick, onAddTaskInStatus }: TaskBoardViewProps) => {
+export const TaskBoardView = ({ statuses, tasks, categories, spaceId, onTaskClick, onAddTaskInStatus, onAddTaskWithTitle }: TaskBoardViewProps) => {
   const [activeTask, setActiveTask] = useState<TaskWithRelations | null>(null);
   const updateTask = useUpdateTask();
 
@@ -107,6 +109,7 @@ export const TaskBoardView = ({ statuses, tasks, categories, spaceId, onTaskClic
             spaceId={spaceId}
             onTaskClick={onTaskClick}
             onAddTask={() => onAddTaskInStatus?.(status.id)}
+            onAddTaskWithTitle={onAddTaskWithTitle ? (title) => onAddTaskWithTitle(status.id, title) : undefined}
           />
         ))}
       </div>
@@ -127,11 +130,44 @@ interface BoardColumnProps {
   spaceId: string;
   onTaskClick: (taskId: string) => void;
   onAddTask: () => void;
+  onAddTaskWithTitle?: (title: string) => void;
 }
 
-const BoardColumn = ({ status, tasks, categories, spaceId, onTaskClick, onAddTask }: BoardColumnProps) => {
+const BoardColumn = ({ status, tasks, categories, spaceId, onTaskClick, onAddTask, onAddTaskWithTitle }: BoardColumnProps) => {
   const taskIds = tasks.map(t => t.id);
   const { setNodeRef: setDropRef } = useDroppable({ id: status.id });
+  const [isAddingInline, setIsAddingInline] = useState(false);
+  const [inlineTitle, setInlineTitle] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isAddingInline && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isAddingInline]);
+
+  const handleAddClick = () => {
+    if (onAddTaskWithTitle) {
+      setIsAddingInline(true);
+      setInlineTitle('');
+    } else {
+      onAddTask();
+    }
+  };
+
+  const handleInlineSubmit = () => {
+    const trimmed = inlineTitle.trim();
+    setIsAddingInline(false);
+    setInlineTitle('');
+    if (trimmed && onAddTaskWithTitle) {
+      onAddTaskWithTitle(trimmed);
+    }
+  };
+
+  const handleInlineCancel = () => {
+    setIsAddingInline(false);
+    setInlineTitle('');
+  };
 
   return (
     <div className="w-72 shrink-0 flex flex-col bg-muted/30 rounded-lg border" ref={setDropRef}>
@@ -145,7 +181,7 @@ const BoardColumn = ({ status, tasks, categories, spaceId, onTaskClick, onAddTas
         <Badge variant="secondary" className="text-[10px] h-5 px-1.5">{tasks.length}</Badge>
         <button
           className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-          onClick={onAddTask}
+          onClick={handleAddClick}
         >
           <Plus className="h-3.5 w-3.5" />
         </button>
@@ -161,12 +197,34 @@ const BoardColumn = ({ status, tasks, categories, spaceId, onTaskClick, onAddTas
           </div>
         </SortableContext>
 
+        {/* Inline add input */}
+        {isAddingInline && (
+          <div className="mt-2">
+            <Input
+              ref={inputRef}
+              value={inlineTitle}
+              onChange={(e) => setInlineTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleInlineSubmit();
+                if (e.key === 'Escape') handleInlineCancel();
+              }}
+              onBlur={() => {
+                // Small delay to allow Enter to fire first
+                setTimeout(() => {
+                  if (isAddingInline) handleInlineCancel();
+                }, 150);
+              }}
+              placeholder="Task name..."
+              className="h-8 text-sm"
+            />
+          </div>
+        )}
       </ScrollArea>
 
       {/* Add task button at bottom */}
       <button
         className="flex items-center gap-1.5 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors border-t"
-        onClick={onAddTask}
+        onClick={handleAddClick}
       >
         <Plus className="h-3 w-3" />
         <span>Add Task</span>
