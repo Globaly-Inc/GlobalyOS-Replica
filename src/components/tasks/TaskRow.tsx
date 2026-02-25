@@ -1,8 +1,11 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { TaskWithRelations } from '@/types/task';
+import { useUpdateTask } from '@/services/useTasks';
+import { PrioritySelector, CategorySelector, AssigneeSelector, DueDateSelector } from './TaskInlineCellEditors';
+import type { TaskWithRelations, TaskCategoryRow } from '@/types/task';
 import type { ColumnConfig } from './TaskColumnCustomizer';
+import { format, parseISO } from 'date-fns';
 
 const priorityConfig: Record<string, { label: string; className: string }> = {
   urgent: { label: 'Urgent', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
@@ -16,10 +19,17 @@ interface TaskRowProps {
   onClick: () => void;
   visibleColumns?: ColumnConfig[];
   gridStyle?: React.CSSProperties;
+  categories?: TaskCategoryRow[];
+  members?: { id: string; full_name: string; avatar_url: string | null }[];
 }
 
-export const TaskRow = ({ task, onClick, visibleColumns, gridStyle }: TaskRowProps) => {
+export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories = [], members = [] }: TaskRowProps) => {
   const priority = priorityConfig[task.priority] || priorityConfig.normal;
+  const updateTask = useUpdateTask();
+
+  const handleUpdate = (field: string, value: unknown) => {
+    updateTask.mutate({ id: task.id, [field]: value });
+  };
 
   const cols = visibleColumns || [
     { key: 'name', label: 'Name', visible: true },
@@ -47,27 +57,39 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle }: TaskRowPro
         );
       case 'category':
         return (
-          <span className="text-xs text-muted-foreground truncate">
-            {task.category?.name || '—'}
-          </span>
+          <CategorySelector
+            value={task.category_id}
+            categories={categories}
+            onChange={(val) => handleUpdate('category_id', val)}
+          >
+            <button className="text-xs text-muted-foreground truncate hover:text-foreground transition-colors text-left w-full">
+              {task.category?.name || '—'}
+            </button>
+          </CategorySelector>
         );
       case 'assignee':
         return (
-          <div className="flex items-center gap-1.5">
-            {task.assignee ? (
-              <>
-                <Avatar className="h-5 w-5">
-                  <AvatarImage src={task.assignee.avatar_url || undefined} />
-                  <AvatarFallback className="text-[10px]">
-                    {task.assignee.full_name?.charAt(0) || '?'}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="text-xs truncate">{task.assignee.full_name?.split(' ')[0]}</span>
-              </>
-            ) : (
-              <span className="text-xs text-muted-foreground">—</span>
-            )}
-          </div>
+          <AssigneeSelector
+            value={task.assignee_id}
+            members={members}
+            onChange={(val) => handleUpdate('assignee_id', val)}
+          >
+            <button className="flex items-center gap-1.5 hover:opacity-80 transition-opacity w-full">
+              {task.assignee ? (
+                <>
+                  <Avatar className="h-5 w-5">
+                    <AvatarImage src={task.assignee.avatar_url || undefined} />
+                    <AvatarFallback className="text-[10px]">
+                      {task.assignee.full_name?.charAt(0) || '?'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-xs truncate">{task.assignee.full_name?.split(' ')[0]}</span>
+                </>
+              ) : (
+                <span className="text-xs text-muted-foreground">—</span>
+              )}
+            </button>
+          </AssigneeSelector>
         );
       case 'tags':
         return (
@@ -93,15 +115,27 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle }: TaskRowPro
         );
       case 'priority':
         return (
-          <Badge variant="secondary" className={cn('text-[10px] h-5 px-1.5 justify-center', priority.className)}>
-            {priority.label}
-          </Badge>
+          <PrioritySelector
+            value={task.priority}
+            onChange={(val) => handleUpdate('priority', val)}
+          >
+            <button className="inline-flex">
+              <Badge variant="secondary" className={cn('text-[10px] h-5 px-1.5 justify-center cursor-pointer', priority.className)}>
+                {priority.label}
+              </Badge>
+            </button>
+          </PrioritySelector>
         );
       case 'due_date':
         return (
-          <span className="text-xs text-muted-foreground">
-            {task.due_date || '—'}
-          </span>
+          <DueDateSelector
+            value={task.due_date}
+            onChange={(val) => handleUpdate('due_date', val)}
+          >
+            <button className="text-xs text-muted-foreground hover:text-foreground transition-colors text-left w-full">
+              {task.due_date ? format(parseISO(task.due_date), 'MMM d') : '—'}
+            </button>
+          </DueDateSelector>
         );
       default:
         return null;

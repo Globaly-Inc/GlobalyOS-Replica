@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { TaskRow } from './TaskRow';
 import { TaskQuickAdd } from './TaskQuickAdd';
+import { useEmployees } from '@/services/useEmployees';
 import type { TaskStatusRow, TaskWithRelations, TaskCategoryRow } from '@/types/task';
 import type { ColumnConfig } from './TaskColumnCustomizer';
 
@@ -20,6 +21,13 @@ interface TaskListViewProps {
 export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onTaskClick, columns }: TaskListViewProps) => {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [addingInStatus, setAddingInStatus] = useState<string | null>(null);
+
+  const { data: employeesData } = useEmployees({ status: 'active' });
+  const members = ((employeesData || []) as any[]).map((e: any) => ({
+    id: e.id,
+    full_name: e.full_name || '',
+    avatar_url: e.avatar_url || null,
+  }));
 
   const visibleColumns = columns?.filter(c => c.visible) || [
     { key: 'name', label: 'Name', visible: true },
@@ -125,6 +133,8 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                     onClick={() => onTaskClick(task.id)}
                     visibleColumns={visibleColumns}
                     gridStyle={gridStyle}
+                    categories={categories}
+                    members={members}
                   />
                 ))}
 
@@ -134,7 +144,10 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                     spaceId={spaceId}
                     statusId={status.id}
                     categories={categories}
+                    listId={listId}
                     onDone={() => setAddingInStatus(null)}
+                    visibleColumns={visibleColumns}
+                    gridStyle={gridStyle}
                   />
                 ) : (
                   <button
