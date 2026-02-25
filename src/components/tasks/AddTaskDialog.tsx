@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useCreateTask, useTaskStatuses, useTaskCategories } from '@/services/useTasks';
+import { useEmployees } from '@/services/useEmployees';
 import { EmployeePickerPopover } from './EmployeePickerPopover';
 import type { TaskPriority } from '@/types/task';
 import { toast } from 'sonner';
@@ -27,9 +28,9 @@ export const AddTaskDialog = ({ open, onOpenChange, spaceId, listId, defaultStat
   const [priority, setPriority] = useState<TaskPriority>('normal');
   const [dueDate, setDueDate] = useState('');
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
-  const [assigneeLabel, setAssigneeLabel] = useState<string>('Unassigned');
 
   const { data: statuses = [] } = useTaskStatuses(spaceId);
+  const { data: employees = [] } = useEmployees({ status: 'active', includeOffice: false });
   const { data: categories = [] } = useTaskCategories(spaceId);
   const createTask = useCreateTask();
 
@@ -51,7 +52,7 @@ export const AddTaskDialog = ({ open, onOpenChange, spaceId, listId, defaultStat
       });
       toast.success('Task created');
       setTitle(''); setDescription(''); setStatusId(''); setCategoryId('none');
-      setPriority('normal'); setDueDate(''); setAssigneeId(null); setAssigneeLabel('Unassigned');
+      setPriority('normal'); setDueDate(''); setAssigneeId(null);
       onOpenChange(false);
     } catch {
       toast.error('Failed to create task');
@@ -126,7 +127,22 @@ export const AddTaskDialog = ({ open, onOpenChange, spaceId, listId, defaultStat
               <Label>Assignee</Label>
               <EmployeePickerPopover value={assigneeId} onChange={setAssigneeId}>
                 <Button variant="outline" className="h-8 w-full justify-start text-sm">
-                  {assigneeId ? 'Assigned' : 'Unassigned'}
+                  {(() => {
+                    const sel: any = employees.find((e: any) => e.id === assigneeId);
+                    if (sel) {
+                      const name = sel.profiles?.full_name || 'Unknown';
+                      return (
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-5 w-5">
+                            <AvatarImage src={sel.profiles?.avatar_url || undefined} />
+                            <AvatarFallback className="text-[8px]">{name.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <span className="truncate">{name}</span>
+                        </div>
+                      );
+                    }
+                    return 'Unassigned';
+                  })()}
                 </Button>
               </EmployeePickerPopover>
             </div>
