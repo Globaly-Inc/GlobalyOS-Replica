@@ -369,6 +369,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                     spaceId={spaceId}
                     selected={selectedTaskIds.has(task.id)}
                     onToggleSelect={selectionActive ? handleToggleSelect : undefined}
+                    allTags={allTags}
                   />
                 ))}
 
