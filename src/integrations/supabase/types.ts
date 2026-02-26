@@ -20680,6 +20680,70 @@ export type Database = {
           },
         ]
       }
+      task_folders: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          is_archived: boolean
+          name: string
+          organization_id: string
+          sort_order: number
+          space_id: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_archived?: boolean
+          name: string
+          organization_id: string
+          sort_order?: number
+          space_id: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_archived?: boolean
+          name?: string
+          organization_id?: string
+          sort_order?: number
+          space_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_folders_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_folders_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_folders_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "task_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_followers: {
         Row: {
           created_at: string
@@ -20745,6 +20809,7 @@ export type Database = {
           color: string | null
           created_at: string
           description: string | null
+          folder_id: string | null
           id: string
           is_archived: boolean
           name: string
@@ -20757,6 +20822,7 @@ export type Database = {
           color?: string | null
           created_at?: string
           description?: string | null
+          folder_id?: string | null
           id?: string
           is_archived?: boolean
           name: string
@@ -20769,6 +20835,7 @@ export type Database = {
           color?: string | null
           created_at?: string
           description?: string | null
+          folder_id?: string | null
           id?: string
           is_archived?: boolean
           name?: string
@@ -20778,6 +20845,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "task_lists_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "task_folders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "task_lists_organization_id_fkey"
             columns: ["organization_id"]
@@ -20797,6 +20871,68 @@ export type Database = {
             columns: ["space_id"]
             isOneToOne: false
             referencedRelation: "task_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_sharing_permissions: {
+        Row: {
+          created_at: string
+          employee_id: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          organization_id: string
+          permission_level: string
+          team_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          employee_id?: string | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          organization_id: string
+          permission_level?: string
+          team_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          organization_id?: string
+          permission_level?: string
+          team_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_sharing_permissions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_sharing_permissions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_sharing_permissions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_sharing_permissions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
             referencedColumns: ["id"]
           },
         ]
