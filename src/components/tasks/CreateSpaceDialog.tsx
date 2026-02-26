@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useCreateTaskSpace } from '@/services/useTasks';
-import { EmojiPicker } from './EmojiPicker';
+import { SpaceIconPicker } from './SpaceIconPicker';
 import { toast } from 'sonner';
 
 interface CreateSpaceDialogProps {
@@ -46,7 +46,7 @@ export const CreateSpaceDialog = ({ open, onOpenChange }: CreateSpaceDialogProps
         </DialogHeader>
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <EmojiPicker value={icon} onChange={setIcon} />
+            <SpaceIconPicker value={icon} onChange={setIcon} />
             <div className="flex-1 space-y-1">
               <Label>Name</Label>
               <Input

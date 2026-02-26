@@ -8,7 +8,7 @@ import { useTaskSpaces, useDeleteTaskSpace, useUpdateTaskSpace, useTaskFolders, 
 import { CreateSpaceDialog } from './CreateSpaceDialog';
 import { CreateFolderDialog } from './CreateFolderDialog';
 import { TaskSharingDialog } from './TaskSharingDialog';
-import { EmojiPicker } from './EmojiPicker';
+import { SpaceIconPicker } from './SpaceIconPicker';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import type { SidebarSelection, TaskSpaceRow, TaskFolderRow, TaskListRow } from '@/types/task';
 import { toast } from 'sonner';
@@ -272,9 +272,9 @@ const SpaceNode = ({
           {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
         </button>
 
-        <EmojiPicker
+        <SpaceIconPicker
           value={space.icon || '🚀'}
-          onChange={(emoji) => onIconChange(space.id, emoji)}
+          onChange={(icon) => onIconChange(space.id, icon)}
           size="sm"
         />
 
