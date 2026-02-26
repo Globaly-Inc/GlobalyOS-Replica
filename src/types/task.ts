@@ -16,6 +16,8 @@ export type TaskCommentRow = Database['public']['Tables']['task_comments']['Row'
 export type TaskAttachmentRow = Database['public']['Tables']['task_attachments']['Row'];
 export type TaskFollowerRow = Database['public']['Tables']['task_followers']['Row'];
 export type TaskActivityLogRow = Database['public']['Tables']['task_activity_logs']['Row'];
+export type TaskFolderRow = Database['public']['Tables']['task_folders']['Row'];
+export type TaskSharingPermissionRow = Database['public']['Tables']['task_sharing_permissions']['Row'];
 
 // Insert types
 export type TaskSpaceInsert = Database['public']['Tables']['task_spaces']['Insert'];
@@ -28,6 +30,8 @@ export type TaskCommentInsert = Database['public']['Tables']['task_comments']['I
 export type TaskAttachmentInsert = Database['public']['Tables']['task_attachments']['Insert'];
 export type TaskFollowerInsert = Database['public']['Tables']['task_followers']['Insert'];
 export type TaskActivityLogInsert = Database['public']['Tables']['task_activity_logs']['Insert'];
+export type TaskFolderInsert = Database['public']['Tables']['task_folders']['Insert'];
+export type TaskSharingPermissionInsert = Database['public']['Tables']['task_sharing_permissions']['Insert'];
 
 // Update types
 export type TaskSpaceUpdate = Database['public']['Tables']['task_spaces']['Update'];
@@ -36,10 +40,17 @@ export type TaskStatusUpdate = Database['public']['Tables']['task_statuses']['Up
 export type TaskCategoryUpdate = Database['public']['Tables']['task_categories']['Update'];
 export type TaskUpdate = Database['public']['Tables']['tasks']['Update'];
 export type TaskChecklistUpdate = Database['public']['Tables']['task_checklists']['Update'];
+export type TaskFolderUpdate = Database['public']['Tables']['task_folders']['Update'];
 
 // Enriched types for UI
 export type TaskPriority = 'urgent' | 'high' | 'normal' | 'low';
 export type StatusGroup = 'todo' | 'in_progress' | 'in_review' | 'blocked' | 'completed';
+
+// Sidebar selection model
+export type SidebarSelection = {
+  type: 'all' | 'space' | 'folder' | 'list';
+  id: string | null;
+};
 
 export interface TaskSpaceTreeNode extends TaskSpaceRow {
   children: TaskSpaceTreeNode[];

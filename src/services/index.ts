@@ -69,4 +69,7 @@ export {
   useDeleteTaskChecklist as useDeleteTaskMgmtChecklist,
   useTaskComments, useCreateTaskComment,
   useTaskActivityLogs, useTaskFollowers, useToggleTaskFollower,
+  useTaskFolders, useCreateTaskFolder, useUpdateTaskFolder, useDeleteTaskFolder,
+  useTaskSharingPermissions, useAddTaskSharingPermission, useRemoveTaskSharingPermission,
+  useTaskLists, useCreateTaskList, useUpdateTaskList, useDeleteTaskList,
 } from './useTasks';

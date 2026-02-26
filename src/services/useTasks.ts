@@ -21,6 +21,8 @@ import type {
   TaskFilters,
   TaskSpaceTreeNode,
   TaskListRow, TaskListInsert, TaskListUpdate,
+  TaskFolderRow, TaskFolderInsert, TaskFolderUpdate,
+  TaskSharingPermissionRow, TaskSharingPermissionInsert,
 } from '@/types/task';
 
 // ─── Spaces ───
@@ -774,5 +776,131 @@ export const useToggleTaskFollower = () => {
       return taskId;
     },
     onSuccess: (taskId) => qc.invalidateQueries({ queryKey: ['task-followers', taskId] }),
+  });
+};
+
+// ─── Folders ───
+
+export const useTaskFolders = (spaceId: string | undefined) => {
+  return useQuery({
+    queryKey: ['task-folders', spaceId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('task_folders')
+        .select('*')
+        .eq('space_id', spaceId!)
+        .eq('is_archived', false)
+        .order('sort_order');
+      if (error) throw error;
+      return data as TaskFolderRow[];
+    },
+    enabled: !!spaceId,
+  });
+};
+
+export const useCreateTaskFolder = () => {
+  const qc = useQueryClient();
+  const { currentOrg } = useOrganization();
+  return useMutation({
+    mutationFn: async (input: Omit<TaskFolderInsert, 'organization_id'>) => {
+      const { data, error } = await supabase
+        .from('task_folders')
+        .insert({ ...input, organization_id: currentOrg!.id })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => qc.invalidateQueries({ queryKey: ['task-folders', data.space_id] }),
+  });
+};
+
+export const useUpdateTaskFolder = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: TaskFolderUpdate & { id: string }) => {
+      const { data, error } = await supabase
+        .from('task_folders')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => qc.invalidateQueries({ queryKey: ['task-folders', data.space_id] }),
+  });
+};
+
+export const useDeleteTaskFolder = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, spaceId }: { id: string; spaceId: string }) => {
+      const { error } = await supabase.from('task_folders').delete().eq('id', id);
+      if (error) throw error;
+      return spaceId;
+    },
+    onSuccess: (spaceId) => qc.invalidateQueries({ queryKey: ['task-folders', spaceId] }),
+  });
+};
+
+// ─── Sharing Permissions ───
+
+export const useTaskSharingPermissions = (entityType: string, entityId: string | undefined) => {
+  return useQuery({
+    queryKey: ['task-sharing', entityType, entityId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('task_sharing_permissions')
+        .select('*')
+        .eq('entity_type', entityType)
+        .eq('entity_id', entityId!);
+      if (error) throw error;
+
+      const empIds = [...new Set((data || []).map((p: any) => p.employee_id).filter(Boolean))];
+      let empMap = new Map<string, { id: string; full_name: string; avatar_url: string | null }>();
+      if (empIds.length > 0) {
+        const { data: emps } = await supabase
+          .from('employee_directory')
+          .select('id, full_name, avatar_url')
+          .in('id', empIds);
+        (emps || []).forEach((e: any) => empMap.set(e.id, e));
+      }
+
+      return (data || []).map((p: any) => ({
+        ...p,
+        employee: p.employee_id ? empMap.get(p.employee_id) || null : null,
+      }));
+    },
+    enabled: !!entityId,
+  });
+};
+
+export const useAddTaskSharingPermission = () => {
+  const qc = useQueryClient();
+  const { currentOrg } = useOrganization();
+  return useMutation({
+    mutationFn: async (input: Omit<TaskSharingPermissionInsert, 'organization_id'>) => {
+      const { data, error } = await supabase
+        .from('task_sharing_permissions')
+        .insert({ ...input, organization_id: currentOrg!.id })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, vars) => qc.invalidateQueries({ queryKey: ['task-sharing', vars.entity_type, vars.entity_id] }),
+  });
+};
+
+export const useRemoveTaskSharingPermission = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, entityType, entityId }: { id: string; entityType: string; entityId: string }) => {
+      const { error } = await supabase.from('task_sharing_permissions').delete().eq('id', id);
+      if (error) throw error;
+      return { entityType, entityId };
+    },
+    onSuccess: ({ entityType, entityId }) => qc.invalidateQueries({ queryKey: ['task-sharing', entityType, entityId] }),
   });
 };

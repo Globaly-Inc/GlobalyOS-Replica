@@ -5,27 +5,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useCreateTaskSpace } from '@/services/useTasks';
+import { EmojiPicker } from './EmojiPicker';
 import { toast } from 'sonner';
-
-const TIER_META = [
-  { title: 'Create Project', placeholder: 'e.g. Marketing Campaign', icon: '📂' },
-  { title: 'Create Sub-project', placeholder: 'e.g. Social Media Strategy', icon: '📁' },
-  { title: 'Create Task', placeholder: 'e.g. Design Landing Page', icon: '📋' },
-  { title: 'Create Subtask', placeholder: 'e.g. Write Copy for Hero Section', icon: '📌' },
-];
 
 interface CreateSpaceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  parentId: string | null;
-  depth?: number;
 }
 
-export const CreateSpaceDialog = ({ open, onOpenChange, parentId, depth = 0 }: CreateSpaceDialogProps) => {
+export const CreateSpaceDialog = ({ open, onOpenChange }: CreateSpaceDialogProps) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [icon, setIcon] = useState('🚀');
   const createSpace = useCreateTaskSpace();
-  const tier = TIER_META[Math.min(depth, 3)];
 
   const handleCreate = async () => {
     if (!name.trim()) return;
@@ -33,15 +25,16 @@ export const CreateSpaceDialog = ({ open, onOpenChange, parentId, depth = 0 }: C
       await createSpace.mutateAsync({
         name: name.trim(),
         description: description.trim() || null,
-        icon: tier.icon,
-        parent_id: parentId,
+        icon,
+        parent_id: null,
       });
-      toast.success(`${tier.title.replace('Create ', '')} created`);
+      toast.success('Space created');
       setName('');
       setDescription('');
+      setIcon('🚀');
       onOpenChange(false);
     } catch {
-      toast.error('Failed to create');
+      toast.error('Failed to create space');
     }
   };
 
@@ -49,25 +42,28 @@ export const CreateSpaceDialog = ({ open, onOpenChange, parentId, depth = 0 }: C
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{tier.title}</DialogTitle>
+          <DialogTitle>Create Space</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Name</Label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={tier.placeholder}
-              autoFocus
-              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-            />
+          <div className="flex items-center gap-3">
+            <EmojiPicker value={icon} onChange={setIcon} />
+            <div className="flex-1 space-y-1">
+              <Label>Name</Label>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Marketing, Engineering"
+                autoFocus
+                onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+              />
+            </div>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1">
             <Label>Description (optional)</Label>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="What is this for?"
+              placeholder="What is this space for?"
               rows={2}
             />
           </div>
