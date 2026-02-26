@@ -429,7 +429,6 @@ const Tasks = () => {
                   )}
                 </div>
               </>
-            )}
 
             {!isAllTasksMode && activeSpaceId && !isProjectDashboard && (
               <>
