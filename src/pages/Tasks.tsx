@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
-import { Search, Plus, Settings, LayoutList, Columns3, X, CheckSquare, FolderOpen } from 'lucide-react';
+import { Search, Plus, Settings, LayoutList, Columns3, X, User, FolderOpen } from 'lucide-react';
+import { useCurrentEmployee } from '@/services/useCurrentEmployee';
 import { ProjectDashboard } from '../components/tasks/ProjectDashboard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,6 +35,7 @@ const Tasks = () => {
   const [columns, setColumns] = useState(getDefaultColumns());
 
   const { data: spaces = [] } = useTaskSpaces();
+  const { data: currentEmployee } = useCurrentEmployee();
 
   const isAllTasksMode = selection.type === 'all';
   const isSpaceView = selection.type === 'space';
@@ -69,10 +71,17 @@ const Tasks = () => {
   const { data: spaceCategories = [] } = useTaskCategories(activeSpaceId || undefined);
   const { data: spaceTasks = [] } = useTasks(activeSpaceId || undefined, !isAllTasksMode ? combinedFilters : undefined);
 
-  // Org-wide hooks for All Tasks mode
+  // Org-wide hooks for My Tasks mode
   const { data: allStatuses = [] } = useAllTaskStatuses();
   const { data: allCategories = [] } = useAllTaskCategories();
-  const { data: allTasks = [] } = useAllTasks(isAllTasksMode ? combinedFilters : undefined);
+  const myTasksFilters: TaskFilters | undefined = useMemo(() => {
+    if (!isAllTasksMode) return undefined;
+    return {
+      ...combinedFilters,
+      assignee_ids: currentEmployee?.id ? [currentEmployee.id] : [],
+    };
+  }, [isAllTasksMode, combinedFilters, currentEmployee?.id]);
+  const { data: allTasks = [] } = useAllTasks(myTasksFilters);
 
   const statuses = isAllTasksMode ? allStatuses : spaceStatuses;
   const categories = isAllTasksMode ? allCategories : spaceCategories;
@@ -103,7 +112,7 @@ const Tasks = () => {
 
   // Title
   const pageTitle = useMemo(() => {
-    if (isAllTasksMode) return 'All Tasks';
+    if (isAllTasksMode) return 'My Tasks';
     if (isSpaceView && activeSpace) return activeSpace.name;
     if (isFolderView) return 'Folder';
     if (isListView) return 'Task List';
@@ -111,7 +120,7 @@ const Tasks = () => {
   }, [selection, activeSpace, isAllTasksMode, isSpaceView, isFolderView, isListView]);
 
   const pageIcon = useMemo(() => {
-    if (isAllTasksMode) return <CheckSquare className="h-5 w-5" />;
+    if (isAllTasksMode) return <User className="h-5 w-5" />;
     if (isSpaceView && activeSpace) return <span>{activeSpace.icon || '🚀'}</span>;
     if (isFolderView) return <FolderOpen className="h-5 w-5" />;
     return null;

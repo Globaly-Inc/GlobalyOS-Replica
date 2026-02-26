@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Plus, CheckSquare, MoreHorizontal, Trash2, FolderOpen, List, Pencil, Share2, FolderPlus, ListPlus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, User, MoreHorizontal, Trash2, FolderOpen, List, Pencil, Share2, FolderPlus, ListPlus } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -92,8 +92,8 @@ export const TaskInnerSidebar = ({ selection, onSelect }: TaskInnerSidebarProps)
           )}
           onClick={() => onSelect({ type: 'all', id: null })}
         >
-          <CheckSquare className="h-4 w-4" />
-          <span>All Tasks</span>
+          <User className="h-4 w-4" />
+          <span>My Tasks</span>
         </div>
       </div>
 
