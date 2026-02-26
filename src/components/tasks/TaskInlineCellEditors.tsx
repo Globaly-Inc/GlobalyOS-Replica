@@ -7,6 +7,7 @@ import { Command, CommandInput, CommandList, CommandItem, CommandEmpty, CommandG
 import { cn } from '@/lib/utils';
 import { Check, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import { Plus } from 'lucide-react';
 import type { TaskCategoryRow } from '@/types/task';
 
 // ─── Priority Selector ───
