@@ -238,9 +238,9 @@ const Tasks = () => {
               </div>
             </div>
 
-            {isProjectDashboard && activeSpaceId ? (
+            {isProjectDashboard && activeSpaceId && (
               <ProjectDashboard spaceId={activeSpaceId} spaces={spaces} />
-            ) : (
+            )}
               <>
                 {/* Toolbar */}
                 <div className="px-6 pt-3 border-b">
