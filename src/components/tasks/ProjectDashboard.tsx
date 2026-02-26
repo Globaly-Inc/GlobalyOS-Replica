@@ -37,7 +37,7 @@ export function ProjectDashboard({ spaceId, spaces }: ProjectDashboardProps) {
   ];
 
   return (
-    <div className="p-6 space-y-6 overflow-auto">
+    <div className="p-6 space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Completion Rate */}
         <Card>
