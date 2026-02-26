@@ -429,9 +429,8 @@ const Tasks = () => {
                   )}
                 </div>
               </>
-            )}
 
-            {!isAllTasksMode && activeSpaceId && !isProjectDashboard && (
+            {!isAllTasksMode && activeSpaceId && (
               <>
                 <ManageDialog open={showManage} onOpenChange={setShowManage} spaceId={activeSpaceId} />
                 <AddTaskDialog
