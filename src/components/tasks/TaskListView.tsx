@@ -43,6 +43,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
   const [inlineCategoryId, setInlineCategoryId] = useState<string | null>(null);
   const [inlineAssigneeId, setInlineAssigneeId] = useState<string | null>(null);
   const [inlineDueDate, setInlineDueDate] = useState<string | null>(null);
+  const [inlineTags, setInlineTags] = useState<string[]>([]);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
