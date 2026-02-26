@@ -114,11 +114,11 @@ export const AssigneeSelector = ({ value, members, onChange, children }: Assigne
       <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
         {children}
       </PopoverTrigger>
-      <PopoverContent className="w-[220px] p-0 z-50" align="start" onClick={(e) => e.stopPropagation()}>
+      <PopoverContent className="w-[280px] p-0 z-50" align="start" onClick={(e) => e.stopPropagation()}>
         <Command>
-          <CommandInput placeholder="Search..." />
-          <CommandList>
-            <CommandEmpty>No members found.</CommandEmpty>
+          <CommandInput placeholder="Search employees..." />
+          <CommandList className="max-h-[240px] overflow-y-auto">
+            <CommandEmpty>No employee found.</CommandEmpty>
             <CommandGroup>
               {value && (
                 <CommandItem onSelect={() => { onChange(null); setOpen(false); }} value="__unassign__">
@@ -133,9 +133,9 @@ export const AssigneeSelector = ({ value, members, onChange, children }: Assigne
                   onSelect={() => { onChange(m.id); setOpen(false); }}
                   className={value === m.id ? 'bg-primary/10 text-primary' : ''}
                 >
-                  <Avatar className="h-5 w-5 mr-2">
+                  <Avatar className="h-6 w-6 mr-2">
                     <AvatarImage src={m.avatar_url || undefined} />
-                    <AvatarFallback className="text-[10px]">{m.full_name?.charAt(0) || '?'}</AvatarFallback>
+                    <AvatarFallback className="text-[9px]">{m.full_name?.charAt(0) || '?'}</AvatarFallback>
                   </Avatar>
                   <span className="truncate">{m.full_name}</span>
                 </CommandItem>
