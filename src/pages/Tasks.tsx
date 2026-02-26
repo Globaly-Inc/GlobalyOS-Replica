@@ -238,11 +238,9 @@ const Tasks = () => {
               </div>
             </div>
 
-            {isProjectDashboard && activeSpaceId && (
+            {isProjectDashboard && activeSpaceId ? (
               <ProjectDashboard spaceId={activeSpaceId} spaces={spaces} />
-            )}
-
-            {(activeSpaceId || isAllTasksMode) && (
+            ) : (
               <>
                 {/* Toolbar */}
                 <div className="px-6 pt-3 border-b">
