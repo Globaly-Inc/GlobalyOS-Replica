@@ -222,7 +222,7 @@ const Tasks = () => {
                   )}
                 </h1>
                 <div className="flex items-center gap-2">
-                  {!isAllTasksMode && !isProjectDashboard && (
+                  {!isAllTasksMode && (
                     <>
                       <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => setShowManage(true)}>
                         <Settings className="h-3.5 w-3.5" />
