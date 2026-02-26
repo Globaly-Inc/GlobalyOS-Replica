@@ -33,7 +33,7 @@ interface TaskRowProps {
   allTags?: string[];
 }
 
-export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories = [], members = [], spaceId, selected, onToggleSelect }: TaskRowProps) => {
+export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories = [], members = [], spaceId, selected, onToggleSelect, allTags = [] }: TaskRowProps) => {
   const priority = priorityConfig[task.priority] || priorityConfig.normal;
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
