@@ -58,6 +58,9 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
     avatar_url: e.avatar_url || null,
   }));
 
+  // Collect all unique tags from loaded tasks
+  const allTags = Array.from(new Set(tasks.flatMap(t => t.tags || []))).sort();
+
   const visibleColumns = columns?.filter(c => c.visible) || [
     { key: 'name', label: 'Name', visible: true },
     { key: 'category', label: 'Category', visible: true },
