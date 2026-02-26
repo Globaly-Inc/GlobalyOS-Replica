@@ -1,11 +1,11 @@
 import { useState, useMemo } from 'react';
-import { Search, Plus, Settings, LayoutList, Columns3, X, CheckSquare } from 'lucide-react';
+import { Search, Plus, Settings, LayoutList, Columns3, X, CheckSquare, FolderOpen } from 'lucide-react';
 import { ProjectDashboard } from '../components/tasks/ProjectDashboard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { useTasks, useTaskStatuses, useTaskCategories, useTaskSpaces, useTaskLists, useAllTasks, useAllTaskStatuses, useAllTaskCategories } from '@/services/useTasks';
+import { useTasks, useTaskStatuses, useTaskCategories, useTaskSpaces, useTaskLists, useTaskFolders, useAllTasks, useAllTaskStatuses, useAllTaskCategories } from '@/services/useTasks';
 import { TaskListView } from '../components/tasks/TaskListView';
 import { TaskBoardView } from '../components/tasks/TaskBoardView';
 import { TaskInnerSidebar } from '../components/tasks/TaskInnerSidebar';
@@ -14,6 +14,7 @@ import { TaskDetailPage } from '../components/tasks/TaskDetailPage';
 import { TaskFilterPopover } from '../components/tasks/TaskFilterPopover';
 import { TaskColumnCustomizer, getDefaultColumns } from '../components/tasks/TaskColumnCustomizer';
 import { AddTaskDialog } from '../components/tasks/AddTaskDialog';
+import { FolderSummaryView } from '../components/tasks/FolderSummaryView';
 import { useTaskListRealtime } from '@/services/useTaskDetailRealtime';
 import type { TaskFilters, SidebarSelection } from '@/types/task';
 import { cn } from '@/lib/utils';
@@ -37,28 +38,16 @@ const Tasks = () => {
   const isAllTasksMode = selection.type === 'all';
   const isSpaceView = selection.type === 'space';
   const isListView = selection.type === 'list';
+  const isFolderView = selection.type === 'folder';
 
-  // Determine the space ID for the current selection
+  // Resolve spaceId from selection (sidebar now passes it)
   const activeSpaceId = useMemo(() => {
+    if (selection.spaceId) return selection.spaceId;
     if (selection.type === 'space') return selection.id;
-    // For list selection, find the space from all lists across spaces
     return null;
   }, [selection]);
 
-  // For list selection, we need the list's space_id
-  const { data: allSpaceLists } = useTaskLists(activeSpaceId || undefined);
-
-  // Find which space a list belongs to (we need to query all spaces' lists)
-  const activeListId = selection.type === 'list' ? selection.id : null;
-
-  // Get the space for the selected list by searching spaces
-  const listSpaceId = useMemo(() => {
-    if (selection.type === 'list' && selection.id) {
-      // We look through spaces to find which space this list belongs to
-      return null; // Will be resolved via task query
-    }
-    return activeSpaceId;
-  }, [selection, activeSpaceId]);
+  const activeListId = isListView ? selection.id : null;
 
   useTaskListRealtime(activeSpaceId);
 
@@ -111,22 +100,22 @@ const Tasks = () => {
   // Determine what to show
   const showTaskContent = isListView || isAllTasksMode;
   const showSpaceDashboard = isSpaceView && activeSpaceId;
-  const showFolderView = selection.type === 'folder';
 
   // Title
   const pageTitle = useMemo(() => {
     if (isAllTasksMode) return 'All Tasks';
     if (isSpaceView && activeSpace) return activeSpace.name;
-    if (selection.type === 'folder') return 'Folder';
-    if (selection.type === 'list') return 'Task List';
+    if (isFolderView) return 'Folder';
+    if (isListView) return 'Task List';
     return 'Tasks';
-  }, [selection, activeSpace, isAllTasksMode, isSpaceView]);
+  }, [selection, activeSpace, isAllTasksMode, isSpaceView, isFolderView, isListView]);
 
   const pageIcon = useMemo(() => {
     if (isAllTasksMode) return <CheckSquare className="h-5 w-5" />;
     if (isSpaceView && activeSpace) return <span>{activeSpace.icon || '🚀'}</span>;
+    if (isFolderView) return <FolderOpen className="h-5 w-5" />;
     return null;
-  }, [isAllTasksMode, isSpaceView, activeSpace]);
+  }, [isAllTasksMode, isSpaceView, activeSpace, isFolderView]);
 
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
@@ -176,15 +165,13 @@ const Tasks = () => {
           <ProjectDashboard spaceId={activeSpaceId!} spaces={spaces} />
         )}
 
-        {/* Folder placeholder */}
-        {showFolderView && (
-          <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            <div className="text-center space-y-2">
-              <LayoutList className="h-12 w-12 mx-auto text-muted-foreground/50" />
-              <h2 className="text-lg font-medium">Folder</h2>
-              <p className="text-sm">Select a task list from the sidebar to view tasks.</p>
-            </div>
-          </div>
+        {/* Folder Summary View */}
+        {isFolderView && selection.id && activeSpaceId && (
+          <FolderSummaryView
+            folderId={selection.id}
+            spaceId={activeSpaceId}
+            onSelectList={(listId) => handleSelect({ type: 'list', id: listId, spaceId: activeSpaceId })}
+          />
         )}
 
         {/* Task content (list or all tasks) */}
@@ -315,7 +302,7 @@ const Tasks = () => {
         )}
 
         {/* Empty state when nothing selected */}
-        {!showTaskContent && !showSpaceDashboard && !showFolderView && (
+        {!showTaskContent && !showSpaceDashboard && !isFolderView && (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             <div className="text-center space-y-2">
               <LayoutList className="h-12 w-12 mx-auto text-muted-foreground/50" />

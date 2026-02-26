@@ -50,6 +50,7 @@ export type StatusGroup = 'todo' | 'in_progress' | 'in_review' | 'blocked' | 'co
 export type SidebarSelection = {
   type: 'all' | 'space' | 'folder' | 'list';
   id: string | null;
+  spaceId?: string | null;
 };
 
 export interface TaskSpaceTreeNode extends TaskSpaceRow {

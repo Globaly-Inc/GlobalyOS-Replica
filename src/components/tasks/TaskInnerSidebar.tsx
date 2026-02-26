@@ -1,10 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { ChevronDown, ChevronRight, Plus, CheckSquare, MoreHorizontal, Trash2, FolderOpen, List, Pencil, Share2, FolderPlus, ListPlus } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { useTaskSpaces, useDeleteTaskSpace, useUpdateTaskSpace, useTaskFolders, useDeleteTaskFolder, useTaskLists, useCreateTaskList, useDeleteTaskList } from '@/services/useTasks';
+import { useTaskSpaces, useDeleteTaskSpace, useUpdateTaskSpace, useTaskFolders, useUpdateTaskFolder, useDeleteTaskFolder, useTaskLists, useCreateTaskList, useUpdateTaskList, useDeleteTaskList } from '@/services/useTasks';
 import { CreateSpaceDialog } from './CreateSpaceDialog';
 import { CreateFolderDialog } from './CreateFolderDialog';
 import { TaskSharingDialog } from './TaskSharingDialog';
@@ -25,7 +25,8 @@ export const TaskInnerSidebar = ({ selection, onSelect }: TaskInnerSidebarProps)
   const [showCreateSpace, setShowCreateSpace] = useState(false);
   const [createFolderSpaceId, setCreateFolderSpaceId] = useState<string | null>(null);
   const [sharingTarget, setSharingTarget] = useState<{ type: 'space' | 'folder' | 'list'; id: string; name: string } | null>(null);
-  const [renamingSpaceId, setRenamingSpaceId] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renamingType, setRenamingType] = useState<'space' | 'folder' | 'list' | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const deleteSpace = useDeleteTaskSpace();
   const updateSpace = useUpdateTaskSpace();
@@ -56,15 +57,15 @@ export const TaskInnerSidebar = ({ selection, onSelect }: TaskInnerSidebarProps)
     }
   };
 
-  const handleRenameSpace = async (id: string) => {
-    if (!renameValue.trim()) { setRenamingSpaceId(null); return; }
-    try {
-      await updateSpace.mutateAsync({ id, name: renameValue.trim() });
-      setRenamingSpaceId(null);
-      toast.success('Renamed');
-    } catch {
-      toast.error('Failed to rename');
-    }
+  const startRename = (type: 'space' | 'folder' | 'list', id: string, name: string) => {
+    setRenamingType(type);
+    setRenamingId(id);
+    setRenameValue(name);
+  };
+
+  const cancelRename = () => {
+    setRenamingId(null);
+    setRenamingType(null);
   };
 
   const handleSpaceIconChange = async (spaceId: string, emoji: string) => {
@@ -117,17 +118,17 @@ export const TaskInnerSidebar = ({ selection, onSelect }: TaskInnerSidebarProps)
               isExpanded={expandedSpaces.has(space.id)}
               onToggle={() => toggleSpace(space.id)}
               isSelected={isSelected('space', space.id)}
-              onSelect={() => onSelect({ type: 'space', id: space.id })}
+              onSelect={() => onSelect({ type: 'space', id: space.id, spaceId: space.id })}
               selection={selection}
               onSelectItem={onSelect}
               expandedFolders={expandedFolders}
               onToggleFolder={toggleFolder}
-              onRename={(id, name) => { setRenamingSpaceId(id); setRenameValue(name); }}
-              renamingSpaceId={renamingSpaceId}
+              renamingId={renamingId}
+              renamingType={renamingType}
               renameValue={renameValue}
               onRenameValueChange={setRenameValue}
-              onRenameSubmit={handleRenameSpace}
-              onRenameCancel={() => setRenamingSpaceId(null)}
+              onStartRename={startRename}
+              onCancelRename={cancelRename}
               onDelete={handleDeleteSpace}
               onShare={(type, id, name) => setSharingTarget({ type, id, name })}
               onCreateFolder={(spaceId) => setCreateFolderSpaceId(spaceId)}
@@ -175,12 +176,12 @@ interface SpaceNodeProps {
   onSelectItem: (sel: SidebarSelection) => void;
   expandedFolders: Set<string>;
   onToggleFolder: (id: string) => void;
-  renamingSpaceId: string | null;
+  renamingId: string | null;
+  renamingType: 'space' | 'folder' | 'list' | null;
   renameValue: string;
   onRenameValueChange: (v: string) => void;
-  onRenameSubmit: (id: string) => void;
-  onRenameCancel: () => void;
-  onRename: (id: string, name: string) => void;
+  onStartRename: (type: 'space' | 'folder' | 'list', id: string, name: string) => void;
+  onCancelRename: () => void;
   onDelete: (id: string) => void;
   onShare: (type: 'space' | 'folder' | 'list', id: string, name: string) => void;
   onCreateFolder: (spaceId: string) => void;
@@ -190,14 +191,17 @@ interface SpaceNodeProps {
 const SpaceNode = ({
   space, isExpanded, onToggle, isSelected, onSelect,
   selection, onSelectItem, expandedFolders, onToggleFolder,
-  renamingSpaceId, renameValue, onRenameValueChange, onRenameSubmit, onRenameCancel,
-  onRename, onDelete, onShare, onCreateFolder, onIconChange,
+  renamingId, renamingType, renameValue, onRenameValueChange, onStartRename, onCancelRename,
+  onDelete, onShare, onCreateFolder, onIconChange,
 }: SpaceNodeProps) => {
   const { data: folders = [] } = useTaskFolders(space.id);
   const { data: allLists = [] } = useTaskLists(space.id);
   const createList = useCreateTaskList();
   const deleteList = useDeleteTaskList();
   const deleteFolder = useDeleteTaskFolder();
+  const updateSpace = useUpdateTaskSpace();
+  const updateFolder = useUpdateTaskFolder();
+  const updateList = useUpdateTaskList();
 
   const directLists = allLists.filter(l => !l.folder_id);
 
@@ -209,7 +213,7 @@ const SpaceNode = ({
         sort_order: allLists.length,
         ...(folderId ? { folder_id: folderId } : {}),
       });
-      onSelectItem({ type: 'list', id: newList.id });
+      onSelectItem({ type: 'list', id: newList.id, spaceId: space.id });
       toast.success('List created');
     } catch {
       toast.error('Failed to create list');
@@ -219,7 +223,7 @@ const SpaceNode = ({
   const handleDeleteList = async (listId: string) => {
     try {
       await deleteList.mutateAsync({ id: listId, spaceId: space.id });
-      if (selection.id === listId) onSelectItem({ type: 'space', id: space.id });
+      if (selection.id === listId) onSelectItem({ type: 'space', id: space.id, spaceId: space.id });
       toast.success('List deleted');
     } catch {
       toast.error('Failed to delete');
@@ -229,14 +233,31 @@ const SpaceNode = ({
   const handleDeleteFolder = async (folderId: string) => {
     try {
       await deleteFolder.mutateAsync({ id: folderId, spaceId: space.id });
-      if (selection.id === folderId) onSelectItem({ type: 'space', id: space.id });
+      if (selection.id === folderId) onSelectItem({ type: 'space', id: space.id, spaceId: space.id });
       toast.success('Folder deleted');
     } catch {
       toast.error('Failed to delete');
     }
   };
 
-  const isRenaming = renamingSpaceId === space.id;
+  const handleRenameSubmit = async () => {
+    if (!renamingId || !renameValue.trim()) { onCancelRename(); return; }
+    try {
+      if (renamingType === 'space') {
+        await updateSpace.mutateAsync({ id: renamingId, name: renameValue.trim() });
+      } else if (renamingType === 'folder') {
+        await updateFolder.mutateAsync({ id: renamingId, name: renameValue.trim() });
+      } else if (renamingType === 'list') {
+        await updateList.mutateAsync({ id: renamingId, name: renameValue.trim() });
+      }
+      onCancelRename();
+      toast.success('Renamed');
+    } catch {
+      toast.error('Failed to rename');
+    }
+  };
+
+  const isRenaming = renamingId === space.id && renamingType === 'space';
 
   return (
     <div>
@@ -262,10 +283,10 @@ const SpaceNode = ({
             value={renameValue}
             onChange={(e) => onRenameValueChange(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') onRenameSubmit(space.id);
-              if (e.key === 'Escape') onRenameCancel();
+              if (e.key === 'Enter') handleRenameSubmit();
+              if (e.key === 'Escape') onCancelRename();
             }}
-            onBlur={() => onRenameSubmit(space.id)}
+            onBlur={handleRenameSubmit}
             className="h-6 text-sm flex-1 px-1"
             autoFocus
             onClick={(e) => e.stopPropagation()}
@@ -299,7 +320,7 @@ const SpaceNode = ({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem onClick={() => onRename(space.id, space.name)}>
+            <DropdownMenuItem onClick={() => onStartRename('space', space.id, space.name)}>
               <Pencil className="h-3.5 w-3.5 mr-2" /> Rename
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onShare('space', space.id, space.name)}>
@@ -322,9 +343,15 @@ const SpaceNode = ({
               key={list.id}
               list={list}
               isSelected={selection.type === 'list' && selection.id === list.id}
-              onSelect={() => onSelectItem({ type: 'list', id: list.id })}
+              onSelect={() => onSelectItem({ type: 'list', id: list.id, spaceId: space.id })}
               onDelete={() => handleDeleteList(list.id)}
               onShare={() => onShare('list', list.id, list.name)}
+              onRename={() => onStartRename('list', list.id, list.name)}
+              isRenaming={renamingId === list.id && renamingType === 'list'}
+              renameValue={renameValue}
+              onRenameValueChange={onRenameValueChange}
+              onRenameSubmit={handleRenameSubmit}
+              onRenameCancel={onCancelRename}
               depth={1}
             />
           ))}
@@ -334,6 +361,7 @@ const SpaceNode = ({
             <FolderNode
               key={folder.id}
               folder={folder}
+              spaceId={space.id}
               lists={allLists.filter(l => l.folder_id === folder.id)}
               isExpanded={expandedFolders.has(folder.id)}
               onToggle={() => onToggleFolder(folder.id)}
@@ -343,6 +371,13 @@ const SpaceNode = ({
               onDeleteList={handleDeleteList}
               onDeleteFolder={() => handleDeleteFolder(folder.id)}
               onShare={onShare}
+              onStartRename={onStartRename}
+              renamingId={renamingId}
+              renamingType={renamingType}
+              renameValue={renameValue}
+              onRenameValueChange={onRenameValueChange}
+              onRenameSubmit={handleRenameSubmit}
+              onRenameCancel={onCancelRename}
             />
           ))}
 
@@ -359,6 +394,7 @@ const SpaceNode = ({
 
 interface FolderNodeProps {
   folder: TaskFolderRow;
+  spaceId: string;
   lists: TaskListRow[];
   isExpanded: boolean;
   onToggle: () => void;
@@ -368,13 +404,22 @@ interface FolderNodeProps {
   onDeleteList: (id: string) => void;
   onDeleteFolder: () => void;
   onShare: (type: 'space' | 'folder' | 'list', id: string, name: string) => void;
+  onStartRename: (type: 'space' | 'folder' | 'list', id: string, name: string) => void;
+  renamingId: string | null;
+  renamingType: 'space' | 'folder' | 'list' | null;
+  renameValue: string;
+  onRenameValueChange: (v: string) => void;
+  onRenameSubmit: () => void;
+  onRenameCancel: () => void;
 }
 
 const FolderNode = ({
-  folder, lists, isExpanded, onToggle,
+  folder, spaceId, lists, isExpanded, onToggle,
   selection, onSelectItem, onAddList, onDeleteList, onDeleteFolder, onShare,
+  onStartRename, renamingId, renamingType, renameValue, onRenameValueChange, onRenameSubmit, onRenameCancel,
 }: FolderNodeProps) => {
   const isFolderSelected = selection.type === 'folder' && selection.id === folder.id;
+  const isFolderRenaming = renamingId === folder.id && renamingType === 'folder';
 
   return (
     <div>
@@ -388,9 +433,24 @@ const FolderNode = ({
           {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
         </button>
         <FolderOpen className="h-3.5 w-3.5 shrink-0" />
-        <span className="truncate flex-1" onClick={() => onSelectItem({ type: 'folder', id: folder.id })}>
-          {folder.name}
-        </span>
+        {isFolderRenaming ? (
+          <Input
+            value={renameValue}
+            onChange={(e) => onRenameValueChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onRenameSubmit();
+              if (e.key === 'Escape') onRenameCancel();
+            }}
+            onBlur={onRenameSubmit}
+            className="h-6 text-sm flex-1 px-1"
+            autoFocus
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <span className="truncate flex-1" onClick={() => onSelectItem({ type: 'folder', id: folder.id, spaceId })}>
+            {folder.name}
+          </span>
+        )}
         <button
           className="p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
           onClick={(e) => { e.stopPropagation(); onAddList(); }}
@@ -404,6 +464,9 @@ const FolderNode = ({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuItem onClick={() => onStartRename('folder', folder.id, folder.name)}>
+              <Pencil className="h-3.5 w-3.5 mr-2" /> Rename
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onShare('folder', folder.id, folder.name)}>
               <Share2 className="h-3.5 w-3.5 mr-2" /> Share
             </DropdownMenuItem>
@@ -422,9 +485,15 @@ const FolderNode = ({
               key={list.id}
               list={list}
               isSelected={selection.type === 'list' && selection.id === list.id}
-              onSelect={() => onSelectItem({ type: 'list', id: list.id })}
+              onSelect={() => onSelectItem({ type: 'list', id: list.id, spaceId })}
               onDelete={() => onDeleteList(list.id)}
               onShare={() => onShare('list', list.id, list.name)}
+              onRename={() => onStartRename('list', list.id, list.name)}
+              isRenaming={renamingId === list.id && renamingType === 'list'}
+              renameValue={renameValue}
+              onRenameValueChange={onRenameValueChange}
+              onRenameSubmit={onRenameSubmit}
+              onRenameCancel={onRenameCancel}
               depth={2}
             />
           ))}
@@ -445,32 +514,56 @@ interface ListItemProps {
   onSelect: () => void;
   onDelete: () => void;
   onShare: () => void;
+  onRename: () => void;
+  isRenaming: boolean;
+  renameValue: string;
+  onRenameValueChange: (v: string) => void;
+  onRenameSubmit: () => void;
+  onRenameCancel: () => void;
   depth: number;
 }
 
-const ListItem = ({ list, isSelected, onSelect, onDelete, onShare, depth }: ListItemProps) => (
+const ListItem = ({ list, isSelected, onSelect, onDelete, onShare, onRename, isRenaming, renameValue, onRenameValueChange, onRenameSubmit, onRenameCancel, depth }: ListItemProps) => (
   <div
     className={cn(
       'group flex items-center gap-1.5 pr-2 py-1 rounded-md cursor-pointer text-sm transition-colors',
       isSelected ? 'bg-accent text-accent-foreground font-medium' : 'hover:bg-muted text-muted-foreground hover:text-foreground',
       depth === 1 ? 'pl-5' : 'pl-8'
     )}
-    onClick={onSelect}
+    onClick={isRenaming ? undefined : onSelect}
   >
     <List className="h-3.5 w-3.5 shrink-0" />
-    <span className="truncate flex-1">{list.name}</span>
+    {isRenaming ? (
+      <Input
+        value={renameValue}
+        onChange={(e) => onRenameValueChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') onRenameSubmit();
+          if (e.key === 'Escape') onRenameCancel();
+        }}
+        onBlur={onRenameSubmit}
+        className="h-6 text-sm flex-1 px-1"
+        autoFocus
+        onClick={(e) => e.stopPropagation()}
+      />
+    ) : (
+      <span className="truncate flex-1">{list.name}</span>
+    )}
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button className="p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={(e) => e.stopPropagation()}>
           <MoreHorizontal className="h-3 w-3" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-36">
-        <DropdownMenuItem onClick={onShare}>
+      <DropdownMenuContent align="end" className="w-40">
+        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRename(); }}>
+          <Pencil className="h-3.5 w-3.5 mr-2" /> Rename
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onShare(); }}>
           <Share2 className="h-3.5 w-3.5 mr-2" /> Share
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDelete(); }} className="text-destructive focus:text-destructive">
           <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
         </DropdownMenuItem>
       </DropdownMenuContent>
