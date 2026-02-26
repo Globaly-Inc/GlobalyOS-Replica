@@ -251,6 +251,19 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
           </DueDateSelector>
         );
       case 'tags':
+        return (
+          <TagsSelector value={inlineTags} allTags={allTags} onChange={setInlineTags}>
+            <button className="flex gap-1 overflow-hidden w-full hover:opacity-80 transition-opacity" onClick={(e) => e.stopPropagation()}>
+              {inlineTags.length > 0 ? (
+                inlineTags.slice(0, 2).map(tag => (
+                  <Badge key={tag} variant="outline" className="text-[10px] h-4 px-1 shrink-0">{tag}</Badge>
+                ))
+              ) : (
+                <span className="text-xs text-muted-foreground">—</span>
+              )}
+            </button>
+          </TagsSelector>
+        );
       case 'comments':
       case 'attachments':
         return <span className="text-xs text-muted-foreground text-center">—</span>;
