@@ -7,6 +7,7 @@ import { Command, CommandInput, CommandList, CommandItem, CommandEmpty, CommandG
 import { cn } from '@/lib/utils';
 import { Check, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import { Plus } from 'lucide-react';
 import type { TaskCategoryRow } from '@/types/task';
 
 // ─── Priority Selector ───
@@ -183,6 +184,79 @@ export const DueDateSelector = ({ value, onChange, children }: DueDateSelectorPr
             Clear date
           </button>
         )}
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+// ─── Tags Selector ───
+
+interface TagsSelectorProps {
+  value: string[];
+  allTags: string[];
+  onChange: (val: string[]) => void;
+  children: React.ReactNode;
+}
+
+export const TagsSelector = ({ value, allTags, onChange, children }: TagsSelectorProps) => {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const toggleTag = (tag: string) => {
+    onChange(value.includes(tag) ? value.filter(t => t !== tag) : [...value, tag]);
+  };
+
+  const filtered = search.trim()
+    ? allTags.filter(t => t.toLowerCase().includes(search.toLowerCase()))
+    : allTags;
+
+  const canCreate = search.trim() && !allTags.some(t => t.toLowerCase() === search.trim().toLowerCase());
+
+  return (
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSearch(''); }}>
+      <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
+        {children}
+      </PopoverTrigger>
+      <PopoverContent className="w-[220px] p-0 z-50" align="start" onClick={(e) => e.stopPropagation()}>
+        <Command shouldFilter={false}>
+          <CommandInput
+            placeholder="Search or create tag..."
+            value={search}
+            onValueChange={setSearch}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && canCreate) {
+                toggleTag(search.trim());
+                setSearch('');
+              }
+            }}
+          />
+          <CommandList className="max-h-[200px] overflow-y-auto">
+            <CommandEmpty>No tags found.</CommandEmpty>
+            <CommandGroup>
+              {filtered.map(tag => (
+                <CommandItem
+                  key={tag}
+                  value={tag}
+                  onSelect={() => toggleTag(tag)}
+                  className={value.includes(tag) ? 'bg-primary/10 text-primary' : ''}
+                >
+                  <Check className={cn('h-3 w-3 mr-2', value.includes(tag) ? 'opacity-100' : 'opacity-0')} />
+                  <span className="truncate text-xs">{tag}</span>
+                </CommandItem>
+              ))}
+              {canCreate && (
+                <CommandItem
+                  value={`__create__${search.trim()}`}
+                  onSelect={() => { toggleTag(search.trim()); setSearch(''); }}
+                  className="text-primary"
+                >
+                  <Plus className="h-3 w-3 mr-2" />
+                  <span className="text-xs">Create &quot;{search.trim()}&quot;</span>
+                </CommandItem>
+              )}
+            </CommandGroup>
+          </CommandList>
+        </Command>
       </PopoverContent>
     </Popover>
   );

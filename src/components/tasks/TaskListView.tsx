@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { TaskRow } from './TaskRow';
 import { useEmployees } from '@/services/useEmployees';
 import { useCreateTask, useBulkDeleteTasks } from '@/services/useTasks';
-import { PrioritySelector, CategorySelector, AssigneeSelector, DueDateSelector } from './TaskInlineCellEditors';
+import { PrioritySelector, CategorySelector, AssigneeSelector, DueDateSelector, TagsSelector } from './TaskInlineCellEditors';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { TaskBulkActionsBar } from './TaskBulkActionsBar';
@@ -43,6 +43,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
   const [inlineCategoryId, setInlineCategoryId] = useState<string | null>(null);
   const [inlineAssigneeId, setInlineAssigneeId] = useState<string | null>(null);
   const [inlineDueDate, setInlineDueDate] = useState<string | null>(null);
+  const [inlineTags, setInlineTags] = useState<string[]>([]);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -56,6 +57,9 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
     full_name: e.full_name || '',
     avatar_url: e.avatar_url || null,
   }));
+
+  // Collect all unique tags from loaded tasks
+  const allTags = Array.from(new Set(tasks.flatMap(t => t.tags || []))).sort();
 
   const visibleColumns = columns?.filter(c => c.visible) || [
     { key: 'name', label: 'Name', visible: true },
@@ -84,6 +88,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
     setInlineCategoryId(null);
     setInlineAssigneeId(null);
     setInlineDueDate(null);
+    setInlineTags([]);
   };
 
   const handleStartInline = (statusId: string) => {
@@ -104,6 +109,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
         category_id: inlineCategoryId,
         assignee_id: inlineAssigneeId,
         due_date: inlineDueDate,
+        tags: inlineTags.length > 0 ? inlineTags : undefined,
       });
       toast.success('Task created');
       resetInline();
@@ -248,6 +254,19 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
           </DueDateSelector>
         );
       case 'tags':
+        return (
+          <TagsSelector value={inlineTags} allTags={allTags} onChange={setInlineTags}>
+            <button className="flex gap-1 overflow-hidden w-full hover:opacity-80 transition-opacity" onClick={(e) => e.stopPropagation()}>
+              {inlineTags.length > 0 ? (
+                inlineTags.slice(0, 2).map(tag => (
+                  <Badge key={tag} variant="outline" className="text-[10px] h-4 px-1 shrink-0">{tag}</Badge>
+                ))
+              ) : (
+                <span className="text-xs text-muted-foreground">—</span>
+              )}
+            </button>
+          </TagsSelector>
+        );
       case 'comments':
       case 'attachments':
         return <span className="text-xs text-muted-foreground text-center">—</span>;
@@ -353,6 +372,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                     spaceId={spaceId}
                     selected={selectedTaskIds.has(task.id)}
                     onToggleSelect={selectionActive ? handleToggleSelect : undefined}
+                    allTags={allTags}
                   />
                 ))}
 

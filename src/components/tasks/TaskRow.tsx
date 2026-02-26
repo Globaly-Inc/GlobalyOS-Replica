@@ -5,7 +5,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { useUpdateTask, useDeleteTask } from '@/services/useTasks';
-import { PrioritySelector, CategorySelector, AssigneeSelector, DueDateSelector } from './TaskInlineCellEditors';
+import { PrioritySelector, CategorySelector, AssigneeSelector, DueDateSelector, TagsSelector } from './TaskInlineCellEditors';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { TaskWithRelations, TaskCategoryRow } from '@/types/task';
 import type { ColumnConfig } from './TaskColumnCustomizer';
@@ -30,9 +30,10 @@ interface TaskRowProps {
   spaceId: string;
   selected?: boolean;
   onToggleSelect?: (taskId: string) => void;
+  allTags?: string[];
 }
 
-export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories = [], members = [], spaceId, selected, onToggleSelect }: TaskRowProps) => {
+export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories = [], members = [], spaceId, selected, onToggleSelect, allTags = [] }: TaskRowProps) => {
   const priority = priorityConfig[task.priority] || priorityConfig.normal;
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
@@ -112,13 +113,23 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
         );
       case 'tags':
         return (
-          <div className="flex gap-1 overflow-hidden">
-            {(task.tags || []).slice(0, 2).map(tag => (
-              <Badge key={tag} variant="outline" className="text-[10px] h-4 px-1 shrink-0">
-                {tag}
-              </Badge>
-            ))}
-          </div>
+          <TagsSelector
+            value={task.tags || []}
+            allTags={allTags}
+            onChange={(val) => handleUpdate('tags', val)}
+          >
+            <button className="flex gap-1 overflow-hidden w-full hover:opacity-80 transition-opacity">
+              {(task.tags || []).length > 0 ? (
+                (task.tags || []).slice(0, 2).map(tag => (
+                  <Badge key={tag} variant="outline" className="text-[10px] h-4 px-1 shrink-0">
+                    {tag}
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-xs text-muted-foreground">—</span>
+              )}
+            </button>
+          </TagsSelector>
         );
       case 'comments':
         return (
