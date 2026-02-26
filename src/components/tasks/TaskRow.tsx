@@ -30,6 +30,7 @@ interface TaskRowProps {
   spaceId: string;
   selected?: boolean;
   onToggleSelect?: (taskId: string) => void;
+  allTags?: string[];
 }
 
 export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories = [], members = [], spaceId, selected, onToggleSelect }: TaskRowProps) => {
