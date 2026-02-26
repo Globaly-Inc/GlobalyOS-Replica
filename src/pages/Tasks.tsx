@@ -222,7 +222,7 @@ const Tasks = () => {
                   )}
                 </h1>
                 <div className="flex items-center gap-2">
-                  {!isAllTasksMode && !isProjectDashboard && (
+                  {!isAllTasksMode && (
                     <>
                       <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => setShowManage(true)}>
                         <Settings className="h-3.5 w-3.5" />
@@ -238,9 +238,9 @@ const Tasks = () => {
               </div>
             </div>
 
-            {isProjectDashboard && activeSpaceId ? (
+            {isProjectDashboard && activeSpaceId && (
               <ProjectDashboard spaceId={activeSpaceId} spaces={spaces} />
-            ) : (
+            )}
               <>
                 {/* Toolbar */}
                 <div className="px-6 pt-3 border-b">
@@ -429,9 +429,8 @@ const Tasks = () => {
                   )}
                 </div>
               </>
-            )}
 
-            {!isAllTasksMode && activeSpaceId && !isProjectDashboard && (
+            {!isAllTasksMode && activeSpaceId && (
               <>
                 <ManageDialog open={showManage} onOpenChange={setShowManage} spaceId={activeSpaceId} />
                 <AddTaskDialog
