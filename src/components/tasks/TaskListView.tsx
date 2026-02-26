@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { TaskRow } from './TaskRow';
 import { useEmployees } from '@/services/useEmployees';
 import { useCreateTask, useBulkDeleteTasks } from '@/services/useTasks';
-import { PrioritySelector, CategorySelector, AssigneeSelector, DueDateSelector } from './TaskInlineCellEditors';
+import { PrioritySelector, CategorySelector, AssigneeSelector, DueDateSelector, TagsSelector } from './TaskInlineCellEditors';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { TaskBulkActionsBar } from './TaskBulkActionsBar';
