@@ -287,7 +287,7 @@ const SpaceNode = ({
               if (e.key === 'Escape') onCancelRename();
             }}
             onBlur={handleRenameSubmit}
-            className="h-6 text-sm flex-1 px-1"
+            className="h-6 text-sm flex-1 px-1 text-foreground"
             autoFocus
             onClick={(e) => e.stopPropagation()}
           />
@@ -442,7 +442,7 @@ const FolderNode = ({
               if (e.key === 'Escape') onRenameCancel();
             }}
             onBlur={onRenameSubmit}
-            className="h-6 text-sm flex-1 px-1"
+             className="h-6 text-sm flex-1 px-1 text-foreground"
             autoFocus
             onClick={(e) => e.stopPropagation()}
           />
@@ -542,7 +542,7 @@ const ListItem = ({ list, isSelected, onSelect, onDelete, onShare, onRename, isR
           if (e.key === 'Escape') onRenameCancel();
         }}
         onBlur={onRenameSubmit}
-        className="h-6 text-sm flex-1 px-1"
+        className="h-6 text-sm flex-1 px-1 text-foreground"
         autoFocus
         onClick={(e) => e.stopPropagation()}
       />
