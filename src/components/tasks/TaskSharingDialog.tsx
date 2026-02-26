@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -139,18 +139,17 @@ export const TaskSharingDialog = ({ open, onOpenChange, entityType, entityId, en
       if (!itemData?.created_by) return;
 
       const { data: empData } = await supabase
-        .from('employees')
-        .select('id, profiles(full_name, avatar_url, email)')
+        .from('employee_directory')
+        .select('id, user_id, full_name, avatar_url, email')
         .eq('id', itemData.created_by)
         .single();
 
       if (empData) {
-        const profiles = empData.profiles as { full_name: string; avatar_url: string | null; email: string } | null;
         setOwner({
-          employee_id: empData.id,
-          full_name: profiles?.full_name || 'Unknown',
-          avatar_url: profiles?.avatar_url || null,
-          email: profiles?.email || '',
+          employee_id: empData.id || '',
+          full_name: empData.full_name || 'Unknown',
+          avatar_url: empData.avatar_url || null,
+          email: empData.email || '',
         });
       }
     } catch (error) {
@@ -173,10 +172,12 @@ export const TaskSharingDialog = ({ open, onOpenChange, entityType, entityId, en
       setProjects(projectsRes.data || []);
       setEmployeeProjects(empProjRes.data || []);
 
-      const transformedEmps = (empsRes.data || []).map(emp => ({
-        id: emp.id, user_id: emp.user_id, office_id: emp.office_id, department: emp.department,
-        profiles: { full_name: emp.full_name || '', avatar_url: emp.avatar_url, email: emp.email },
-      }));
+      const transformedEmps = (empsRes.data || [])
+        .filter(emp => emp.id && emp.user_id)
+        .map(emp => ({
+          id: emp.id!, user_id: emp.user_id!, office_id: emp.office_id, department: emp.department,
+          profiles: { full_name: emp.full_name || '', avatar_url: emp.avatar_url, email: emp.email || undefined },
+        }));
       setEmployees(transformedEmps);
 
       const uniqueDepts = [...new Set(transformedEmps.map(e => e.department).filter(Boolean) as string[])].sort();
@@ -334,7 +335,7 @@ export const TaskSharingDialog = ({ open, onOpenChange, entityType, entityId, en
           permission_level: permission,
           organization_id: organizationId,
         }));
-        const { error } = await supabase.from('task_sharing_permissions').insert(insertData);
+        const { error } = await supabase.from('task_sharing_permissions').upsert(insertData, { onConflict: 'entity_type,entity_id,employee_id' });
         if (error) throw error;
         toast.success(`${memberSelections.length} ${memberSelections.length > 1 ? 'people' : 'person'} added`);
         loadMembersWithAccess();
