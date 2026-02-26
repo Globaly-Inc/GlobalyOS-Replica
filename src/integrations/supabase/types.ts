@@ -20680,10 +20680,152 @@ export type Database = {
           },
         ]
       }
+      task_entity_departments: {
+        Row: {
+          created_at: string
+          department: string
+          entity_id: string
+          entity_type: string
+          id: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string
+          department: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string
+          department?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_entity_departments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_entity_departments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_entity_offices: {
+        Row: {
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          office_id: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          office_id: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          office_id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_entity_offices_office_id_fkey"
+            columns: ["office_id"]
+            isOneToOne: false
+            referencedRelation: "offices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_entity_offices_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_entity_offices_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_entity_projects: {
+        Row: {
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          organization_id: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          organization_id: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          organization_id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_entity_projects_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_entity_projects_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_entity_projects_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_folders: {
         Row: {
+          access_scope: string
           color: string | null
           created_at: string
+          created_by: string | null
           description: string | null
           icon: string | null
           id: string
@@ -20695,8 +20837,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          access_scope?: string
           color?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           icon?: string | null
           id?: string
@@ -20708,8 +20852,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          access_scope?: string
           color?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           icon?: string | null
           id?: string
@@ -20721,6 +20867,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "task_folders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_folders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "task_folders_organization_id_fkey"
             columns: ["organization_id"]
@@ -20806,8 +20966,10 @@ export type Database = {
       }
       task_lists: {
         Row: {
+          access_scope: string
           color: string | null
           created_at: string
+          created_by: string | null
           description: string | null
           folder_id: string | null
           id: string
@@ -20819,8 +20981,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          access_scope?: string
           color?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           folder_id?: string | null
           id?: string
@@ -20832,8 +20996,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          access_scope?: string
           color?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           folder_id?: string | null
           id?: string
@@ -20845,6 +21011,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "task_lists_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_lists_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "task_lists_folder_id_fkey"
             columns: ["folder_id"]
@@ -20939,8 +21119,10 @@ export type Database = {
       }
       task_spaces: {
         Row: {
+          access_scope: string
           color: string | null
           created_at: string
+          created_by: string | null
           description: string | null
           icon: string | null
           id: string
@@ -20952,8 +21134,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          access_scope?: string
           color?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           icon?: string | null
           id?: string
@@ -20965,8 +21149,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          access_scope?: string
           color?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           icon?: string | null
           id?: string
@@ -20978,6 +21164,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "task_spaces_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_spaces_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "task_spaces_organization_id_fkey"
             columns: ["organization_id"]
