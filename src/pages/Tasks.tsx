@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Search, Plus, Settings, LayoutList, Columns3, X, User, FolderOpen } from 'lucide-react';
 import { useCurrentEmployee } from '@/services/useCurrentEmployee';
 import { ProjectDashboard } from '../components/tasks/ProjectDashboard';
+import { isImageIcon } from '../components/tasks/SpaceIconPicker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -121,7 +122,12 @@ const Tasks = () => {
 
   const pageIcon = useMemo(() => {
     if (isAllTasksMode) return <User className="h-5 w-5" />;
-    if (isSpaceView && activeSpace) return <span>{activeSpace.icon || '🚀'}</span>;
+    if (isSpaceView && activeSpace) {
+      const icon = activeSpace.icon || '🚀';
+      return isImageIcon(icon)
+        ? <img src={icon} alt="" className="h-5 w-5 rounded object-cover" />
+        : <span>{icon}</span>;
+    }
     if (isFolderView) return <FolderOpen className="h-5 w-5" />;
     return null;
   }, [isAllTasksMode, isSpaceView, activeSpace, isFolderView]);
