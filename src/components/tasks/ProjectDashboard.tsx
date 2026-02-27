@@ -4,6 +4,7 @@ import { useProjectDashboardData } from '@/services/useProjectDashboard';
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar } from 'recharts';
 import { CheckCircle2, TrendingUp, Users, FolderOpen, Loader2 } from 'lucide-react';
 import type { TaskSpaceRow } from '@/types/task';
+import { isImageIcon } from '@/components/tasks/SpaceIconPicker';
 
 interface ProjectDashboardProps {
   spaceId: string;
