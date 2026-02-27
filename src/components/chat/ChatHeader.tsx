@@ -17,8 +17,8 @@ import {
   Megaphone,
   Settings,
 } from "lucide-react";
-import { useFeatureFlags } from "@/hooks/useFeatureFlags";
-import CallButtons from "./CallButtons";
+
+
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
@@ -61,8 +61,8 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
   const { data: currentEmployee } = useCurrentEmployee();
   const { data: favorites = [] } = useChatFavorites();
   const toggleFavorite = useToggleFavorite();
-  const { isEnabled } = useFeatureFlags();
-  const isCallsEnabled = isEnabled('calls');
+  
+  
   const muteConversation = useMuteConversation();
   const updateSpaceNotification = useUpdateSpaceNotification();
   const updateSpace = useUpdateSpace();
@@ -790,13 +790,6 @@ const ChatHeader = ({ activeChat, onSearchResultClick }: ChatHeaderProps) => {
 
         {/* Right section - Actions with inline search */}
         <div className="flex items-center gap-0.5 flex-shrink-0">
-          {/* Call buttons - feature-flagged */}
-          {isCallsEnabled && (
-            <CallButtons
-              otherEmployeeId={activeChat.type === 'conversation' && !activeChat.isGroup ? otherParticipant?.id : undefined}
-              isGroup={activeChat.isGroup || activeChat.type === 'space'}
-            />
-          )}
 
           {/* Inline Search Bar with Portal-based Results */}
           {showSearch ? (
