@@ -2,6 +2,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useTaskLists, useTaskFolders } from '@/services/useTasks';
 import { List, ArrowRight } from 'lucide-react';
+import { isImageIcon } from '@/components/tasks/SpaceIconPicker';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 
@@ -53,7 +54,9 @@ export const FolderSummaryView = ({ folderId, spaceId, onSelectList }: FolderSum
     <div className="flex-1 overflow-auto p-6">
       <div className="max-w-2xl mx-auto space-y-4">
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-lg">{folder.icon || '📁'}</span>
+          {isImageIcon(folder.icon)
+            ? <img src={folder.icon} alt="" className="h-5 w-5 rounded object-cover" />
+            : <span className="text-lg">{folder.icon || '📁'}</span>}
           <h2 className="text-lg font-semibold">{folder.name}</h2>
           <span className="text-sm text-muted-foreground ml-2">{folderLists.length} list{folderLists.length !== 1 ? 's' : ''}</span>
         </div>
