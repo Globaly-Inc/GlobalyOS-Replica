@@ -2,6 +2,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useTaskLists, useTaskFolders } from '@/services/useTasks';
 import { List, ArrowRight } from 'lucide-react';
+import { isImageIcon } from '@/components/tasks/SpaceIconPicker';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 
