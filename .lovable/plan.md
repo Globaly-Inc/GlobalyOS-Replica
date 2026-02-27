@@ -1,24 +1,20 @@
 
-## Remove Call and Video Buttons from Chat Header
+
+## Fix: Image icon URL displayed as text
+
+### Problem
+The `FolderSummaryView.tsx` renders `folder.icon` directly as text (`<span>{folder.icon || '📁'}</span>`) without checking if the value is an image URL. When a folder has an uploaded image icon, its URL string is displayed instead of the actual image.
 
 ### Change
-Remove the Sendbird Calls buttons (audio call and video call icons) from the chat header action bar.
 
-### File
-**`src/components/chat/ChatHeader.tsx`** (lines 793-799)
-
-Delete the `CallButtons` block:
+**`src/components/tasks/FolderSummaryView.tsx`** (line 56):
+- Import `isImageIcon` from `SpaceIconPicker`
+- Replace `<span className="text-lg">{folder.icon || '📁'}</span>` with:
 ```tsx
-{/* Call buttons - feature-flagged */}
-{isCallsEnabled && (
-  <CallButtons
-    otherEmployeeId={...}
-    isGroup={...}
-  />
-)}
+{isImageIcon(folder.icon)
+  ? <img src={folder.icon} alt="" className="h-5 w-5 rounded object-cover" />
+  : <span className="text-lg">{folder.icon || '📁'}</span>}
 ```
 
-Also remove the unused `CallButtons` import and the `isCallsEnabled` variable if it's no longer used elsewhere in the file.
+This is the same pattern already used in `Tasks.tsx` and `ProjectDashboard.tsx`.
 
-### What stays
-The other action buttons (search, pin, etc.) in the header remain untouched. The `CallButtons` component file itself is kept in case it's used elsewhere.
