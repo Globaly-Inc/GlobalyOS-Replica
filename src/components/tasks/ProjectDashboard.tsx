@@ -132,7 +132,9 @@ export function ProjectDashboard({ spaceId, spaces }: ProjectDashboardProps) {
                   <div key={sp.id} className="space-y-1">
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-medium flex items-center gap-1.5">
-                        <span>{sp.icon || '📂'}</span>
+                        {isImageIcon(sp.icon) 
+                          ? <img src={sp.icon} alt="" className="h-4 w-4 rounded object-cover inline" />
+                          : <span>{sp.icon || '📂'}</span>}
                         {sp.name}
                       </span>
                       <span className="text-xs text-muted-foreground">

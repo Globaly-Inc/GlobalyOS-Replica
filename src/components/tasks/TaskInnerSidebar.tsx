@@ -264,7 +264,7 @@ const SpaceNode = ({
       {/* Space row */}
       <div
         className={cn(
-          'group flex items-center gap-1.5 px-2 py-1.5 rounded-md cursor-pointer text-sm transition-colors',
+          'group flex items-center gap-1.5 px-2 py-1.5 rounded-md cursor-pointer text-sm transition-colors min-w-0 overflow-hidden',
           isSelected ? 'bg-primary/10 text-primary font-semibold' : 'hover:bg-muted text-foreground'
         )}
       >
