@@ -1,25 +1,24 @@
 
-## Fix: Make list rename input text dark
-
-### Problem
-When renaming a task list in the sidebar, the text input inherits a light/muted text color, making it hard to read while editing.
-
-### Fix
-Add `text-foreground` class to the rename `Input` element in `TaskInnerSidebar.tsx` (line 545) so the text appears dark/readable during editing.
+## Remove Call and Video Buttons from Chat Header
 
 ### Change
+Remove the Sendbird Calls buttons (audio call and video call icons) from the chat header action bar.
 
-| File | Change |
-|------|--------|
-| `src/components/tasks/TaskInnerSidebar.tsx` | Add `text-foreground` to the rename input's className (line 545) |
+### File
+**`src/components/chat/ChatHeader.tsx`** (lines 793-799)
 
-The className changes from:
-```
-"h-6 text-sm flex-1 px-1"
-```
-to:
-```
-"h-6 text-sm flex-1 px-1 text-foreground"
+Delete the `CallButtons` block:
+```tsx
+{/* Call buttons - feature-flagged */}
+{isCallsEnabled && (
+  <CallButtons
+    otherEmployeeId={...}
+    isGroup={...}
+  />
+)}
 ```
 
-This ensures the input text is always the standard dark foreground color in both light and dark themes.
+Also remove the unused `CallButtons` import and the `isCallsEnabled` variable if it's no longer used elsewhere in the file.
+
+### What stays
+The other action buttons (search, pin, etc.) in the header remain untouched. The `CallButtons` component file itself is kept in case it's used elsewhere.
