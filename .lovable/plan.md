@@ -1,24 +1,40 @@
 
 
-## Make Logo Navigate to Public Website Home
+## Bug: Assignee Popover Shows Empty Names
 
-### Problem
-The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
+### Root Cause
 
-### Solution
+The `useEmployees` hook (in `useEmployees.ts`) returns data with employee names nested inside a `profiles` object:
 
-**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
-- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
-- This gives the landing page a stable URL accessible regardless of auth state
+```
+{ id: "...", profiles: { full_name: "Jane", avatar_url: "...", email: "..." }, ... }
+```
 
-**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
-- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
+But `TaskListView.tsx` (lines 55-59) maps the data incorrectly, accessing `e.full_name` and `e.avatar_url` directly on the root object — which are `undefined`:
 
-### Technical Details
+```ts
+const members = ((employeesData || []) as any[]).map((e: any) => ({
+  id: e.id,
+  full_name: e.full_name || '',      // ← always ''
+  avatar_url: e.avatar_url || null,   // ← always null
+}));
+```
 
-| File | Change |
-|------|--------|
-| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
-| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
+This is why the popover shows avatar fallbacks with "?" and no names — the names are empty strings, and the avatars are null.
 
-This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
+### Fix
+
+**File: `src/components/tasks/TaskListView.tsx`** (lines 55-59)
+
+Change the mapping to read from the nested `profiles` object:
+
+```ts
+const members = ((employeesData || []) as any[]).map((e: any) => ({
+  id: e.id,
+  full_name: e.profiles?.full_name || '',
+  avatar_url: e.profiles?.avatar_url || null,
+}));
+```
+
+This is a one-file, two-line fix.
+
