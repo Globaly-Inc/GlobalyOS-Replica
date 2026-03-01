@@ -1,24 +1,19 @@
 
 
-## Make Logo Navigate to Public Website Home
+## Fix: Attachments Column in Inline Creation Row
 
-### Problem
-The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
+The selected 📎 element is the **column header** in `TaskListView.tsx` (line 351). The inline creation row (line 271) currently renders a static dash `—` for the attachments column because a task doesn't exist yet at that point — there's no `taskId` to attach files to.
 
-### Solution
+The `AttachmentCell` popover in `TaskRow.tsx` already works correctly for **existing tasks**. The issue is that the inline creation row can't support attachments because the task hasn't been created yet.
 
-**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
-- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
-- This gives the landing page a stable URL accessible regardless of auth state
+### Approach
 
-**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
-- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
+**Defer attachment to post-creation**: After the inline task is created via `handleCreateInline`, automatically open the task detail (or flash the attachment popover) so the user can immediately attach files. This is the cleanest pattern since attachments require a `taskId` and `organizationId` to upload to storage.
 
-### Technical Details
+**Implementation — single file change in `TaskListView.tsx`:**
 
-| File | Change |
-|------|--------|
-| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
-| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
+1. Replace the static `—` for the `attachments` case (line 271-272) with a disabled 📎 button styled with a tooltip hint like "Save task first to attach files".
+2. After `handleCreateInline` succeeds and returns the new task ID, auto-click/open the task so the user lands on the attachment popover immediately.
 
-This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
+This keeps the UX honest — you can't upload to a task that doesn't exist — while making the path to "attach after create" seamless.
+
