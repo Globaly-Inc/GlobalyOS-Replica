@@ -305,7 +305,8 @@ const App = () => <QueryClientProvider client={queryClient}>
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 {/* Public website routes */}
-                <Route path="/landing" element={<Navigate to="/" replace />} />
+                <Route path="/home" element={<Landing />} />
+                <Route path="/landing" element={<Navigate to="/home" replace />} />
                 <Route path="/features" element={<Features />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/careers" element={<Careers />} />
