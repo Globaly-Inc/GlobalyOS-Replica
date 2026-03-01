@@ -1,24 +1,24 @@
 
-## Remove Call and Video Buttons from Chat Header
 
-### Change
-Remove the Sendbird Calls buttons (audio call and video call icons) from the chat header action bar.
+## Make Logo Navigate to Public Website Home
 
-### File
-**`src/components/chat/ChatHeader.tsx`** (lines 793-799)
+### Problem
+The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
 
-Delete the `CallButtons` block:
-```tsx
-{/* Call buttons - feature-flagged */}
-{isCallsEnabled && (
-  <CallButtons
-    otherEmployeeId={...}
-    isGroup={...}
-  />
-)}
-```
+### Solution
 
-Also remove the unused `CallButtons` import and the `isCallsEnabled` variable if it's no longer used elsewhere in the file.
+**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
+- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
+- This gives the landing page a stable URL accessible regardless of auth state
 
-### What stays
-The other action buttons (search, pin, etc.) in the header remain untouched. The `CallButtons` component file itself is kept in case it's used elsewhere.
+**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
+- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
+
+### Technical Details
+
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
+| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
+
+This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
