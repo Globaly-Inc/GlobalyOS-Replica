@@ -1,27 +1,24 @@
 
 
-## Recommendation: Where to Add a "Save" Button for Inline Task Creation
+## Make Logo Navigate to Public Website Home
 
-Currently the inline creation row (line 392-405) only has an **X (cancel)** button in the trailing actions column (line 400-404). The user saves by pressing **Enter** in the name field — there is no explicit Save button.
+### Problem
+The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
 
-### Recommended placement
+### Solution
 
-Add a **Save (check-mark) button next to the existing X button** in the trailing actions column (line 400-404). This keeps the layout consistent and groups both actions together.
+**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
+- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
+- This gives the landing page a stable URL accessible regardless of auth state
 
-```text
-Before:                    After:
- [ ... fields ... ] [X]    [ ... fields ... ] [✓] [X]
-```
+**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
+- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
 
-### Implementation
+### Technical Details
 
-**File: `src/components/tasks/TaskListView.tsx`** (lines 400-404)
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
+| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
 
-Replace the single X button `<div>` with a two-button group:
-- A **check-mark (Save)** button that calls `handleCreateInline(status.id)` — same as Enter key does.
-- The existing **X (Cancel)** button unchanged.
-
-Both buttons stay at `h-6 w-6` icon size. The Save button uses a green accent color (`text-green-600`) to visually distinguish it from the cancel button.
-
-One-file, three-line change. No new components or hooks needed.
-
+This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
