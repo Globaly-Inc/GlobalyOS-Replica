@@ -143,11 +143,7 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
           </span>
         );
       case 'attachments':
-        return (
-          <span className="text-xs text-muted-foreground text-center">
-            {task.attachment_count || 0}
-          </span>
-        );
+        return <AttachmentCell taskId={task.id} organizationId={task.organization_id} count={task.attachment_count || 0} />;
       case 'priority':
         return (
           <PrioritySelector
