@@ -54,8 +54,8 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
   const { data: employeesData } = useEmployees({ status: 'active' });
   const members = ((employeesData || []) as any[]).map((e: any) => ({
     id: e.id,
-    full_name: e.full_name || '',
-    avatar_url: e.avatar_url || null,
+    full_name: e.profiles?.full_name || '',
+    avatar_url: e.profiles?.avatar_url || null,
   }));
 
   // Collect all unique tags from loaded tasks
