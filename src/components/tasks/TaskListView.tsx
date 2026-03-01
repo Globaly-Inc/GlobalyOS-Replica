@@ -398,9 +398,14 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                       <div key={col.key}>{renderInlineCell(col, status.id)}</div>
                     ))}
                     <div className="flex items-center justify-center gap-0.5">
-                      <Button variant="ghost" size="icon" className="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handleCreateInline(status.id)}>
-                        <Check className="h-3.5 w-3.5" />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handleCreateInline(status.id)}>
+                            <Check className="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">Save</TooltipContent>
+                      </Tooltip>
                       <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={resetInline}>
                         <X className="h-3.5 w-3.5" />
                       </Button>
