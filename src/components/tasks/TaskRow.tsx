@@ -74,7 +74,7 @@ const AttachmentCell = ({ taskId, organizationId, count }: { taskId: string; org
           onClick={(e) => e.stopPropagation()}
         >
           <Paperclip className="h-3 w-3" />
-          {count}
+          {attachments.length || count}
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-[280px] p-3" align="start" onClick={(e) => e.stopPropagation()}>
