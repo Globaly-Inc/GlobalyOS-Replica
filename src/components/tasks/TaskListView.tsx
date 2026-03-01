@@ -268,8 +268,18 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
           </TagsSelector>
         );
       case 'comments':
-      case 'attachments':
         return <span className="text-xs text-muted-foreground text-center">—</span>;
+      case 'attachments':
+        return (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex items-center justify-center text-muted-foreground/50 cursor-not-allowed">
+                <Paperclip className="h-3 w-3" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">Save task first to attach files</TooltipContent>
+          </Tooltip>
+        );
       default:
         return null;
     }
