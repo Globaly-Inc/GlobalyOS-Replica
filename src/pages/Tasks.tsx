@@ -56,24 +56,6 @@ const Tasks = () => {
 
   const activeSpace = activeSpaceId ? spaces.find(s => s.id === activeSpaceId) : null;
 
-  // Expand deduped filter IDs to all matching IDs across spaces
-  const expandedFilters: TaskFilters = useMemo(() => {
-    const expanded = { ...filters };
-    if (expanded.status_ids?.length) {
-      expanded.status_ids = expanded.status_ids.flatMap(id => statusIdMap.get(id) || [id]);
-    }
-    if (expanded.category_ids?.length) {
-      expanded.category_ids = expanded.category_ids.flatMap(id => categoryIdMap.get(id) || [id]);
-    }
-    return expanded;
-  }, [filters, statusIdMap, categoryIdMap]);
-
-  const combinedFilters: TaskFilters = useMemo(() => ({
-    ...expandedFilters,
-    ...(search ? { search } : {}),
-    ...(activeListId ? { list_id: activeListId } : {}),
-  }), [expandedFilters, search, activeListId]);
-
   const hasActiveFilters = Object.keys(filters).some(k => {
     const v = (filters as any)[k];
     return Array.isArray(v) ? v.length > 0 : !!v;
@@ -82,19 +64,10 @@ const Tasks = () => {
   // Space-scoped hooks
   const { data: spaceStatuses = [] } = useTaskStatuses(activeSpaceId || undefined);
   const { data: spaceCategories = [] } = useTaskCategories(activeSpaceId || undefined);
-  const { data: spaceTasks = [] } = useTasks(activeSpaceId || undefined, !isAllTasksMode ? combinedFilters : undefined);
 
   // Org-wide hooks for My Tasks mode
   const { data: allStatuses = [] } = useAllTaskStatuses();
   const { data: allCategories = [] } = useAllTaskCategories();
-  const myTasksFilters: TaskFilters | undefined = useMemo(() => {
-    if (!isAllTasksMode) return undefined;
-    return {
-      ...combinedFilters,
-      assignee_ids: currentEmployee?.id ? [currentEmployee.id] : [],
-    };
-  }, [isAllTasksMode, combinedFilters, currentEmployee?.id]);
-  const { data: allTasks = [] } = useAllTasks(myTasksFilters);
 
   // Deduplicate statuses by name for filter UI (multiple spaces can have same status names)
   const { dedupedStatuses, statusIdMap } = useMemo(() => {
@@ -135,6 +108,35 @@ const Tasks = () => {
     }
     return { dedupedCategories: deduped, categoryIdMap: idMap };
   }, [isAllTasksMode, allCategories, spaceCategories]);
+
+  // Expand deduped filter IDs to all matching IDs across spaces
+  const expandedFilters: TaskFilters = useMemo(() => {
+    const expanded = { ...filters };
+    if (expanded.status_ids?.length) {
+      expanded.status_ids = expanded.status_ids.flatMap(id => statusIdMap.get(id) || [id]);
+    }
+    if (expanded.category_ids?.length) {
+      expanded.category_ids = expanded.category_ids.flatMap(id => categoryIdMap.get(id) || [id]);
+    }
+    return expanded;
+  }, [filters, statusIdMap, categoryIdMap]);
+
+  const combinedFilters: TaskFilters = useMemo(() => ({
+    ...expandedFilters,
+    ...(search ? { search } : {}),
+    ...(activeListId ? { list_id: activeListId } : {}),
+  }), [expandedFilters, search, activeListId]);
+
+  const { data: spaceTasks = [] } = useTasks(activeSpaceId || undefined, !isAllTasksMode ? combinedFilters : undefined);
+
+  const myTasksFilters: TaskFilters | undefined = useMemo(() => {
+    if (!isAllTasksMode) return undefined;
+    return {
+      ...combinedFilters,
+      assignee_ids: currentEmployee?.id ? [currentEmployee.id] : [],
+    };
+  }, [isAllTasksMode, combinedFilters, currentEmployee?.id]);
+  const { data: allTasks = [] } = useAllTasks(myTasksFilters);
 
   const statuses = dedupedStatuses;
   const categories = dedupedCategories;
