@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { TaskListView } from '../TaskListView';
 import type { TaskStatusRow, TaskWithRelations, TaskCategoryRow } from '@/types/task';
 
@@ -11,6 +12,20 @@ const mockMutateAsync = vi.fn().mockResolvedValue({ id: 'new-task-id', space_id:
 vi.mock('@/services/useTasks', () => ({
   useCreateTask: () => ({ mutateAsync: mockMutateAsync, isPending: false }),
   useUpdateTask: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useBulkDeleteTasks: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeleteTask: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+
+vi.mock('@/services/useTaskAttachments', () => ({
+  useTaskAttachments: () => ({ data: [] }),
+  useUploadTaskAttachment: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeleteTaskAttachment: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+
+vi.mock('@/hooks/useOrganization', () => ({
+  useOrganization: () => ({
+    currentOrg: { id: 'org-1', name: 'Test Org', org_code: 'test' },
+  }),
 }));
 
 vi.mock('@/services/useEmployees', () => ({
@@ -96,7 +111,9 @@ const existingTask: TaskWithRelations = {
 const createWrapper = () => {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+    <QueryClientProvider client={qc}>
+      <TooltipProvider>{children}</TooltipProvider>
+    </QueryClientProvider>
   );
 };
 
