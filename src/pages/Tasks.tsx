@@ -56,11 +56,23 @@ const Tasks = () => {
 
   const activeSpace = activeSpaceId ? spaces.find(s => s.id === activeSpaceId) : null;
 
+  // Expand deduped filter IDs to all matching IDs across spaces
+  const expandedFilters: TaskFilters = useMemo(() => {
+    const expanded = { ...filters };
+    if (expanded.status_ids?.length) {
+      expanded.status_ids = expanded.status_ids.flatMap(id => statusIdMap.get(id) || [id]);
+    }
+    if (expanded.category_ids?.length) {
+      expanded.category_ids = expanded.category_ids.flatMap(id => categoryIdMap.get(id) || [id]);
+    }
+    return expanded;
+  }, [filters, statusIdMap, categoryIdMap]);
+
   const combinedFilters: TaskFilters = useMemo(() => ({
-    ...filters,
+    ...expandedFilters,
     ...(search ? { search } : {}),
     ...(activeListId ? { list_id: activeListId } : {}),
-  }), [filters, search, activeListId]);
+  }), [expandedFilters, search, activeListId]);
 
   const hasActiveFilters = Object.keys(filters).some(k => {
     const v = (filters as any)[k];
