@@ -11,6 +11,7 @@ const mockMutateAsync = vi.fn().mockResolvedValue({ id: 'new-task-id', space_id:
 vi.mock('@/services/useTasks', () => ({
   useCreateTask: () => ({ mutateAsync: mockMutateAsync, isPending: false }),
   useUpdateTask: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useBulkDeleteTasks: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 vi.mock('@/services/useEmployees', () => ({
