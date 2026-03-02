@@ -13,9 +13,18 @@ vi.mock('@/services/useTasks', () => ({
   useUpdateTask: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useBulkDeleteTasks: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteTask: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+
+vi.mock('@/services/useTaskAttachments', () => ({
   useTaskAttachments: () => ({ data: [] }),
   useUploadTaskAttachment: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteTaskAttachment: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+
+vi.mock('@/hooks/useOrganization', () => ({
+  useOrganization: () => ({
+    currentOrg: { id: 'org-1', name: 'Test Org', org_code: 'test' },
+  }),
 }));
 
 vi.mock('@/services/useEmployees', () => ({
