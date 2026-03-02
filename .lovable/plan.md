@@ -1,36 +1,24 @@
 
 
-## Problem
+## Make Logo Navigate to Public Website Home
 
-`useAllTaskStatuses` fetches **all** `task_statuses` rows for the org. Since each space creates its own set of statuses (with identical names like "To Do", "In Progress"), the filter popover shows massive duplication — one entry per space.
+### Problem
+The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
 
-## Fix
+### Solution
 
-**Deduplicate statuses by name** before passing them to `TaskFilterPopover`. When multiple statuses share the same name, merge their IDs so selecting "To Do" in the filter matches all "To Do" statuses across spaces.
+**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
+- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
+- This gives the landing page a stable URL accessible regardless of auth state
 
-### Changes
+**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
+- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
 
-**1. `src/pages/Tasks.tsx`** — Add a deduplication step for `allStatuses` and `allCategories`
+### Technical Details
 
-Create a `useMemo` that groups statuses by `name`, picks one representative row per group, and collects all IDs into a map. When the user toggles a deduplicated filter checkbox, expand it to all matching status IDs before passing to the query filters.
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
+| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
 
-```text
-allStatuses (raw)          dedupedStatuses (for UI)
-┌──────────────────┐       ┌──────────────────────┐
-│ id-1  "To Do"    │       │ id-1  "To Do"        │  ← represents id-1, id-4, id-7…
-│ id-2  "In Prog"  │       │ id-2  "In Progress"  │  ← represents id-2, id-5, id-8…
-│ id-3  "Done"     │       │ id-3  "Done"          │
-│ id-4  "To Do"    │       └──────────────────────┘
-│ id-5  "In Prog"  │
-│ ...              │
-└──────────────────┘
-```
-
-- `useMemo` to build `dedupedStatuses` (unique by name, keeping first occurrence's color/sort) and a `statusNameToIdsMap` (name → all matching IDs).
-- When `onFiltersChange` is called with `status_ids`, expand each selected deduped ID to all IDs sharing that name before passing to the task query.
-- Same logic for categories if they also repeat across spaces.
-
-**2. `src/components/tasks/TaskFilterPopover.tsx`** — No changes needed (it just renders whatever `statuses` array it receives).
-
-This approach keeps the filter popover clean while ensuring the underlying query correctly matches all equivalent statuses across spaces.
-
+This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.

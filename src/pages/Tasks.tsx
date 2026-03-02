@@ -56,12 +56,6 @@ const Tasks = () => {
 
   const activeSpace = activeSpaceId ? spaces.find(s => s.id === activeSpaceId) : null;
 
-  const combinedFilters: TaskFilters = useMemo(() => ({
-    ...filters,
-    ...(search ? { search } : {}),
-    ...(activeListId ? { list_id: activeListId } : {}),
-  }), [filters, search, activeListId]);
-
   const hasActiveFilters = Object.keys(filters).some(k => {
     const v = (filters as any)[k];
     return Array.isArray(v) ? v.length > 0 : !!v;
@@ -70,11 +64,71 @@ const Tasks = () => {
   // Space-scoped hooks
   const { data: spaceStatuses = [] } = useTaskStatuses(activeSpaceId || undefined);
   const { data: spaceCategories = [] } = useTaskCategories(activeSpaceId || undefined);
-  const { data: spaceTasks = [] } = useTasks(activeSpaceId || undefined, !isAllTasksMode ? combinedFilters : undefined);
 
   // Org-wide hooks for My Tasks mode
   const { data: allStatuses = [] } = useAllTaskStatuses();
   const { data: allCategories = [] } = useAllTaskCategories();
+
+  // Deduplicate statuses by name for filter UI (multiple spaces can have same status names)
+  const { dedupedStatuses, statusIdMap } = useMemo(() => {
+    const raw = isAllTasksMode ? allStatuses : spaceStatuses;
+    const nameMap = new Map<string, { representative: typeof raw[0]; allIds: string[] }>();
+    for (const s of raw) {
+      const existing = nameMap.get(s.name);
+      if (existing) {
+        existing.allIds.push(s.id);
+      } else {
+        nameMap.set(s.name, { representative: s, allIds: [s.id] });
+      }
+    }
+    const deduped = Array.from(nameMap.values()).map(v => v.representative);
+    const idMap = new Map<string, string[]>();
+    for (const v of nameMap.values()) {
+      idMap.set(v.representative.id, v.allIds);
+    }
+    return { dedupedStatuses: deduped, statusIdMap: idMap };
+  }, [isAllTasksMode, allStatuses, spaceStatuses]);
+
+  // Deduplicate categories by name
+  const { dedupedCategories, categoryIdMap } = useMemo(() => {
+    const raw = isAllTasksMode ? allCategories : spaceCategories;
+    const nameMap = new Map<string, { representative: typeof raw[0]; allIds: string[] }>();
+    for (const c of raw) {
+      const existing = nameMap.get(c.name);
+      if (existing) {
+        existing.allIds.push(c.id);
+      } else {
+        nameMap.set(c.name, { representative: c, allIds: [c.id] });
+      }
+    }
+    const deduped = Array.from(nameMap.values()).map(v => v.representative);
+    const idMap = new Map<string, string[]>();
+    for (const v of nameMap.values()) {
+      idMap.set(v.representative.id, v.allIds);
+    }
+    return { dedupedCategories: deduped, categoryIdMap: idMap };
+  }, [isAllTasksMode, allCategories, spaceCategories]);
+
+  // Expand deduped filter IDs to all matching IDs across spaces
+  const expandedFilters: TaskFilters = useMemo(() => {
+    const expanded = { ...filters };
+    if (expanded.status_ids?.length) {
+      expanded.status_ids = expanded.status_ids.flatMap(id => statusIdMap.get(id) || [id]);
+    }
+    if (expanded.category_ids?.length) {
+      expanded.category_ids = expanded.category_ids.flatMap(id => categoryIdMap.get(id) || [id]);
+    }
+    return expanded;
+  }, [filters, statusIdMap, categoryIdMap]);
+
+  const combinedFilters: TaskFilters = useMemo(() => ({
+    ...expandedFilters,
+    ...(search ? { search } : {}),
+    ...(activeListId ? { list_id: activeListId } : {}),
+  }), [expandedFilters, search, activeListId]);
+
+  const { data: spaceTasks = [] } = useTasks(activeSpaceId || undefined, !isAllTasksMode ? combinedFilters : undefined);
+
   const myTasksFilters: TaskFilters | undefined = useMemo(() => {
     if (!isAllTasksMode) return undefined;
     return {
@@ -84,8 +138,8 @@ const Tasks = () => {
   }, [isAllTasksMode, combinedFilters, currentEmployee?.id]);
   const { data: allTasks = [] } = useAllTasks(myTasksFilters);
 
-  const statuses = isAllTasksMode ? allStatuses : spaceStatuses;
-  const categories = isAllTasksMode ? allCategories : spaceCategories;
+  const statuses = dedupedStatuses;
+  const categories = dedupedCategories;
   const tasks = isAllTasksMode ? allTasks : spaceTasks;
 
   const handleSelect = (sel: SidebarSelection) => {
