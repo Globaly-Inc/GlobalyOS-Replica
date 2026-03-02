@@ -111,7 +111,9 @@ const existingTask: TaskWithRelations = {
 const createWrapper = () => {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+    <QueryClientProvider client={qc}>
+      <TooltipProvider>{children}</TooltipProvider>
+    </QueryClientProvider>
   );
 };
 
