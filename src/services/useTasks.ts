@@ -349,7 +349,8 @@ export const useAllTasks = (filters?: TaskFilters) => {
           *,
           status:task_statuses(*),
           category:task_categories(*),
-          task_attachments(count)
+          task_attachments(count),
+          task_comments(count)
         `)
         .eq('organization_id', currentOrg.id)
         .eq('is_archived', false)
@@ -386,6 +387,7 @@ export const useAllTasks = (filters?: TaskFilters) => {
         assignee: t.assignee_id ? empMap.get(t.assignee_id) || null : null,
         reporter: t.reporter_id ? empMap.get(t.reporter_id) || null : null,
         attachment_count: t.task_attachments?.[0]?.count ?? 0,
+        comment_count: t.task_comments?.[0]?.count ?? 0,
       })) as TaskWithRelations[];
     },
     enabled: !!currentOrg?.id,
@@ -405,7 +407,8 @@ export const useTasks = (spaceId: string | undefined, filters?: TaskFilters) => 
           *,
           status:task_statuses(*),
           category:task_categories(*),
-          task_attachments(count)
+          task_attachments(count),
+          task_comments(count)
         `)
         .eq('space_id', spaceId)
         .eq('is_archived', false)
@@ -444,6 +447,7 @@ export const useTasks = (spaceId: string | undefined, filters?: TaskFilters) => 
         assignee: t.assignee_id ? empMap.get(t.assignee_id) || null : null,
         reporter: t.reporter_id ? empMap.get(t.reporter_id) || null : null,
         attachment_count: t.task_attachments?.[0]?.count ?? 0,
+        comment_count: t.task_comments?.[0]?.count ?? 0,
       })) as TaskWithRelations[];
     },
     enabled: !!spaceId,
