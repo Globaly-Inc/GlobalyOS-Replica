@@ -326,6 +326,7 @@ const Tasks = () => {
                     setShowAddTask(true);
                   }}
                   isAllTasksMode={isAllTasksMode}
+                  statusIdMap={statusIdMap}
                 />
               ) : (
                 <TaskBoardView
@@ -344,6 +345,7 @@ const Tasks = () => {
                     setShowAddTask(true);
                   }}
                   isAllTasksMode={isAllTasksMode}
+                  statusIdMap={statusIdMap}
                 />
               )}
             </div>
