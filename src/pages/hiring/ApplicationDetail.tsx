@@ -99,6 +99,8 @@ export default function ApplicationDetail() {
   const { data: interviews } = useInterviews(applicationId);
   const { data: offer } = useOffer(applicationId);
   const { data: activityLog } = useHiringActivityLog('application', applicationId);
+  const { currentOrg } = useOrganization();
+  const { data: positionTemplates } = useAssignmentTemplatesForPosition(application?.job?.title || '');
   
   const updateStage = useUpdateApplicationStage();
 
