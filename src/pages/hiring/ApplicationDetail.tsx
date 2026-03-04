@@ -76,7 +76,7 @@ import {
   type ApplicationStage 
 } from '@/types/hiring';
 import { toast } from 'sonner';
-import { AssignAssignmentDialog } from '@/components/hiring/assignments/AssignAssignmentDialog';
+import { AssignAssignmentDialog } from '@/components/hiring/assignments/AssignAssignmentDialog'; // kept for potential future use
 import { ScheduleInterviewDialog } from '@/components/hiring/interviews/ScheduleInterviewDialog';
 import { CreateOfferDialog } from '@/components/hiring/offers/CreateOfferDialog';
 import { SendOfferDialog } from '@/components/hiring/offers/SendOfferDialog';
@@ -86,7 +86,7 @@ import { ConvertToEmployeeDialog } from '@/components/hiring/ConvertToEmployeeDi
 
 export default function ApplicationDetail() {
   const { applicationId } = useParams<{ applicationId: string }>();
-  const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
+  const [showAssignmentDialog] = useState(false); // kept for potential future use
   const [showInterviewDialog, setShowInterviewDialog] = useState(false);
   const [showOfferDialog, setShowOfferDialog] = useState(false);
   const [showSendOfferDialog, setShowSendOfferDialog] = useState(false);
@@ -176,10 +176,6 @@ export default function ApplicationDetail() {
             <DropdownMenuItem>
               <Mail className="h-4 w-4 mr-2" />
               Send Email
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setShowAssignmentDialog(true)}>
-              <ClipboardList className="h-4 w-4 mr-2" />
-              Assign Task
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setShowInterviewDialog(true)}>
               <Calendar className="h-4 w-4 mr-2" />
@@ -352,14 +348,7 @@ export default function ApplicationDetail() {
                 <Card>
                   <CardContent className="py-8 text-center">
                     <ClipboardList className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                    <p className="text-muted-foreground">No assignments yet</p>
-                    <Button 
-                      variant="outline" 
-                      className="mt-4"
-                      onClick={() => setShowAssignmentDialog(true)}
-                    >
-                      Assign Task
-                    </Button>
+                    <p className="text-muted-foreground">No assignments linked to this position yet</p>
                   </CardContent>
                 </Card>
               )}
@@ -706,14 +695,6 @@ export default function ApplicationDetail() {
               <Button 
                 variant="outline" 
                 className="w-full justify-start"
-                onClick={() => setShowAssignmentDialog(true)}
-              >
-                <ClipboardList className="h-4 w-4 mr-2" />
-                Assign Task
-              </Button>
-              <Button 
-                variant="outline" 
-                className="w-full justify-start"
                 onClick={() => setShowInterviewDialog(true)}
               >
                 <Calendar className="h-4 w-4 mr-2" />
@@ -742,11 +723,6 @@ export default function ApplicationDetail() {
       </div>
 
       {/* Dialogs */}
-      <AssignAssignmentDialog
-        open={showAssignmentDialog}
-        onOpenChange={setShowAssignmentDialog}
-        applicationId={applicationId!}
-      />
       <ScheduleInterviewDialog
         open={showInterviewDialog}
         onOpenChange={setShowInterviewDialog}
