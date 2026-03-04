@@ -463,7 +463,17 @@ function SortableStageAccordion({
             </div>
           ) : (
             <>
-              <span className="text-base font-semibold flex-1 min-w-0 truncate">{stage.name}</span>
+              <span className="text-base font-semibold min-w-0 truncate">{stage.name}</span>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                onClick={e => { e.stopPropagation(); onStartRename(stage); }}
+              >
+                <Pencil className="h-3 w-3" />
+              </Button>
+
+              <div className="flex-1" />
 
               {/* Activity badges */}
               <div className="flex items-center gap-1.5 shrink-0">
@@ -486,14 +496,6 @@ function SortableStageAccordion({
 
               {/* Hover actions */}
               <div className="flex items-center gap-0.5 shrink-0">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-7 w-7"
-                  onClick={e => { e.stopPropagation(); onStartRename(stage); }}
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
