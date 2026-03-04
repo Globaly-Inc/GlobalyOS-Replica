@@ -86,6 +86,8 @@ import { SendOfferDialog } from '@/components/hiring/offers/SendOfferDialog';
 import { CVUpload } from '@/components/hiring/CVUpload';
 import { ResumeParseButton } from '@/components/hiring/ResumeParseButton';
 import { ConvertToEmployeeDialog } from '@/components/hiring/ConvertToEmployeeDialog';
+import { AssignmentPreviewDialog } from '@/components/hiring/AssignmentPreviewDialog';
+import type { AssignmentTemplateForPosition } from '@/hooks/useAssignmentTemplatesForPosition';
 
 export default function ApplicationDetail() {
   const { applicationId } = useParams<{ applicationId: string }>();
@@ -94,6 +96,7 @@ export default function ApplicationDetail() {
   const [showOfferDialog, setShowOfferDialog] = useState(false);
   const [showSendOfferDialog, setShowSendOfferDialog] = useState(false);
   const [showConvertDialog, setShowConvertDialog] = useState(false);
+  const [previewTemplate, setPreviewTemplate] = useState<AssignmentTemplateForPosition | null>(null);
 
   const { data: application, isLoading } = useHiringApplication(applicationId);
   const { data: assignments } = useAssignmentInstances(applicationId);
