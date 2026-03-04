@@ -19,7 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Briefcase, Search, MapPin, Building } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { useOrgNavigation } from '@/hooks/useOrgNavigation';
+
 
 interface AddToPositionDialogProps {
   open: boolean;
