@@ -338,8 +338,32 @@ export function useApplication(applicationId: string | undefined) {
   });
 }
 
-// ============================================
-// ASSIGNMENTS
+// Fetch all applications for the same candidate (sibling positions)
+export function useCandidateApplications(candidateId: string | undefined) {
+  const { currentOrg } = useOrganization();
+
+  return useQuery({
+    queryKey: ['hiring', 'candidate-applications', currentOrg?.id, candidateId],
+    queryFn: async () => {
+      if (!currentOrg?.id || !candidateId) return [];
+
+      const { data, error } = await supabase
+        .from('candidate_applications')
+        .select(`
+          id, stage, status, created_at, cv_file_path, cover_letter, rating, is_internal,
+          job:jobs(id, title, slug, status)
+        `)
+        .eq('organization_id', currentOrg.id)
+        .eq('candidate_id', candidateId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!currentOrg?.id && !!candidateId,
+  });
+}
+
 // ============================================
 
 export function useAssignmentTemplates() {
