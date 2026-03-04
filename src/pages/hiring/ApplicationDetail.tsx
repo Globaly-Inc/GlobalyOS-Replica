@@ -53,7 +53,8 @@ import {
   Video,
   Link as LinkIcon,
   Copy,
-  ChevronDown
+  ChevronDown,
+  Eye
 } from 'lucide-react';
 import {
   DropdownMenu,
