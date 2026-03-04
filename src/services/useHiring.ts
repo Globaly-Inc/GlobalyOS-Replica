@@ -22,6 +22,7 @@ import type {
   InterviewScorecard,
   HiringOffer,
   HiringActivityLog,
+  HiringActivityLogWithRelations,
   HiringEmailTemplate,
   JobFilters,
   CandidateFilters,
