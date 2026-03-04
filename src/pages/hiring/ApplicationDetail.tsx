@@ -11,7 +11,6 @@ import {
   useCandidateActivityLog,
 } from '@/services/useHiring';
 import { useOrganization } from '@/hooks/useOrganization';
-import { useOrganization } from '@/hooks/useOrganization';
 import { 
   useUpdateApplicationStage,
 } from '@/services/useHiringMutations';
@@ -177,15 +176,10 @@ export default function ApplicationDetail() {
   const [showSendOfferDialog, setShowSendOfferDialog] = useState(false);
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [showAddPositionDialog, setShowAddPositionDialog] = useState(false);
-  const [previewTemplate, setPreviewTemplate] = useState<AssignmentTemplateForPosition | null>(null);
 
   const { data: application, isLoading } = useHiringApplication(applicationId);
-  const { data: assignments } = useAssignmentInstances(applicationId);
-  const { data: interviews } = useInterviews(applicationId);
-  const { data: offer } = useOffer(applicationId);
-  const { data: activityLog } = useHiringActivityLog('application', applicationId);
+  const { data: activityLog } = useCandidateActivityLog(application?.candidate?.id);
   const { currentOrg } = useOrganization();
-  const { data: positionTemplates } = useAssignmentTemplatesForPosition(application?.job?.title || '');
   const { data: siblingApplications } = useCandidateApplications(application?.candidate?.id);
   
   const updateStage = useUpdateApplicationStage();
