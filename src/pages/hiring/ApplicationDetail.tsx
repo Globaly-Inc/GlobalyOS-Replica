@@ -305,19 +305,36 @@ export default function ApplicationDetail() {
                   <Card key={assignment.id}>
                     <CardContent className="py-4">
                       <div className="flex items-start justify-between">
-                        <div>
+                        <div className="flex-1 min-w-0">
                           <h4 className="font-medium">{assignment.title}</h4>
                           <p className="text-sm text-muted-foreground">
                             Due: {format(new Date(assignment.deadline), 'PPp')}
                           </p>
                         </div>
-                        <Badge variant={
-                          assignment.status === 'submitted' ? 'default' :
-                          assignment.status === 'reviewed' ? 'secondary' :
-                          assignment.status === 'overdue' ? 'destructive' : 'outline'
-                        }>
-                          {ASSIGNMENT_STATUS_LABELS[assignment.status]}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={
+                            assignment.status === 'submitted' ? 'default' :
+                            assignment.status === 'reviewed' ? 'secondary' :
+                            assignment.status === 'overdue' ? 'destructive' : 'outline'
+                          }>
+                            {ASSIGNMENT_STATUS_LABELS[assignment.status]}
+                          </Badge>
+                          {(assignment as any).template_public_token && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => {
+                                const link = `${window.location.origin}/assignment/t/${(assignment as any).template_public_token}`;
+                                navigator.clipboard.writeText(link);
+                                toast.success('Assignment link copied!');
+                              }}
+                              title="Copy public assignment link"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                       {assignment.rating && (
                         <div className="mt-2 flex items-center gap-1">
