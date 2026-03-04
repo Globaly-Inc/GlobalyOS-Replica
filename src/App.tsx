@@ -333,8 +333,8 @@ const App = () => <QueryClientProvider client={queryClient}>
                 {/* Public Careers routes (no auth required) */}
                 <Route path="/careers/:orgCode" element={<CareersPage />} />
                 <Route path="/careers/:orgCode/:jobSlug" element={<JobDetailPublic />} />
-                <Route path="/assignment/:token" element={<AssignmentSubmission />} />
                 <Route path="/assignment/t/:templateToken" element={<AssignmentTemplateSubmission />} />
+                <Route path="/assignment/:token" element={<AssignmentSubmission />} />
                 {/* Support pages - public for authenticated users */}
                 <Route path="/support" element={<Support />} />
                 <Route path="/support/getting-started" element={<SupportGettingStarted />} />
