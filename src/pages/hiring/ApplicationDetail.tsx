@@ -300,54 +300,59 @@ export default function ApplicationDetail() {
             </TabsContent>
 
             <TabsContent value="assignments" className="space-y-4 mt-4">
-              {assignments && assignments.length > 0 ? (
-                assignments.map((assignment) => (
-                  <Card key={assignment.id}>
-                    <CardContent className="py-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium">{assignment.title}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            Due: {format(new Date(assignment.deadline), 'PPp')}
-                          </p>
+              {/* Position-linked assignment templates */}
+              {positionTemplates?.templates && positionTemplates.templates.length > 0 ? (
+                positionTemplates.templates.map((template) => {
+                  const publicLink = template.slug && currentOrg?.slug
+                    ? `${window.location.origin}/careers/${currentOrg.slug}/assignment/${template.slug}`
+                    : null;
+                  return (
+                    <Card key={template.id}>
+                      <CardContent className="py-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium">{template.name}</h4>
+                            {template.type && (
+                              <Badge variant="secondary" className="mt-1 text-xs">{template.type}</Badge>
+                            )}
+                            {template.recommended_effort && (
+                              <p className="text-sm text-muted-foreground mt-1">
+                                Effort: {template.recommended_effort}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {publicLink && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(publicLink);
+                                    toast.success('Assignment link copied!');
+                                  }}
+                                  title="Copy public assignment link"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => window.open(publicLink, '_blank')}
+                                  title="Open assignment page"
+                                >
+                                  <LinkIcon className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={
-                            assignment.status === 'submitted' ? 'default' :
-                            assignment.status === 'reviewed' ? 'secondary' :
-                            assignment.status === 'overdue' ? 'destructive' : 'outline'
-                          }>
-                            {ASSIGNMENT_STATUS_LABELS[assignment.status]}
-                          </Badge>
-                          {((assignment as any).template?.slug || (assignment as any).template?.public_token) && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => {
-                                const tmpl = (assignment as any).template;
-                                const link = tmpl?.slug
-                                  ? `${window.location.origin}/careers/${(application as any)?.job?.organization?.slug || ''}/assignment/${tmpl.slug}`
-                                  : `${window.location.origin}/assignment/t/${tmpl.public_token}`;
-                                navigator.clipboard.writeText(link);
-                                toast.success('Assignment link copied!');
-                              }}
-                              title="Copy public assignment link"
-                            >
-                              <Copy className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                      {assignment.rating && (
-                        <div className="mt-2 flex items-center gap-1">
-                          <Star className="h-4 w-4 text-warning" />
-                          <span className="text-sm">{assignment.rating}/5</span>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))
+                      </CardContent>
+                    </Card>
+                  );
+                })
               ) : (
                 <Card>
                   <CardContent className="py-8 text-center">
@@ -355,6 +360,42 @@ export default function ApplicationDetail() {
                     <p className="text-muted-foreground">No assignments linked to this position yet</p>
                   </CardContent>
                 </Card>
+              )}
+
+              {/* Submitted assignment instances */}
+              {assignments && assignments.length > 0 && (
+                <>
+                  <Separator />
+                  <h3 className="text-sm font-medium text-muted-foreground">Submissions</h3>
+                  {assignments.map((assignment) => (
+                    <Card key={assignment.id}>
+                      <CardContent className="py-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium">{assignment.title}</h4>
+                            <p className="text-sm text-muted-foreground">
+                              Due: {format(new Date(assignment.deadline), 'PPp')}
+                            </p>
+                          </div>
+                          <Badge variant={
+                            assignment.status === 'submitted' ? 'default' :
+                            assignment.status === 'reviewed' ? 'secondary' :
+                            assignment.status === 'overdue' ? 'destructive' : 'outline'
+                          }>
+                            {ASSIGNMENT_STATUS_LABELS[assignment.status]}
+                          </Badge>
+                        </div>
+                        {assignment.rating && (
+                          <div className="mt-2 flex items-center gap-1">
+                            <Star className="h-4 w-4 text-warning" />
+                            <span className="text-sm">{assignment.rating}/5</span>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </>
+              )}
               )}
             </TabsContent>
 
