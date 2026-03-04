@@ -88,6 +88,7 @@ import { CVUpload } from '@/components/hiring/CVUpload';
 import { ResumeParseButton } from '@/components/hiring/ResumeParseButton';
 import { ConvertToEmployeeDialog } from '@/components/hiring/ConvertToEmployeeDialog';
 import { AssignmentPreviewDialog } from '@/components/hiring/AssignmentPreviewDialog';
+import { AddToPositionDialog } from '@/components/hiring/AddToPositionDialog';
 import type { AssignmentTemplateForPosition } from '@/hooks/useAssignmentTemplatesForPosition';
 
 // ─── Activity Icon Mapping ────────────────────────────────────────
