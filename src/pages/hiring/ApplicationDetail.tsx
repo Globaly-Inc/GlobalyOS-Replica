@@ -417,6 +417,7 @@ export default function ApplicationDetail() {
                   {activityLog.map((log) => {
                     const Icon = getActivityIcon(log.action);
                     const colorClass = getActivityColor(log.action);
+                    const actorName = (log as any).actor?.profiles?.full_name;
                     return (
                       <div key={log.id} className="flex items-start gap-3">
                         <div className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${colorClass}`}>
@@ -424,17 +425,8 @@ export default function ApplicationDetail() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-foreground leading-snug">
-                            {log.action.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}
+                            {formatActivityDescription(log.action, log.details, actorName)}
                           </p>
-                          {log.details && (
-                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                              {typeof log.details === 'string'
-                                ? log.details
-                                : Object.entries(log.details as Record<string, unknown>)
-                                    .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`)
-                                    .join(' · ')}
-                            </p>
-                          )}
                           <p className="text-xs text-muted-foreground mt-0.5">
                             {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
                           </p>
