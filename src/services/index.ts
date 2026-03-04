@@ -51,6 +51,7 @@ export {
   useOffer,
   useHiringActivityLog,
   useCandidateApplications,
+  useCandidateActivityLog,
   useHiringEmailTemplates,
   useHiringMetrics,
   useAssignmentByToken,

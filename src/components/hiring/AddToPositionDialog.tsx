@@ -19,7 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Briefcase, Search, MapPin, Building } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { useOrgNavigation } from '@/hooks/useOrgNavigation';
+
 
 interface AddToPositionDialogProps {
   open: boolean;
@@ -27,6 +27,7 @@ interface AddToPositionDialogProps {
   candidateId: string;
   candidateName: string;
   existingJobIds: string[];
+  currentCvFilePath?: string | null;
 }
 
 export function AddToPositionDialog({
@@ -35,12 +36,12 @@ export function AddToPositionDialog({
   candidateId,
   candidateName,
   existingJobIds,
+  currentCvFilePath,
 }: AddToPositionDialogProps) {
   const [search, setSearch] = useState('');
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const { data: jobs, isLoading } = useJobs({ status: 'open' });
   const createApplication = useCreateApplication();
-  const { navigateOrg } = useOrgNavigation();
 
   // Filter out jobs the candidate already applied to
   const availableJobs = (jobs || []).filter(
@@ -52,18 +53,15 @@ export function AddToPositionDialog({
     if (!selectedJobId) return;
 
     try {
-      const result = await createApplication.mutateAsync({
+      await createApplication.mutateAsync({
         candidate_id: candidateId,
         job_id: selectedJobId,
         stage: 'applied',
+        cv_file_path: currentCvFilePath || undefined,
       });
       onOpenChange(false);
       setSelectedJobId(null);
       setSearch('');
-      // Navigate to the new application
-      if (result?.id) {
-        navigateOrg(`/hiring/applications/${result.id}`);
-      }
     } catch {
       // Error handled by mutation
     }
