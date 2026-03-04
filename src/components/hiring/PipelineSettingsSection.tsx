@@ -129,8 +129,6 @@ export function PipelineSettingsSection() {
         ? {
             id: existing.id,
             stage_key: stage,
-            auto_assignment_template_id: existing.auto_assignment_template_id,
-            auto_assign_enabled: existing.auto_assign_enabled ?? false,
             auto_reject_after_hours: existing.auto_reject_after_hours,
             auto_reject_on_deadline: existing.auto_reject_on_deadline,
             notify_employee_ids: existing.notify_employee_ids || [],
@@ -139,8 +137,6 @@ export function PipelineSettingsSection() {
           }
         : {
             stage_key: stage,
-            auto_assignment_template_id: null,
-            auto_assign_enabled: false,
             auto_reject_after_hours: null,
             auto_reject_on_deadline: false,
             notify_employee_ids: [],
@@ -287,8 +283,6 @@ export function PipelineSettingsSection() {
           organization_id: orgId,
           job_id: null,
           stage_key: r.stage_key,
-          auto_assignment_template_id: r.auto_assignment_template_id || null,
-          auto_assign_enabled: r.auto_assign_enabled,
           auto_reject_after_hours: r.auto_reject_after_hours || null,
           auto_reject_on_deadline: r.auto_reject_on_deadline,
           notify_employee_ids: r.notify_employee_ids,

@@ -100,8 +100,6 @@ export interface Pipeline {
 export interface StageRule {
   id?: string;
   stage_key: string;
-  auto_assignment_template_id: string | null;
-  auto_assign_enabled: boolean;
   auto_reject_after_hours: number | null;
   auto_reject_on_deadline: boolean;
   notify_employee_ids: string[];
@@ -408,7 +406,7 @@ function SortableStageAccordion({
     | undefined;
 
   // Summary badges for collapsed view
-  const hasAutoAssign = rule?.auto_assign_enabled;
+  
   const notifyCount = rule?.notify_employee_ids?.length ?? 0;
   const hasEmail = !!effectiveTrigger && !!matchedTpl;
   const hasAutoReject = rule?.auto_reject_on_deadline || !!rule?.auto_reject_after_hours;
@@ -469,11 +467,6 @@ function SortableStageAccordion({
 
               {/* Activity badges */}
               <div className="flex items-center gap-1.5 shrink-0">
-                {hasAutoAssign && (
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 h-5">
-                    <Zap className="h-2.5 w-2.5" /> Auto-assign
-                  </Badge>
-                )}
                 {hasAutoReject && (
                   <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 h-5">
                     <Clock className="h-2.5 w-2.5" /> Auto-reject
@@ -737,30 +730,6 @@ function SortableStageAccordion({
                 </div>
               </div>
 
-              {/* ── Auto Assignment ─────────────────────────────── */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-md bg-primary/10 text-primary shrink-0">
-                    <Zap className="h-3.5 w-3.5" />
-                  </div>
-                  <span className="text-sm font-semibold">Auto Assignment</span>
-                </div>
-                <div className="pl-8 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">Auto-assign assignment</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Automatically send the linked assignment when a candidate enters this stage
-                      </p>
-                    </div>
-                    <Switch
-                      checked={rule?.auto_assign_enabled ?? false}
-                      onCheckedChange={checked => onRuleChange(stageKey, { auto_assign_enabled: checked, is_active: checked || (rule?.is_active ?? false) })}
-                    />
-                  </div>
-                </div>
-              </div>
-
               {/* ── Rejection Rules ─────────────────────────── */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2 mb-1">
@@ -902,7 +871,7 @@ export function PipelineCard({
   // Count active automations for this pipeline
   const activeAutomationCount = activeStages.filter(s => {
     const rule = stageRules[s.stage_key];
-    return rule?.auto_assign_enabled || rule?.auto_reject_on_deadline || rule?.auto_reject_after_hours || (rule?.notify_employee_ids?.length ?? 0) > 0 || rule?.email_trigger_type;
+    return rule?.auto_reject_on_deadline || rule?.auto_reject_after_hours || (rule?.notify_employee_ids?.length ?? 0) > 0 || rule?.email_trigger_type;
   }).length;
 
   return (

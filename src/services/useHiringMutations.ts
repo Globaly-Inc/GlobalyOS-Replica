@@ -52,43 +52,26 @@ async function autoCreateAssignmentInstances(
 
   let templateIds: string[] = [];
 
-  // Strategy 1: Check pipeline_stage_rules for auto_assignment_template_id
-  const { data: rules } = await (supabase
-    .from('pipeline_stage_rules') as any)
-    .select('auto_assignment_template_id')
-    .eq('organization_id', organizationId)
-    .eq('job_id', jobId)
-    .eq('stage_key', 'assignment')
-    .eq('auto_assign_enabled', true);
+  // Find templates linked to the job's position
+  const jobTitle = (app as any).jobs?.title;
+  if (jobTitle) {
+    const { data: position } = await supabase
+      .from('positions')
+      .select('id')
+      .eq('organization_id', organizationId)
+      .ilike('name', jobTitle.trim())
+      .maybeSingle();
 
-  if (rules?.length) {
-    templateIds = rules
-      .map((r: any) => r.auto_assignment_template_id)
-      .filter(Boolean);
-  }
-
-  // Strategy 2: Fall back to position-linked templates
-  if (!templateIds.length) {
-    const jobTitle = (app as any).jobs?.title;
-    if (jobTitle) {
-      const { data: position } = await supabase
-        .from('positions')
+    if (position) {
+      const { data: templates } = await (supabase
+        .from('assignment_templates') as any)
         .select('id')
         .eq('organization_id', organizationId)
-        .ilike('name', jobTitle.trim())
-        .maybeSingle();
+        .eq('is_active', true)
+        .contains('position_ids', [position.id]);
 
-      if (position) {
-        const { data: templates } = await (supabase
-          .from('assignment_templates') as any)
-          .select('id')
-          .eq('organization_id', organizationId)
-          .eq('is_active', true)
-          .contains('position_ids', [position.id]);
-
-        if (templates?.length) {
-          templateIds = templates.map((t: any) => t.id);
-        }
+      if (templates?.length) {
+        templateIds = templates.map((t: any) => t.id);
       }
     }
   }
