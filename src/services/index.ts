@@ -50,6 +50,7 @@ export {
   useUpcomingInterviews,
   useOffer,
   useHiringActivityLog,
+  useCandidateApplications,
   useHiringEmailTemplates,
   useHiringMetrics,
   useAssignmentByToken,

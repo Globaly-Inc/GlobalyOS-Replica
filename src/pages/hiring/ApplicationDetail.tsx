@@ -10,7 +10,8 @@ import {
   useAssignmentInstances, 
   useInterviews, 
   useOffer,
-  useHiringActivityLog 
+  useHiringActivityLog,
+  useCandidateApplications,
 } from '@/services/useHiring';
 import { useAssignmentTemplatesForPosition } from '@/hooks/useAssignmentTemplatesForPosition';
 import { useOrganization } from '@/hooks/useOrganization';
@@ -87,6 +88,7 @@ import { CVUpload } from '@/components/hiring/CVUpload';
 import { ResumeParseButton } from '@/components/hiring/ResumeParseButton';
 import { ConvertToEmployeeDialog } from '@/components/hiring/ConvertToEmployeeDialog';
 import { AssignmentPreviewDialog } from '@/components/hiring/AssignmentPreviewDialog';
+import { AddToPositionDialog } from '@/components/hiring/AddToPositionDialog';
 import type { AssignmentTemplateForPosition } from '@/hooks/useAssignmentTemplatesForPosition';
 
 // ─── Activity Icon Mapping ────────────────────────────────────────
@@ -117,6 +119,7 @@ export default function ApplicationDetail() {
   const [showOfferDialog, setShowOfferDialog] = useState(false);
   const [showSendOfferDialog, setShowSendOfferDialog] = useState(false);
   const [showConvertDialog, setShowConvertDialog] = useState(false);
+  const [showAddPositionDialog, setShowAddPositionDialog] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<AssignmentTemplateForPosition | null>(null);
 
   const { data: application, isLoading } = useHiringApplication(applicationId);
@@ -126,6 +129,7 @@ export default function ApplicationDetail() {
   const { data: activityLog } = useHiringActivityLog('application', applicationId);
   const { currentOrg } = useOrganization();
   const { data: positionTemplates } = useAssignmentTemplatesForPosition(application?.job?.title || '');
+  const { data: siblingApplications } = useCandidateApplications(application?.candidate?.id);
   
   const updateStage = useUpdateApplicationStage();
 
@@ -458,18 +462,39 @@ export default function ApplicationDetail() {
         {/* ── Right Column (2/3) ────────────────────────────── */}
         <div className="lg:col-span-2 space-y-4">
           {/* Position Tab(s) */}
-          <Tabs defaultValue="current" className="w-full">
-            <div className="flex items-center gap-2">
-              <TabsList>
-                <TabsTrigger value="current" className="flex items-center gap-1.5">
-                  <Briefcase className="h-3.5 w-3.5" />
-                  {application.job?.title || 'Position'}
-                </TabsTrigger>
-              </TabsList>
-            </div>
+          {(() => {
+            // Other positions this candidate applied to (excluding current)
+            const otherApps = (siblingApplications || []).filter(a => a.id !== applicationId);
+            const existingJobIds = (siblingApplications || []).map(a => (a.job as any)?.id).filter(Boolean);
 
-            <TabsContent value="current" className="mt-4 space-y-4">
-              {/* Application Summary */}
+            return (
+              <Tabs defaultValue="current" className="w-full">
+                <div className="flex items-center gap-2">
+                  <TabsList>
+                    <TabsTrigger value="current" className="flex items-center gap-1.5">
+                      <Briefcase className="h-3.5 w-3.5" />
+                      {application.job?.title || 'Position'}
+                    </TabsTrigger>
+                    {otherApps.map((app) => (
+                      <TabsTrigger key={app.id} value={app.id} className="flex items-center gap-1.5">
+                        <Briefcase className="h-3.5 w-3.5" />
+                        {(app.job as any)?.title || 'Position'}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    onClick={() => setShowAddPositionDialog(true)}
+                    title="Apply to another position"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <TabsContent value="current" className="mt-4 space-y-4">
+                  {/* Application Summary */}
               <Card>
                 <CardContent className="py-4">
                   <div className="flex items-center justify-between flex-wrap gap-2">
@@ -805,7 +830,36 @@ export default function ApplicationDetail() {
                 </CardContent>
               </Card>
             </TabsContent>
-          </Tabs>
+
+                {/* Other position tabs - link to their application pages */}
+                {otherApps.map((app) => (
+                  <TabsContent key={app.id} value={app.id} className="mt-4">
+                    <Card>
+                      <CardContent className="py-6 text-center space-y-3">
+                        <Briefcase className="h-8 w-8 mx-auto text-muted-foreground" />
+                        <div>
+                          <h4 className="font-medium">{(app.job as any)?.title}</h4>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Stage: {APPLICATION_STAGE_LABELS[(app.stage as ApplicationStage)] || app.stage}
+                            {' · '}
+                            Status: {APPLICATION_STATUS_LABELS[app.status]}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Applied {formatDistanceToNow(new Date(app.created_at), { addSuffix: true })}
+                          </p>
+                        </div>
+                        <OrgLink to={`/hiring/applications/${app.id}`}>
+                          <Button variant="outline" size="sm">
+                            View Full Application
+                          </Button>
+                        </OrgLink>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                ))}
+              </Tabs>
+            );
+          })()}
         </div>
       </div>
 
@@ -858,6 +912,13 @@ export default function ApplicationDetail() {
           templateSlug={previewTemplate.slug || undefined}
         />
       )}
+      <AddToPositionDialog
+        open={showAddPositionDialog}
+        onOpenChange={setShowAddPositionDialog}
+        candidateId={candidate?.id || ''}
+        candidateName={candidate?.name || 'Candidate'}
+        existingJobIds={(siblingApplications || []).map(a => (a.job as any)?.id).filter(Boolean)}
+      />
     </div>
   );
 }
