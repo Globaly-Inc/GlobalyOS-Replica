@@ -38,9 +38,9 @@ export function AddToPositionDialog({
 }: AddToPositionDialogProps) {
   const [search, setSearch] = useState('');
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const { data: jobs, isLoading } = useJobs({ status: 'published' });
+  const { data: jobs, isLoading } = useJobs({ status: 'open' });
   const createApplication = useCreateApplication();
-  const { navigateToOrg } = useOrgNavigation();
+  const { navigateOrg } = useOrgNavigation();
 
   // Filter out jobs the candidate already applied to
   const availableJobs = (jobs || []).filter(
