@@ -301,7 +301,7 @@ function EmailTemplateDialog({ open, onClose, triggerType, stageId, existingTemp
                 textareaRef.current = el;
               }}
               placeholder={`Dear {{candidate_name}},\n\nThank you for applying...`}
-              style={{ minHeight: '80px', maxHeight: '480px', overflowY: 'hidden' }}
+              style={{ minHeight: '360px', maxHeight: '800px', overflowY: 'hidden' }}
               className="resize-none font-mono text-sm"
             />
           </div>
