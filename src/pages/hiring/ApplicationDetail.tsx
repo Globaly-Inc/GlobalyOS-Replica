@@ -396,7 +396,6 @@ export default function ApplicationDetail() {
                   ))}
                 </>
               )}
-              )}
             </TabsContent>
 
             <TabsContent value="interviews" className="space-y-4 mt-4">
