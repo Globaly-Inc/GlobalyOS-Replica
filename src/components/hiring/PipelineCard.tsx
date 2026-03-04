@@ -409,7 +409,7 @@ function SortableStageAccordion({
   
   const notifyCount = rule?.notify_employee_ids?.length ?? 0;
   const hasEmail = !!effectiveTrigger && !!matchedTpl;
-  const hasAutoReject = rule?.auto_reject_on_deadline || !!rule?.auto_reject_after_hours;
+  
 
   return (
     <div
@@ -477,11 +477,6 @@ function SortableStageAccordion({
 
               {/* Activity badges */}
               <div className="flex items-center gap-1.5 shrink-0">
-                {hasAutoReject && (
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 h-5">
-                    <Clock className="h-2.5 w-2.5" /> Auto-reject
-                  </Badge>
-                )}
                 {notifyCount > 0 && (
                   <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 h-5">
                     <Bell className="h-2.5 w-2.5" /> {notifyCount} notified
@@ -839,7 +834,7 @@ export function PipelineCard({
   // Count active automations for this pipeline
   const activeAutomationCount = activeStages.filter(s => {
     const rule = stageRules[s.stage_key];
-    return rule?.auto_reject_on_deadline || rule?.auto_reject_after_hours || (rule?.notify_employee_ids?.length ?? 0) > 0 || rule?.email_trigger_type;
+    return (rule?.notify_employee_ids?.length ?? 0) > 0 || rule?.email_trigger_type;
   }).length;
 
   return (
