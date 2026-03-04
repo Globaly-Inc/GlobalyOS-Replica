@@ -376,7 +376,7 @@ export function useAssignmentInstances(applicationId: string | undefined) {
         .from('assignment_instances')
         .select(`
           *,
-          template:assignment_templates(id, name, type),
+          template:assignment_templates(id, name, type, public_token),
           reviewer:employees!assignment_instances_reviewed_by_fkey(
             id,
             profiles:profiles(full_name, avatar_url)
