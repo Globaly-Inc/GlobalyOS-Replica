@@ -53,7 +53,8 @@ import {
   Video,
   Link as LinkIcon,
   Copy,
-  ChevronDown
+  ChevronDown,
+  Eye
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -85,6 +86,8 @@ import { SendOfferDialog } from '@/components/hiring/offers/SendOfferDialog';
 import { CVUpload } from '@/components/hiring/CVUpload';
 import { ResumeParseButton } from '@/components/hiring/ResumeParseButton';
 import { ConvertToEmployeeDialog } from '@/components/hiring/ConvertToEmployeeDialog';
+import { AssignmentPreviewDialog } from '@/components/hiring/AssignmentPreviewDialog';
+import type { AssignmentTemplateForPosition } from '@/hooks/useAssignmentTemplatesForPosition';
 
 export default function ApplicationDetail() {
   const { applicationId } = useParams<{ applicationId: string }>();
@@ -93,6 +96,7 @@ export default function ApplicationDetail() {
   const [showOfferDialog, setShowOfferDialog] = useState(false);
   const [showSendOfferDialog, setShowSendOfferDialog] = useState(false);
   const [showConvertDialog, setShowConvertDialog] = useState(false);
+  const [previewTemplate, setPreviewTemplate] = useState<AssignmentTemplateForPosition | null>(null);
 
   const { data: application, isLoading } = useHiringApplication(applicationId);
   const { data: assignments } = useAssignmentInstances(applicationId);
@@ -322,6 +326,15 @@ export default function ApplicationDetail() {
                             )}
                           </div>
                           <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => setPreviewTemplate(template)}
+                              title="Preview assignment"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
                             {publicLink && (
                               <>
                                 <Button
@@ -795,6 +808,26 @@ export default function ApplicationDetail() {
         candidateName={candidate?.name}
         jobTitle={application.job?.title}
       />
+      {previewTemplate && (
+        <AssignmentPreviewDialog
+          open={!!previewTemplate}
+          onOpenChange={(open) => { if (!open) setPreviewTemplate(null); }}
+          formData={{
+            name: previewTemplate.name,
+            type: previewTemplate.type || '',
+            instructions: previewTemplate.instructions,
+            default_deadline_hours: previewTemplate.default_deadline_hours || 72,
+            recommended_effort: previewTemplate.recommended_effort || '',
+            expected_deliverables: {
+              files: previewTemplate.expected_deliverables?.file_uploads?.enabled ?? previewTemplate.expected_deliverables?.files ?? false,
+              url_fields: previewTemplate.expected_deliverables?.url_fields ?? [],
+              questions: previewTemplate.expected_deliverables?.questions ?? [],
+            },
+          }}
+          orgSlug={currentOrg?.slug}
+          templateSlug={previewTemplate.slug || undefined}
+        />
+      )}
     </div>
   );
 }
