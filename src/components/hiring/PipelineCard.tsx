@@ -100,8 +100,6 @@ export interface Pipeline {
 export interface StageRule {
   id?: string;
   stage_key: string;
-  auto_assignment_template_id: string | null;
-  auto_assign_enabled: boolean;
   auto_reject_after_hours: number | null;
   auto_reject_on_deadline: boolean;
   notify_employee_ids: string[];
@@ -469,11 +467,6 @@ function SortableStageAccordion({
 
               {/* Activity badges */}
               <div className="flex items-center gap-1.5 shrink-0">
-                {hasAutoAssign && (
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 h-5">
-                    <Zap className="h-2.5 w-2.5" /> Auto-assign
-                  </Badge>
-                )}
                 {hasAutoReject && (
                   <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 h-5">
                     <Clock className="h-2.5 w-2.5" /> Auto-reject
