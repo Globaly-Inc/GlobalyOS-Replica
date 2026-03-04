@@ -129,6 +129,7 @@ export default function ApplicationDetail() {
   const { data: activityLog } = useHiringActivityLog('application', applicationId);
   const { currentOrg } = useOrganization();
   const { data: positionTemplates } = useAssignmentTemplatesForPosition(application?.job?.title || '');
+  const { data: siblingApplications } = useCandidateApplications(application?.candidate?.id);
   
   const updateStage = useUpdateApplicationStage();
 
