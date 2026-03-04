@@ -62,7 +62,7 @@ export function AddToPositionDialog({
       setSearch('');
       // Navigate to the new application
       if (result?.id) {
-        navigateToOrg(`/hiring/applications/${result.id}`);
+        navigateOrg(`/hiring/applications/${result.id}`);
       }
     } catch {
       // Error handled by mutation
