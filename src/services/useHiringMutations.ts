@@ -422,6 +422,20 @@ export function useUpdateApplicationStage() {
         });
       }
 
+      // Auto-create assignment instances when moved to assignment stage
+      if (stage === 'assignment') {
+        try {
+          await autoCreateAssignmentInstances(
+            currentOrg.id,
+            data.id,
+            data.job_id,
+            currentEmployee?.id || null
+          );
+        } catch (err) {
+          console.warn('[HiringMutations] Failed to auto-create assignment instances:', err);
+        }
+      }
+
       return data;
     },
     onSuccess: (data) => {
