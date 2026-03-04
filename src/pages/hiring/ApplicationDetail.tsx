@@ -40,6 +40,10 @@ import {
   Briefcase,
   Plus,
   ExternalLink,
+  ChevronDown,
+  Briefcase,
+  Plus,
+  ExternalLink,
 } from 'lucide-react';
 import {
   DropdownMenu,
