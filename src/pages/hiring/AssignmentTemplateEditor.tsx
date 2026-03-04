@@ -150,6 +150,7 @@ export default function AssignmentTemplateEditor() {
         onOpenChange={setPreviewOpen}
         formData={formData}
         isEditMode={isEditMode}
+        publicToken={isEditMode && templates ? (templates.find((t: any) => t.id === templateId) as any)?.public_token : undefined}
       />
 
       {/* Form: Left sidebar (1/3) + Right content (2/3) */}

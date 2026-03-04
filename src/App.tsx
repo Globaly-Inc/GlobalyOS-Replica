@@ -222,6 +222,7 @@ const HiringApplicationDetail = lazy(() => import('./pages/hiring/ApplicationDet
 const CareersPage = lazy(() => import('./pages/careers/CareersPage'));
 const JobDetailPublic = lazy(() => import('./pages/careers/JobDetailPublic'));
 const AssignmentSubmission = lazy(() => import('./pages/AssignmentSubmission'));
+const AssignmentTemplateSubmission = lazy(() => import('./pages/AssignmentTemplateSubmission'));
 const HiringSettings = lazy(() => import('./pages/hiring/HiringSettings'));
 const AssignmentTemplateEditor = lazy(() => import('./pages/hiring/AssignmentTemplateEditor'));
 const CandidateDetail = lazy(() => import('./pages/hiring/CandidateDetail'));
@@ -332,6 +333,7 @@ const App = () => <QueryClientProvider client={queryClient}>
                 {/* Public Careers routes (no auth required) */}
                 <Route path="/careers/:orgCode" element={<CareersPage />} />
                 <Route path="/careers/:orgCode/:jobSlug" element={<JobDetailPublic />} />
+                <Route path="/assignment/t/:templateToken" element={<AssignmentTemplateSubmission />} />
                 <Route path="/assignment/:token" element={<AssignmentSubmission />} />
                 {/* Support pages - public for authenticated users */}
                 <Route path="/support" element={<Support />} />

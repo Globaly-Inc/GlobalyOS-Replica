@@ -1,7 +1,8 @@
 /**
  * Verify Assignment OTP Edge Function
- * Verifies the 6-digit code and confirms the candidate's identity
- * before allowing access to the assignment page.
+ * Supports two modes:
+ *   1. Per-instance: { token, email, code }
+ *   2. Per-template: { template_token, email, code } — returns instance_token on success
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -34,11 +35,11 @@ serve(async (req) => {
   );
 
   try {
-    const { token, email: rawEmail, code: rawCode } = await req.json();
+    const { token, template_token, email: rawEmail, code: rawCode } = await req.json();
 
-    if (!token || !rawEmail || !rawCode) {
+    if ((!token && !template_token) || !rawEmail || !rawCode) {
       return new Response(
-        JSON.stringify({ error: 'Token, email, and code are required' }),
+        JSON.stringify({ error: 'Email, code, and either token or template_token are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -46,37 +47,74 @@ serve(async (req) => {
     const email = rawEmail.trim().toLowerCase();
     const code = rawCode.trim();
 
-    // Re-verify the assignment belongs to this email (server-side double-check)
-    const { data: assignment, error: assignmentError } = await supabase
-      .from('assignment_instances')
-      .select(`
-        id,
-        candidate_applications (
-          candidates (
-            email
-          )
-        )
-      `)
-      .eq('secure_token', token)
-      .single();
+    let instanceToken: string | null = null;
 
-    if (assignmentError || !assignment) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid assignment link.' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    if (template_token) {
+      // ── Template mode: find instance by template + email ──
+      const { data: template } = await supabase
+        .from('assignment_templates')
+        .select('id')
+        .eq('public_token', template_token)
+        .single();
 
-    const candidateEmail = (assignment.candidate_applications as any)?.candidates?.email?.toLowerCase();
-    if (email !== candidateEmail) {
-      return new Response(
-        JSON.stringify({ error: 'This assignment has not been assigned to you.', notAssigned: true }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      if (!template) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid assignment link.' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const { data: instances } = await supabase
+        .from('assignment_instances')
+        .select(`
+          id, secure_token,
+          candidate_applications ( candidates ( email ) )
+        `)
+        .eq('template_id', template.id);
+
+      const match = (instances || []).find((inst: any) => {
+        return inst.candidate_applications?.candidates?.email?.toLowerCase() === email;
+      });
+
+      if (!match) {
+        return new Response(
+          JSON.stringify({ error: 'No assignment found for this email.', notAssigned: true }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      instanceToken = (match as any).secure_token;
+    } else {
+      // ── Legacy per-instance mode ──
+      const { data: assignment } = await supabase
+        .from('assignment_instances')
+        .select(`
+          id, secure_token,
+          candidate_applications ( candidates ( email ) )
+        `)
+        .eq('secure_token', token)
+        .single();
+
+      if (!assignment) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid assignment link.' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const candidateEmail = (assignment.candidate_applications as any)?.candidates?.email?.toLowerCase();
+      if (email !== candidateEmail) {
+        return new Response(
+          JSON.stringify({ error: 'This assignment has not been assigned to you.', notAssigned: true }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      instanceToken = assignment.secure_token;
     }
 
     // Look up the most recent unverified OTP for this email
-    const { data: otpRecord, error: fetchError } = await supabase
+    const { data: otpRecord } = await supabase
       .from('otp_codes')
       .select('*')
       .eq('email', email)
@@ -85,7 +123,7 @@ serve(async (req) => {
       .limit(1)
       .single();
 
-    if (fetchError || !otpRecord) {
+    if (!otpRecord) {
       return new Response(
         JSON.stringify({ error: 'No pending verification code found. Please request a new one.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -94,7 +132,6 @@ serve(async (req) => {
 
     const currentFailedAttempts = otpRecord.failed_attempts || 0;
 
-    // Check max failed attempts
     if (currentFailedAttempts >= MAX_FAILED_ATTEMPTS) {
       await supabase.from('otp_codes').delete().eq('id', otpRecord.id);
       return new Response(
@@ -103,7 +140,6 @@ serve(async (req) => {
       );
     }
 
-    // Check expiry
     if (new Date(otpRecord.expires_at) < new Date()) {
       await supabase.from('otp_codes').delete().eq('id', otpRecord.id);
       return new Response(
@@ -112,7 +148,6 @@ serve(async (req) => {
       );
     }
 
-    // Verify code
     if (otpRecord.code !== code) {
       const newFailedAttempts = currentFailedAttempts + 1;
       await supabase
@@ -134,13 +169,13 @@ serve(async (req) => {
       );
     }
 
-    // Success: mark OTP as verified and delete it
+    // Success: delete OTP
     await supabase.from('otp_codes').delete().eq('id', otpRecord.id);
 
-    console.log(`Assignment OTP verified for ${email}, assignment token: ${token}`);
+    console.log(`Assignment OTP verified for ${email}`);
 
     return new Response(
-      JSON.stringify({ success: true, verified: true }),
+      JSON.stringify({ success: true, verified: true, instance_token: instanceToken }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
