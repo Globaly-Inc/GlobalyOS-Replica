@@ -15,15 +15,13 @@ import { PositionTabContent } from '@/components/hiring/PositionTabContent';
 import { 
   useUpdateApplicationStage,
 } from '@/services/useHiringMutations';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { OrgLink } from '@/components/OrgLink';
-import { Separator } from '@/components/ui/separator';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   ArrowLeft,
   Mail,
@@ -34,25 +32,13 @@ import {
   Calendar,
   ClipboardList,
   DollarSign,
-  Clock,
-  CheckCircle2,
   XCircle,
   MoreHorizontal,
-  User,
   MessageSquare,
-  Send,
-  Star,
-  Upload,
   UserPlus,
-  Video,
-  Link as LinkIcon,
-  Copy,
-  ChevronDown,
-  Eye,
   Activity,
   Briefcase,
   Plus,
-  Globe,
   ExternalLink,
 } from 'lucide-react';
 import {
@@ -69,27 +55,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { 
   APPLICATION_STAGE_LABELS, 
-  ASSIGNMENT_STATUS_LABELS,
-  INTERVIEW_STATUS_LABELS,
   APPLICATION_STATUS_LABELS,
   type ApplicationStage 
 } from '@/types/hiring';
 import { toast } from 'sonner';
 import { ScheduleInterviewDialog } from '@/components/hiring/interviews/ScheduleInterviewDialog';
 import { CreateOfferDialog } from '@/components/hiring/offers/CreateOfferDialog';
-import { SendOfferDialog } from '@/components/hiring/offers/SendOfferDialog';
-import { CVUpload } from '@/components/hiring/CVUpload';
-import { ResumeParseButton } from '@/components/hiring/ResumeParseButton';
 import { ConvertToEmployeeDialog } from '@/components/hiring/ConvertToEmployeeDialog';
-import { AssignmentPreviewDialog } from '@/components/hiring/AssignmentPreviewDialog';
 import { AddToPositionDialog } from '@/components/hiring/AddToPositionDialog';
 import { CandidateSkillsCard } from '@/components/hiring/CandidateSkillsCard';
 import { CandidateExperienceCard } from '@/components/hiring/CandidateExperienceCard';
 import { CandidateEducationCard } from '@/components/hiring/CandidateEducationCard';
-import type { AssignmentTemplateForPosition } from '@/hooks/useAssignmentTemplatesForPosition';
 
 // ─── Activity Icon Mapping ────────────────────────────────────────
 const getActivityIcon = (action: string) => {
