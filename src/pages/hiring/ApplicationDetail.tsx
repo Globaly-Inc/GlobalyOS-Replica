@@ -265,7 +265,7 @@ export default function ApplicationDetail() {
             <DollarSign className="h-4 w-4 sm:mr-1" />
             <span className="hidden sm:inline">Create Offer</span>
           </Button>
-          {offer?.status === 'accepted' && application.status !== 'hired' && (
+          {application.status !== 'hired' && (
             <Button size="sm" onClick={() => setShowConvertDialog(true)}>
               <UserPlus className="h-4 w-4 sm:mr-1" />
               <span className="hidden sm:inline">Convert to Employee</span>
