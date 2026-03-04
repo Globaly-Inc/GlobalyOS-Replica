@@ -7,13 +7,10 @@ import { useParams } from 'react-router-dom';
 import { useState } from 'react';
 import { useHiringApplication } from '@/services';
 import { 
-  useAssignmentInstances, 
-  useInterviews, 
-  useOffer,
-  useHiringActivityLog,
   useCandidateApplications,
+  useCandidateActivityLog,
 } from '@/services/useHiring';
-import { useAssignmentTemplatesForPosition } from '@/hooks/useAssignmentTemplatesForPosition';
+import { useOrganization } from '@/hooks/useOrganization';
 import { useOrganization } from '@/hooks/useOrganization';
 import { 
   useUpdateApplicationStage,
