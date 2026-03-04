@@ -462,18 +462,39 @@ export default function ApplicationDetail() {
         {/* ── Right Column (2/3) ────────────────────────────── */}
         <div className="lg:col-span-2 space-y-4">
           {/* Position Tab(s) */}
-          <Tabs defaultValue="current" className="w-full">
-            <div className="flex items-center gap-2">
-              <TabsList>
-                <TabsTrigger value="current" className="flex items-center gap-1.5">
-                  <Briefcase className="h-3.5 w-3.5" />
-                  {application.job?.title || 'Position'}
-                </TabsTrigger>
-              </TabsList>
-            </div>
+          {(() => {
+            // Other positions this candidate applied to (excluding current)
+            const otherApps = (siblingApplications || []).filter(a => a.id !== applicationId);
+            const existingJobIds = (siblingApplications || []).map(a => (a.job as any)?.id).filter(Boolean);
 
-            <TabsContent value="current" className="mt-4 space-y-4">
-              {/* Application Summary */}
+            return (
+              <Tabs defaultValue="current" className="w-full">
+                <div className="flex items-center gap-2">
+                  <TabsList>
+                    <TabsTrigger value="current" className="flex items-center gap-1.5">
+                      <Briefcase className="h-3.5 w-3.5" />
+                      {application.job?.title || 'Position'}
+                    </TabsTrigger>
+                    {otherApps.map((app) => (
+                      <TabsTrigger key={app.id} value={app.id} className="flex items-center gap-1.5">
+                        <Briefcase className="h-3.5 w-3.5" />
+                        {(app.job as any)?.title || 'Position'}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    onClick={() => setShowAddPositionDialog(true)}
+                    title="Apply to another position"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <TabsContent value="current" className="mt-4 space-y-4">
+                  {/* Application Summary */}
               <Card>
                 <CardContent className="py-4">
                   <div className="flex items-center justify-between flex-wrap gap-2">
