@@ -1,24 +1,22 @@
 
 
-## Make Logo Navigate to Public Website Home
+## Remove Auto Assignment UI from Pipeline Card
 
-### Problem
-The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
+Since assignments are now linked through position-connected templates (and the assignment link is available as an email placeholder), the "Auto Assignment" toggle in the pipeline stage configuration is redundant.
 
-### Solution
+### Changes
 
-**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
-- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
-- This gives the landing page a stable URL accessible regardless of auth state
+**1. `src/components/hiring/PipelineCard.tsx`**
+- Remove the entire "Auto Assignment" section (lines 740–762) — the `Zap` icon block with the `auto_assign_enabled` switch
+- Remove the `hasAutoAssign` badge logic (line 411) used in the collapsed summary
+- Remove `auto_assign_enabled` from the automation count check (line 905)
 
-**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
-- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
+**2. `src/services/useHiringMutations.ts`**
+- In `autoCreateAssignmentInstances`, remove Strategy 1 (lines 55–68) that checks `pipeline_stage_rules` for `auto_assign_enabled` + `auto_assignment_template_id`
+- Keep only Strategy 2 (position-linked templates) as the sole method for finding templates on stage change
 
-### Technical Details
+**3. `src/components/hiring/PipelineSettingsSection.tsx`**
+- Remove `auto_assign_enabled` and `auto_assignment_template_id` from the rule defaults and upsert payloads (the DB columns remain but won't be used)
 
-| File | Change |
-|------|--------|
-| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
-| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
+No database migration needed — the columns can stay unused without harm.
 
-This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
