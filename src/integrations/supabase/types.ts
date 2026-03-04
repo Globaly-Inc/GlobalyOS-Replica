@@ -4201,6 +4201,195 @@ export type Database = {
           },
         ]
       }
+      candidate_education: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          degree: string
+          description: string | null
+          end_year: string | null
+          field_of_study: string | null
+          id: string
+          institution: string
+          organization_id: string
+          sort_order: number | null
+          start_year: string | null
+          updated_at: string
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          degree: string
+          description?: string | null
+          end_year?: string | null
+          field_of_study?: string | null
+          id?: string
+          institution: string
+          organization_id: string
+          sort_order?: number | null
+          start_year?: string | null
+          updated_at?: string
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          degree?: string
+          description?: string | null
+          end_year?: string | null
+          field_of_study?: string | null
+          id?: string
+          institution?: string
+          organization_id?: string
+          sort_order?: number | null
+          start_year?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_education_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_education_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_education_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidate_experiences: {
+        Row: {
+          candidate_id: string
+          company: string
+          created_at: string
+          description: string | null
+          end_date: string | null
+          id: string
+          is_current: boolean | null
+          location: string | null
+          organization_id: string
+          sort_order: number | null
+          start_date: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          candidate_id: string
+          company: string
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_current?: boolean | null
+          location?: string | null
+          organization_id: string
+          sort_order?: number | null
+          start_date?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          candidate_id?: string
+          company?: string
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_current?: boolean | null
+          location?: string | null
+          organization_id?: string
+          sort_order?: number | null
+          start_date?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_experiences_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_experiences_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_experiences_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidate_skills: {
+        Row: {
+          candidate_id: string
+          category: string | null
+          created_at: string
+          id: string
+          name: string
+          organization_id: string
+          proficiency_level: string | null
+        }
+        Insert: {
+          candidate_id: string
+          category?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          organization_id: string
+          proficiency_level?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          category?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          organization_id?: string
+          proficiency_level?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_skills_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_skills_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_skills_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidates: {
         Row: {
           avatar_url: string | null
