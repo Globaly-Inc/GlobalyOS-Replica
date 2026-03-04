@@ -514,7 +514,7 @@ export function useHiringActivityLog(entityType: string, entityId: string | unde
 
   return useQuery({
     queryKey: ['hiring', 'activity-log', currentOrg?.id, entityType, entityId],
-    queryFn: async (): Promise<HiringActivityLog[]> => {
+    queryFn: async (): Promise<HiringActivityLogWithRelations[]> => {
       if (!currentOrg?.id || !entityId) return [];
 
       const { data, error } = await supabase
@@ -532,7 +532,7 @@ export function useHiringActivityLog(entityType: string, entityId: string | unde
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return (data || []) as unknown as HiringActivityLog[];
+      return (data || []) as unknown as HiringActivityLogWithRelations[];
     },
     enabled: !!currentOrg?.id && !!entityId,
   });
