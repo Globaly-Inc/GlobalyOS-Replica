@@ -38,7 +38,8 @@ interface AssignmentPreviewDialogProps {
   onOpenChange: (open: boolean) => void;
   formData: FormData;
   isEditMode?: boolean;
-  secureToken?: string; // optional: if a real token exists for copying
+  secureToken?: string; // optional: legacy per-instance token
+  publicToken?: string; // template-level public token
 }
 
 function maskEmail(email: string): string {
@@ -261,12 +262,16 @@ export function AssignmentPreviewDialog({
   formData,
   isEditMode = false,
   secureToken,
+  publicToken,
 }: AssignmentPreviewDialogProps) {
   const [copied, setCopied] = useState(false);
 
-  const publicLink = secureToken
-    ? `${window.location.origin}/assignment/${secureToken}`
-    : null;
+  // Prefer template public link over per-instance link
+  const publicLink = publicToken
+    ? `${window.location.origin}/assignment/t/${publicToken}`
+    : secureToken
+      ? `${window.location.origin}/assignment/${secureToken}`
+      : null;
 
   const handleCopy = async () => {
     if (!publicLink) return;
@@ -343,8 +348,8 @@ export function AssignmentPreviewDialog({
             <div className="flex items-start gap-2.5 text-sm text-muted-foreground">
               <Info className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
               <p>
-                <span className="font-medium text-foreground">Public links are per-candidate.</span>
-                {' '}Each candidate receives a unique secure link when you assign this template to them from the pipeline. The link includes an OTP email verification step to ensure only the assigned candidate can access it.
+                <span className="font-medium text-foreground">Save the template first</span>
+                {' '}to generate a shareable public link. Candidates verify their identity via email + OTP before accessing their assignment.
               </p>
             </div>
           )}
