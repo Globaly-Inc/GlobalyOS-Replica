@@ -28,6 +28,127 @@ import type {
 import { generateJobSlug, generateSecureToken } from '@/types/hiring';
 
 // ============================================
+
+/**
+ * Auto-create assignment instances when a candidate is moved to the assignment stage.
+ * Looks up pipeline_stage_rules first, falls back to position-linked templates.
+ */
+async function autoCreateAssignmentInstances(
+  organizationId: string,
+  applicationId: string,
+  jobId: string | null,
+  assignedById: string | null
+) {
+  if (!jobId) return;
+
+  // Get application + candidate + job details
+  const { data: app } = await supabase
+    .from('candidate_applications')
+    .select('id, candidate_id, job_id, jobs!inner(title)')
+    .eq('id', applicationId)
+    .single();
+
+  if (!app) return;
+
+  let templateIds: string[] = [];
+
+  // Strategy 1: Check pipeline_stage_rules for auto_assignment_template_id
+  const { data: rules } = await (supabase
+    .from('pipeline_stage_rules') as any)
+    .select('auto_assignment_template_id')
+    .eq('organization_id', organizationId)
+    .eq('job_id', jobId)
+    .eq('stage_key', 'assignment')
+    .eq('auto_assign_enabled', true);
+
+  if (rules?.length) {
+    templateIds = rules
+      .map((r: any) => r.auto_assignment_template_id)
+      .filter(Boolean);
+  }
+
+  // Strategy 2: Fall back to position-linked templates
+  if (!templateIds.length) {
+    const jobTitle = (app as any).jobs?.title;
+    if (jobTitle) {
+      const { data: position } = await supabase
+        .from('positions')
+        .select('id')
+        .eq('organization_id', organizationId)
+        .ilike('name', jobTitle.trim())
+        .maybeSingle();
+
+      if (position) {
+        const { data: templates } = await (supabase
+          .from('assignment_templates') as any)
+          .select('id')
+          .eq('organization_id', organizationId)
+          .eq('is_active', true)
+          .contains('position_ids', [position.id]);
+
+        if (templates?.length) {
+          templateIds = templates.map((t: any) => t.id);
+        }
+      }
+    }
+  }
+
+  if (!templateIds.length) return;
+
+  // Fetch template details for all matched templates
+  const { data: templates } = await (supabase
+    .from('assignment_templates') as any)
+    .select('id, name, instructions, expected_deliverables, default_deadline_hours')
+    .in('id', templateIds);
+
+  if (!templates?.length) return;
+
+  // Check existing instances to avoid duplicates
+  const { data: existing } = await supabase
+    .from('assignment_instances')
+    .select('template_id')
+    .eq('candidate_application_id', applicationId);
+
+  const existingTemplateIds = new Set((existing || []).map((e: any) => e.template_id));
+
+  for (const template of templates) {
+    if (existingTemplateIds.has(template.id)) continue;
+
+    const deadlineHours = template.default_deadline_hours || 72;
+    const deadline = new Date(Date.now() + deadlineHours * 60 * 60 * 1000).toISOString();
+    const secureToken = generateSecureToken();
+
+    const { data: instance, error } = await (supabase
+      .from('assignment_instances') as any)
+      .insert({
+        organization_id: organizationId,
+        candidate_application_id: applicationId,
+        template_id: template.id,
+        title: template.name,
+        instructions: template.instructions || '',
+        expected_deliverables: template.expected_deliverables,
+        deadline,
+        secure_token: secureToken,
+        status: 'pending',
+        assigned_by: assignedById,
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.warn(`[HiringMutations] Failed to create instance for template ${template.id}:`, error);
+      continue;
+    }
+
+    // Fire assignment_sent email
+    triggerHiringEmail({
+      organizationId,
+      triggerType: 'assignment_sent',
+      applicationId,
+      assignmentId: instance.id,
+    });
+  }
+}
 // HELPER FUNCTIONS
 // ============================================
 
@@ -420,6 +541,20 @@ export function useUpdateApplicationStage() {
           triggerType: 'application_rejected',
           applicationId: data.id,
         });
+      }
+
+      // Auto-create assignment instances when moved to assignment stage
+      if (stage === 'assignment') {
+        try {
+          await autoCreateAssignmentInstances(
+            currentOrg.id,
+            data.id,
+            data.job_id,
+            currentEmployee?.id || null
+          );
+        } catch (err) {
+          console.warn('[HiringMutations] Failed to auto-create assignment instances:', err);
+        }
       }
 
       return data;
