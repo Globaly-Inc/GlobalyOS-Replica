@@ -10,7 +10,8 @@ import {
   useAssignmentInstances, 
   useInterviews, 
   useOffer,
-  useHiringActivityLog 
+  useHiringActivityLog,
+  useCandidateApplications,
 } from '@/services/useHiring';
 import { useAssignmentTemplatesForPosition } from '@/hooks/useAssignmentTemplatesForPosition';
 import { useOrganization } from '@/hooks/useOrganization';
