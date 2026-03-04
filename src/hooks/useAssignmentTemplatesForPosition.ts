@@ -17,6 +17,7 @@ export interface AssignmentTemplateForPosition {
   expected_deliverables: any;
   is_active: boolean | null;
   position_ids: string[] | null;
+  slug: string | null;
 }
 
 export const useAssignmentTemplatesForPosition = (jobTitle: string) => {
