@@ -2361,6 +2361,7 @@ export type Database = {
           name: string
           organization_id: string
           position_ids: string[] | null
+          public_token: string
           recommended_effort: string | null
           role_tags: string[] | null
           type: string | null
@@ -2377,6 +2378,7 @@ export type Database = {
           name: string
           organization_id: string
           position_ids?: string[] | null
+          public_token?: string
           recommended_effort?: string | null
           role_tags?: string[] | null
           type?: string | null
@@ -2393,6 +2395,7 @@ export type Database = {
           name?: string
           organization_id?: string
           position_ids?: string[] | null
+          public_token?: string
           recommended_effort?: string | null
           role_tags?: string[] | null
           type?: string | null
