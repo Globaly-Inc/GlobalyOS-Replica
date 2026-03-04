@@ -76,7 +76,7 @@ import {
   type ApplicationStage 
 } from '@/types/hiring';
 import { toast } from 'sonner';
-import { AssignAssignmentDialog } from '@/components/hiring/assignments/AssignAssignmentDialog';
+import { AssignAssignmentDialog } from '@/components/hiring/assignments/AssignAssignmentDialog'; // kept for potential future use
 import { ScheduleInterviewDialog } from '@/components/hiring/interviews/ScheduleInterviewDialog';
 import { CreateOfferDialog } from '@/components/hiring/offers/CreateOfferDialog';
 import { SendOfferDialog } from '@/components/hiring/offers/SendOfferDialog';
@@ -86,7 +86,7 @@ import { ConvertToEmployeeDialog } from '@/components/hiring/ConvertToEmployeeDi
 
 export default function ApplicationDetail() {
   const { applicationId } = useParams<{ applicationId: string }>();
-  const [showAssignmentDialog, setShowAssignmentDialog] = useState(false);
+  const [showAssignmentDialog] = useState(false); // kept for potential future use
   const [showInterviewDialog, setShowInterviewDialog] = useState(false);
   const [showOfferDialog, setShowOfferDialog] = useState(false);
   const [showSendOfferDialog, setShowSendOfferDialog] = useState(false);
