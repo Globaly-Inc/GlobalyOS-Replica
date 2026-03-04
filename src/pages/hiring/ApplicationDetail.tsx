@@ -119,6 +119,7 @@ export default function ApplicationDetail() {
   const [showOfferDialog, setShowOfferDialog] = useState(false);
   const [showSendOfferDialog, setShowSendOfferDialog] = useState(false);
   const [showConvertDialog, setShowConvertDialog] = useState(false);
+  const [showAddPositionDialog, setShowAddPositionDialog] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<AssignmentTemplateForPosition | null>(null);
 
   const { data: application, isLoading } = useHiringApplication(applicationId);
