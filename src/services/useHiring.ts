@@ -356,7 +356,7 @@ export function useCandidateApplications(candidateId: string | undefined) {
         `)
         .eq('organization_id', currentOrg.id)
         .eq('candidate_id', candidateId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: true });
 
       if (error) throw error;
       return data || [];
@@ -536,6 +536,41 @@ export function useHiringActivityLog(entityType: string, entityId: string | unde
       return (data || []) as unknown as HiringActivityLogWithRelations[];
     },
     enabled: !!currentOrg?.id && !!entityId,
+  });
+}
+
+/**
+ * Combined activity log for ALL of a candidate's applications.
+ * Fetches logs where entity_id matches any of the candidate's application IDs.
+ */
+export function useCandidateActivityLog(candidateId: string | undefined) {
+  const { currentOrg } = useOrganization();
+  const { data: siblingApps } = useCandidateApplications(candidateId);
+  const applicationIds = (siblingApps || []).map(a => a.id);
+
+  return useQuery({
+    queryKey: ['hiring', 'candidate-activity-log', currentOrg?.id, candidateId, applicationIds],
+    queryFn: async (): Promise<HiringActivityLogWithRelations[]> => {
+      if (!currentOrg?.id || applicationIds.length === 0) return [];
+
+      const { data, error } = await supabase
+        .from('hiring_activity_logs')
+        .select(`
+          *,
+          actor:employees!hiring_activity_logs_actor_id_fkey(
+            id, user_id,
+            profiles:profiles(full_name, avatar_url)
+          )
+        `)
+        .eq('organization_id', currentOrg.id)
+        .eq('entity_type', 'application')
+        .in('entity_id', applicationIds)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return (data || []) as unknown as HiringActivityLogWithRelations[];
+    },
+    enabled: !!currentOrg?.id && applicationIds.length > 0,
   });
 }
 
