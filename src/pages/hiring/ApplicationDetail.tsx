@@ -319,13 +319,16 @@ export default function ApplicationDetail() {
                           }>
                             {ASSIGNMENT_STATUS_LABELS[assignment.status]}
                           </Badge>
-                          {(assignment as any).template?.public_token && (
+                          {((assignment as any).template?.slug || (assignment as any).template?.public_token) && (
                             <Button
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
                               onClick={() => {
-                                const link = `${window.location.origin}/assignment/t/${(assignment as any).template.public_token}`;
+                                const tmpl = (assignment as any).template;
+                                const link = tmpl?.slug
+                                  ? `${window.location.origin}/careers/${(application as any)?.job?.organization?.slug || ''}/assignment/${tmpl.slug}`
+                                  : `${window.location.origin}/assignment/t/${tmpl.public_token}`;
                                 navigator.clipboard.writeText(link);
                                 toast.success('Assignment link copied!');
                               }}

@@ -449,11 +449,20 @@ export function useCreateAssignmentTemplate() {
     mutationFn: async (input: CreateAssignmentTemplateInput) => {
       if (!currentOrg?.id) throw new Error('No organization selected');
 
+      // Auto-generate slug from name
+      const baseSlug = (input.name || 'assignment')
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+
       const { data, error } = await (supabase
         .from('assignment_templates') as any)
         .insert({
           organization_id: currentOrg.id,
           created_by: currentEmployee?.id || null,
+          slug: baseSlug,
           ...input,
         })
         .select()
