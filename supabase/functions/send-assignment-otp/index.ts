@@ -1,7 +1,9 @@
 /**
  * Send Assignment OTP Edge Function
- * Validates that the email belongs to the assigned candidate,
- * then sends a 6-digit OTP to grant access to the assignment page.
+ * Supports two modes:
+ *   1. Per-instance: { token, email } — legacy per-candidate link
+ *   2. Per-template: { template_token, email } — new public template link
+ * Validates that the email belongs to an assigned candidate, then sends a 6-digit OTP.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -46,64 +48,103 @@ serve(async (req) => {
   );
 
   try {
-    const { token, email: rawEmail } = await req.json();
+    const { token, template_token, email: rawEmail } = await req.json();
 
-    if (!token || !rawEmail) {
+    if (!rawEmail || (!token && !template_token)) {
       return new Response(
-        JSON.stringify({ error: 'Token and email are required' }),
+        JSON.stringify({ error: 'Email and either token or template_token are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const email = rawEmail.trim().toLowerCase();
 
-    // Look up the assignment and the candidate's email
-    const { data: assignment, error: assignmentError } = await supabase
-      .from('assignment_instances')
-      .select(`
-        id,
-        title,
-        organization_id,
-        candidate_application_id,
-        candidate_applications (
-          candidate_id,
-          candidates (
-            email,
-            name
+    let candidateEmail: string | null = null;
+    let candidateName: string | null = null;
+    let assignmentTitle: string | null = null;
+    let assignmentId: string | null = null;
+
+    if (template_token) {
+      // ── Template mode: look up template → find instance by email ──
+      const { data: template, error: tErr } = await supabase
+        .from('assignment_templates')
+        .select('id, name')
+        .eq('public_token', template_token)
+        .single();
+
+      if (tErr || !template) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid assignment link.' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Find an instance for this template + email
+      const { data: instances } = await supabase
+        .from('assignment_instances')
+        .select(`
+          id, title, template_id,
+          candidate_applications (
+            candidates ( email, name )
           )
-        )
-      `)
-      .eq('secure_token', token)
-      .single();
+        `)
+        .eq('template_id', template.id);
 
-    if (assignmentError || !assignment) {
-      console.error('Assignment not found:', assignmentError);
-      return new Response(
-        JSON.stringify({ error: 'Invalid assignment link.' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+      const match = (instances || []).find((inst: any) => {
+        const cEmail = inst.candidate_applications?.candidates?.email?.toLowerCase();
+        return cEmail === email;
+      });
 
-    const candidateEmail = (assignment.candidate_applications as any)?.candidates?.email?.toLowerCase();
-    const candidateName = (assignment.candidate_applications as any)?.candidates?.name;
+      if (!match) {
+        return new Response(
+          JSON.stringify({ error: 'No assignment found for this email.', notAssigned: true }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
-    if (!candidateEmail) {
-      return new Response(
-        JSON.stringify({ error: 'Could not find candidate information for this assignment.' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+      candidateEmail = email;
+      candidateName = (match as any).candidate_applications?.candidates?.name;
+      assignmentTitle = (match as any).title || template.name;
+      assignmentId = (match as any).id;
+    } else {
+      // ── Legacy per-instance mode ──
+      const { data: assignment, error: assignmentError } = await supabase
+        .from('assignment_instances')
+        .select(`
+          id, title, organization_id, candidate_application_id,
+          candidate_applications (
+            candidate_id,
+            candidates ( email, name )
+          )
+        `)
+        .eq('secure_token', token)
+        .single();
 
-    // Check if the provided email matches the candidate's email
-    if (email !== candidateEmail) {
-      console.log(`Email mismatch for assignment ${assignment.id}: provided=${email}, expected=${candidateEmail}`);
-      return new Response(
-        JSON.stringify({ 
-          error: 'This assignment has not been assigned to you. Please check your email and try again.',
-          notAssigned: true 
-        }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      if (assignmentError || !assignment) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid assignment link.' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      candidateEmail = (assignment.candidate_applications as any)?.candidates?.email?.toLowerCase();
+      candidateName = (assignment.candidate_applications as any)?.candidates?.name;
+      assignmentTitle = assignment.title;
+      assignmentId = assignment.id;
+
+      if (!candidateEmail) {
+        return new Response(
+          JSON.stringify({ error: 'Could not find candidate information for this assignment.' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (email !== candidateEmail) {
+        return new Response(
+          JSON.stringify({ error: 'This assignment has not been assigned to you.', notAssigned: true }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Rate limiting: max 3 OTP requests per email per hour
@@ -126,7 +167,7 @@ serve(async (req) => {
 
     // Generate and store new OTP
     const otpCode = generateOTP();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     const { error: insertError } = await supabase.from('otp_codes').insert({
       email,
@@ -155,6 +196,7 @@ serve(async (req) => {
     }
 
     const resend = new Resend(resendApiKey);
+    const firstName = candidateName ? candidateName.split(' ')[0] : 'there';
 
     const { error: emailError } = await resend.emails.send({
       from: 'GlobalyOS Hiring <hello@globalyos.com>',
@@ -163,63 +205,38 @@ serve(async (req) => {
       html: `
         <!DOCTYPE html>
         <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f6f9fc;">
-          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f6f9fc; padding: 40px 20px;">
-            <tr>
-              <td align="center">
-                <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 480px; background-color: #ffffff; border-radius: 12px; padding: 40px;">
-                  <tr>
-                    <td align="center" style="padding-bottom: 24px;">
-                      <img src="${GLOBALYOS_LOGO_URL}" alt="GlobalyOS" style="width: 64px; height: 64px; border-radius: 16px;" />
-                    </td>
-                  </tr>
-                  <tr>
-                    <td align="center" style="padding-bottom: 8px;">
-                      <h1 style="margin: 0; color: #1f2937; font-size: 22px; font-weight: bold;">Assignment Access Code</h1>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td align="center" style="padding-bottom: 24px;">
-                      <p style="margin: 0; color: #4b5563; font-size: 15px; line-height: 22px;">
-                        Hi ${candidateName ? candidateName.split(' ')[0] : 'there'}! Use the code below to access your assignment: <strong>${assignment.title}</strong>
-                      </p>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td align="center" style="padding-bottom: 16px;">
-                      <div style="background: linear-gradient(135deg, #f3f4f6, #e5e7eb); border-radius: 12px; padding: 24px;">
-                        <span style="color: #1f2937; font-size: 36px; font-weight: bold; letter-spacing: 8px; font-family: monospace;">${otpCode}</span>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td align="center" style="padding-bottom: 32px;">
-                      <p style="margin: 0; color: #9ca3af; font-size: 14px;">
-                        This code will expire in 10 minutes.
-                      </p>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td align="center" style="border-top: 1px solid #e5e7eb; padding-top: 24px;">
-                      <p style="margin: 0; color: #9ca3af; font-size: 12px;">
-                        If you didn't request this code, you can safely ignore this email.
-                      </p>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td align="center" style="padding-top: 16px;">
-                      <p style="margin: 0; color: #d1d5db; font-size: 12px;">
-                        © ${new Date().getFullYear()} GlobalyOS - HRMS & Social Intranet
-                      </p>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
+        <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+        <body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background-color:#f6f9fc;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f6f9fc;padding:40px 20px;">
+            <tr><td align="center">
+              <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#ffffff;border-radius:12px;padding:40px;">
+                <tr><td align="center" style="padding-bottom:24px;">
+                  <img src="${GLOBALYOS_LOGO_URL}" alt="GlobalyOS" style="width:64px;height:64px;border-radius:16px;" />
+                </td></tr>
+                <tr><td align="center" style="padding-bottom:8px;">
+                  <h1 style="margin:0;color:#1f2937;font-size:22px;font-weight:bold;">Assignment Access Code</h1>
+                </td></tr>
+                <tr><td align="center" style="padding-bottom:24px;">
+                  <p style="margin:0;color:#4b5563;font-size:15px;line-height:22px;">
+                    Hi ${firstName}! Use the code below to access your assignment: <strong>${assignmentTitle}</strong>
+                  </p>
+                </td></tr>
+                <tr><td align="center" style="padding-bottom:16px;">
+                  <div style="background:linear-gradient(135deg,#f3f4f6,#e5e7eb);border-radius:12px;padding:24px;">
+                    <span style="color:#1f2937;font-size:36px;font-weight:bold;letter-spacing:8px;font-family:monospace;">${otpCode}</span>
+                  </div>
+                </td></tr>
+                <tr><td align="center" style="padding-bottom:32px;">
+                  <p style="margin:0;color:#9ca3af;font-size:14px;">This code will expire in 10 minutes.</p>
+                </td></tr>
+                <tr><td align="center" style="border-top:1px solid #e5e7eb;padding-top:24px;">
+                  <p style="margin:0;color:#9ca3af;font-size:12px;">If you didn't request this code, you can safely ignore this email.</p>
+                </td></tr>
+                <tr><td align="center" style="padding-top:16px;">
+                  <p style="margin:0;color:#d1d5db;font-size:12px;">© ${new Date().getFullYear()} GlobalyOS - HRMS & Social Intranet</p>
+                </td></tr>
+              </table>
+            </td></tr>
           </table>
         </body>
         </html>
@@ -234,7 +251,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Assignment OTP sent to ${maskEmail(email)} for assignment ${assignment.id}`);
+    console.log(`Assignment OTP sent to ${maskEmail(email)} for assignment ${assignmentId}`);
 
     return new Response(
       JSON.stringify({ success: true, maskedEmail: maskEmail(email) }),
