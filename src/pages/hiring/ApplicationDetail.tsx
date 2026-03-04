@@ -830,7 +830,36 @@ export default function ApplicationDetail() {
                 </CardContent>
               </Card>
             </TabsContent>
-          </Tabs>
+
+                {/* Other position tabs - link to their application pages */}
+                {otherApps.map((app) => (
+                  <TabsContent key={app.id} value={app.id} className="mt-4">
+                    <Card>
+                      <CardContent className="py-6 text-center space-y-3">
+                        <Briefcase className="h-8 w-8 mx-auto text-muted-foreground" />
+                        <div>
+                          <h4 className="font-medium">{(app.job as any)?.title}</h4>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Stage: {APPLICATION_STAGE_LABELS[(app.stage as ApplicationStage)] || app.stage}
+                            {' · '}
+                            Status: {APPLICATION_STATUS_LABELS[app.status]}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Applied {formatDistanceToNow(new Date(app.created_at), { addSuffix: true })}
+                          </p>
+                        </div>
+                        <OrgLink to={`/hiring/applications/${app.id}`}>
+                          <Button variant="outline" size="sm">
+                            View Full Application
+                          </Button>
+                        </OrgLink>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                ))}
+              </Tabs>
+            );
+          })()}
         </div>
       </div>
 
