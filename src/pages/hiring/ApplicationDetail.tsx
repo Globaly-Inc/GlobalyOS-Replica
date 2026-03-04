@@ -12,6 +12,8 @@ import {
   useOffer,
   useHiringActivityLog 
 } from '@/services/useHiring';
+import { useAssignmentTemplatesForPosition } from '@/hooks/useAssignmentTemplatesForPosition';
+import { useOrganization } from '@/hooks/useOrganization';
 import { 
   useUpdateApplicationStage,
   useAssignAssignment,
