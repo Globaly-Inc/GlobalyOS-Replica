@@ -408,7 +408,7 @@ function SortableStageAccordion({
     | undefined;
 
   // Summary badges for collapsed view
-  const hasAutoAssign = rule?.auto_assign_enabled;
+  
   const notifyCount = rule?.notify_employee_ids?.length ?? 0;
   const hasEmail = !!effectiveTrigger && !!matchedTpl;
   const hasAutoReject = rule?.auto_reject_on_deadline || !!rule?.auto_reject_after_hours;
@@ -737,30 +737,6 @@ function SortableStageAccordion({
                 </div>
               </div>
 
-              {/* ── Auto Assignment ─────────────────────────────── */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-md bg-primary/10 text-primary shrink-0">
-                    <Zap className="h-3.5 w-3.5" />
-                  </div>
-                  <span className="text-sm font-semibold">Auto Assignment</span>
-                </div>
-                <div className="pl-8 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">Auto-assign assignment</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Automatically send the linked assignment when a candidate enters this stage
-                      </p>
-                    </div>
-                    <Switch
-                      checked={rule?.auto_assign_enabled ?? false}
-                      onCheckedChange={checked => onRuleChange(stageKey, { auto_assign_enabled: checked, is_active: checked || (rule?.is_active ?? false) })}
-                    />
-                  </div>
-                </div>
-              </div>
-
               {/* ── Rejection Rules ─────────────────────────── */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2 mb-1">
@@ -902,7 +878,7 @@ export function PipelineCard({
   // Count active automations for this pipeline
   const activeAutomationCount = activeStages.filter(s => {
     const rule = stageRules[s.stage_key];
-    return rule?.auto_assign_enabled || rule?.auto_reject_on_deadline || rule?.auto_reject_after_hours || (rule?.notify_employee_ids?.length ?? 0) > 0 || rule?.email_trigger_type;
+    return rule?.auto_reject_on_deadline || rule?.auto_reject_after_hours || (rule?.notify_employee_ids?.length ?? 0) > 0 || rule?.email_trigger_type;
   }).length;
 
   return (
