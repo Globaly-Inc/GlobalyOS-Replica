@@ -367,7 +367,11 @@ export default function ApplicationDetail() {
                           </p>
                           {log.details && (
                             <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                              {typeof log.details === 'string' ? log.details : JSON.stringify(log.details)}
+                              {typeof log.details === 'string'
+                                ? log.details
+                                : Object.entries(log.details as Record<string, unknown>)
+                                    .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`)
+                                    .join(' · ')}
                             </p>
                           )}
                           <p className="text-xs text-muted-foreground mt-0.5">
