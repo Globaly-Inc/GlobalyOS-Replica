@@ -808,6 +808,26 @@ export default function ApplicationDetail() {
         candidateName={candidate?.name}
         jobTitle={application.job?.title}
       />
+      {previewTemplate && (
+        <AssignmentPreviewDialog
+          open={!!previewTemplate}
+          onOpenChange={(open) => { if (!open) setPreviewTemplate(null); }}
+          formData={{
+            name: previewTemplate.name,
+            type: previewTemplate.type || '',
+            instructions: previewTemplate.instructions,
+            default_deadline_hours: previewTemplate.default_deadline_hours || 72,
+            recommended_effort: previewTemplate.recommended_effort || '',
+            expected_deliverables: {
+              files: previewTemplate.expected_deliverables?.file_uploads?.enabled ?? previewTemplate.expected_deliverables?.files ?? false,
+              url_fields: previewTemplate.expected_deliverables?.url_fields ?? [],
+              questions: previewTemplate.expected_deliverables?.questions ?? [],
+            },
+          }}
+          orgSlug={currentOrg?.slug}
+          templateSlug={previewTemplate.slug || undefined}
+        />
+      )}
     </div>
   );
 }
