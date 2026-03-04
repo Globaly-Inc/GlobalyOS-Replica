@@ -118,8 +118,8 @@ async function autoCreateAssignmentInstances(
     const deadline = new Date(Date.now() + deadlineHours * 60 * 60 * 1000).toISOString();
     const secureToken = generateSecureToken();
 
-    const { data: instance, error } = await supabase
-      .from('assignment_instances')
+    const { data: instance, error } = await (supabase
+      .from('assignment_instances') as any)
       .insert({
         organization_id: organizationId,
         candidate_application_id: applicationId,
