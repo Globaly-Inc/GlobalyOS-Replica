@@ -11,6 +11,7 @@ import {
   useCandidateActivityLog,
 } from '@/services/useHiring';
 import { useOrganization } from '@/hooks/useOrganization';
+import { PositionTabContent } from '@/components/hiring/PositionTabContent';
 import { 
   useUpdateApplicationStage,
 } from '@/services/useHiringMutations';
