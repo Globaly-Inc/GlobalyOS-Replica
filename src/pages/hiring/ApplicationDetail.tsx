@@ -89,6 +89,9 @@ import { ResumeParseButton } from '@/components/hiring/ResumeParseButton';
 import { ConvertToEmployeeDialog } from '@/components/hiring/ConvertToEmployeeDialog';
 import { AssignmentPreviewDialog } from '@/components/hiring/AssignmentPreviewDialog';
 import { AddToPositionDialog } from '@/components/hiring/AddToPositionDialog';
+import { CandidateSkillsCard } from '@/components/hiring/CandidateSkillsCard';
+import { CandidateExperienceCard } from '@/components/hiring/CandidateExperienceCard';
+import { CandidateEducationCard } from '@/components/hiring/CandidateEducationCard';
 import type { AssignmentTemplateForPosition } from '@/hooks/useAssignmentTemplatesForPosition';
 
 // ─── Activity Icon Mapping ────────────────────────────────────────
@@ -440,6 +443,15 @@ export default function ApplicationDetail() {
               )}
             </CardContent>
           </Card>
+
+          {/* Skills */}
+          {candidate?.id && <CandidateSkillsCard candidateId={candidate.id} />}
+
+          {/* Experience */}
+          {candidate?.id && <CandidateExperienceCard candidateId={candidate.id} />}
+
+          {/* Education */}
+          {candidate?.id && <CandidateEducationCard candidateId={candidate.id} />}
         </div>
 
         {/* ── Right Column (2/3) ────────────────────────────── */}

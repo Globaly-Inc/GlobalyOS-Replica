@@ -296,6 +296,84 @@ Return ONLY valid JSON, no additional text or markdown formatting. If you cannot
         .eq("id", application_id);
     }
 
+    // Populate structured tables from parsed data
+    if (candidate_id) {
+      // Get candidate's organization_id
+      const { data: candidateRow } = await serviceSupabase
+        .from("candidates")
+        .select("organization_id")
+        .eq("id", candidate_id)
+        .single();
+
+      const orgId = candidateRow?.organization_id;
+
+      if (orgId) {
+        // Insert skills
+        if (parsedData.skills && parsedData.skills.length > 0) {
+          // Remove existing skills first to avoid duplicates on re-parse
+          await serviceSupabase
+            .from("candidate_skills")
+            .delete()
+            .eq("candidate_id", candidate_id)
+            .eq("organization_id", orgId);
+
+          await serviceSupabase.from("candidate_skills").insert(
+            parsedData.skills.map((name: string) => ({
+              candidate_id,
+              organization_id: orgId,
+              name,
+            }))
+          );
+        }
+
+        // Insert experiences
+        if (parsedData.experience && parsedData.experience.length > 0) {
+          await serviceSupabase
+            .from("candidate_experiences")
+            .delete()
+            .eq("candidate_id", candidate_id)
+            .eq("organization_id", orgId);
+
+          await serviceSupabase.from("candidate_experiences").insert(
+            parsedData.experience.map((exp: any, i: number) => ({
+              candidate_id,
+              organization_id: orgId,
+              title: exp.title || "Unknown",
+              company: exp.company || "Unknown",
+              location: exp.location || null,
+              start_date: exp.start_date || null,
+              end_date: exp.end_date === "Present" ? null : (exp.end_date || null),
+              description: exp.description || null,
+              is_current: exp.end_date === "Present",
+              sort_order: i,
+            }))
+          );
+        }
+
+        // Insert education
+        if (parsedData.education && parsedData.education.length > 0) {
+          await serviceSupabase
+            .from("candidate_education")
+            .delete()
+            .eq("candidate_id", candidate_id)
+            .eq("organization_id", orgId);
+
+          await serviceSupabase.from("candidate_education").insert(
+            parsedData.education.map((edu: any, i: number) => ({
+              candidate_id,
+              organization_id: orgId,
+              degree: edu.degree || "Unknown",
+              institution: edu.institution || "Unknown",
+              field_of_study: edu.field || null,
+              start_year: null,
+              end_year: edu.year || null,
+              sort_order: i,
+            }))
+          );
+        }
+      }
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
