@@ -67,9 +67,9 @@ export function PlaceholderDropdown({ onInsert }: PlaceholderDropdownProps) {
       <PopoverContent className="w-80 p-0 z-[200]" align="start" side="top">
         <Command>
           <CommandInput placeholder="Search placeholders…" />
-          <CommandList className="max-h-52 overflow-y-auto">
+          <CommandList className="max-h-52">
             <CommandEmpty>No placeholders found.</CommandEmpty>
-            <CommandGroup className="overflow-visible">
+            <CommandGroup>
               {PLACEHOLDERS.map((p) => (
                 <CommandItem
                   key={p.key}
