@@ -351,7 +351,7 @@ export default function ApplicationDetail() {
               {candidate?.email && (
                 <a href={`mailto:${candidate.email}`} className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
                   <Mail className="h-3.5 w-3.5" />
-                  <span className="truncate max-w-[200px]">{candidate.email}</span>
+                  <span>{candidate.email}</span>
                 </a>
               )}
               {candidate?.phone && (
