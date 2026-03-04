@@ -479,9 +479,49 @@ export default function ApplicationDetail() {
                   </Button>
                 </div>
 
-                <TabsContent value="current" className="mt-4 space-y-4">
-                  {/* Application Summary */}
-              <Card>
+                <TabsContent value="current" className="mt-4">
+                  <PositionTabContent applicationId={applicationId!} />
+                </TabsContent>
+
+                {/* Other position tabs - full inline details */}
+                {otherApps.map((app) => (
+                  <TabsContent key={app.id} value={app.id} className="mt-4">
+                    <PositionTabContent applicationId={app.id} />
+                  </TabsContent>
+                ))}
+              </Tabs>
+            );
+          })()}
+        </div>
+      </div>
+
+      {/* ── Dialogs ───────────────────────────────────────────── */}
+      <ScheduleInterviewDialog
+        open={showInterviewDialog}
+        onOpenChange={setShowInterviewDialog}
+        applicationId={applicationId!}
+      />
+      <CreateOfferDialog
+        open={showOfferDialog}
+        onOpenChange={setShowOfferDialog}
+        applicationId={applicationId!}
+        jobTitle={application.job?.title}
+      />
+      <ConvertToEmployeeDialog
+        open={showConvertDialog}
+        onOpenChange={setShowConvertDialog}
+        applicationId={applicationId!}
+        candidateName={candidate?.name}
+        jobTitle={application.job?.title}
+      />
+      <AddToPositionDialog
+        open={showAddPositionDialog}
+        onOpenChange={setShowAddPositionDialog}
+        candidateId={candidate?.id || ''}
+        candidateName={candidate?.name || 'Candidate'}
+        existingJobIds={(siblingApplications || []).map(a => (a.job as any)?.id).filter(Boolean)}
+        currentCvFilePath={application.cv_file_path}
+      />
                 <CardContent className="py-4">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex items-center gap-4 text-sm">
