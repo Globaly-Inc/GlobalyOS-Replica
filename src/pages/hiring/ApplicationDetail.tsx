@@ -113,6 +113,63 @@ const getActivityColor = (action: string) => {
   return 'bg-muted text-muted-foreground';
 };
 
+// Format activity log entry as a proper sentence with actor name
+const formatActivityDescription = (
+  action: string,
+  details: Record<string, unknown> | null | undefined,
+  actorName: string | null | undefined,
+) => {
+  const actor = actorName || 'System';
+  const d = (details || {}) as Record<string, unknown>;
+
+  switch (action) {
+    case 'stage_changed':
+      return `${actor} moved the candidate from "${String(d.from_stage || 'unknown').replace(/_/g, ' ')}" to "${String(d.to_stage || 'unknown').replace(/_/g, ' ')}".`;
+    case 'application_created':
+      return `${actor} created this application.`;
+    case 'interview_scheduled':
+      return `${actor} scheduled an interview${d.interview_type ? ` (${String(d.interview_type).replace(/_/g, ' ')})` : ''}.`;
+    case 'interview_completed':
+      return `${actor} marked the interview as completed.`;
+    case 'interview_cancelled':
+      return `${actor} cancelled the interview.`;
+    case 'assignment_sent':
+      return `${actor} sent an assignment${d.template_name ? ` "${d.template_name}"` : ''}.`;
+    case 'assignment_submitted':
+      return `${actor} submitted the assignment.`;
+    case 'assignment_graded':
+      return `${actor} graded the assignment${d.score != null ? ` with a score of ${d.score}` : ''}.`;
+    case 'offer_created':
+      return `${actor} created an offer${d.title ? ` for "${d.title}"` : ''}.`;
+    case 'offer_sent':
+      return `${actor} sent the offer to the candidate.`;
+    case 'offer_accepted':
+      return `${actor} accepted the offer.`;
+    case 'offer_declined':
+      return `${actor} declined the offer.`;
+    case 'offer_withdrawn':
+      return `${actor} withdrew the offer.`;
+    case 'email_sent':
+      return `${actor} sent an email${d.subject ? ` "${d.subject}"` : ''}.`;
+    case 'note_added':
+      return `${actor} added a note.`;
+    case 'candidate_rejected':
+      return `${actor} rejected the candidate${d.reason ? `: ${d.reason}` : ''}.`;
+    case 'candidate_hired':
+    case 'converted_to_employee':
+      return `${actor} converted the candidate to an employee.`;
+    case 'cv_uploaded':
+      return `${actor} uploaded a CV/resume.`;
+    case 'cv_parsed':
+      return `${actor} parsed the candidate's resume.`;
+    default: {
+      // Fallback: format action as readable text
+      const readable = action.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+      return `${actor} — ${readable}.`;
+    }
+  }
+};
+
 export default function ApplicationDetail() {
   const { applicationId } = useParams<{ applicationId: string }>();
   const [showInterviewDialog, setShowInterviewDialog] = useState(false);
