@@ -45,7 +45,7 @@ export const useAssignmentTemplatesForPosition = (jobTitle: string) => {
       // Step 2: Fetch active templates containing this position ID
       const { data: templates, error } = await (supabase
         .from('assignment_templates') as any)
-        .select('id, name, type, instructions, default_deadline_hours, recommended_effort, expected_deliverables, is_active, position_ids')
+        .select('id, name, type, instructions, default_deadline_hours, recommended_effort, expected_deliverables, is_active, position_ids, slug')
         .eq('organization_id', currentOrg.id)
         .eq('is_active', true)
         .contains('position_ids', [position.id]);
