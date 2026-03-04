@@ -2364,6 +2364,7 @@ export type Database = {
           public_token: string
           recommended_effort: string | null
           role_tags: string[] | null
+          slug: string | null
           type: string | null
           updated_at: string | null
         }
@@ -2381,6 +2382,7 @@ export type Database = {
           public_token?: string
           recommended_effort?: string | null
           role_tags?: string[] | null
+          slug?: string | null
           type?: string | null
           updated_at?: string | null
         }
@@ -2398,6 +2400,7 @@ export type Database = {
           public_token?: string
           recommended_effort?: string | null
           role_tags?: string[] | null
+          slug?: string | null
           type?: string | null
           updated_at?: string | null
         }
