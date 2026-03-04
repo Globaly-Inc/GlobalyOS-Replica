@@ -26,7 +26,7 @@ import { toast } from 'sonner';
 type GateState = 'email_entry' | 'otp_entry' | 'redirecting';
 
 export default function AssignmentTemplateSubmission() {
-  const { templateToken } = useParams<{ templateToken: string }>();
+  const { templateToken, orgCode, assignmentSlug } = useParams<{ templateToken?: string; orgCode?: string; assignmentSlug?: string }>();
   const navigate = useNavigate();
 
   const [gateState, setGateState] = useState<GateState>('email_entry');
@@ -60,8 +60,11 @@ export default function AssignmentTemplateSubmission() {
     setGateError('');
     setIsSendingOtp(true);
     try {
+      const body = templateToken
+        ? { template_token: templateToken, email: email.trim() }
+        : { org_slug: orgCode, assignment_slug: assignmentSlug, email: email.trim() };
       const { data, error } = await supabase.functions.invoke('send-assignment-otp', {
-        body: { template_token: templateToken, email: email.trim() },
+        body,
       });
       if (error) throw error;
       if (data?.notAssigned) {
@@ -99,8 +102,11 @@ export default function AssignmentTemplateSubmission() {
     setGateError('');
     setIsVerifyingOtp(true);
     try {
+      const verifyBody = templateToken
+        ? { template_token: templateToken, email: email.trim(), code: otpValue }
+        : { org_slug: orgCode, assignment_slug: assignmentSlug, email: email.trim(), code: otpValue };
       const { data, error } = await supabase.functions.invoke('verify-assignment-otp', {
-        body: { template_token: templateToken, email: email.trim(), code: otpValue },
+        body: verifyBody,
       });
       if (error) throw error;
       if (data?.error) {
@@ -133,8 +139,11 @@ export default function AssignmentTemplateSubmission() {
     setOtpValue('');
     setIsSendingOtp(true);
     try {
+      const resendBody = templateToken
+        ? { template_token: templateToken, email: email.trim() }
+        : { org_slug: orgCode, assignment_slug: assignmentSlug, email: email.trim() };
       const { data, error } = await supabase.functions.invoke('send-assignment-otp', {
-        body: { template_token: templateToken, email: email.trim() },
+        body: resendBody,
       });
       if (error) throw error;
       if (data?.error) {

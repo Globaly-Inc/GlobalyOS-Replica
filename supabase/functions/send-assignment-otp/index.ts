@@ -48,11 +48,11 @@ serve(async (req) => {
   );
 
   try {
-    const { token, template_token, email: rawEmail } = await req.json();
+    const { token, template_token, org_slug, assignment_slug, email: rawEmail } = await req.json();
 
-    if (!rawEmail || (!token && !template_token)) {
+    if (!rawEmail || (!token && !template_token && !(org_slug && assignment_slug))) {
       return new Response(
-        JSON.stringify({ error: 'Email and either token or template_token are required' }),
+        JSON.stringify({ error: 'Email and either token, template_token, or org_slug+assignment_slug are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -64,13 +64,30 @@ serve(async (req) => {
     let assignmentTitle: string | null = null;
     let assignmentId: string | null = null;
 
-    if (template_token) {
-      // ── Template mode: look up template → find instance by email ──
-      const { data: template, error: tErr } = await supabase
-        .from('assignment_templates')
-        .select('id, name')
-        .eq('public_token', template_token)
-        .single();
+    if (template_token || (org_slug && assignment_slug)) {
+      // ── Template mode: look up template by token or by org_slug + slug ──
+      let templateQuery = supabase.from('assignment_templates').select('id, name');
+      
+      if (template_token) {
+        templateQuery = templateQuery.eq('public_token', template_token);
+      } else {
+        // Look up org by slug first
+        const { data: orgData } = await supabase
+          .from('organizations')
+          .select('id')
+          .eq('slug', org_slug)
+          .single();
+        
+        if (!orgData) {
+          return new Response(
+            JSON.stringify({ error: 'Invalid assignment link.' }),
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        templateQuery = templateQuery.eq('organization_id', orgData.id).eq('slug', assignment_slug);
+      }
+
+      const { data: template, error: tErr } = await templateQuery.single();
 
       if (tErr || !template) {
         return new Response(

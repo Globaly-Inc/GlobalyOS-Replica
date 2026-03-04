@@ -40,6 +40,8 @@ interface AssignmentPreviewDialogProps {
   isEditMode?: boolean;
   secureToken?: string; // optional: legacy per-instance token
   publicToken?: string; // template-level public token
+  orgSlug?: string; // org slug for careers-style link
+  templateSlug?: string; // assignment slug for careers-style link
 }
 
 function maskEmail(email: string): string {
@@ -263,15 +265,19 @@ export function AssignmentPreviewDialog({
   isEditMode = false,
   secureToken,
   publicToken,
+  orgSlug,
+  templateSlug,
 }: AssignmentPreviewDialogProps) {
   const [copied, setCopied] = useState(false);
 
-  // Prefer template public link over per-instance link
-  const publicLink = publicToken
-    ? `${window.location.origin}/assignment/t/${publicToken}`
-    : secureToken
-      ? `${window.location.origin}/assignment/${secureToken}`
-      : null;
+  // Prefer slug-based careers link > template token > per-instance link
+  const publicLink = orgSlug && templateSlug
+    ? `${window.location.origin}/careers/${orgSlug}/assignment/${templateSlug}`
+    : publicToken
+      ? `${window.location.origin}/assignment/t/${publicToken}`
+      : secureToken
+        ? `${window.location.origin}/assignment/${secureToken}`
+        : null;
 
   const handleCopy = async () => {
     if (!publicLink) return;
