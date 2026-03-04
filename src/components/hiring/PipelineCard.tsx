@@ -409,7 +409,7 @@ function SortableStageAccordion({
   
   const notifyCount = rule?.notify_employee_ids?.length ?? 0;
   const hasEmail = !!effectiveTrigger && !!matchedTpl;
-  const hasAutoReject = rule?.auto_reject_on_deadline || !!rule?.auto_reject_after_hours;
+  
 
   return (
     <div
@@ -477,11 +477,6 @@ function SortableStageAccordion({
 
               {/* Activity badges */}
               <div className="flex items-center gap-1.5 shrink-0">
-                {hasAutoReject && (
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 h-5">
-                    <Clock className="h-2.5 w-2.5" /> Auto-reject
-                  </Badge>
-                )}
                 {notifyCount > 0 && (
                   <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 h-5">
                     <Bell className="h-2.5 w-2.5" /> {notifyCount} notified
@@ -732,40 +727,6 @@ function SortableStageAccordion({
                 </div>
               </div>
 
-              {/* ── Rejection Rules ─────────────────────────── */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-md bg-destructive/10 text-destructive shrink-0">
-                    <Clock className="h-3.5 w-3.5" />
-                  </div>
-                  <span className="text-sm font-semibold">Rejection Rules</span>
-                </div>
-                <div className="pl-8 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium">Auto-reject when assignment deadline passes</p>
-                    <Switch
-                      checked={rule?.auto_reject_on_deadline ?? false}
-                      onCheckedChange={checked => onRuleChange(stageKey, { auto_reject_on_deadline: checked, is_active: checked || (rule?.is_active ?? false) })}
-                    />
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <p className="text-sm text-muted-foreground whitespace-nowrap">Auto-reject after</p>
-                    <Input
-                      type="number"
-                      min={0}
-                      className="w-20 h-8"
-                      placeholder="—"
-                      value={rule?.auto_reject_after_hours ?? ''}
-                      onChange={e => onRuleChange(stageKey, {
-                        auto_reject_after_hours: e.target.value ? parseInt(e.target.value) : null,
-                        is_active: !!e.target.value || (rule?.is_active ?? false),
-                      })}
-                    />
-                    <p className="text-sm text-muted-foreground">hours in this stage</p>
-                  </div>
-                </div>
-              </div>
-
             </div>
           </div>
         </CollapsibleContent>
@@ -873,7 +834,7 @@ export function PipelineCard({
   // Count active automations for this pipeline
   const activeAutomationCount = activeStages.filter(s => {
     const rule = stageRules[s.stage_key];
-    return rule?.auto_reject_on_deadline || rule?.auto_reject_after_hours || (rule?.notify_employee_ids?.length ?? 0) > 0 || rule?.email_trigger_type;
+    return (rule?.notify_employee_ids?.length ?? 0) > 0 || rule?.email_trigger_type;
   }).length;
 
   return (
