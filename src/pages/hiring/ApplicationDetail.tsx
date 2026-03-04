@@ -912,6 +912,13 @@ export default function ApplicationDetail() {
           templateSlug={previewTemplate.slug || undefined}
         />
       )}
+      <AddToPositionDialog
+        open={showAddPositionDialog}
+        onOpenChange={setShowAddPositionDialog}
+        candidateId={candidate?.id || ''}
+        candidateName={candidate?.name || 'Candidate'}
+        existingJobIds={(siblingApplications || []).map(a => (a.job as any)?.id).filter(Boolean)}
+      />
     </div>
   );
 }
