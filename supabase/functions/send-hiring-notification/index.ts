@@ -121,6 +121,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Get assignment details if applicable
     let assignmentInstance = null;
     let assignmentPublicToken = null;
+    let assignmentSlug = null;
     if (body.assignment_id) {
       const { data } = await supabase
         .from("assignment_instances")
@@ -129,14 +130,15 @@ const handler = async (req: Request): Promise<Response> => {
         .single();
       assignmentInstance = data;
 
-      // Look up the template's public_token for a shareable link
+      // Look up the template's slug and public_token for a shareable link
       if (data?.template_id) {
         const { data: tmpl } = await supabase
           .from("assignment_templates")
-          .select("public_token")
+          .select("public_token, slug, organization_id")
           .eq("id", data.template_id)
           .single();
         assignmentPublicToken = tmpl?.public_token;
+        assignmentSlug = tmpl?.slug;
       }
     }
 
@@ -152,12 +154,14 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const siteUrl = Deno.env.get("SITE_URL") || "https://globalyos.lovable.app";
-    // Prefer template public link over per-instance link
-    const assignmentLink = assignmentPublicToken
-      ? `${siteUrl}/assignment/t/${assignmentPublicToken}`
-      : assignmentInstance?.secure_token
-        ? `${siteUrl}/assignment/${assignmentInstance.secure_token}`
-        : "";
+    // Prefer slug-based careers link > template token > per-instance link
+    const assignmentLink = assignmentSlug && org?.slug
+      ? `${siteUrl}/careers/${org.slug}/assignment/${assignmentSlug}`
+      : assignmentPublicToken
+        ? `${siteUrl}/assignment/t/${assignmentPublicToken}`
+        : assignmentInstance?.secure_token
+          ? `${siteUrl}/assignment/${assignmentInstance.secure_token}`
+          : "";
     const assignmentInstructions = assignmentInstance
       ? `To access your assignment:\n1. Click the link above\n2. Enter your email address\n3. Enter the verification code sent to your inbox\n4. Complete and submit your assignment before the deadline`
       : "";

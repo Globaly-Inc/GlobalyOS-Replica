@@ -35,11 +35,11 @@ serve(async (req) => {
   );
 
   try {
-    const { token, template_token, email: rawEmail, code: rawCode } = await req.json();
+    const { token, template_token, org_slug, assignment_slug, email: rawEmail, code: rawCode } = await req.json();
 
-    if ((!token && !template_token) || !rawEmail || !rawCode) {
+    if ((!token && !template_token && !(org_slug && assignment_slug)) || !rawEmail || !rawCode) {
       return new Response(
-        JSON.stringify({ error: 'Email, code, and either token or template_token are required' }),
+        JSON.stringify({ error: 'Email, code, and either token, template_token, or org_slug+assignment_slug are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -49,13 +49,29 @@ serve(async (req) => {
 
     let instanceToken: string | null = null;
 
-    if (template_token) {
+    if (template_token || (org_slug && assignment_slug)) {
       // ── Template mode: find instance by template + email ──
-      const { data: template } = await supabase
-        .from('assignment_templates')
-        .select('id')
-        .eq('public_token', template_token)
-        .single();
+      let templateQuery = supabase.from('assignment_templates').select('id');
+      
+      if (template_token) {
+        templateQuery = templateQuery.eq('public_token', template_token);
+      } else {
+        const { data: orgData } = await supabase
+          .from('organizations')
+          .select('id')
+          .eq('slug', org_slug)
+          .single();
+        
+        if (!orgData) {
+          return new Response(
+            JSON.stringify({ error: 'Invalid assignment link.' }),
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        templateQuery = templateQuery.eq('organization_id', orgData.id).eq('slug', assignment_slug);
+      }
+
+      const { data: template } = await templateQuery.single();
 
       if (!template) {
         return new Response(
