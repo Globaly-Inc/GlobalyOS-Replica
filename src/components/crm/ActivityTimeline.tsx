@@ -83,10 +83,10 @@ export const ActivityTimeline = ({ activities, contactId, companyId }: Props) =>
                 <div className="flex-1 p-3 rounded-lg bg-muted/50">
                   <div className="flex items-center gap-2 flex-wrap">
                     <Avatar className="h-6 w-6 shrink-0">
-                      <AvatarImage src={a.employee?.avatar_url || ''} />
-                      <AvatarFallback className="text-[9px]">{a.employee?.first_name?.[0]}{a.employee?.last_name?.[0]}</AvatarFallback>
+                      <AvatarImage src={a.employee?.profiles?.avatar_url || ''} />
+                      <AvatarFallback className="text-[9px]">{a.employee?.profiles?.full_name?.[0] || '?'}</AvatarFallback>
                     </Avatar>
-                    <span className="text-sm font-medium">{a.employee?.first_name} {a.employee?.last_name}</span>
+                    <span className="text-sm font-medium">{a.employee?.profiles?.full_name || 'Unknown'}</span>
                     <Badge variant="outline" className="text-[10px]">{config.label}</Badge>
                     <span className="text-xs text-muted-foreground ml-auto">{format(new Date(a.created_at), 'dd MMM yyyy HH:mm')}</span>
                   </div>

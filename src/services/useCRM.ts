@@ -225,7 +225,7 @@ export const useCRMActivities = (contactId?: string | null, companyId?: string |
     queryFn: async () => {
       let query = supabase
         .from('crm_activity_log')
-        .select('*, employee:employees(id, first_name, last_name, avatar_url)')
+        .select('*, employee:employees(id, profiles(full_name, avatar_url))')
         .eq('organization_id', currentOrg!.id)
         .order('created_at', { ascending: false })
         .limit(50);

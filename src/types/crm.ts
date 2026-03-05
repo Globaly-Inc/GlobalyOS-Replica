@@ -68,9 +68,10 @@ export interface CRMActivity {
   created_at: string;
   employee?: {
     id: string;
-    first_name: string;
-    last_name: string;
-    avatar_url: string | null;
+    profiles?: {
+      full_name: string | null;
+      avatar_url: string | null;
+    } | null;
   };
 }
 
