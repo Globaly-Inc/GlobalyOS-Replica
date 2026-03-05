@@ -401,6 +401,7 @@ export const ContactListView = () => {
       )}
 
       <AddContactDialog open={addOpen} onOpenChange={setAddOpen} />
+      <EditContactDialog contact={editContact} open={!!editContact} onOpenChange={(o) => !o && setEditContact(null)} />
     </div>
   );
 };
