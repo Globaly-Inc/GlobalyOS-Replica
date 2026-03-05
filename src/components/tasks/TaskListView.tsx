@@ -285,7 +285,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
         const someStatusSelected = statusTasks.some(t => selectedTaskIds.has(t.id));
 
         return (
-          <div key={status.id} className="rounded-lg border bg-card overflow-hidden">
+          <div key={status.id} className="rounded-lg overflow-hidden">
             {/* Status header */}
             <div
               className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/50 transition-colors"
