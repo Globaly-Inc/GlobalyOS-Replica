@@ -200,6 +200,35 @@ export const UserDetailSheet = ({ open, onOpenChange, user, onUserDeleted }: Use
   const [codeCopied, setCodeCopied] = useState(false);
   const [loadingMasterCode, setLoadingMasterCode] = useState(false);
 
+  const handleToggleSuperAdmin = async () => {
+    if (!user) return;
+    setTogglingSuperAdmin(true);
+    try {
+      const isSuperAdmin = user.roles.includes('super_admin');
+      if (isSuperAdmin) {
+        const { error } = await supabase
+          .from('user_roles')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('role', 'super_admin');
+        if (error) throw error;
+        toast({ title: 'Super admin access revoked' });
+      } else {
+        const { error } = await supabase
+          .from('user_roles')
+          .insert({ user_id: user.id, role: 'super_admin' });
+        if (error) throw error;
+        toast({ title: 'Super admin access granted' });
+      }
+      setSuperAdminDialogOpen(false);
+      onUserDeleted?.();
+    } catch (error: any) {
+      toast({ title: 'Failed to update role', description: error.message, variant: 'destructive' });
+    } finally {
+      setTogglingSuperAdmin(false);
+    }
+  };
+
   const handleDeleteUser = async () => {
     if (!user) return;
     
