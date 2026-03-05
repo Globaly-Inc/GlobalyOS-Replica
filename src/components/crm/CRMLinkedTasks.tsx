@@ -80,17 +80,15 @@ export const CRMLinkedTasks = ({ entityType, entityId }: CRMLinkedTasksProps) =>
                       {task.status.name}
                     </Badge>
                   )}
-                  {task.priority && task.priority !== 'normal' && (
+                  {task.priority && (
                     <Badge variant="secondary" className={`text-[10px] py-0 px-1.5 ${priorityColors[task.priority] || ''}`}>
                       {task.priority}
                     </Badge>
                   )}
-                  {task.due_date && (
-                    <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
-                      <Calendar className="h-2.5 w-2.5" />
-                      {format(new Date(task.due_date), 'MMM d')}
-                    </span>
-                  )}
+                  <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                    <Calendar className="h-2.5 w-2.5" />
+                    {task.due_date ? format(new Date(task.due_date), 'MMM d') : 'No due date'}
+                  </span>
                 </div>
               </div>
               {task.assignee && (
