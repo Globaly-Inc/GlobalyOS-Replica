@@ -305,17 +305,6 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                 {statusTasks.length}
               </Badge>
               <div className="flex-1" />
-              {!isAllTasksMode && (
-                <button
-                  className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleStartInline(status.id);
-                  }}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </button>
-              )}
             </div>
 
             {/* Task rows */}
