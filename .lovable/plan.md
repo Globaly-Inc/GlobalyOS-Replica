@@ -1,24 +1,38 @@
 
 
-## Make Logo Navigate to Public Website Home
+## Fix: Activity Log Not Refreshing After Logging
 
-### Problem
-The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
+### Root Cause
 
-### Solution
+In `useCreateCRMActivity` (`src/services/useCRM.ts`), the `onSuccess` handler conditionally invalidates cache:
 
-**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
-- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
-- This gives the landing page a stable URL accessible regardless of auth state
+```js
+if (vars.contact_id) qc.invalidateQueries({ queryKey: ['crm-activities', vars.contact_id] });
+if (vars.company_id) qc.invalidateQueries({ queryKey: ['crm-activities', null, vars.company_id] });
+```
 
-**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
-- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
+Two problems:
+1. In `LogActivityDialog`, `contactId || undefined` converts `null` to `undefined`, and `undefined` properties are stripped by JSON serialization -- so `vars.contact_id` may not exist in the mutation variables, causing the invalidation to be skipped.
+2. If neither `contactId` nor `companyId` is provided, **no invalidation runs at all**.
 
-### Technical Details
+### Fix
+
+**File: `src/services/useCRM.ts`** (lines 263-266)
+- Replace the conditional invalidation with a broad invalidation of all `crm-activities` queries:
+```js
+onSuccess: () => {
+  qc.invalidateQueries({ queryKey: ['crm-activities'] });
+},
+```
+This uses prefix matching to invalidate every cached `crm-activities` query regardless of the contact/company ID combination, ensuring the timeline always refreshes.
+
+**File: `src/components/crm/LogActivityDialog.tsx`** (lines 44-45)
+- Change `contactId || undefined` to `contactId ?? undefined` and same for `companyId` to avoid falsy coercion issues (though the broader invalidation fix above is the primary fix).
+
+### Files Changed
 
 | File | Change |
 |------|--------|
-| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
-| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
+| `src/services/useCRM.ts` | Simplify `onSuccess` to broadly invalidate all `crm-activities` queries |
+| `src/components/crm/LogActivityDialog.tsx` | Use nullish coalescing (`??`) instead of `||` for contact/company IDs |
 
-This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
