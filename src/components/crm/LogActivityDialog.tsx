@@ -41,8 +41,8 @@ export const LogActivityDialog = ({ open, onOpenChange, contactId, companyId }: 
     if (!content.trim() && !subject.trim()) return;
     createActivity.mutate(
       {
-        contact_id: contactId || undefined,
-        company_id: companyId || undefined,
+        contact_id: contactId ?? undefined,
+        company_id: companyId ?? undefined,
         type: type as any,
         content: content || null,
         subject: subject || null,

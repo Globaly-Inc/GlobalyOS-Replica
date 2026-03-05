@@ -260,9 +260,8 @@ export const useCreateCRMActivity = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: (_, vars) => {
-      if (vars.contact_id) qc.invalidateQueries({ queryKey: ['crm-activities', vars.contact_id] });
-      if (vars.company_id) qc.invalidateQueries({ queryKey: ['crm-activities', null, vars.company_id] });
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm-activities'] });
     },
   });
 };
