@@ -523,6 +523,7 @@ export const useCreateTask = () => {
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['tasks', data.space_id] });
+      qc.invalidateQueries({ queryKey: ['crm-linked-tasks'] });
     },
   });
 };
