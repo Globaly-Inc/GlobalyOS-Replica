@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useCRMCompanies, useDeleteCRMCompany } from '@/services/useCRM';
 import { AddCompanyDialog } from './AddCompanyDialog';
+import { EditCompanyDialog } from './EditCompanyDialog';
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import { toast } from 'sonner';
 
@@ -23,6 +24,7 @@ export const CompanyListView = () => {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(20);
   const [addOpen, setAddOpen] = useState(false);
+  const [editCompany, setEditCompany] = useState<any>(null);
   const { navigateOrg } = useOrgNavigation();
 
   const { data, isLoading } = useCRMCompanies({ search: search || undefined, page, per_page: perPage });
@@ -119,6 +121,7 @@ export const CompanyListView = () => {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => navigateOrg(`/crm/companies/${company.id}`)}>View</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setEditCompany(company)}><Pencil className="h-4 w-4 mr-2" /> Edit</DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive" onClick={() => deleteMutation.mutate(company.id, { onSuccess: () => toast.success('Company deleted') })}>Delete</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -151,6 +154,7 @@ export const CompanyListView = () => {
       )}
 
       <AddCompanyDialog open={addOpen} onOpenChange={setAddOpen} />
+      <EditCompanyDialog company={editCompany} open={!!editCompany} onOpenChange={(o) => !o && setEditCompany(null)} />
     </div>
   );
 };
