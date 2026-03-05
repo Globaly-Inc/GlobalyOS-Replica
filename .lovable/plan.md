@@ -1,21 +1,24 @@
 
 
-## Fix: Always Show Priority and Due Date in CRM Task List
+## Make Logo Navigate to Public Website Home
 
 ### Problem
+The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
 
-The `CRMLinkedTasks` component conditionally hides priority and due date:
-- **Priority** is hidden when set to `normal` (line 83: `task.priority !== 'normal'`)
-- **Due date** is hidden when not set (line 88: `task.due_date &&`)
+### Solution
 
-Since the default priority is "normal" and due date is optional, most newly created tasks only show the assignee avatar.
+**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
+- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
+- This gives the landing page a stable URL accessible regardless of auth state
 
-### Fix
+**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
+- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
 
-**File: `src/components/crm/CRMLinkedTasks.tsx`**
+### Technical Details
 
-1. **Always show priority** — remove the `!== 'normal'` condition so every task displays its priority badge (urgent, high, normal, low)
-2. **Always show due date** — when no due date is set, display "No due date" in muted text so the field is always visible
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
+| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
 
-This keeps the layout consistent and informative for every task in the list.
-
+This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
