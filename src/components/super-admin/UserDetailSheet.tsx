@@ -873,6 +873,42 @@ export const UserDetailSheet = ({ open, onOpenChange, user, onUserDeleted }: Use
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Super Admin Toggle Dialog */}
+      <AlertDialog open={superAdminDialogOpen} onOpenChange={setSuperAdminDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {user?.roles.includes('super_admin') ? 'Revoke Super Admin Access' : 'Grant Super Admin Access'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {user?.roles.includes('super_admin')
+                ? `This will remove super admin privileges from ${user?.full_name}. They will lose platform-level access.`
+                : `This will grant ${user?.full_name} full platform-level super admin access. They will be able to manage all organisations, users, and system settings.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={toggingSuperAdmin}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleToggleSuperAdmin}
+              disabled={toggingSuperAdmin}
+              className={user?.roles.includes('super_admin') ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
+            >
+              {toggingSuperAdmin ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {user?.roles.includes('super_admin') ? 'Revoking...' : 'Granting...'}
+                </>
+              ) : (
+                <>
+                  <Shield className="h-4 w-4 mr-2" />
+                  {user?.roles.includes('super_admin') ? 'Revoke Access' : 'Grant Access'}
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 };
