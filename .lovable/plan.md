@@ -1,24 +1,33 @@
 
 
-## Make Logo Navigate to Public Website Home
+## Fix: CRM Linked Tasks Not Populating
 
-### Problem
-The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
+### Root Cause
 
-### Solution
+In `CRMLinkedTasks.tsx` (line 40), the query joins assignee data using:
+```
+assignee:profiles!tasks_assignee_id_fkey(id, full_name, avatar_url)
+```
 
-**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
-- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
-- This gives the landing page a stable URL accessible regardless of auth state
+But `tasks_assignee_id_fkey` references the `employees` table, not `profiles`. This invalid join causes PostgREST to error, and the component silently falls back to an empty array.
 
-**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
-- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
+### Fix
 
-### Technical Details
+**File: `src/components/crm/CRMLinkedTasks.tsx`** (line 40)
+
+Change the assignee join to go through `employees` and then `profiles`, matching the pattern used elsewhere in the codebase (e.g. `employee_directory` view):
+
+```sql
+assignee:employee_directory!tasks_assignee_id_fkey(id, full_name, avatar_url)
+```
+
+The `employee_directory` view is already referenced by `tasks_assignee_id_fkey` (confirmed in the types file) and exposes `id`, `full_name`, and `avatar_url` — exactly the fields needed.
+
+### Files Changed
 
 | File | Change |
 |------|--------|
-| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
-| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
+| `src/components/crm/CRMLinkedTasks.tsx` | Fix line 40: replace `profiles!tasks_assignee_id_fkey` with `employee_directory!tasks_assignee_id_fkey` |
 
-This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
+One-line fix. No other files affected.
+
