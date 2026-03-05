@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Plus, MoreHorizontal, Flame, Handshake, Snowflake, ChevronLeft, ChevronRight, Tag, X, Users, Archive } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Flame, Handshake, Snowflake, ChevronLeft, ChevronRight, Tag, X, Users, Archive, Pencil } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -12,6 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useCRMContacts, useDeleteCRMContact, useUpdateCRMContact } from '@/services/useCRM';
 import { useCRMTags } from '@/services/useCRMTags';
 import { AddContactDialog } from './AddContactDialog';
+import { EditContactDialog } from './EditContactDialog';
 import { useOrgNavigation } from '@/hooks/useOrgNavigation';
 import type { CRMContact, CRMSidebarCategory } from '@/types/crm';
 import { toast } from 'sonner';
@@ -38,6 +39,7 @@ export const ContactListView = () => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [bulkTagOpen, setBulkTagOpen] = useState(false);
+  const [editContact, setEditContact] = useState<CRMContact | null>(null);
   const { navigateOrg } = useOrgNavigation();
   const { data: orgTags = [] } = useCRMTags();
 
@@ -355,6 +357,9 @@ export const ContactListView = () => {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => navigateOrg(`/crm/contacts/${contact.id}`)}>View</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setEditContact(contact)}>
+                          <Pencil className="h-4 w-4 mr-2" /> Edit
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleArchive(contact)}>
                           {contact.is_archived ? 'Restore' : 'Archive'}
                         </DropdownMenuItem>
@@ -396,6 +401,7 @@ export const ContactListView = () => {
       )}
 
       <AddContactDialog open={addOpen} onOpenChange={setAddOpen} />
+      <EditContactDialog contact={editContact} open={!!editContact} onOpenChange={(o) => !o && setEditContact(null)} />
     </div>
   );
 };
