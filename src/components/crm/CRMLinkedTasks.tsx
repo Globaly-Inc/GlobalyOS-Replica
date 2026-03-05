@@ -37,7 +37,7 @@ export const CRMLinkedTasks = ({ entityType, entityId }: CRMLinkedTasksProps) =>
         .select(`
           id, title, priority, due_date, created_at,
           status:task_statuses(id, name, color),
-          assignee:profiles!tasks_assignee_id_fkey(id, full_name, avatar_url)
+          assignee:employee_directory!tasks_assignee_id_fkey(id, full_name, avatar_url)
         `)
         .eq('organization_id', currentOrg.id)
         .eq('related_entity_type', entityType)
