@@ -1,24 +1,25 @@
 
 
-## Make Logo Navigate to Public Website Home
+## Add Edit Contact Dialog (Option 2)
 
-### Problem
-The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
-
-### Solution
-
-**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
-- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
-- This gives the landing page a stable URL accessible regardless of auth state
-
-**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
-- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
-
-### Technical Details
+### Changes
 
 | File | Change |
 |------|--------|
-| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
-| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
+| `src/components/crm/EditContactDialog.tsx` | **New file** — same form layout as `AddContactDialog`, accepts a `CRMContact`, pre-fills all fields, calls `useUpdateCRMContact` on submit |
+| `src/components/crm/ContactListView.tsx` | Add `editContact` state, add "Edit" dropdown item with Pencil icon (between View and Archive), render `EditContactDialog` |
 
-This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
+### EditContactDialog Detail
+
+- Props: `contact: CRMContact | null`, `open: boolean`, `onOpenChange: (open: boolean) => void`
+- Pre-populates: first_name, last_name, email, phone, job_title, company_id, rating, source, notes
+- Uses `useUpdateCRMContact` mutation with the contact's `id`
+- Syncs form state when `contact` prop changes via `useEffect`
+
+### ContactListView Changes
+
+- Import `Pencil` from lucide-react and `EditContactDialog`
+- Add `const [editContact, setEditContact] = useState<CRMContact | null>(null)`
+- Insert dropdown item: `<DropdownMenuItem onClick={() => setEditContact(contact)}><Pencil className="h-4 w-4 mr-2" /> Edit</DropdownMenuItem>` before Archive
+- Render `<EditContactDialog contact={editContact} open={!!editContact} onOpenChange={(o) => !o && setEditContact(null)} />` at the bottom
+
