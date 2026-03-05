@@ -1,24 +1,26 @@
 
 
-## Make Logo Navigate to Public Website Home
+## Merge Comments & Activity into a Single "Comments & Logs" Timeline
 
-### Problem
-The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
+### What Changes
 
-### Solution
+**File: `src/components/tasks/TaskDetailPage.tsx`**
 
-**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
-- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
-- This gives the landing page a stable URL accessible regardless of auth state
+1. **Remove the tab switcher** — replace the two-tab header (Comments / Activity) with a single "Comments & Logs" heading.
 
-**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
-- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
+2. **Merge and sort chronologically** — combine `comments` and `activityLogs` into one array, each tagged with a `type` field (`'comment'` or `'activity'`), sorted by `created_at` descending (newest first).
 
-### Technical Details
+3. **Unified rendering** — render each item in a single scrollable list:
+   - **Activity logs**: Show avatar + name in bold, then the action description inline (e.g. "Updated the Priority to **Urgent**"), with timestamp on the right — matching the reference image style.
+   - **Comments**: Show avatar + name + timestamp, then the comment content in a light rounded bubble (`bg-muted` card), matching the reference image.
 
-| File | Change |
-|------|--------|
-| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
-| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
+4. **Remove `activeTab` state** — no longer needed.
 
-This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
+5. **Keep the comment input** at the bottom unchanged.
+
+### Visual Style (per reference image)
+
+- Activity entries: single-line with inline action text, no background bubble
+- Comment entries: name + timestamp row, then content in a `rounded-lg bg-muted/50 px-3 py-2` bubble
+- Both use the same avatar size (`h-6 w-6`) and timestamp format (`d MMM yyyy HH:mm a`)
+
