@@ -1,24 +1,48 @@
 
 
-## Make Logo Navigate to Public Website Home
+## Fix Column Header & Content Alignment in Task List
 
 ### Problem
-The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
+Column headers and their corresponding cell content are not left-aligned on the same vertical line. Root causes:
 
-### Solution
+1. **Header row** (`TaskListView.tsx` line 316) lacks `items-center` for vertical alignment
+2. **Task row cell wrappers** (`TaskRow.tsx` line 305) — each cell is wrapped in a bare `<div>` without alignment classes, causing content to float inconsistently
+3. **Comments & Attachments columns** — both header and cells use `text-center`, but the cell wrapper `<div>` doesn't propagate this alignment
+4. **Priority column** — header is left-aligned text but the cell uses `inline-flex` with a badge, causing visual offset
 
-**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
-- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
-- This gives the landing page a stable URL accessible regardless of auth state
+### Current UI (before fix)
 
-**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
-- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
+```text
+Header:  | Name          | Category | Assignee | Tags   | 💬  | 📎  | Priority |
+Row:     |  ● Task title | Email    |  👤 Kav  | new... |  —  |  📎 |  Normal  |
+                                                           ^      ^       ^
+                                              These columns may appear offset
+                                              due to missing alignment on wrapper divs
+```
 
-### Technical Details
+### Proposed Fix (after fix)
+
+```text
+Header:  | Name          | Category | Assignee | Tags   | 💬 | 📎 | Priority |
+Row:     | ● Task title  | Email    | 👤 Kavita| new    |  0 | 📎 | Normal   |
+         All columns aligned on the same left edge (or center for icon columns)
+```
+
+### Changes
 
 | File | Change |
 |------|--------|
-| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
-| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
+| `src/components/tasks/TaskListView.tsx` | Add `items-center` to the header row grid div (line 316) so header labels are vertically centered. |
+| `src/components/tasks/TaskRow.tsx` | Add alignment classes to the cell wrapper `<div>` on line 305: for `comments` and `attachments` columns add `text-center`, for all columns add `flex items-center` or `min-w-0` to ensure consistent left alignment with headers. |
 
-This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
+### Implementation Detail
+
+**TaskListView.tsx (header row)**
+- Line 316: Add `items-center` to the grid className so headers vertically align with row content.
+
+**TaskRow.tsx (cell wrappers)**
+- Line 305: Change `<div key={col.key}>{renderCell(col)}</div>` to include conditional alignment:
+  - For `comments` and `attachments`: add `text-center` and `flex items-center justify-center`
+  - For all other columns: add `min-w-0` (to support truncation) and `flex items-center`
+- This ensures every cell's content starts at the same left edge as its header (or centers for icon columns).
+
