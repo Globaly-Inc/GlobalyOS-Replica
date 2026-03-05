@@ -122,9 +122,9 @@ const DealCard = ({ id }: { id: string }) => {
               <span className="text-xs text-muted-foreground">{deal.contact.first_name} {deal.contact.last_name}</span>
             </div>
           )}
-          {deal.value != null && (
+          {deal.deal_value != null && (
             <p className="text-xs text-muted-foreground pl-5">
-              Value: {deal.currency || '$'}{Number(deal.value).toLocaleString()}
+              Value: {deal.currency || '$'}{Number(deal.deal_value).toLocaleString()}
             </p>
           )}
         </div>
