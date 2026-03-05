@@ -18,6 +18,8 @@ import { PageBody } from '@/components/ui/page-body';
 import { EditableField } from '@/components/EditableField';
 import { ClickToEdit } from '@/components/ui/ClickToEdit';
 import { ActivityTimeline } from '@/components/crm/ActivityTimeline';
+import { CRMLinkedTasks } from '@/components/crm/CRMLinkedTasks';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TagSelector } from '@/components/crm/TagSelector';
 import { DuplicateDetector } from '@/components/crm/DuplicateDetector';
 import { CRMCustomFieldsDisplay } from '@/components/crm/CRMCustomFieldsDisplay';
@@ -284,11 +286,21 @@ const CRMContactProfile = () => {
             <CRMCustomFieldsDisplay entityType="contact" customFieldValues={contact.custom_fields} onSave={updateCustomFields} />
           </div>
 
-          {/* Right Column - Timeline */}
+          {/* Right Column - Tabs */}
           <div className="lg:col-span-2">
-            <Card className="overflow-hidden p-4">
-              <h2 className="text-base font-semibold text-foreground mb-4">Activity Timeline</h2>
-              <ActivityTimeline activities={activities} contactId={id} />
+            <Card className="overflow-hidden">
+              <Tabs defaultValue="activity">
+                <TabsList className="mx-4 mt-4 w-fit">
+                  <TabsTrigger value="activity">Activity ({activities.length})</TabsTrigger>
+                  <TabsTrigger value="tasks">Tasks</TabsTrigger>
+                </TabsList>
+                <TabsContent value="activity" className="p-4">
+                  <ActivityTimeline activities={activities} contactId={id} />
+                </TabsContent>
+                <TabsContent value="tasks" className="p-4">
+                  {id && <CRMLinkedTasks entityType="contact" entityId={id} />}
+                </TabsContent>
+              </Tabs>
             </Card>
           </div>
         </div>

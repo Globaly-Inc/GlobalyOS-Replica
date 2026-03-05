@@ -16,6 +16,7 @@ import { PageBody } from '@/components/ui/page-body';
 import { EditableField } from '@/components/EditableField';
 import { ClickToEdit } from '@/components/ui/ClickToEdit';
 import { ActivityTimeline } from '@/components/crm/ActivityTimeline';
+import { CRMLinkedTasks } from '@/components/crm/CRMLinkedTasks';
 import { DuplicateDetector } from '@/components/crm/DuplicateDetector';
 import { CRMCustomFieldsDisplay } from '@/components/crm/CRMCustomFieldsDisplay';
 
@@ -194,6 +195,7 @@ const CRMCompanyProfile = () => {
                 <TabsList className="mx-4 mt-4 w-fit">
                   <TabsTrigger value="contacts">Contacts ({companyContacts.length})</TabsTrigger>
                   <TabsTrigger value="activity">Activity ({activities.length})</TabsTrigger>
+                  <TabsTrigger value="tasks">Tasks</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="contacts" className="p-4">
@@ -220,6 +222,9 @@ const CRMCompanyProfile = () => {
 
                 <TabsContent value="activity" className="p-4">
                   <ActivityTimeline activities={activities} companyId={id} />
+                </TabsContent>
+                <TabsContent value="tasks" className="p-4">
+                  {id && <CRMLinkedTasks entityType="company" entityId={id} />}
                 </TabsContent>
               </Tabs>
             </Card>

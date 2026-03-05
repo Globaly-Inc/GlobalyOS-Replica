@@ -19,9 +19,11 @@ interface AddTaskDialogProps {
   listId?: string | null;
   defaultStatusId?: string | null;
   defaultTitle?: string;
+  defaultRelatedEntityType?: string | null;
+  defaultRelatedEntityId?: string | null;
 }
 
-export const AddTaskDialog = ({ open, onOpenChange, spaceId, listId, defaultStatusId, defaultTitle }: AddTaskDialogProps) => {
+export const AddTaskDialog = ({ open, onOpenChange, spaceId, listId, defaultStatusId, defaultTitle, defaultRelatedEntityType, defaultRelatedEntityId }: AddTaskDialogProps) => {
   const [title, setTitle] = useState(defaultTitle || '');
   const [description, setDescription] = useState('');
   const [statusId, setStatusId] = useState<string>('');
@@ -56,6 +58,8 @@ export const AddTaskDialog = ({ open, onOpenChange, spaceId, listId, defaultStat
         priority,
         due_date: dueDate || null,
         assignee_id: assigneeId,
+        related_entity_type: defaultRelatedEntityType || null,
+        related_entity_id: defaultRelatedEntityId || null,
       });
       toast.success('Task created');
       setTitle(''); setDescription(''); setStatusId(''); setCategoryId('none');
