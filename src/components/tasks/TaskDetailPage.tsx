@@ -23,6 +23,7 @@ import { useTaskDetailRealtime } from '@/services/useTaskDetailRealtime';
 import { useCurrentEmployee } from '@/services/useCurrentEmployee';
 import { EmployeePickerPopover } from './EmployeePickerPopover';
 import { RelatedToPopover } from './RelatedToPopover';
+import { RelatedEntityCard } from './RelatedEntityCard';
 import { TaskAttachments } from './TaskAttachments';
 import { AIDescriptionHelper, AISubtaskHelper } from './TaskAIHelpers';
 import type { TaskWithRelations } from '@/types/task';
@@ -216,6 +217,13 @@ export const TaskDetailPage = ({ taskId, onClose, onPrev, onNext }: TaskDetailPa
               </button>
             </RelatedToPopover>
           </div>
+
+          {/* Related Entity Card */}
+          {task.related_entity_type && task.related_entity_id && ['contact', 'company', 'deal'].includes(task.related_entity_type) && (
+            <div className="mb-3">
+              <RelatedEntityCard entityType={task.related_entity_type} entityId={task.related_entity_id} />
+            </div>
+          )}
 
           {/* Title */}
           {editingTitle ? (

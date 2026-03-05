@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, Link2, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,9 @@ import { useQuery } from '@tanstack/react-query';
 const ENTITY_TYPES = [
   { value: 'employee', label: 'Employee' },
   { value: 'department', label: 'Department' },
+  { value: 'contact', label: 'CRM Contact' },
+  { value: 'company', label: 'CRM Company' },
+  { value: 'deal', label: 'CRM Deal' },
 ] as const;
 
 type EntityType = typeof ENTITY_TYPES[number]['value'];
@@ -97,6 +100,9 @@ export const RelatedToPopover = ({ entityType, entityId, onUpdate, children }: R
 const EntityList = ({ type, search, onSelect }: { type: EntityType; search: string; onSelect: (id: string) => void }) => {
   if (type === 'employee') return <EmployeeList search={search} onSelect={onSelect} />;
   if (type === 'department') return <DepartmentList search={search} onSelect={onSelect} />;
+  if (type === 'contact') return <ContactList search={search} onSelect={onSelect} />;
+  if (type === 'company') return <CompanyList search={search} onSelect={onSelect} />;
+  if (type === 'deal') return <DealList search={search} onSelect={onSelect} />;
   return null;
 };
 
@@ -149,6 +155,127 @@ const DepartmentList = ({ search, onSelect }: { search: string; onSelect: (id: s
           onClick={() => onSelect(dept.id)}
         >
           {dept.name}
+        </button>
+      ))}
+      {filtered.length === 0 && <p className="text-xs text-muted-foreground text-center py-3">No results</p>}
+    </div>
+  );
+};
+
+const ContactList = ({ search, onSelect }: { search: string; onSelect: (id: string) => void }) => {
+  const { currentOrg } = useOrganization();
+  const { data: contacts = [] } = useQuery({
+    queryKey: ['crm-contacts-picker', currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [];
+      const { data } = await supabase
+        .from('crm_contacts')
+        .select('id, first_name, last_name, email, company:crm_companies(name)')
+        .eq('organization_id', currentOrg.id)
+        .eq('is_archived', false)
+        .order('first_name')
+        .limit(200);
+      return data || [];
+    },
+    enabled: !!currentOrg?.id,
+  });
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return contacts.filter((c: any) => {
+      const name = `${c.first_name || ''} ${c.last_name || ''}`.toLowerCase();
+      return name.includes(q) || (c.email || '').toLowerCase().includes(q);
+    });
+  }, [contacts, search]);
+
+  return (
+    <div className="p-1">
+      {filtered.map((c: any) => (
+        <button
+          key={c.id}
+          className="w-full text-left px-3 py-1.5 text-xs rounded-md hover:bg-muted transition-colors"
+          onClick={() => onSelect(c.id)}
+        >
+          <span className="font-medium">{c.first_name} {c.last_name}</span>
+          {c.company?.name && <span className="text-muted-foreground ml-1">· {c.company.name}</span>}
+        </button>
+      ))}
+      {filtered.length === 0 && <p className="text-xs text-muted-foreground text-center py-3">No results</p>}
+    </div>
+  );
+};
+
+const CompanyList = ({ search, onSelect }: { search: string; onSelect: (id: string) => void }) => {
+  const { currentOrg } = useOrganization();
+  const { data: companies = [] } = useQuery({
+    queryKey: ['crm-companies-picker', currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [];
+      const { data } = await supabase
+        .from('crm_companies')
+        .select('id, name, industry')
+        .eq('organization_id', currentOrg.id)
+        .order('name')
+        .limit(200);
+      return data || [];
+    },
+    enabled: !!currentOrg?.id,
+  });
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return companies.filter((c: any) => c.name.toLowerCase().includes(q));
+  }, [companies, search]);
+
+  return (
+    <div className="p-1">
+      {filtered.map((c: any) => (
+        <button
+          key={c.id}
+          className="w-full text-left px-3 py-1.5 text-xs rounded-md hover:bg-muted transition-colors"
+          onClick={() => onSelect(c.id)}
+        >
+          <span className="font-medium">{c.name}</span>
+          {c.industry && <span className="text-muted-foreground ml-1">· {c.industry}</span>}
+        </button>
+      ))}
+      {filtered.length === 0 && <p className="text-xs text-muted-foreground text-center py-3">No results</p>}
+    </div>
+  );
+};
+
+const DealList = ({ search, onSelect }: { search: string; onSelect: (id: string) => void }) => {
+  const { currentOrg } = useOrganization();
+  const { data: deals = [] } = useQuery({
+    queryKey: ['crm-deals-picker', currentOrg?.id],
+    queryFn: async () => {
+      if (!currentOrg?.id) return [];
+      const { data } = await supabase
+        .from('crm_deals')
+        .select('id, title, contact:crm_contacts!crm_deals_contact_id_fkey(first_name, last_name)')
+        .eq('organization_id', currentOrg.id)
+        .order('created_at', { ascending: false })
+        .limit(200);
+      return data || [];
+    },
+    enabled: !!currentOrg?.id,
+  });
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return deals.filter((d: any) => d.title.toLowerCase().includes(q));
+  }, [deals, search]);
+
+  return (
+    <div className="p-1">
+      {filtered.map((d: any) => (
+        <button
+          key={d.id}
+          className="w-full text-left px-3 py-1.5 text-xs rounded-md hover:bg-muted transition-colors"
+          onClick={() => onSelect(d.id)}
+        >
+          <span className="font-medium">{d.title}</span>
+          {d.contact && <span className="text-muted-foreground ml-1">· {d.contact.first_name} {d.contact.last_name}</span>}
         </button>
       ))}
       {filtered.length === 0 && <p className="text-xs text-muted-foreground text-center py-3">No results</p>}
