@@ -175,6 +175,8 @@ export const UserDetailSheet = ({ open, onOpenChange, user, onUserDeleted }: Use
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [activityPeriod, setActivityPeriod] = useState<TimePeriod>('all');
+  const [superAdminDialogOpen, setSuperAdminDialogOpen] = useState(false);
+  const [toggingSuperAdmin, setTogglingSuperAdmin] = useState(false);
   const [stats, setStats] = useState({
     totalVisits: 0,
     totalActivities: 0,
@@ -476,12 +478,21 @@ export const UserDetailSheet = ({ open, onOpenChange, user, onUserDeleted }: Use
                 <div className="flex items-center gap-1.5 flex-1 min-w-0">
                   <Shield className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                   <span className="text-muted-foreground shrink-0">Roles:</span>
-                  <div className="flex gap-1 flex-wrap">
+                  <div className="flex gap-1 flex-wrap items-center">
                     {user.roles.length > 0 ? user.roles.map((role) => (
                       <Badge key={role} variant={role === 'super_admin' ? 'destructive' : 'secondary'} className="text-[10px] px-1.5 py-0">
                         {role.replace('_', ' ')}
                       </Badge>
                     )) : <span className="text-muted-foreground text-xs">None</span>}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 px-1.5 text-[10px] gap-1"
+                      onClick={() => setSuperAdminDialogOpen(true)}
+                    >
+                      <Shield className="h-3 w-3" />
+                      {user.roles.includes('super_admin') ? 'Revoke Super Admin' : 'Grant Super Admin'}
+                    </Button>
                   </div>
                 </div>
                 <div className="h-4 w-px bg-border" />
