@@ -302,7 +302,10 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
           </div>
         )}
         {cols.map(col => (
-          <div key={col.key}>{renderCell(col)}</div>
+          <div key={col.key} className={cn(
+            'flex items-center min-w-0',
+            (col.key === 'comments' || col.key === 'attachments') && 'justify-center'
+          )}>{renderCell(col)}</div>
         ))}
         {/* Actions column - always rendered at the end */}
         <div className="flex justify-end">

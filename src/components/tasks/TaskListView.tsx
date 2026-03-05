@@ -313,7 +313,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                 {/* Column headers */}
                 {(statusTasks.length > 0 || addingInStatusId === status.id) && (
                   <div
-                    className={cn('grid gap-2', 'px-3 py-1 text-xs text-muted-foreground border-t bg-muted/20')}
+                    className={cn('grid gap-2 items-center', 'px-3 py-1 text-xs text-muted-foreground border-t bg-muted/20')}
                     style={gridStyle}
                   >
                     {selectionActive && (
