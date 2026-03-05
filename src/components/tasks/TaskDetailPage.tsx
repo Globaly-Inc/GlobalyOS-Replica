@@ -69,7 +69,6 @@ export const TaskDetailPage = ({ taskId, onClose, onPrev, onNext }: TaskDetailPa
   const [description, setDescription] = useState('');
   const [newChecklistItem, setNewChecklistItem] = useState('');
   const [commentText, setCommentText] = useState('');
-  const [activeTab, setActiveTab] = useState<'comments' | 'logs'>('comments');
   const [newTag, setNewTag] = useState('');
 
   useEffect(() => {
@@ -403,63 +402,66 @@ export const TaskDetailPage = ({ taskId, onClose, onPrev, onNext }: TaskDetailPa
 
         {/* Right panel: Comments & Logs */}
         <div className="w-80 border-l flex flex-col shrink-0">
-          <div className="flex border-b">
-            <button
-              className={cn('flex-1 py-2 text-xs font-medium text-center border-b-2 transition-colors',
-                activeTab === 'comments' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'
-              )}
-              onClick={() => setActiveTab('comments')}
-            >Comments ({comments.length})</button>
-            <button
-              className={cn('flex-1 py-2 text-xs font-medium text-center border-b-2 transition-colors',
-                activeTab === 'logs' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'
-              )}
-              onClick={() => setActiveTab('logs')}
-            >Activity</button>
+          <div className="px-3 py-2.5 border-b">
+            <h3 className="text-xs font-medium text-foreground">Comments & Logs</h3>
           </div>
 
           <ScrollArea className="flex-1">
-            {activeTab === 'comments' ? (
-              <div className="p-3 space-y-3">
-                {comments.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">No comments yet.</p>}
-                {comments.map(comment => (
-                  <div key={comment.id} className="flex gap-2">
-                    <Avatar className="h-6 w-6 shrink-0">
-                      <AvatarImage src={comment.employee?.avatar_url || undefined} />
-                      <AvatarFallback className="text-[10px]">{comment.employee?.full_name?.charAt(0) || '?'}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline gap-1.5">
-                        <span className="text-xs font-medium truncate">{comment.employee?.full_name || 'Unknown'}</span>
-                        <span className="text-[10px] text-muted-foreground shrink-0">
-                          {comment.created_at ? format(new Date(comment.created_at), 'MMM d, HH:mm') : ''}
-                        </span>
+            <div className="p-3 space-y-3">
+              {comments.length === 0 && activityLogs.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-4">No activity yet.</p>
+              )}
+              {[
+                ...comments.map(c => ({ ...c, _type: 'comment' as const })),
+                ...activityLogs.map(l => ({ ...l, _type: 'activity' as const })),
+              ]
+                .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+                .map(item => {
+                  if (item._type === 'comment') {
+                    const comment = item;
+                    return (
+                      <div key={`c-${comment.id}`} className="flex gap-2">
+                        <Avatar className="h-6 w-6 shrink-0 mt-0.5">
+                          <AvatarImage src={comment.employee?.avatar_url || undefined} />
+                          <AvatarFallback className="text-[10px]">{comment.employee?.full_name?.charAt(0) || '?'}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="text-xs font-medium truncate">{comment.employee?.full_name || 'Unknown'}</span>
+                            <span className="text-[10px] text-muted-foreground shrink-0">
+                              {comment.created_at ? format(new Date(comment.created_at), 'd MMM yyyy, h:mm a') : ''}
+                            </span>
+                          </div>
+                          <div className="rounded-lg bg-muted/50 px-3 py-2 mt-1">
+                            <p className="text-xs text-foreground">{comment.content}</p>
+                          </div>
+                        </div>
                       </div>
-                      <p className="text-xs text-foreground mt-0.5">{comment.content}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="p-3 space-y-2">
-                {activityLogs.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">No activity yet.</p>}
-                {activityLogs.map(log => (
-                  <div key={log.id} className="flex gap-2 text-xs">
-                    <Avatar className="h-5 w-5 shrink-0">
-                      <AvatarImage src={log.actor?.avatar_url || undefined} />
-                      <AvatarFallback className="text-[8px]">{log.actor?.full_name?.charAt(0) || '?'}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <span className="font-medium">{log.actor?.full_name || 'System'}</span>
-                      <span className="text-muted-foreground"> {log.action_type.replace(/_/g, ' ')}</span>
-                      <div className="text-[10px] text-muted-foreground mt-0.5">
-                        {log.created_at ? format(new Date(log.created_at), 'MMM d, HH:mm') : ''}
+                    );
+                  } else {
+                    const log = item;
+                    return (
+                      <div key={`a-${log.id}`} className="flex gap-2 items-start">
+                        <Avatar className="h-6 w-6 shrink-0 mt-0.5">
+                          <AvatarImage src={log.actor?.avatar_url || undefined} />
+                          <AvatarFallback className="text-[10px]">{log.actor?.full_name?.charAt(0) || '?'}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0 text-xs">
+                          <div className="flex items-baseline justify-between gap-1">
+                            <span>
+                              <span className="font-medium">{log.actor?.full_name || 'System'}</span>
+                              <span className="text-muted-foreground"> {log.action_type.replace(/_/g, ' ')}</span>
+                            </span>
+                            <span className="text-[10px] text-muted-foreground shrink-0">
+                              {log.created_at ? format(new Date(log.created_at), 'd MMM yyyy, h:mm a') : ''}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                    );
+                  }
+                })}
+            </div>
           </ScrollArea>
 
           <div className="p-3 border-t">
