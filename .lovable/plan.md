@@ -1,20 +1,24 @@
 
 
-## Add Super Admin Role Toggle in UserDetailSheet
+## Make Logo Navigate to Public Website Home
 
-### Summary
-Add a button next to the Roles display (line 475-493) in the super admin UserDetailSheet that allows a super admin to grant or revoke `super_admin` access for the selected user.
+### Problem
+The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
 
-### Changes
+### Solution
+
+**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
+- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
+- This gives the landing page a stable URL accessible regardless of auth state
+
+**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
+- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
+
+### Technical Details
 
 | File | Change |
 |------|--------|
-| `src/components/super-admin/UserDetailSheet.tsx` | Add a "Grant Super Admin" / "Revoke Super Admin" button next to the roles badges (around line 485). The button toggles the `super_admin` role in the `user_roles` table for the user. Include a confirmation `AlertDialog` before granting/revoking. On success, refresh the user data and show a toast. |
+| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
+| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
 
-### Implementation Detail
-
-- **Button placement**: Inside the roles `div` (line 476-486), after the badges list, add a small icon button (Shield icon) that says "Grant Super Admin" or "Revoke Super Admin" depending on whether `user.roles.includes('super_admin')`.
-- **Confirmation dialog**: Use the existing `AlertDialog` pattern already imported in the file. Warn that this gives full platform-level access.
-- **Mutation**: Insert into or delete from `user_roles` table with `role: 'super_admin'` and `user_id: user.id` (no `organization_id` needed for super_admin, matching the pattern in `useSuperAdmin.tsx`).
-- **Post-action**: Call `onUserDeleted` callback (or add an `onUserUpdated` prop) to refresh the parent user list, and update local state to reflect the change immediately.
-
+This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
