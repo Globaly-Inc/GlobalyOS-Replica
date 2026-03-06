@@ -12,7 +12,7 @@ import { useTaskAttachments, useUploadTaskAttachment, useDeleteTaskAttachment } 
 import { supabase } from '@/integrations/supabase/client';
 import { PrioritySelector, CategorySelector, AssigneeSelector, DueDateSelector, TagsSelector } from './TaskInlineCellEditors';
 import { Checkbox } from '@/components/ui/checkbox';
-import type { TaskWithRelations, TaskCategoryRow } from '@/types/task';
+import type { TaskWithRelations, TaskCategoryRow, TaskStatusRow } from '@/types/task';
 import { ChevronRight } from 'lucide-react';
 import type { ColumnConfig } from './TaskColumnCustomizer';
 import { format, parseISO } from 'date-fns';
@@ -219,6 +219,7 @@ interface TaskRowProps {
   visibleColumns?: ColumnConfig[];
   gridStyle?: React.CSSProperties;
   categories?: TaskCategoryRow[];
+  statuses?: TaskStatusRow[];
   members?: { id: string; full_name: string; avatar_url: string | null }[];
   spaceId: string;
   selected?: boolean;
@@ -227,7 +228,7 @@ interface TaskRowProps {
   isAllTasksMode?: boolean;
 }
 
-export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories = [], members = [], spaceId, selected, onToggleSelect, allTags = [], isAllTasksMode }: TaskRowProps) => {
+export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories = [], statuses = [], members = [], spaceId, selected, onToggleSelect, allTags = [], isAllTasksMode }: TaskRowProps) => {
   const priority = priorityConfig[task.priority] || priorityConfig.normal;
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
@@ -282,16 +283,40 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
             )}
             <div className="flex items-center gap-1.5 min-w-0">
               {task.status && (
-                <span
-                  className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0"
-                  style={{
-                    backgroundColor: `${task.status.color}20`,
-                    color: task.status.color || '#6b7280',
-                  }}
-                >
-                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: task.status.color || '#6b7280' }} />
-                  {task.status.name}
-                </span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                      style={{
+                        backgroundColor: `${task.status.color}20`,
+                        color: task.status.color || '#6b7280',
+                      }}
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: task.status.color || '#6b7280' }} />
+                      {task.status.name}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-48 p-1" align="start" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex flex-col gap-0.5">
+                      {statuses.map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => handleUpdate('status_id', s.id)}
+                          className={cn(
+                            'flex items-center gap-2 px-2 py-1.5 rounded text-xs w-full text-left hover:bg-accent transition-colors',
+                            task.status_id === s.id && 'bg-accent font-medium'
+                          )}
+                        >
+                          <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: s.color || '#6b7280' }} />
+                          <span className="truncate">{s.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               )}
               {task.category && (
                 <span
