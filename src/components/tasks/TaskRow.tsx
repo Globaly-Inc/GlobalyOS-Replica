@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { useUpdateTask, useDeleteTask } from '@/services/useTasks';
+import { useUpdateTask, useDeleteTask, useTaskComments, useCreateTaskComment } from '@/services/useTasks';
 import { useTaskAttachments, useUploadTaskAttachment, useDeleteTaskAttachment } from '@/services/useTaskAttachments';
 import { supabase } from '@/integrations/supabase/client';
 import { PrioritySelector, CategorySelector, AssigneeSelector, DueDateSelector, TagsSelector } from './TaskInlineCellEditors';
@@ -15,7 +15,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import type { TaskWithRelations, TaskCategoryRow } from '@/types/task';
 import type { ColumnConfig } from './TaskColumnCustomizer';
 import { format, parseISO } from 'date-fns';
-import { MoreHorizontal, Trash2, Paperclip, Download, FileIcon } from 'lucide-react';
+import { MoreHorizontal, Trash2, Paperclip, Download, FileIcon, MessageSquare, Send } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { useRelativeTime } from '@/hooks/useRelativeTime';
 import { toast } from 'sonner';
 
 const formatFileSize = (bytes: number | null) => {
@@ -126,6 +128,78 @@ const AttachmentCell = ({ taskId, organizationId, count }: { taskId: string; org
           className="hidden"
           onChange={handleFileSelect}
         />
+      </PopoverContent>
+    </Popover>
+  );
+};
+const CommentCell = ({ taskId, organizationId, count }: { taskId: string; organizationId: string; count: number }) => {
+  const [open, setOpen] = useState(false);
+  const [content, setContent] = useState('');
+  const { data: comments = [], isLoading } = useTaskComments(open ? taskId : undefined);
+  const createComment = useCreateTaskComment();
+  const { getShortRelativeTime } = useRelativeTime();
+
+  const handleSubmit = async () => {
+    if (!content.trim()) return;
+    try {
+      await createComment.mutateAsync({ task_id: taskId, content: content.trim() });
+      setContent('');
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const getInitials = (name?: string | null) => {
+    if (!name) return '?';
+    return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors" onClick={e => e.stopPropagation()}>
+          <MessageSquare className="h-3.5 w-3.5" />
+          {(open ? comments.length : count) || 0}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 p-0" align="center" side="bottom" onClick={e => e.stopPropagation()}>
+        <div className="px-3 py-2 border-b">
+          <span className="text-sm font-medium">Comments</span>
+        </div>
+        <ScrollArea className="max-h-60">
+          <div className="p-2 space-y-2">
+            {comments.map(c => (
+              <div key={c.id} className="flex gap-2">
+                <Avatar className="h-6 w-6 shrink-0 mt-0.5">
+                  <AvatarImage src={c.employee?.avatar_url || ''} />
+                  <AvatarFallback className="text-[9px] bg-muted">{getInitials(c.employee?.full_name)}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-medium truncate">{c.employee?.full_name || 'Unknown'}</span>
+                    <span className="text-[10px] text-muted-foreground shrink-0">{getShortRelativeTime(c.created_at)}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5 whitespace-pre-wrap">{c.content}</p>
+                </div>
+              </div>
+            ))}
+            {comments.length === 0 && !isLoading && (
+              <p className="text-xs text-muted-foreground text-center py-3">No comments yet</p>
+            )}
+          </div>
+        </ScrollArea>
+        <div className="flex gap-1.5 p-2 border-t">
+          <Input
+            value={content}
+            onChange={e => setContent(e.target.value)}
+            placeholder="Add a comment…"
+            className="text-xs h-8"
+            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSubmit()}
+          />
+          <Button size="icon" className="h-8 w-8 shrink-0" onClick={handleSubmit} disabled={!content.trim() || createComment.isPending}>
+            <Send className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </PopoverContent>
     </Popover>
   );
@@ -250,11 +324,7 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
           </TagsSelector>
         );
       case 'comments':
-        return (
-          <span className="text-xs text-muted-foreground text-center">
-            {task.comment_count || 0}
-          </span>
-        );
+        return <CommentCell taskId={task.id} organizationId={task.organization_id} count={task.comment_count || 0} />;
       case 'attachments':
         return <AttachmentCell taskId={task.id} organizationId={task.organization_id} count={task.attachment_count || 0} />;
       case 'priority':
