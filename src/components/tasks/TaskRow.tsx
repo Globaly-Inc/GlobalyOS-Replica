@@ -517,6 +517,13 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <MoveTaskDialog
+        open={showMoveDialog}
+        onOpenChange={setShowMoveDialog}
+        currentListId={task.list_id}
+        onMove={(listId) => handleUpdate('list_id', listId)}
+      />
     </>
   );
 };
