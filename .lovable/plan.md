@@ -1,24 +1,22 @@
 
 
-## Make Logo Navigate to Public Website Home
+## Add "Create Task List" Dialog
 
 ### Problem
-The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
+Currently, clicking "Task List" from the `+` dropdown menu instantly creates a list named "New List" without any user input. The user wants a dialog popup (similar to "Create Space") where they can type a name before creating.
 
-### Solution
+### Changes
 
-**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
-- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
-- This gives the landing page a stable URL accessible regardless of auth state
+**New file: `src/components/tasks/CreateListDialog.tsx`**
+- A simple dialog with a name input field (similar to `CreateFolderDialog`)
+- Props: `open`, `onOpenChange`, `spaceId`, `folderId?`, `onCreated` callback
+- Uses `useCreateTaskList` to create the list on submit
+- Auto-focus on the name input, Enter key submits
 
-**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
-- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
+**File: `src/components/tasks/TaskInnerSidebar.tsx`**
+- Replace `handleAddList` direct creation with state to open the new `CreateListDialog`
+- Add state: `createListDialogOpen` and `createListFolderId` (to track which folder context, if any)
+- When "Task List" menu item is clicked, set dialog open + optional folderId
+- On dialog success callback, select the newly created list and show toast
+- Render `CreateListDialog` inside the `SpaceSection` component
 
-### Technical Details
-
-| File | Change |
-|------|--------|
-| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
-| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
-
-This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
