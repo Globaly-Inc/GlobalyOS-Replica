@@ -373,6 +373,7 @@ const SpaceNode = ({
               folder={folder}
               spaceId={space.id}
               lists={allLists.filter(l => l.folder_id === folder.id)}
+              allFolders={folders}
               isExpanded={expandedFolders.has(folder.id)}
               onToggle={() => onToggleFolder(folder.id)}
               selection={selection}
@@ -380,6 +381,7 @@ const SpaceNode = ({
               onAddList={() => handleAddList(folder.id)}
               onDeleteList={handleDeleteList}
               onDeleteFolder={() => handleDeleteFolder(folder.id)}
+              onMoveList={(listId, targetFolderId) => handleMoveList(listId, targetFolderId)}
               onShare={onShare}
               onStartRename={onStartRename}
               renamingId={renamingId}
@@ -414,6 +416,7 @@ interface FolderNodeProps {
   folder: TaskFolderRow;
   spaceId: string;
   lists: TaskListRow[];
+  allFolders: TaskFolderRow[];
   isExpanded: boolean;
   onToggle: () => void;
   selection: SidebarSelection;
@@ -421,6 +424,7 @@ interface FolderNodeProps {
   onAddList: () => void;
   onDeleteList: (id: string) => void;
   onDeleteFolder: () => void;
+  onMoveList: (listId: string, targetFolderId: string | null) => void;
   onShare: (type: 'space' | 'folder' | 'list', id: string, name: string) => void;
   onStartRename: (type: 'space' | 'folder' | 'list', id: string, name: string) => void;
   renamingId: string | null;
@@ -432,8 +436,8 @@ interface FolderNodeProps {
 }
 
 const FolderNode = ({
-  folder, spaceId, lists, isExpanded, onToggle,
-  selection, onSelectItem, onAddList, onDeleteList, onDeleteFolder, onShare,
+  folder, spaceId, lists, allFolders, isExpanded, onToggle,
+  selection, onSelectItem, onAddList, onDeleteList, onDeleteFolder, onMoveList, onShare,
   onStartRename, renamingId, renamingType, renameValue, onRenameValueChange, onRenameSubmit, onRenameCancel,
 }: FolderNodeProps) => {
   const isFolderSelected = selection.type === 'folder' && selection.id === folder.id;
@@ -507,8 +511,8 @@ const FolderNode = ({
               onDelete={() => onDeleteList(list.id)}
               onShare={() => onShare('list', list.id, list.name)}
               onRename={() => onStartRename('list', list.id, list.name)}
-              onMove={onMoveList}
-              folders={folders}
+              onMove={(targetFolderId) => onMoveList(list.id, targetFolderId)}
+              folders={allFolders}
               currentFolderId={folder.id}
               isRenaming={renamingId === list.id && renamingType === 'list'}
               renameValue={renameValue}
@@ -536,6 +540,9 @@ interface ListItemProps {
   onDelete: () => void;
   onShare: () => void;
   onRename: () => void;
+  onMove: (targetFolderId: string | null) => void;
+  folders: TaskFolderRow[];
+  currentFolderId: string | null;
   isRenaming: boolean;
   renameValue: string;
   onRenameValueChange: (v: string) => void;
@@ -544,7 +551,7 @@ interface ListItemProps {
   depth: number;
 }
 
-const ListItem = ({ list, isSelected, onSelect, onDelete, onShare, onRename, isRenaming, renameValue, onRenameValueChange, onRenameSubmit, onRenameCancel, depth }: ListItemProps) => (
+const ListItem = ({ list, isSelected, onSelect, onDelete, onShare, onRename, onMove, folders, currentFolderId, isRenaming, renameValue, onRenameValueChange, onRenameSubmit, onRenameCancel, depth }: ListItemProps) => (
   <div
     className={cn(
       'group flex items-center gap-1.5 pr-2 py-1 rounded-md cursor-pointer text-sm transition-colors',
