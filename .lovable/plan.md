@@ -1,24 +1,30 @@
 
 
-## Make Logo Navigate to Public Website Home
+## Delete "New features" Space and Preserve Tasks
 
-### Problem
-The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
+### What I Found
 
-### Solution
+"New features" is a **Space** (not a folder), containing **9 tasks**, no folders, and no lists. One task ("Adding task board") is linked to a list called "Test sprint" in the Marketing folder of another space.
 
-**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
-- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
-- This gives the landing page a stable URL accessible regardless of auth state
+### Plan
 
-**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
-- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
+This is a **data operation**, not a code change. I will:
 
-### Technical Details
+1. **Move all 9 tasks** out of the "New features" space by setting their `space_id` to another existing space (e.g. "GlobalyOS" or whichever you prefer). Tasks without a `list_id` will remain unassigned to any list but will be preserved in the target space.
 
-| File | Change |
-|------|--------|
-| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
-| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
+2. **Delete the "New features" space** record from `task_spaces`.
 
-This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
+### Question Before Proceeding
+
+Which space should the 9 tasks be moved to?
+
+| Space | Icon |
+|-------|------|
+| Content Management | 📁 |
+| Engineering | 🚀 |
+| Globaly App | ⚡ |
+| GlobalyOS | (custom) |
+| Product Team | 🎯 |
+
+Or should I move them to a **specific list** within one of these spaces?
+
