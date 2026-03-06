@@ -1,32 +1,24 @@
 
 
-## Add Category Icons to Task Views
+## Make Logo Navigate to Public Website Home
 
-### Summary
-Categories already store an `icon` field in the database (kebab-case lucide icon names like `mail`, `phone`, `bell`, `phone-call`). The UI currently ignores this field and only shows a colored dot or colored text. The plan is to render the actual lucide icon alongside the category name everywhere categories appear.
+### Problem
+The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
 
-### Changes
+### Solution
 
-**1. Create a small utility component: `src/components/tasks/CategoryIcon.tsx`**
-- Maps the `icon` string (kebab-case lucide name) to the corresponding lucide-react component using the `icons` map from `lucide-react`.
-- Falls back to a colored dot if no icon matches.
-- Accepts `size`, `color`, and `className` props.
+**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
+- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
+- This gives the landing page a stable URL accessible regardless of auth state
 
-**2. Update `TaskInlineCellEditors.tsx` — CategorySelector popover**
-- Replace the small colored dot (`h-2 w-2 rounded-full`) with the `CategoryIcon` component for each category option in the dropdown.
+**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
+- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
 
-**3. Update `TaskRow.tsx` — Category pill in the Name column (line ~324)**
-- Add the `CategoryIcon` before `task.category.name` in the inline category badge.
+### Technical Details
 
-**4. Update `TaskRow.tsx` — Standalone Category column cell (line ~363)**
-- Add the icon next to the category name text in the standalone column.
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
+| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
 
-**5. Update `TaskBoardView.tsx` — Board card category badge (line ~414)**
-- Replace the small colored dot with the `CategoryIcon` in the board card badge.
-
-**6. Update `TaskListView.tsx` — Inline creation row category cell (line ~204)**
-- Add icon next to category name in the inline creation row.
-
-### Result
-All category displays will show the matching lucide icon (like the reference image: envelope for Email, phone for Call, bell for Reminder) with the category color, matching the design pattern shown in the uploaded screenshot.
-
+This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.

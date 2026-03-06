@@ -18,6 +18,7 @@ import {
 import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { MoreHorizontal, Plus, Trash2, X } from 'lucide-react';
+import CategoryIcon from './CategoryIcon';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -412,7 +413,7 @@ const TaskCard = ({ task, onClick, isDragging, spaceId, selectionActive, selecte
         <div className="flex items-center gap-1.5 flex-wrap">
           {task.category && (
             <Badge variant="outline" className="text-[10px] h-4 px-1 gap-1">
-              <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: task.category.color || '#6b7280' }} />
+              <CategoryIcon iconName={task.category.icon} fallbackColor={task.category.color || '#6b7280'} size={10} style={{ color: task.category.color || '#6b7280' }} />
               {task.category.name}
             </Badge>
           )}

@@ -9,6 +9,7 @@ import { TaskRow } from './TaskRow';
 import { useEmployees } from '@/services/useEmployees';
 import { useCreateTask, useBulkDeleteTasks } from '@/services/useTasks';
 import { PrioritySelector, CategorySelector, AssigneeSelector, DueDateSelector, TagsSelector } from './TaskInlineCellEditors';
+import CategoryIcon from './CategoryIcon';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { TaskBulkActionsBar } from './TaskBulkActionsBar';
@@ -204,7 +205,8 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
       case 'category':
         return (
           <CategorySelector value={inlineCategoryId} categories={categories} onChange={setInlineCategoryId}>
-            <button className="text-xs text-muted-foreground truncate hover:text-foreground transition-colors text-left w-full" onClick={(e) => e.stopPropagation()}>
+            <button className="flex items-center gap-1.5 text-xs text-muted-foreground truncate hover:text-foreground transition-colors text-left w-full" onClick={(e) => e.stopPropagation()}>
+              {category ? <CategoryIcon iconName={category.icon} fallbackColor={category.color} size={12} style={{ color: category.color || undefined }} /> : null}
               {category?.name || '—'}
             </button>
           </CategorySelector>

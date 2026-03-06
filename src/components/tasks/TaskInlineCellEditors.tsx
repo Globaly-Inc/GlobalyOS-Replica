@@ -9,6 +9,7 @@ import { Check, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Plus } from 'lucide-react';
 import type { TaskCategoryRow } from '@/types/task';
+import CategoryIcon from './CategoryIcon';
 
 // ─── Priority Selector ───
 
@@ -88,7 +89,7 @@ export const CategorySelector = ({ value, categories, onChange, children }: Cate
             )}
             onClick={() => { onChange(c.id); setOpen(false); }}
           >
-            <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: c.color || '#6b7280' }} />
+            <CategoryIcon iconName={c.icon} fallbackColor={c.color || '#6b7280'} size={14} style={{ color: c.color || '#6b7280' }} />
             <span className="truncate">{c.name}</span>
             {value === c.id && <Check className="h-3 w-3 ml-auto text-primary" />}
           </button>

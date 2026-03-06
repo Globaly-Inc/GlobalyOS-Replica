@@ -11,6 +11,7 @@ import { useUpdateTask, useDeleteTask, useTaskComments, useCreateTaskComment } f
 import { useTaskAttachments, useUploadTaskAttachment, useDeleteTaskAttachment } from '@/services/useTaskAttachments';
 import { supabase } from '@/integrations/supabase/client';
 import { PrioritySelector, CategorySelector, AssigneeSelector, DueDateSelector, TagsSelector } from './TaskInlineCellEditors';
+import CategoryIcon from './CategoryIcon';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { TaskWithRelations, TaskCategoryRow, TaskStatusRow } from '@/types/task';
 import { ChevronRight } from 'lucide-react';
@@ -322,12 +323,13 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
               )}
               {task.category && (
                 <span
-                  className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0"
+                  className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0"
                   style={{
                     backgroundColor: `${task.category.color}20`,
                     color: task.category.color || '#6b7280',
                   }}
                 >
+                  <CategoryIcon iconName={task.category.icon} fallbackColor={task.category.color} size={10} />
                   {task.category.name}
                 </span>
               )}
@@ -367,7 +369,8 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
             categories={categories}
             onChange={(val) => handleUpdate('category_id', val)}
           >
-            <button className="text-xs text-muted-foreground truncate hover:text-foreground transition-colors text-left w-full">
+            <button className="flex items-center gap-1.5 text-xs text-muted-foreground truncate hover:text-foreground transition-colors text-left w-full">
+              {task.category ? <CategoryIcon iconName={task.category.icon} fallbackColor={task.category.color} size={12} style={{ color: task.category.color || undefined }} /> : null}
               {task.category?.name || '—'}
             </button>
           </CategorySelector>
