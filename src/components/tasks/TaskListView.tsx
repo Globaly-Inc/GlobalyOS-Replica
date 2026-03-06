@@ -359,6 +359,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                     visibleColumns={visibleColumns}
                     gridStyle={gridStyle}
                     categories={categories}
+                    statuses={statuses}
                     members={members}
                     spaceId={spaceId}
                     selected={selectedTaskIds.has(task.id)}
