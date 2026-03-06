@@ -579,8 +579,8 @@ export const useUpdateTask = () => {
             task_id: id,
             actor_id: employee.id,
             action_type: fieldActionMap[k] || 'field_updated',
-            old_value: oldData[k] != null ? { [k]: oldData[k] } : null,
-            new_value: (updates as any)[k] != null ? { [k]: (updates as any)[k] } : null,
+            old_value: (oldData[k] != null ? { [k]: oldData[k] } : null) as import('@/integrations/supabase/types').Json,
+            new_value: ((updates as any)[k] != null ? { [k]: (updates as any)[k] } : null) as import('@/integrations/supabase/types').Json,
           }));
 
         if (logs.length > 0) {

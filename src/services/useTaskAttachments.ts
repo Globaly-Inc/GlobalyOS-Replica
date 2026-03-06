@@ -47,26 +47,54 @@ export const useUploadTaskAttachment = () => {
         .select()
         .single();
       if (error) throw error;
+
+      // Log attachment upload activity
+      if (employee?.id && currentOrg?.id) {
+        await supabase.from('task_activity_logs').insert({
+          organization_id: currentOrg.id,
+          task_id: taskId,
+          actor_id: employee.id,
+          action_type: 'attachment_added',
+          new_value: { file_name: file.name } as import('@/integrations/supabase/types').Json,
+        });
+      }
+
       return data;
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['task-attachments', data.task_id] });
+      qc.invalidateQueries({ queryKey: ['task-activity-logs', data.task_id] });
     },
   });
 };
 
 export const useDeleteTaskAttachment = () => {
   const qc = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: employee } = useCurrentEmployee();
 
   return useMutation({
-    mutationFn: async ({ id, taskId, filePath }: { id: string; taskId: string; filePath: string }) => {
+    mutationFn: async ({ id, taskId, filePath, fileName }: { id: string; taskId: string; filePath: string; fileName?: string }) => {
       await supabase.storage.from('task-attachments').remove([filePath]);
       const { error } = await supabase.from('task_attachments').delete().eq('id', id);
       if (error) throw error;
+
+      // Log attachment removal activity
+      if (employee?.id && currentOrg?.id) {
+        await supabase.from('task_activity_logs').insert({
+          organization_id: currentOrg.id,
+          task_id: taskId,
+          actor_id: employee.id,
+          action_type: 'attachment_removed',
+          old_value: fileName ? { file_name: fileName } as import('@/integrations/supabase/types').Json : null,
+        });
+      }
+
       return taskId;
     },
     onSuccess: (taskId) => {
       qc.invalidateQueries({ queryKey: ['task-attachments', taskId] });
+      qc.invalidateQueries({ queryKey: ['task-activity-logs', taskId] });
     },
   });
 };
