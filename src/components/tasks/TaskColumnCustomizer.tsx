@@ -187,7 +187,7 @@ export const TaskColumnCustomizer = ({ columns, onColumnsChange, spaceId }: Task
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="h-8 gap-1.5">
           <Settings2 className="h-3.5 w-3.5" />
-          Customize
+          Columns
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-64 p-0" align="end">
