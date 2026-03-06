@@ -12,12 +12,12 @@ interface ProjectDashboardProps {
 }
 
 const CHART_COLORS = [
-  'hsl(var(--primary))',
-  'hsl(var(--chart-2, 160 60% 45%))',
-  'hsl(var(--chart-3, 30 80% 55%))',
-  'hsl(var(--chart-4, 280 65% 60%))',
-  'hsl(var(--chart-5, 340 75% 55%))',
-];
+'hsl(var(--primary))',
+'hsl(var(--chart-2, 160 60% 45%))',
+'hsl(var(--chart-3, 30 80% 55%))',
+'hsl(var(--chart-4, 280 65% 60%))',
+'hsl(var(--chart-5, 340 75% 55%))'];
+
 
 export function ProjectDashboard({ spaceId, spaces }: ProjectDashboardProps) {
   const { data, isLoading } = useProjectDashboardData(spaceId, spaces);
@@ -26,16 +26,16 @@ export function ProjectDashboard({ spaceId, spaces }: ProjectDashboardProps) {
     return (
       <div className="flex-1 flex items-center justify-center p-6">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+      </div>);
+
   }
 
   if (!data) return null;
 
   const donutData = [
-    { name: 'Completed', value: data.completedTasks },
-    { name: 'Remaining', value: data.totalTasks - data.completedTasks },
-  ];
+  { name: 'Completed', value: data.completedTasks },
+  { name: 'Remaining', value: data.totalTasks - data.completedTasks }];
+
 
   return (
     <div className="p-6 space-y-6">
@@ -62,8 +62,8 @@ export function ProjectDashboard({ spaceId, spaces }: ProjectDashboardProps) {
                       startAngle={90}
                       endAngle={-270}
                       dataKey="value"
-                      strokeWidth={0}
-                    >
+                      strokeWidth={0}>
+                      
                       <Cell fill="hsl(var(--primary))" />
                       <Cell fill="hsl(var(--muted))" />
                     </Pie>
@@ -81,7 +81,7 @@ export function ProjectDashboard({ spaceId, spaces }: ProjectDashboardProps) {
         {/* Sprint Velocity */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-medium flex items-center gap-2">
+            <CardTitle className="text-base font-medium flex items-center gap-2">Document list
               <TrendingUp className="h-4 w-4 text-primary" />
               Sprint Velocity (Last 6 Weeks)
             </CardTitle>
@@ -98,17 +98,17 @@ export function ProjectDashboard({ spaceId, spaces }: ProjectDashboardProps) {
                       backgroundColor: 'hsl(var(--card))',
                       border: '1px solid hsl(var(--border))',
                       borderRadius: '8px',
-                      fontSize: '12px',
-                    }}
-                  />
+                      fontSize: '12px'
+                    }} />
+                  
                   <Line
                     type="monotone"
                     dataKey="completed"
                     stroke="hsl(var(--primary))"
                     strokeWidth={2}
                     dot={{ fill: 'hsl(var(--primary))', r: 4 }}
-                    activeDot={{ r: 6 }}
-                  />
+                    activeDot={{ r: 6 }} />
+                  
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -124,17 +124,17 @@ export function ProjectDashboard({ spaceId, spaces }: ProjectDashboardProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {data.subProjects.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">No sub-projects yet</p>
-            ) : (
-              <div className="space-y-3 max-h-48 overflow-y-auto">
-                {data.subProjects.map(sp => (
-                  <div key={sp.id} className="space-y-1">
+            {data.subProjects.length === 0 ?
+            <p className="text-sm text-muted-foreground py-4 text-center">No sub-projects yet</p> :
+
+            <div className="space-y-3 max-h-48 overflow-y-auto">
+                {data.subProjects.map((sp) =>
+              <div key={sp.id} className="space-y-1">
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-medium flex items-center gap-1.5">
-                        {isImageIcon(sp.icon) 
-                          ? <img src={sp.icon} alt="" className="h-4 w-4 rounded object-cover inline" />
-                          : <span>{sp.icon || '📂'}</span>}
+                        {isImageIcon(sp.icon) ?
+                    <img src={sp.icon} alt="" className="h-4 w-4 rounded object-cover inline" /> :
+                    <span>{sp.icon || '📂'}</span>}
                         {sp.name}
                       </span>
                       <span className="text-xs text-muted-foreground">
@@ -143,9 +143,9 @@ export function ProjectDashboard({ spaceId, spaces }: ProjectDashboardProps) {
                     </div>
                     <Progress value={sp.completionRate} className="h-1.5" />
                   </div>
-                ))}
+              )}
               </div>
-            )}
+            }
           </CardContent>
         </Card>
 
@@ -158,41 +158,41 @@ export function ProjectDashboard({ spaceId, spaces }: ProjectDashboardProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {data.tasksByAssignee.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">No tasks yet</p>
-            ) : (
-              <div className="h-48">
+            {data.tasksByAssignee.length === 0 ?
+            <p className="text-sm text-muted-foreground py-4 text-center">No tasks yet</p> :
+
+            <div className="h-48">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={data.tasksByAssignee} layout="vertical" margin={{ left: 0, right: 16 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
                     <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} className="text-muted-foreground" />
                     <YAxis
-                      type="category"
-                      dataKey="name"
-                      width={90}
-                      tick={{ fontSize: 11 }}
-                      className="text-muted-foreground"
-                    />
+                    type="category"
+                    dataKey="name"
+                    width={90}
+                    tick={{ fontSize: 11 }}
+                    className="text-muted-foreground" />
+                  
                     <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                      }}
-                    />
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      fontSize: '12px'
+                    }} />
+                  
                     <Bar dataKey="count" radius={[0, 4, 4, 0]}>
-                      {data.tasksByAssignee.map((_, i) => (
-                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                      ))}
+                      {data.tasksByAssignee.map((_, i) =>
+                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                    )}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-            )}
+            }
           </CardContent>
         </Card>
       </div>
-    </div>
-  );
+    </div>);
+
 }
