@@ -482,7 +482,11 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
                 <MoreHorizontal className="h-4 w-4" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-36">
+            <DropdownMenuContent align="end" className="w-48">
+              {!task.list_id && (
+                <MoveToFolderSubmenu spaceId={spaceId} onSelect={(listId) => handleUpdate('list_id', listId)} />
+              )}
+              {!task.list_id && <DropdownMenuSeparator />}
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
                 onClick={(e) => { e.stopPropagation(); setShowDeleteDialog(true); }}
