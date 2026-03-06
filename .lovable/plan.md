@@ -1,28 +1,24 @@
 
 
-## Fix: Tags Input Not Working in Task Detail Page
+## Make Logo Navigate to Public Website Home
 
-### Root Cause
-The tag input in `TaskDetailPage.tsx` (line 350-354) has several UX issues making it appear non-functional:
+### Problem
+The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
 
-1. **Too narrow** — `w-20` (80px) leaves almost no space to type when tags are present
-2. **Invisible styling** — `border-none shadow-none focus-visible:ring-0` makes the input undetectable
-3. **Focus loss on re-render** — After `updateTask.mutateAsync` succeeds, query invalidation (`['task', id]`) causes a re-render that resets focus away from the input
+### Solution
 
-### Fix (in `src/components/tasks/TaskDetailPage.tsx`, lines 341-356)
+**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
+- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
+- This gives the landing page a stable URL accessible regardless of auth state
 
-Replace the plain `Input` with a proper interactive tag management approach:
+**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
+- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
 
-1. **Widen the input** — change `w-20` to `w-28 min-w-[70px]` and add a subtle bottom border so users can see it
-2. **Add a visible "+" button** as a fallback to submit (not just Enter key)
-3. **Use `autoFocus` after adding** — after `handleAddTag`, use a ref to re-focus the input after the mutation completes, preventing focus loss on re-render
-4. **Wrap the `handleAddTag` logic** to call `setNewTag('')` before awaiting `handleFieldUpdate`, so the input clears immediately and stays responsive
+### Technical Details
 
-### Specific Code Changes
-
-| Area | Change |
+| File | Change |
 |------|--------|
-| Add an `inputRef` (`useRef<HTMLInputElement>`) | Re-focus after tag add via `setTimeout(() => inputRef.current?.focus(), 50)` |
-| Input styling (line 353) | Replace `w-20 border-none shadow-none px-1 focus-visible:ring-0` with `w-28 min-w-[70px] border-b border-dashed border-muted-foreground/30 shadow-none px-1 focus-visible:ring-1 rounded-none` |
-| `handleAddTag` (lines 124-130) | Optimistically clear `newTag`, then update, then re-focus the input via ref |
+| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
+| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
 
+This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
