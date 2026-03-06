@@ -265,6 +265,10 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
           </Tooltip>
         );
       default:
+        // Custom field columns render as dash in inline creation
+        if (col.key.startsWith('custom_')) {
+          return <span className="text-xs text-muted-foreground">—</span>;
+        }
         return null;
     }
   };

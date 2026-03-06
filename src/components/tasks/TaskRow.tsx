@@ -451,8 +451,24 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
             </button>
           </DueDateSelector>
         );
-      default:
+      default: {
+        // Custom field columns (key starts with 'custom_')
+        if (col.key.startsWith('custom_')) {
+          const fieldKey = col.key.replace('custom_', '');
+          const customFields = (task as any).custom_fields as Record<string, any> | null;
+          const value = customFields?.[fieldKey] ?? '';
+          return (
+            <CustomFieldCell
+              value={value}
+              onChange={(newVal) => {
+                const updated = { ...(customFields || {}), [fieldKey]: newVal };
+                handleUpdate('custom_fields', updated);
+              }}
+            />
+          );
+        }
         return null;
+      }
     }
   };
 

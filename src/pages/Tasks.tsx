@@ -274,7 +274,7 @@ const Tasks = () => {
                 )}
 
                 {viewMode === 'list' && (
-                  <TaskColumnCustomizer columns={columns} onColumnsChange={setColumns} />
+                  <TaskColumnCustomizer columns={columns} onColumnsChange={setColumns} spaceId={activeSpaceId || undefined} />
                 )}
 
                 <div className="flex-1" />
