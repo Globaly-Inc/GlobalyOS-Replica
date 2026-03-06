@@ -28,7 +28,7 @@ export interface ColumnConfig {
 
 const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: 'name', label: 'Name', visible: true },
-  { key: 'category', label: 'Category', visible: true },
+  { key: 'category', label: 'Category', visible: false },
   { key: 'assignee', label: 'Assignee', visible: true },
   { key: 'tags', label: 'Tags', visible: true },
   { key: 'comments', label: 'Comments', visible: true },
