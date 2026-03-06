@@ -369,7 +369,8 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
             categories={categories}
             onChange={(val) => handleUpdate('category_id', val)}
           >
-            <button className="text-xs text-muted-foreground truncate hover:text-foreground transition-colors text-left w-full">
+            <button className="flex items-center gap-1.5 text-xs text-muted-foreground truncate hover:text-foreground transition-colors text-left w-full">
+              {task.category ? <CategoryIcon iconName={task.category.icon} fallbackColor={task.category.color} size={12} style={{ color: task.category.color || undefined }} /> : null}
               {task.category?.name || '—'}
             </button>
           </CategorySelector>

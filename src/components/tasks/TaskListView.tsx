@@ -204,7 +204,8 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
       case 'category':
         return (
           <CategorySelector value={inlineCategoryId} categories={categories} onChange={setInlineCategoryId}>
-            <button className="text-xs text-muted-foreground truncate hover:text-foreground transition-colors text-left w-full" onClick={(e) => e.stopPropagation()}>
+            <button className="flex items-center gap-1.5 text-xs text-muted-foreground truncate hover:text-foreground transition-colors text-left w-full" onClick={(e) => e.stopPropagation()}>
+              {category ? <CategoryIcon iconName={category.icon} fallbackColor={category.color} size={12} style={{ color: category.color || undefined }} /> : null}
               {category?.name || '—'}
             </button>
           </CategorySelector>
