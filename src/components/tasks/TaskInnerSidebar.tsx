@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Plus, User, MoreHorizontal, Trash2, FolderOpen, List, Pencil, Share2, FolderPlus, ListPlus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, User, MoreHorizontal, Trash2, FolderOpen, List, Pencil, Share2, FolderPlus, ListPlus, ArrowRightLeft } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,7 @@ import { CreateFolderDialog } from './CreateFolderDialog';
 import { CreateListDialog } from './CreateListDialog';
 import { TaskSharingDialog } from './TaskSharingDialog';
 import { SpaceIconPicker } from './SpaceIconPicker';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 import type { SidebarSelection, TaskSpaceRow, TaskFolderRow, TaskListRow } from '@/types/task';
 import { toast } from 'sonner';
 
@@ -228,6 +228,15 @@ const SpaceNode = ({
     }
   };
 
+  const handleMoveList = async (listId: string, targetFolderId: string | null) => {
+    try {
+      await updateList.mutateAsync({ id: listId, folder_id: targetFolderId });
+      toast.success('List moved');
+    } catch {
+      toast.error('Failed to move list');
+    }
+  };
+
   const handleDeleteFolder = async (folderId: string) => {
     try {
       await deleteFolder.mutateAsync({ id: folderId, spaceId: space.id });
@@ -345,6 +354,9 @@ const SpaceNode = ({
               onDelete={() => handleDeleteList(list.id)}
               onShare={() => onShare('list', list.id, list.name)}
               onRename={() => onStartRename('list', list.id, list.name)}
+              onMove={(targetFolderId) => handleMoveList(list.id, targetFolderId)}
+              folders={folders}
+              currentFolderId={null}
               isRenaming={renamingId === list.id && renamingType === 'list'}
               renameValue={renameValue}
               onRenameValueChange={onRenameValueChange}
@@ -495,6 +507,9 @@ const FolderNode = ({
               onDelete={() => onDeleteList(list.id)}
               onShare={() => onShare('list', list.id, list.name)}
               onRename={() => onStartRename('list', list.id, list.name)}
+              onMove={onMoveList}
+              folders={folders}
+              currentFolderId={folder.id}
               isRenaming={renamingId === list.id && renamingType === 'list'}
               renameValue={renameValue}
               onRenameValueChange={onRenameValueChange}
