@@ -330,14 +330,45 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                         />
                       </div>
                     )}
-                    {visibleColumns.map(col => (
+                    {visibleColumns.map((col, idx) => (
                       <span
                         key={col.key}
                         className={cn(
+                          'relative select-none',
                           (col.key === 'comments' || col.key === 'attachments') && 'text-center'
                         )}
                       >
                         {col.key === 'comments' ? '💬' : col.key === 'attachments' ? '📎' : col.label}
+                        {/* Resize handle — skip for the last column and 'name' (flex) */}
+                        {col.key !== 'name' && idx < visibleColumns.length - 1 && (
+                          <div
+                            className="absolute right-0 top-0 h-full w-[5px] cursor-col-resize z-10 group hover:bg-primary/20 transition-colors"
+                            style={{ transform: 'translateX(50%)' }}
+                            onMouseDown={(e) => handleColResize(e, col.key)}
+                          >
+                            <div className="absolute right-[2px] top-1/2 -translate-y-1/2 h-3 w-px bg-border group-hover:bg-primary transition-colors" />
+                          </div>
+                        )}
+                        {/* Right-edge resize handle for last non-name column */}
+                        {col.key !== 'name' && idx === visibleColumns.length - 1 && (
+                          <div
+                            className="absolute right-0 top-0 h-full w-[5px] cursor-col-resize z-10 group hover:bg-primary/20 transition-colors"
+                            style={{ transform: 'translateX(50%)' }}
+                            onMouseDown={(e) => handleColResize(e, col.key)}
+                          >
+                            <div className="absolute right-[2px] top-1/2 -translate-y-1/2 h-3 w-px bg-border group-hover:bg-primary transition-colors" />
+                          </div>
+                        )}
+                        {/* Resize handle on the right edge of 'name' column */}
+                        {col.key === 'name' && visibleColumns.length > 1 && (
+                          <div
+                            className="absolute right-0 top-0 h-full w-[5px] cursor-col-resize z-10 group hover:bg-primary/20 transition-colors"
+                            style={{ transform: 'translateX(50%)' }}
+                            onMouseDown={(e) => handleColResize(e, visibleColumns[idx + 1]?.key)}
+                          >
+                            <div className="absolute right-[2px] top-1/2 -translate-y-1/2 h-3 w-px bg-border group-hover:bg-primary transition-colors" />
+                          </div>
+                        )}
                       </span>
                     ))}
                   </div>
