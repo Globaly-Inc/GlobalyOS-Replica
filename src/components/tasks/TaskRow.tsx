@@ -208,6 +208,37 @@ const CommentCell = ({ taskId, organizationId, count }: { taskId: string; organi
   );
 };
 
+const CustomFieldCell = ({ value, onChange }: { value: string; onChange: (val: string) => void }) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(String(value ?? ''));
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        className="w-full bg-transparent outline-none text-xs border-b border-input"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => { onChange(draft); setEditing(false); }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { onChange(draft); setEditing(false); }
+          if (e.key === 'Escape') { setDraft(String(value ?? '')); setEditing(false); }
+        }}
+        onClick={(e) => e.stopPropagation()}
+      />
+    );
+  }
+
+  return (
+    <button
+      className="text-xs text-left w-full truncate hover:text-foreground transition-colors"
+      onClick={(e) => { e.stopPropagation(); setEditing(true); setDraft(String(value ?? '')); }}
+    >
+      {value || <span className="text-muted-foreground">—</span>}
+    </button>
+  );
+};
+
 const priorityConfig: Record<string, { label: string; className: string }> = {
   urgent: { label: 'Urgent', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
   high: { label: 'High', className: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
@@ -451,8 +482,24 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
             </button>
           </DueDateSelector>
         );
-      default:
+      default: {
+        // Custom field columns (key starts with 'custom_')
+        if (col.key.startsWith('custom_')) {
+          const fieldKey = col.key.replace('custom_', '');
+          const customFields = (task as any).custom_fields as Record<string, any> | null;
+          const value = customFields?.[fieldKey] ?? '';
+          return (
+            <CustomFieldCell
+              value={value}
+              onChange={(newVal) => {
+                const updated = { ...(customFields || {}), [fieldKey]: newVal };
+                handleUpdate('custom_fields', updated);
+              }}
+            />
+          );
+        }
         return null;
+      }
     }
   };
 

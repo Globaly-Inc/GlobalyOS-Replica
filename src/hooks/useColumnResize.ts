@@ -25,7 +25,7 @@ export function useColumnResize(initialWidths?: ColumnWidths) {
   const handleMouseDown = useCallback((e: React.MouseEvent, colKey: string) => {
     e.preventDefault();
     e.stopPropagation();
-    const startWidth = widths[colKey] || DEFAULT_WIDTHS[colKey] || 100;
+    const startWidth = widths[colKey] || DEFAULT_WIDTHS[colKey] || (colKey.startsWith('custom_') ? 120 : 100);
     draggingRef.current = { key: colKey, startX: e.clientX, startWidth };
 
     const onMouseMove = (ev: MouseEvent) => {
