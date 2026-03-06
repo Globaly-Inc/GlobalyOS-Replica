@@ -1,24 +1,42 @@
 
 
-## Make Logo Navigate to Public Website Home
+## Add Activity Logging for Task Updates
 
 ### Problem
-The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
+Currently, only task **creation** logs an entry to `task_activity_logs`. All other task mutations (status change, priority change, assignee change, tag updates, description edits, checklist operations, comments, attachments, follower changes, etc.) produce no activity log entries. The "Comments & Logs" panel in the Task Detail Page shows very few logs.
 
 ### Solution
+Add activity logging to `useUpdateTask` in `src/services/useTasks.ts` so that every field change is recorded, and also log checklist, comment, attachment, and follower actions.
 
-**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
-- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
-- This gives the landing page a stable URL accessible regardless of auth state
+### Changes
 
-**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
-- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
+**File: `src/services/useTasks.ts`**
 
-### Technical Details
+1. **`useUpdateTask`** — After the update succeeds, insert a `task_activity_logs` entry for each changed field. The mutation already receives the field names in the `updates` object. Log entries like:
+   - `status_changed` (with old/new status_id)
+   - `priority_changed`
+   - `assignee_changed`
+   - `due_date_changed`
+   - `tags_updated`
+   - `description_updated`
+   - `title_updated`
+   - `category_changed`
+   - Generic `field_updated` fallback
 
-| File | Change |
-|------|--------|
-| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
-| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
+2. **`useCreateTaskComment`** — Add a log entry: `commented`
 
-This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
+3. **`useCreateTaskChecklist`** — Add a log entry: `checklist_item_added`
+
+4. **`useUpdateTaskChecklist`** — Add a log entry: `checklist_item_toggled` (when `is_done` changes)
+
+5. **`useDeleteTaskChecklist`** — Add a log entry: `checklist_item_removed`
+
+6. **`useToggleTaskFollower`** — Add a log entry: `follower_added` / `follower_removed`
+
+Each log insert will include `organization_id`, `task_id`, `actor_id` (current employee), `action_type`, and optionally `old_value`/`new_value` as JSON.
+
+Also invalidate `task-activity-logs` query key in `onSuccess` of each mutation so the logs panel updates immediately.
+
+**File: `src/components/tasks/TaskDetailPage.tsx`**
+- No changes needed; the panel already renders activity logs from the `useTaskActivityLogs` query.
+
