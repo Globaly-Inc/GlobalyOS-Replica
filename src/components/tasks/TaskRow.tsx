@@ -16,8 +16,9 @@ import type { TaskWithRelations, TaskCategoryRow, TaskStatusRow } from '@/types/
 import { ChevronRight } from 'lucide-react';
 import type { ColumnConfig } from './TaskColumnCustomizer';
 import { format, parseISO } from 'date-fns';
-import { MoreHorizontal, Trash2, Paperclip, Download, FileIcon, MessageSquare, Send, X } from 'lucide-react';
+import { MoreHorizontal, Trash2, Paperclip, Download, FileIcon, MessageSquare, Send, X, FolderInput } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { MoveTaskDialog } from './MoveTaskDialog';
 import { useRelativeTime } from '@/hooks/useRelativeTime';
 import { toast } from 'sonner';
 
@@ -233,6 +234,7 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showMoveDialog, setShowMoveDialog] = useState(false);
 
   const handleUpdate = (field: string, value: unknown) => {
     updateTask.mutate({ id: task.id, [field]: value });
@@ -482,6 +484,12 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-36">
               <DropdownMenuItem
+                onClick={(e) => { e.stopPropagation(); setShowMoveDialog(true); }}
+              >
+                <FolderInput className="h-3.5 w-3.5 mr-2" />
+                Move to
+              </DropdownMenuItem>
+              <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
                 onClick={(e) => { e.stopPropagation(); setShowDeleteDialog(true); }}
               >
@@ -509,6 +517,13 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <MoveTaskDialog
+        open={showMoveDialog}
+        onOpenChange={setShowMoveDialog}
+        currentListId={task.list_id}
+        onMove={(listId) => handleUpdate('list_id', listId)}
+      />
     </>
   );
 };

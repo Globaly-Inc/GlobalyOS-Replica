@@ -1,29 +1,24 @@
 
 
-## Add "Move to" Option for Tasks
+## Make Logo Navigate to Public Website Home
 
 ### Problem
-Tasks currently lack a way to be reassigned to a different list/folder/space. Users need a "Move to" option in the task row's action menu (⋯) to move tasks across any space's folders and lists.
+The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
 
-### Changes
+### Solution
 
-**`src/components/tasks/TaskRow.tsx`**
-- Add a "Move to" dialog trigger in the existing `DropdownMenuContent` (alongside Delete)
-- Add a new `MoveTaskDialog` component (or inline dialog) that:
-  - Fetches all spaces via `useTaskSpaces`
-  - When a space is selected, fetches its folders and lists via `useTaskFolders` and `useTaskLists`
-  - Presents a cascading selection: Space → (optional) Folder → List
-  - On confirm, calls `handleUpdate('list_id', selectedListId)` to move the task
-- Uses the existing `Dialog` component with cascading `Select` dropdowns for Space, Folder (filtered), and List (filtered)
+**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
+- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
+- This gives the landing page a stable URL accessible regardless of auth state
 
-**`src/components/tasks/MoveTaskDialog.tsx`** (new file)
-- A reusable dialog component accepting `taskId`, `currentListId`, `open`, `onOpenChange`, and an `onMove` callback
-- Three `Select` dropdowns: Space, Folder (optional, shows "No folder" + folders), List
-- Folder and List selects update dynamically based on parent selection
-- Confirm button calls `onMove(selectedListId)` which triggers `updateTask.mutate({ id: taskId, list_id: selectedListId })`
+**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
+- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
 
-### Data Flow
-- Task table has `list_id` (nullable FK to `task_lists`)
-- `task_lists` belong to a `space_id` and optionally a `folder_id`
-- Moving a task = updating its `list_id` to a list in any space
+### Technical Details
 
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
+| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
+
+This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
