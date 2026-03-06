@@ -99,7 +99,7 @@ export const TaskAttachments = ({ taskId, organizationId }: TaskAttachmentsProps
               </button>
               <button
                 className="opacity-0 group-hover:opacity-100 p-0.5"
-                onClick={() => handleDelete(att.id, att.file_path)}
+                onClick={() => handleDelete(att.id, att.file_path, att.file_name)}
               >
                 <Trash2 className="h-3 w-3 text-destructive" />
               </button>
