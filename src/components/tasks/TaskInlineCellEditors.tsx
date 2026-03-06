@@ -201,9 +201,12 @@ interface TagsSelectorProps {
 export const TagsSelector = ({ value, allTags, onChange, children }: TagsSelectorProps) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const keepOpen = useRef(false);
 
   const toggleTag = (tag: string) => {
+    keepOpen.current = true;
     onChange(value.includes(tag) ? value.filter(t => t !== tag) : [...value, tag]);
+    setTimeout(() => { keepOpen.current = false; }, 300);
   };
 
   const filtered = search.trim()
@@ -213,7 +216,7 @@ export const TagsSelector = ({ value, allTags, onChange, children }: TagsSelecto
   const canCreate = search.trim() && !allTags.some(t => t.toLowerCase() === search.trim().toLowerCase());
 
   return (
-    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSearch(''); }}>
+    <Popover open={open} onOpenChange={(o) => { if (!o && keepOpen.current) return; setOpen(o); if (!o) setSearch(''); }}>
       <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
         {children}
       </PopoverTrigger>
