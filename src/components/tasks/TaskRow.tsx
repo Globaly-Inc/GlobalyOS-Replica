@@ -132,8 +132,80 @@ const AttachmentCell = ({ taskId, organizationId, count }: { taskId: string; org
     </Popover>
   );
 };
+const CommentCell = ({ taskId, organizationId, count }: { taskId: string; organizationId: string; count: number }) => {
+  const [open, setOpen] = useState(false);
+  const [content, setContent] = useState('');
+  const { data: comments = [], isLoading } = useTaskComments(open ? taskId : undefined);
+  const createComment = useCreateTaskComment();
+  const { getShortRelativeTime } = useRelativeTime();
 
-const priorityConfig: Record<string, { label: string; className: string }> = {
+  const handleSubmit = async () => {
+    if (!content.trim()) return;
+    try {
+      await createComment.mutateAsync({ task_id: taskId, content: content.trim() });
+      setContent('');
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const getInitials = (name?: string | null) => {
+    if (!name) return '?';
+    return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors" onClick={e => e.stopPropagation()}>
+          <MessageSquare className="h-3.5 w-3.5" />
+          {(open ? comments.length : count) || 0}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 p-0" align="center" side="bottom" onClick={e => e.stopPropagation()}>
+        <div className="px-3 py-2 border-b">
+          <span className="text-sm font-medium">Comments</span>
+        </div>
+        <ScrollArea className="max-h-60">
+          <div className="p-2 space-y-2">
+            {comments.map(c => (
+              <div key={c.id} className="flex gap-2">
+                <Avatar className="h-6 w-6 shrink-0 mt-0.5">
+                  <AvatarImage src={c.employee?.avatar_url || ''} />
+                  <AvatarFallback className="text-[9px] bg-muted">{getInitials(c.employee?.full_name)}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-medium truncate">{c.employee?.full_name || 'Unknown'}</span>
+                    <span className="text-[10px] text-muted-foreground shrink-0">{getShortRelativeTime(c.created_at)}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5 whitespace-pre-wrap">{c.content}</p>
+                </div>
+              </div>
+            ))}
+            {comments.length === 0 && !isLoading && (
+              <p className="text-xs text-muted-foreground text-center py-3">No comments yet</p>
+            )}
+          </div>
+        </ScrollArea>
+        <div className="flex gap-1.5 p-2 border-t">
+          <Input
+            value={content}
+            onChange={e => setContent(e.target.value)}
+            placeholder="Add a comment…"
+            className="text-xs h-8"
+            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSubmit()}
+          />
+          <Button size="icon" className="h-8 w-8 shrink-0" onClick={handleSubmit} disabled={!content.trim() || createComment.isPending}>
+            <Send className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+
   urgent: { label: 'Urgent', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
   high: { label: 'High', className: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
   normal: { label: 'Normal', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
