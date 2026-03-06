@@ -274,7 +274,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
   };
 
   return (
-    <div className="overflow-auto h-full">
+    <div className="overflow-auto flex-1 min-h-0">
       <div className="min-w-max space-y-1">
       {tasksByStatus.map(({ status, tasks: statusTasks }) => {
         const isCollapsed = collapsedGroups.has(status.id);
