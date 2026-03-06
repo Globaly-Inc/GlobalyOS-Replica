@@ -11,6 +11,7 @@ import { useUpdateTask, useDeleteTask, useTaskComments, useCreateTaskComment } f
 import { useTaskAttachments, useUploadTaskAttachment, useDeleteTaskAttachment } from '@/services/useTaskAttachments';
 import { supabase } from '@/integrations/supabase/client';
 import { PrioritySelector, CategorySelector, AssigneeSelector, DueDateSelector, TagsSelector } from './TaskInlineCellEditors';
+import CategoryIcon from './CategoryIcon';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { TaskWithRelations, TaskCategoryRow, TaskStatusRow } from '@/types/task';
 import { ChevronRight } from 'lucide-react';
