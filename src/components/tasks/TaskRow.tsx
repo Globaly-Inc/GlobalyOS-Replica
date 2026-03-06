@@ -277,7 +277,7 @@ const MoveToFolderSubmenu = ({ spaceId, onSelect }: { spaceId: string; onSelect:
   );
 };
 
-
+interface TaskRowProps {
   task: TaskWithRelations;
   onClick: () => void;
   visibleColumns?: ColumnConfig[];
