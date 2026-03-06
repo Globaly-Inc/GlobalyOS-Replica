@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { useTaskSpaces, useDeleteTaskSpace, useUpdateTaskSpace, useTaskFolders, useUpdateTaskFolder, useDeleteTaskFolder, useTaskLists, useCreateTaskList, useUpdateTaskList, useDeleteTaskList } from '@/services/useTasks';
 import { CreateSpaceDialog } from './CreateSpaceDialog';
 import { CreateFolderDialog } from './CreateFolderDialog';
+import { CreateListDialog } from './CreateListDialog';
 import { TaskSharingDialog } from './TaskSharingDialog';
 import { SpaceIconPicker } from './SpaceIconPicker';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
@@ -383,6 +384,14 @@ const SpaceNode = ({
           )}
         </div>
       )}
+
+      <CreateListDialog
+        open={createListDialogOpen}
+        onOpenChange={setCreateListDialogOpen}
+        spaceId={space.id}
+        folderId={createListFolderId}
+        onCreated={handleListCreated}
+      />
     </div>
   );
 };
