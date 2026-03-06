@@ -260,6 +260,14 @@ export const TagsSelector = ({ value, allTags, onChange, children }: TagsSelecto
             </CommandGroup>
           </CommandList>
         </Command>
+        <div className="border-t p-1.5">
+          <button
+            className="w-full text-xs font-medium text-center py-1.5 rounded hover:bg-muted transition-colors text-muted-foreground"
+            onClick={() => { setOpen(false); setSearch(''); }}
+          >
+            Done
+          </button>
+        </div>
       </PopoverContent>
     </Popover>
   );
