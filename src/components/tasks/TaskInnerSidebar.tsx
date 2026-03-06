@@ -583,13 +583,32 @@ const ListItem = ({ list, isSelected, onSelect, onDelete, onShare, onRename, onM
           <MoreHorizontal className="h-3 w-3" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-40">
+      <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRename(); }}>
           <Pencil className="h-3.5 w-3.5 mr-2" /> Rename
         </DropdownMenuItem>
         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onShare(); }}>
           <Share2 className="h-3.5 w-3.5 mr-2" /> Share
         </DropdownMenuItem>
+        {folders.length > 0 && (
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <ArrowRightLeft className="h-3.5 w-3.5 mr-2" /> Move to
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="w-44">
+              {currentFolderId && (
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onMove(null); }}>
+                  📂 Space level (no folder)
+                </DropdownMenuItem>
+              )}
+              {folders.filter(f => f.id !== currentFolderId).map(f => (
+                <DropdownMenuItem key={f.id} onClick={(e) => { e.stopPropagation(); onMove(f.id); }}>
+                  {f.icon || '📁'} {f.name}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDelete(); }} className="text-destructive focus:text-destructive">
           <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
