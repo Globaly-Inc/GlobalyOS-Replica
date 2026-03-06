@@ -311,7 +311,7 @@ const Tasks = () => {
             </div>
 
             {/* Task content */}
-            <div className="flex-1 overflow-hidden p-6 flex flex-col">
+            <div className="flex-1 overflow-hidden p-6 flex flex-col min-h-0">
               {viewMode === 'list' ? (
                 <TaskListView
                   statuses={statuses}

@@ -1,18 +1,24 @@
 
 
-## Fix Missing Scrollbars in Task List View
+## Make Logo Navigate to Public Website Home
 
 ### Problem
-The scrollable wrapper in `TaskListView.tsx` uses `h-full` which doesn't properly resolve in a flex layout, causing no visible scrollbars. The parent container in `Tasks.tsx` uses `overflow-hidden` which clips content but the child doesn't properly fill and constrain its height.
+The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
 
-### Changes
+### Solution
 
-**1. `src/components/tasks/TaskListView.tsx` (line 277)**
-- Change the outer wrapper from `overflow-auto h-full` to `overflow-auto flex-1 min-h-0` so it properly fills available space in the flex-col parent and constrains its height to trigger scrollbars.
+**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
+- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
+- This gives the landing page a stable URL accessible regardless of auth state
 
-**2. `src/pages/Tasks.tsx` (line 314)**
-- Ensure the task content container properly passes flex behavior down. Change from `flex-1 overflow-hidden p-6 flex flex-col` to `flex-1 overflow-hidden p-6 flex flex-col min-h-0` so the flex child can shrink and produce scroll overflow.
+**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
+- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
 
-### Result
-Both horizontal (when columns exceed viewport width) and vertical (when tasks exceed viewport height) native scrollbars will appear on the task list area.
+### Technical Details
 
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
+| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
+
+This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
