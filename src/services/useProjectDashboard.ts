@@ -5,7 +5,6 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { startOfWeek, subWeeks, format } from 'date-fns';
 import type { TaskSpaceRow } from '@/types/task';
 
 interface SubProjectData {
@@ -17,9 +16,14 @@ interface SubProjectData {
   completionRate: number;
 }
 
-interface VelocityPoint {
-  week: string;
-  completed: number;
+interface AttachmentData {
+  id: string;
+  fileName: string;
+  fileSize: number | null;
+  filePath: string;
+  fileType: string | null;
+  taskTitle: string;
+  createdAt: string;
 }
 
 interface AssigneeData {
@@ -32,7 +36,7 @@ export interface ProjectDashboardData {
   completedTasks: number;
   completionRate: number;
   subProjects: SubProjectData[];
-  velocity: VelocityPoint[];
+  attachments: AttachmentData[];
   tasksByAssignee: AssigneeData[];
 }
 
@@ -56,13 +60,13 @@ export const useProjectDashboardData = (
     queryKey: ['project-dashboard', projectSpaceId, allDescendantIds.length],
     queryFn: async (): Promise<ProjectDashboardData> => {
       if (!projectSpaceId || allDescendantIds.length === 0) {
-        return { totalTasks: 0, completedTasks: 0, completionRate: 0, subProjects: [], velocity: [], tasksByAssignee: [] };
+        return { totalTasks: 0, completedTasks: 0, completionRate: 0, subProjects: [], attachments: [], tasksByAssignee: [] };
       }
 
       // Fetch all non-archived tasks across the project hierarchy
       const { data: tasks, error } = await supabase
         .from('tasks')
-        .select('id, space_id, status_id, assignee_id, completed_at, created_at, task_statuses(name)')
+        .select('id, title, space_id, status_id, assignee_id, completed_at, created_at, task_statuses(name)')
         .in('space_id', allDescendantIds)
         .eq('is_archived', false);
 
@@ -97,23 +101,32 @@ export const useProjectDashboardData = (
         };
       });
 
-      // Velocity — last 6 weeks
-      const now = new Date();
-      const velocityMap = new Map<string, number>();
-      for (let i = 5; i >= 0; i--) {
-        const weekStart = startOfWeek(subWeeks(now, i), { weekStartsOn: 1 });
-        velocityMap.set(format(weekStart, 'MMM d'), 0);
-      }
-      for (const t of completedTasks) {
-        if (t.completed_at) {
-          const weekStart = startOfWeek(new Date(t.completed_at), { weekStartsOn: 1 });
-          const key = format(weekStart, 'MMM d');
-          if (velocityMap.has(key)) {
-            velocityMap.set(key, (velocityMap.get(key) || 0) + 1);
+      // Fetch attachments for all tasks in the project
+      const taskIds = allTasks.map(t => t.id);
+      const taskTitleMap = new Map(allTasks.map(t => [t.id, t.title || 'Untitled']));
+      let attachments: AttachmentData[] = [];
+      if (taskIds.length > 0) {
+        // Batch fetch in chunks of 50
+        for (let i = 0; i < taskIds.length; i += 50) {
+          const chunk = taskIds.slice(i, i + 50);
+          const { data: atts } = await supabase
+            .from('task_attachments')
+            .select('id, file_name, file_size, file_path, file_type, task_id, created_at')
+            .in('task_id', chunk)
+            .order('created_at', { ascending: false });
+          if (atts) {
+            attachments.push(...atts.map(a => ({
+              id: a.id,
+              fileName: a.file_name,
+              fileSize: a.file_size,
+              filePath: a.file_path,
+              fileType: a.file_type,
+              taskTitle: taskTitleMap.get(a.task_id) || 'Untitled',
+              createdAt: a.created_at,
+            })));
           }
         }
       }
-      const velocity: VelocityPoint[] = Array.from(velocityMap.entries()).map(([week, completed]) => ({ week, completed }));
 
       // Tasks by assignee
       const assigneeIds = new Set<string>();
@@ -152,7 +165,7 @@ export const useProjectDashboardData = (
         completedTasks: completedCount,
         completionRate,
         subProjects,
-        velocity,
+        attachments,
         tasksByAssignee,
       };
     },
