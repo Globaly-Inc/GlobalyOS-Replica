@@ -241,7 +241,7 @@ export const TagsSelector = ({ value, allTags, onChange, children }: TagsSelecto
                   key={tag}
                   value={tag}
                   onSelect={() => toggleTag(tag)}
-                  className={value.includes(tag) ? 'bg-primary/10 text-primary' : ''}
+                  className={value.includes(tag) ? '!bg-primary/10 !text-primary font-medium' : ''}
                 >
                   <Check className={cn('h-3 w-3 mr-2', value.includes(tag) ? 'opacity-100' : 'opacity-0')} />
                   <span className="truncate text-xs">{tag}</span>
