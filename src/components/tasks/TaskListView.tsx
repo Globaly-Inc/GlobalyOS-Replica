@@ -168,19 +168,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
   })();
 
   const gridStyle = {
-    gridTemplateColumns: (selectionActive ? '28px ' : '') + visibleColumns.map(col => {
-      switch (col.key) {
-        case 'name': return '1fr';
-        case 'category': return '120px';
-        case 'assignee': return '100px';
-        case 'tags': return '120px';
-        case 'comments': return '60px';
-        case 'attachments': return '60px';
-        case 'priority': return '80px';
-        case 'due_date': return '100px';
-        default: return '100px';
-      }
-    }).join(' ') + ' 40px',
+    gridTemplateColumns: getGridTemplate(visibleColumns, selectionActive),
   };
 
   const renderInlineCell = (col: ColumnConfig, statusId: string) => {
