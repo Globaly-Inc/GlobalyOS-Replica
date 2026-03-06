@@ -322,12 +322,13 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
               )}
               {task.category && (
                 <span
-                  className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0"
+                  className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0"
                   style={{
                     backgroundColor: `${task.category.color}20`,
                     color: task.category.color || '#6b7280',
                   }}
                 >
+                  <CategoryIcon iconName={task.category.icon} fallbackColor={task.category.color} size={10} />
                   {task.category.name}
                 </span>
               )}
