@@ -295,8 +295,12 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
               >
                 <button className="flex items-center gap-1 hover:opacity-80 transition-opacity" onClick={(e) => e.stopPropagation()}>
                   {visibleTags.map(tag => (
-                    <Badge key={tag} variant="outline" className="text-[10px] h-4 px-1 shrink-0">
+                    <Badge key={tag} variant="outline" className="text-[10px] h-4 px-1 shrink-0 gap-0.5 group/tag">
                       {tag}
+                      <X
+                        className="h-2.5 w-2.5 opacity-0 group-hover/tag:opacity-100 cursor-pointer text-muted-foreground hover:text-destructive transition-opacity"
+                        onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleUpdate('tags', tags.filter(t => t !== tag)); }}
+                      />
                     </Badge>
                   ))}
                   {overflowCount > 0 && (
@@ -356,8 +360,12 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
             <button className="flex gap-1 overflow-hidden w-full hover:opacity-80 transition-opacity">
               {(task.tags || []).length > 0 ? (
                 (task.tags || []).slice(0, 2).map(tag => (
-                  <Badge key={tag} variant="outline" className="text-[10px] h-4 px-1 shrink-0">
+                  <Badge key={tag} variant="outline" className="text-[10px] h-4 px-1 shrink-0 gap-0.5 group/tag">
                     {tag}
+                    <X
+                      className="h-2.5 w-2.5 opacity-0 group-hover/tag:opacity-100 cursor-pointer text-muted-foreground hover:text-destructive transition-opacity"
+                      onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleUpdate('tags', (task.tags || []).filter(t => t !== tag)); }}
+                    />
                   </Badge>
                 ))
               ) : (
