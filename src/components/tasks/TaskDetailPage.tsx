@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, ChevronLeft, ChevronRight, Bell, BellOff, Send, Copy, Trash2, MoreHorizontal, Link2, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -121,12 +121,15 @@ export const TaskDetailPage = ({ taskId, onClose, onPrev, onNext }: TaskDetailPa
     setCommentText('');
   };
 
+  const tagInputRef = useRef<HTMLInputElement>(null);
+
   const handleAddTag = () => {
     const tag = newTag.trim();
     if (!tag) return;
+    setNewTag('');
     const currentTags = task.tags || [];
     if (!currentTags.includes(tag)) handleFieldUpdate('tags', [...currentTags, tag]);
-    setNewTag('');
+    setTimeout(() => tagInputRef.current?.focus(), 50);
   };
 
   const handleRemoveTag = (tag: string) => handleFieldUpdate('tags', (task.tags || []).filter(t => t !== tag));
@@ -348,9 +351,10 @@ export const TaskDetailPage = ({ taskId, onClose, onPrev, onNext }: TaskDetailPa
                   </Badge>
                 ))}
                 <Input
+                  ref={tagInputRef}
                   value={newTag} onChange={(e) => setNewTag(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
-                  placeholder="+ Add tag" className="h-5 text-[10px] w-20 border-none shadow-none px-1 focus-visible:ring-0"
+                  placeholder="+ Add tag" className="h-5 text-[10px] w-28 min-w-[70px] border-b border-dashed border-muted-foreground/30 shadow-none px-1 focus-visible:ring-1 rounded-none"
                 />
               </div>
             </div>
