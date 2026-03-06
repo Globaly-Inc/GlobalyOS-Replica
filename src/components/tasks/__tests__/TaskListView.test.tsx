@@ -106,6 +106,7 @@ const existingTask: TaskWithRelations = {
   related_entity_id: null,
   related_entity_type: null,
   start_date: null,
+  custom_fields: null,
 };
 
 // ─── Helper ───
