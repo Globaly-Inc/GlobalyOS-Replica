@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { PrioritySelector, CategorySelector, AssigneeSelector, DueDateSelector, TagsSelector } from './TaskInlineCellEditors';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { TaskWithRelations, TaskCategoryRow } from '@/types/task';
+import { ChevronRight } from 'lucide-react';
 import type { ColumnConfig } from './TaskColumnCustomizer';
 import { format, parseISO } from 'date-fns';
 import { MoreHorizontal, Trash2, Paperclip, Download, FileIcon, MessageSquare, Send, X } from 'lucide-react';
@@ -223,9 +224,10 @@ interface TaskRowProps {
   selected?: boolean;
   onToggleSelect?: (taskId: string) => void;
   allTags?: string[];
+  isAllTasksMode?: boolean;
 }
 
-export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories = [], members = [], spaceId, selected, onToggleSelect, allTags = [] }: TaskRowProps) => {
+export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories = [], members = [], spaceId, selected, onToggleSelect, allTags = [], isAllTasksMode }: TaskRowProps) => {
   const priority = priorityConfig[task.priority] || priorityConfig.normal;
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
@@ -261,6 +263,23 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
         const overflowCount = tags.length - 2;
         return (
           <div className="flex flex-col gap-0.5 min-w-0">
+            {isAllTasksMode && task.location && (
+              <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground truncate">
+                {task.location.space_name && <span className="truncate">{task.location.space_name}</span>}
+                {task.location.folder_name && (
+                  <>
+                    <ChevronRight className="h-2.5 w-2.5 shrink-0" />
+                    <span className="truncate">{task.location.folder_name}</span>
+                  </>
+                )}
+                {task.location.list_name && (
+                  <>
+                    <ChevronRight className="h-2.5 w-2.5 shrink-0" />
+                    <span className="truncate">{task.location.list_name}</span>
+                  </>
+                )}
+              </div>
+            )}
             <div className="flex items-center gap-1.5 min-w-0">
               {task.status && (
                 <span

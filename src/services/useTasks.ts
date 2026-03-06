@@ -350,7 +350,9 @@ export const useAllTasks = (filters?: TaskFilters) => {
           status:task_statuses(*),
           category:task_categories(*),
           task_attachments(count),
-          task_comments(count)
+          task_comments(count),
+          task_list:task_lists!tasks_list_id_fkey(name, folder_id, space_id),
+          task_space:task_spaces!tasks_space_id_fkey(name)
         `)
         .eq('organization_id', currentOrg.id)
         .eq('is_archived', false)
@@ -368,9 +370,11 @@ export const useAllTasks = (filters?: TaskFilters) => {
       if (error) throw error;
 
       const empIds = new Set<string>();
+      const folderIds = new Set<string>();
       (data || []).forEach((t: any) => {
         if (t.assignee_id) empIds.add(t.assignee_id);
         if (t.reporter_id) empIds.add(t.reporter_id);
+        if (t.task_list?.folder_id) folderIds.add(t.task_list.folder_id);
       });
 
       let empMap = new Map<string, { id: string; full_name: string; avatar_url: string | null }>();
@@ -382,12 +386,26 @@ export const useAllTasks = (filters?: TaskFilters) => {
         (emps || []).forEach((e: any) => empMap.set(e.id, e));
       }
 
+      let folderMap = new Map<string, string>();
+      if (folderIds.size > 0) {
+        const { data: folders } = await supabase
+          .from('task_folders')
+          .select('id, name')
+          .in('id', [...folderIds]);
+        (folders || []).forEach((f: any) => folderMap.set(f.id, f.name));
+      }
+
       return (data || []).map((t: any) => ({
         ...t,
         assignee: t.assignee_id ? empMap.get(t.assignee_id) || null : null,
         reporter: t.reporter_id ? empMap.get(t.reporter_id) || null : null,
         attachment_count: t.task_attachments?.[0]?.count ?? 0,
         comment_count: t.task_comments?.[0]?.count ?? 0,
+        location: {
+          space_name: t.task_space?.name || null,
+          list_name: t.task_list?.name || null,
+          folder_name: t.task_list?.folder_id ? folderMap.get(t.task_list.folder_id) || null : null,
+        },
       })) as TaskWithRelations[];
     },
     enabled: !!currentOrg?.id,
