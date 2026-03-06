@@ -534,6 +534,20 @@ export const useUpdateTask = () => {
   const { currentOrg } = useOrganization();
   return useMutation({
     mutationFn: async ({ id, ...updates }: TaskUpdate & { id: string }) => {
+      // Fetch old values for changed fields before updating
+      const changedKeys = Object.keys(updates);
+      let oldData: Record<string, unknown> = {};
+      if (changedKeys.length > 0 && currentOrg?.id) {
+        const { data: existing } = await supabase
+          .from('tasks')
+          .select('*')
+          .eq('id', id)
+          .single();
+        if (existing) {
+          changedKeys.forEach(k => { oldData[k] = (existing as any)[k]; });
+        }
+      }
+
       const { data, error } = await supabase
         .from('tasks')
         .update(updates)
@@ -541,11 +555,45 @@ export const useUpdateTask = () => {
         .select()
         .single();
       if (error) throw error;
+
+      // Log activity for each changed field
+      if (currentOrg?.id && employee?.id) {
+        const fieldActionMap: Record<string, string> = {
+          status_id: 'status_changed',
+          priority: 'priority_changed',
+          assignee_id: 'assignee_changed',
+          due_date: 'due_date_changed',
+          tags: 'tags_updated',
+          description: 'description_updated',
+          title: 'title_updated',
+          category_id: 'category_changed',
+          list_id: 'list_changed',
+          start_date: 'start_date_changed',
+          time_estimate: 'time_estimate_changed',
+        };
+
+        const logs = changedKeys
+          .filter(k => JSON.stringify(oldData[k]) !== JSON.stringify((updates as any)[k]))
+          .map(k => ({
+            organization_id: currentOrg.id,
+            task_id: id,
+            actor_id: employee.id,
+            action_type: fieldActionMap[k] || 'field_updated',
+            old_value: (oldData[k] != null ? { [k]: oldData[k] } : null) as import('@/integrations/supabase/types').Json,
+            new_value: ((updates as any)[k] != null ? { [k]: (updates as any)[k] } : null) as import('@/integrations/supabase/types').Json,
+          }));
+
+        if (logs.length > 0) {
+          await supabase.from('task_activity_logs').insert(logs);
+        }
+      }
+
       return data;
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['tasks', data.space_id] });
       qc.invalidateQueries({ queryKey: ['task', data.id] });
+      qc.invalidateQueries({ queryKey: ['task-activity-logs', data.id] });
     },
   });
 };
@@ -598,6 +646,7 @@ export const useTaskChecklists = (taskId: string | undefined) => {
 export const useCreateTaskChecklist = () => {
   const qc = useQueryClient();
   const { currentOrg } = useOrganization();
+  const { data: employee } = useCurrentEmployee();
   return useMutation({
     mutationFn: async (input: Omit<TaskChecklistInsert, 'organization_id'>) => {
       const { data, error } = await supabase
@@ -606,14 +655,30 @@ export const useCreateTaskChecklist = () => {
         .select()
         .single();
       if (error) throw error;
+
+      if (employee?.id) {
+        await supabase.from('task_activity_logs').insert({
+          organization_id: currentOrg!.id,
+          task_id: input.task_id!,
+          actor_id: employee.id,
+          action_type: 'checklist_item_added',
+          new_value: { title: data.title },
+        });
+      }
+
       return data;
     },
-    onSuccess: (data) => qc.invalidateQueries({ queryKey: ['task-checklists', data.task_id] }),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['task-checklists', data.task_id] });
+      qc.invalidateQueries({ queryKey: ['task-activity-logs', data.task_id] });
+    },
   });
 };
 
 export const useUpdateTaskChecklist = () => {
   const qc = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: employee } = useCurrentEmployee();
   return useMutation({
     mutationFn: async ({ id, ...updates }: TaskChecklistUpdate & { id: string }) => {
       const { data, error } = await supabase
@@ -623,21 +688,51 @@ export const useUpdateTaskChecklist = () => {
         .select()
         .single();
       if (error) throw error;
+
+      if (employee?.id && currentOrg?.id && 'is_done' in updates) {
+        await supabase.from('task_activity_logs').insert({
+          organization_id: currentOrg.id,
+          task_id: data.task_id,
+          actor_id: employee.id,
+          action_type: 'checklist_item_toggled',
+          new_value: { title: data.title, is_done: data.is_done },
+        });
+      }
+
       return data;
     },
-    onSuccess: (data) => qc.invalidateQueries({ queryKey: ['task-checklists', data.task_id] }),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['task-checklists', data.task_id] });
+      qc.invalidateQueries({ queryKey: ['task-activity-logs', data.task_id] });
+    },
   });
 };
 
 export const useDeleteTaskChecklist = () => {
   const qc = useQueryClient();
+  const { currentOrg } = useOrganization();
+  const { data: employee } = useCurrentEmployee();
   return useMutation({
-    mutationFn: async ({ id, taskId }: { id: string; taskId: string }) => {
+    mutationFn: async ({ id, taskId, title }: { id: string; taskId: string; title?: string }) => {
       const { error } = await supabase.from('task_checklists').delete().eq('id', id);
       if (error) throw error;
+
+      if (employee?.id && currentOrg?.id) {
+        await supabase.from('task_activity_logs').insert({
+          organization_id: currentOrg.id,
+          task_id: taskId,
+          actor_id: employee.id,
+          action_type: 'checklist_item_removed',
+          old_value: title ? { title } : null,
+        });
+      }
+
       return taskId;
     },
-    onSuccess: (taskId) => qc.invalidateQueries({ queryKey: ['task-checklists', taskId] }),
+    onSuccess: (taskId) => {
+      qc.invalidateQueries({ queryKey: ['task-checklists', taskId] });
+      qc.invalidateQueries({ queryKey: ['task-activity-logs', taskId] });
+    },
   });
 };
 
@@ -689,9 +784,22 @@ export const useCreateTaskComment = () => {
         .select()
         .single();
       if (error) throw error;
+
+      // Log comment activity
+      await supabase.from('task_activity_logs').insert({
+        organization_id: currentOrg!.id,
+        task_id: input.task_id,
+        actor_id: employee!.id,
+        action_type: 'commented',
+        new_value: { comment_id: data.id },
+      });
+
       return data;
     },
-    onSuccess: (data) => qc.invalidateQueries({ queryKey: ['task-comments', data.task_id] }),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['task-comments', data.task_id] });
+      qc.invalidateQueries({ queryKey: ['task-activity-logs', data.task_id] });
+    },
   });
 };
 
@@ -782,9 +890,23 @@ export const useToggleTaskFollower = () => {
           });
         if (error) throw error;
       }
+
+      // Log follower activity
+      if (currentOrg?.id && employee?.id) {
+        await supabase.from('task_activity_logs').insert({
+          organization_id: currentOrg.id,
+          task_id: taskId,
+          actor_id: employee.id,
+          action_type: isFollowing ? 'follower_removed' : 'follower_added',
+        });
+      }
+
       return taskId;
     },
-    onSuccess: (taskId) => qc.invalidateQueries({ queryKey: ['task-followers', taskId] }),
+    onSuccess: (taskId) => {
+      qc.invalidateQueries({ queryKey: ['task-followers', taskId] });
+      qc.invalidateQueries({ queryKey: ['task-activity-logs', taskId] });
+    },
   });
 };
 

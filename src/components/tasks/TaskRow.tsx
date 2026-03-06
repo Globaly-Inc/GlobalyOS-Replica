@@ -59,9 +59,9 @@ const AttachmentCell = ({ taskId, organizationId, count }: { taskId: string; org
     a.click();
   };
 
-  const handleDelete = async (id: string, filePath: string) => {
+  const handleDelete = async (id: string, filePath: string, fileName?: string) => {
     try {
-      await deleteAttachment.mutateAsync({ id, taskId, filePath });
+      await deleteAttachment.mutateAsync({ id, taskId, filePath, fileName });
       toast.success('Attachment deleted');
     } catch {
       toast.error('Failed to delete');
@@ -101,7 +101,7 @@ const AttachmentCell = ({ taskId, organizationId, count }: { taskId: string; org
                   </button>
                   <button
                     className="opacity-0 group-hover/att:opacity-100 p-0.5"
-                    onClick={() => handleDelete(att.id, att.file_path)}
+                    onClick={() => handleDelete(att.id, att.file_path, att.file_name)}
                   >
                     <Trash2 className="h-3 w-3 text-destructive" />
                   </button>
