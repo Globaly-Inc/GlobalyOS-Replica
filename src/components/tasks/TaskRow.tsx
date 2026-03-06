@@ -16,9 +16,11 @@ import type { TaskWithRelations, TaskCategoryRow, TaskStatusRow } from '@/types/
 import { ChevronRight } from 'lucide-react';
 import type { ColumnConfig } from './TaskColumnCustomizer';
 import { format, parseISO } from 'date-fns';
-import { MoreHorizontal, Trash2, Paperclip, Download, FileIcon, MessageSquare, Send, X } from 'lucide-react';
+import { MoreHorizontal, Trash2, Paperclip, Download, FileIcon, MessageSquare, Send, X, FolderInput, Folder } from 'lucide-react';
+import { DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { useRelativeTime } from '@/hooks/useRelativeTime';
+import { useTaskFolders, useTaskLists } from '@/services/useTasks';
 import { toast } from 'sonner';
 
 const formatFileSize = (bytes: number | null) => {
