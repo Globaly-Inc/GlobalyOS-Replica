@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { useTaskSpaces, useDeleteTaskSpace, useUpdateTaskSpace, useTaskFolders, useUpdateTaskFolder, useDeleteTaskFolder, useTaskLists, useCreateTaskList, useUpdateTaskList, useDeleteTaskList } from '@/services/useTasks';
 import { CreateSpaceDialog } from './CreateSpaceDialog';
 import { CreateFolderDialog } from './CreateFolderDialog';
+import { CreateListDialog } from './CreateListDialog';
 import { TaskSharingDialog } from './TaskSharingDialog';
 import { SpaceIconPicker } from './SpaceIconPicker';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
@@ -203,21 +204,18 @@ const SpaceNode = ({
   const updateFolder = useUpdateTaskFolder();
   const updateList = useUpdateTaskList();
 
-  const directLists = allLists.filter(l => !l.folder_id);
+   const directLists = allLists.filter(l => !l.folder_id);
 
-  const handleAddList = async (folderId?: string) => {
-    try {
-      const newList = await createList.mutateAsync({
-        space_id: space.id,
-        name: 'New List',
-        sort_order: allLists.length,
-        ...(folderId ? { folder_id: folderId } : {}),
-      });
-      onSelectItem({ type: 'list', id: newList.id, spaceId: space.id });
-      toast.success('List created');
-    } catch {
-      toast.error('Failed to create list');
-    }
+  const [createListDialogOpen, setCreateListDialogOpen] = useState(false);
+  const [createListFolderId, setCreateListFolderId] = useState<string | undefined>(undefined);
+
+  const handleAddList = (folderId?: string) => {
+    setCreateListFolderId(folderId);
+    setCreateListDialogOpen(true);
+  };
+
+  const handleListCreated = (listId: string) => {
+    onSelectItem({ type: 'list', id: listId, spaceId: space.id });
   };
 
   const handleDeleteList = async (listId: string) => {
@@ -386,6 +384,14 @@ const SpaceNode = ({
           )}
         </div>
       )}
+
+      <CreateListDialog
+        open={createListDialogOpen}
+        onOpenChange={setCreateListDialogOpen}
+        spaceId={space.id}
+        folderId={createListFolderId}
+        onCreated={handleListCreated}
+      />
     </div>
   );
 };
