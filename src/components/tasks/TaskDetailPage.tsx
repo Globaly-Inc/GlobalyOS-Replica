@@ -387,7 +387,7 @@ export const TaskDetailPage = ({ taskId, onClose, onPrev, onNext }: TaskDetailPa
                 <div key={item.id} className="flex items-center gap-2 group">
                   <Checkbox checked={item.is_done} onCheckedChange={(checked) => updateChecklist.mutate({ id: item.id, is_done: !!checked })} />
                   <span className={cn('text-sm flex-1', item.is_done && 'line-through text-muted-foreground')}>{item.title}</span>
-                  <button className="text-destructive opacity-0 group-hover:opacity-100 text-xs" onClick={() => deleteChecklist.mutate({ id: item.id, taskId })}>✕</button>
+                  <button className="text-destructive opacity-0 group-hover:opacity-100 text-xs" onClick={() => deleteChecklist.mutate({ id: item.id, taskId, title: item.title })}>✕</button>
                 </div>
               ))}
               <div className="flex items-center gap-2 mt-2">

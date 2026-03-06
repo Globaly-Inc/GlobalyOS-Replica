@@ -59,9 +59,9 @@ const AttachmentCell = ({ taskId, organizationId, count }: { taskId: string; org
     a.click();
   };
 
-  const handleDelete = async (id: string, filePath: string) => {
+  const handleDelete = async (id: string, filePath: string, fileName?: string) => {
     try {
-      await deleteAttachment.mutateAsync({ id, taskId, filePath });
+      await deleteAttachment.mutateAsync({ id, taskId, filePath, fileName });
       toast.success('Attachment deleted');
     } catch {
       toast.error('Failed to delete');
