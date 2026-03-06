@@ -215,7 +215,69 @@ const priorityConfig: Record<string, { label: string; className: string }> = {
   low: { label: 'Low', className: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' },
 };
 
-interface TaskRowProps {
+// ─── Move to Folder Submenu ───
+const MoveToFolderSubmenu = ({ spaceId, onSelect }: { spaceId: string; onSelect: (listId: string) => void }) => {
+  const { data: folders = [] } = useTaskFolders(spaceId);
+  const { data: lists = [] } = useTaskLists(spaceId);
+
+  // Group lists by folder
+  const foldersWithLists = folders.map(f => ({
+    ...f,
+    lists: lists.filter(l => l.folder_id === f.id),
+  })).filter(f => f.lists.length > 0);
+
+  // Lists not in any folder
+  const rootLists = lists.filter(l => !l.folder_id);
+
+  if (foldersWithLists.length === 0 && rootLists.length === 0) {
+    return (
+      <DropdownMenuItem disabled className="text-muted-foreground text-xs">
+        <FolderInput className="h-3.5 w-3.5 mr-2" />
+        No lists available
+      </DropdownMenuItem>
+    );
+  }
+
+  return (
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger onClick={(e) => e.stopPropagation()}>
+        <FolderInput className="h-3.5 w-3.5 mr-2" />
+        Move to
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent className="w-48 max-h-64 overflow-y-auto">
+        {foldersWithLists.map(folder => (
+          <DropdownMenuSub key={folder.id}>
+            <DropdownMenuSubTrigger onClick={(e) => e.stopPropagation()}>
+              <Folder className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+              <span className="truncate">{folder.name}</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="w-44 max-h-48 overflow-y-auto">
+              {folder.lists.map(list => (
+                <DropdownMenuItem
+                  key={list.id}
+                  onClick={(e) => { e.stopPropagation(); onSelect(list.id); toast.success(`Moved to ${folder.name} › ${list.name}`); }}
+                >
+                  <span className="truncate">{list.name}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        ))}
+        {rootLists.length > 0 && foldersWithLists.length > 0 && <DropdownMenuSeparator />}
+        {rootLists.map(list => (
+          <DropdownMenuItem
+            key={list.id}
+            onClick={(e) => { e.stopPropagation(); onSelect(list.id); toast.success(`Moved to ${list.name}`); }}
+          >
+            <span className="truncate">{list.name}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
+  );
+};
+
+
   task: TaskWithRelations;
   onClick: () => void;
   visibleColumns?: ColumnConfig[];
