@@ -15,7 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import type { TaskWithRelations, TaskCategoryRow } from '@/types/task';
 import type { ColumnConfig } from './TaskColumnCustomizer';
 import { format, parseISO } from 'date-fns';
-import { MoreHorizontal, Trash2, Paperclip, Download, FileIcon, MessageSquare, Send } from 'lucide-react';
+import { MoreHorizontal, Trash2, Paperclip, Download, FileIcon, MessageSquare, Send, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useRelativeTime } from '@/hooks/useRelativeTime';
 import { toast } from 'sonner';
