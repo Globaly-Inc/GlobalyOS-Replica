@@ -14,6 +14,8 @@ vi.mock('@/services/useTasks', () => ({
   useUpdateTask: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useBulkDeleteTasks: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteTask: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useTaskComments: () => ({ data: [], isLoading: false }),
+  useCreateTaskComment: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 vi.mock('@/services/useTaskAttachments', () => ({
