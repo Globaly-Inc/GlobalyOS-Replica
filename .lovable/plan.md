@@ -1,62 +1,24 @@
 
 
-## Show Status & Category Before Task Name
+## Make Logo Navigate to Public Website Home
 
-### What Changes
+### Problem
+The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
 
-**File: `src/components/tasks/TaskRow.tsx`**
+### Solution
 
-Update the `name` cell (lines 258-269) to prepend:
-1. **Status indicator** — a small colored dot with the status name as a compact badge/pill, using `task.status?.color` and `task.status?.name`
-2. **Category/Type indicator** — a small colored badge showing the category name (currently only a dot is shown)
+**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
+- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
+- This gives the landing page a stable URL accessible regardless of auth state
 
-The updated `name` cell will render:
+**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
+- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
 
-```text
-[● To Do] [Bug] My Task Title
-```
+### Technical Details
 
-- Status: a pill with a colored dot + status name, styled with the status color as background at low opacity
-- Category: a small pill with the category color, only shown if a category exists
-- Task title: the existing truncated text
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
+| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
 
-This keeps the name column self-contained and avoids layout changes to other columns.
-
-### Implementation Detail
-
-In `renderCell` case `'name'` (line 258), replace the current content with:
-
-```tsx
-case 'name':
-  return (
-    <div className="flex items-center gap-1.5 min-w-0">
-      {task.status && (
-        <span
-          className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0"
-          style={{
-            backgroundColor: `${task.status.color}20`,
-            color: task.status.color || '#6b7280',
-          }}
-        >
-          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: task.status.color || '#6b7280' }} />
-          {task.status.name}
-        </span>
-      )}
-      {task.category && (
-        <span
-          className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0"
-          style={{
-            backgroundColor: `${task.category.color}20`,
-            color: task.category.color || '#6b7280',
-          }}
-        >
-          {task.category.name}
-        </span>
-      )}
-      <span className="truncate font-medium">{task.title}</span>
-    </div>
-  );
-```
-
-This removes the old lone category dot and replaces it with labeled pills for both status and category in front of the task title.
-
+This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.

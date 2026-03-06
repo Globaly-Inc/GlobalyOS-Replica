@@ -257,12 +257,29 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
     switch (col.key) {
       case 'name':
         return (
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-1.5 min-w-0">
+            {task.status && (
+              <span
+                className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0"
+                style={{
+                  backgroundColor: `${task.status.color}20`,
+                  color: task.status.color || '#6b7280',
+                }}
+              >
+                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: task.status.color || '#6b7280' }} />
+                {task.status.name}
+              </span>
+            )}
             {task.category && (
-              <div
-                className="h-2 w-2 rounded-full shrink-0"
-                style={{ backgroundColor: task.category.color || '#6b7280' }}
-              />
+              <span
+                className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0"
+                style={{
+                  backgroundColor: `${task.category.color}20`,
+                  color: task.category.color || '#6b7280',
+                }}
+              >
+                {task.category.name}
+              </span>
             )}
             <span className="truncate font-medium">{task.title}</span>
           </div>
