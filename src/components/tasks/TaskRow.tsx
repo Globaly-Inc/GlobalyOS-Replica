@@ -16,9 +16,11 @@ import type { TaskWithRelations, TaskCategoryRow, TaskStatusRow } from '@/types/
 import { ChevronRight } from 'lucide-react';
 import type { ColumnConfig } from './TaskColumnCustomizer';
 import { format, parseISO } from 'date-fns';
-import { MoreHorizontal, Trash2, Paperclip, Download, FileIcon, MessageSquare, Send, X } from 'lucide-react';
+import { MoreHorizontal, Trash2, Paperclip, Download, FileIcon, MessageSquare, Send, X, FolderInput, Folder } from 'lucide-react';
+import { DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { useRelativeTime } from '@/hooks/useRelativeTime';
+import { useTaskFolders, useTaskLists } from '@/services/useTasks';
 import { toast } from 'sonner';
 
 const formatFileSize = (bytes: number | null) => {
@@ -211,6 +213,68 @@ const priorityConfig: Record<string, { label: string; className: string }> = {
   high: { label: 'High', className: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
   normal: { label: 'Normal', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
   low: { label: 'Low', className: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' },
+};
+
+// ─── Move to Folder Submenu ───
+const MoveToFolderSubmenu = ({ spaceId, onSelect }: { spaceId: string; onSelect: (listId: string) => void }) => {
+  const { data: folders = [] } = useTaskFolders(spaceId);
+  const { data: lists = [] } = useTaskLists(spaceId);
+
+  // Group lists by folder
+  const foldersWithLists = folders.map(f => ({
+    ...f,
+    lists: lists.filter(l => l.folder_id === f.id),
+  })).filter(f => f.lists.length > 0);
+
+  // Lists not in any folder
+  const rootLists = lists.filter(l => !l.folder_id);
+
+  if (foldersWithLists.length === 0 && rootLists.length === 0) {
+    return (
+      <DropdownMenuItem disabled className="text-muted-foreground text-xs">
+        <FolderInput className="h-3.5 w-3.5 mr-2" />
+        No lists available
+      </DropdownMenuItem>
+    );
+  }
+
+  return (
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger onClick={(e) => e.stopPropagation()}>
+        <FolderInput className="h-3.5 w-3.5 mr-2" />
+        Move to
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent className="w-48 max-h-64 overflow-y-auto">
+        {foldersWithLists.map(folder => (
+          <DropdownMenuSub key={folder.id}>
+            <DropdownMenuSubTrigger onClick={(e) => e.stopPropagation()}>
+              <Folder className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+              <span className="truncate">{folder.name}</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="w-44 max-h-48 overflow-y-auto">
+              {folder.lists.map(list => (
+                <DropdownMenuItem
+                  key={list.id}
+                  onClick={(e) => { e.stopPropagation(); onSelect(list.id); toast.success(`Moved to ${folder.name} › ${list.name}`); }}
+                >
+                  <span className="truncate">{list.name}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        ))}
+        {rootLists.length > 0 && foldersWithLists.length > 0 && <DropdownMenuSeparator />}
+        {rootLists.map(list => (
+          <DropdownMenuItem
+            key={list.id}
+            onClick={(e) => { e.stopPropagation(); onSelect(list.id); toast.success(`Moved to ${list.name}`); }}
+          >
+            <span className="truncate">{list.name}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
+  );
 };
 
 interface TaskRowProps {
@@ -480,7 +544,11 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
                 <MoreHorizontal className="h-4 w-4" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-36">
+            <DropdownMenuContent align="end" className="w-48">
+              {!task.list_id && (
+                <MoveToFolderSubmenu spaceId={spaceId} onSelect={(listId) => handleUpdate('list_id', listId)} />
+              )}
+              {!task.list_id && <DropdownMenuSeparator />}
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
                 onClick={(e) => { e.stopPropagation(); setShowDeleteDialog(true); }}
