@@ -263,6 +263,23 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
         const overflowCount = tags.length - 2;
         return (
           <div className="flex flex-col gap-0.5 min-w-0">
+            {isAllTasksMode && task.location && (
+              <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground truncate">
+                {task.location.space_name && <span className="truncate">{task.location.space_name}</span>}
+                {task.location.folder_name && (
+                  <>
+                    <ChevronRight className="h-2.5 w-2.5 shrink-0" />
+                    <span className="truncate">{task.location.folder_name}</span>
+                  </>
+                )}
+                {task.location.list_name && (
+                  <>
+                    <ChevronRight className="h-2.5 w-2.5 shrink-0" />
+                    <span className="truncate">{task.location.list_name}</span>
+                  </>
+                )}
+              </div>
+            )}
             <div className="flex items-center gap-1.5 min-w-0">
               {task.status && (
                 <span
