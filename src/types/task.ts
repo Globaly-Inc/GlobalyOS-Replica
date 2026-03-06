@@ -57,6 +57,12 @@ export interface TaskSpaceTreeNode extends TaskSpaceRow {
   children: TaskSpaceTreeNode[];
 }
 
+export interface TaskLocation {
+  space_name?: string | null;
+  list_name?: string | null;
+  folder_name?: string | null;
+}
+
 export interface TaskWithRelations extends TaskRow {
   status?: TaskStatusRow | null;
   category?: TaskCategoryRow | null;
@@ -68,6 +74,7 @@ export interface TaskWithRelations extends TaskRow {
   checklist_total?: number;
   checklist_done?: number;
   followers?: { id: string; employee_id: string; full_name?: string; avatar_url?: string | null }[];
+  location?: TaskLocation | null;
 }
 
 export interface TaskCommentWithAuthor extends TaskCommentRow {
