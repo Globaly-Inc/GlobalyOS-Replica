@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Plus, User, MoreHorizontal, Trash2, FolderOpen, List, Pencil, Share2, FolderPlus, ListPlus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, User, MoreHorizontal, Trash2, FolderOpen, List, Pencil, Share2, FolderPlus, ListPlus, ArrowRightLeft } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,7 @@ import { CreateFolderDialog } from './CreateFolderDialog';
 import { CreateListDialog } from './CreateListDialog';
 import { TaskSharingDialog } from './TaskSharingDialog';
 import { SpaceIconPicker } from './SpaceIconPicker';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 import type { SidebarSelection, TaskSpaceRow, TaskFolderRow, TaskListRow } from '@/types/task';
 import { toast } from 'sonner';
 
@@ -228,6 +228,15 @@ const SpaceNode = ({
     }
   };
 
+  const handleMoveList = async (listId: string, targetFolderId: string | null) => {
+    try {
+      await updateList.mutateAsync({ id: listId, folder_id: targetFolderId });
+      toast.success('List moved');
+    } catch {
+      toast.error('Failed to move list');
+    }
+  };
+
   const handleDeleteFolder = async (folderId: string) => {
     try {
       await deleteFolder.mutateAsync({ id: folderId, spaceId: space.id });
@@ -345,6 +354,9 @@ const SpaceNode = ({
               onDelete={() => handleDeleteList(list.id)}
               onShare={() => onShare('list', list.id, list.name)}
               onRename={() => onStartRename('list', list.id, list.name)}
+              onMove={(targetFolderId) => handleMoveList(list.id, targetFolderId)}
+              folders={folders}
+              currentFolderId={null}
               isRenaming={renamingId === list.id && renamingType === 'list'}
               renameValue={renameValue}
               onRenameValueChange={onRenameValueChange}
@@ -361,6 +373,7 @@ const SpaceNode = ({
               folder={folder}
               spaceId={space.id}
               lists={allLists.filter(l => l.folder_id === folder.id)}
+              allFolders={folders}
               isExpanded={expandedFolders.has(folder.id)}
               onToggle={() => onToggleFolder(folder.id)}
               selection={selection}
@@ -368,6 +381,7 @@ const SpaceNode = ({
               onAddList={() => handleAddList(folder.id)}
               onDeleteList={handleDeleteList}
               onDeleteFolder={() => handleDeleteFolder(folder.id)}
+              onMoveList={(listId, targetFolderId) => handleMoveList(listId, targetFolderId)}
               onShare={onShare}
               onStartRename={onStartRename}
               renamingId={renamingId}
@@ -402,6 +416,7 @@ interface FolderNodeProps {
   folder: TaskFolderRow;
   spaceId: string;
   lists: TaskListRow[];
+  allFolders: TaskFolderRow[];
   isExpanded: boolean;
   onToggle: () => void;
   selection: SidebarSelection;
@@ -409,6 +424,7 @@ interface FolderNodeProps {
   onAddList: () => void;
   onDeleteList: (id: string) => void;
   onDeleteFolder: () => void;
+  onMoveList: (listId: string, targetFolderId: string | null) => void;
   onShare: (type: 'space' | 'folder' | 'list', id: string, name: string) => void;
   onStartRename: (type: 'space' | 'folder' | 'list', id: string, name: string) => void;
   renamingId: string | null;
@@ -420,8 +436,8 @@ interface FolderNodeProps {
 }
 
 const FolderNode = ({
-  folder, spaceId, lists, isExpanded, onToggle,
-  selection, onSelectItem, onAddList, onDeleteList, onDeleteFolder, onShare,
+  folder, spaceId, lists, allFolders, isExpanded, onToggle,
+  selection, onSelectItem, onAddList, onDeleteList, onDeleteFolder, onMoveList, onShare,
   onStartRename, renamingId, renamingType, renameValue, onRenameValueChange, onRenameSubmit, onRenameCancel,
 }: FolderNodeProps) => {
   const isFolderSelected = selection.type === 'folder' && selection.id === folder.id;
@@ -495,6 +511,9 @@ const FolderNode = ({
               onDelete={() => onDeleteList(list.id)}
               onShare={() => onShare('list', list.id, list.name)}
               onRename={() => onStartRename('list', list.id, list.name)}
+              onMove={(targetFolderId) => onMoveList(list.id, targetFolderId)}
+              folders={allFolders}
+              currentFolderId={folder.id}
               isRenaming={renamingId === list.id && renamingType === 'list'}
               renameValue={renameValue}
               onRenameValueChange={onRenameValueChange}
@@ -521,6 +540,9 @@ interface ListItemProps {
   onDelete: () => void;
   onShare: () => void;
   onRename: () => void;
+  onMove: (targetFolderId: string | null) => void;
+  folders: TaskFolderRow[];
+  currentFolderId: string | null;
   isRenaming: boolean;
   renameValue: string;
   onRenameValueChange: (v: string) => void;
@@ -529,7 +551,7 @@ interface ListItemProps {
   depth: number;
 }
 
-const ListItem = ({ list, isSelected, onSelect, onDelete, onShare, onRename, isRenaming, renameValue, onRenameValueChange, onRenameSubmit, onRenameCancel, depth }: ListItemProps) => (
+const ListItem = ({ list, isSelected, onSelect, onDelete, onShare, onRename, onMove, folders, currentFolderId, isRenaming, renameValue, onRenameValueChange, onRenameSubmit, onRenameCancel, depth }: ListItemProps) => (
   <div
     className={cn(
       'group flex items-center gap-1.5 pr-2 py-1 rounded-md cursor-pointer text-sm transition-colors',
@@ -561,13 +583,32 @@ const ListItem = ({ list, isSelected, onSelect, onDelete, onShare, onRename, isR
           <MoreHorizontal className="h-3 w-3" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-40">
+      <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRename(); }}>
           <Pencil className="h-3.5 w-3.5 mr-2" /> Rename
         </DropdownMenuItem>
         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onShare(); }}>
           <Share2 className="h-3.5 w-3.5 mr-2" /> Share
         </DropdownMenuItem>
+        {folders.length > 0 && (
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <ArrowRightLeft className="h-3.5 w-3.5 mr-2" /> Move to
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="w-44">
+              {currentFolderId && (
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onMove(null); }}>
+                  📂 Space level (no folder)
+                </DropdownMenuItem>
+              )}
+              {folders.filter(f => f.id !== currentFolderId).map(f => (
+                <DropdownMenuItem key={f.id} onClick={(e) => { e.stopPropagation(); onMove(f.id); }}>
+                  {f.icon || '📁'} {f.name}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDelete(); }} className="text-destructive focus:text-destructive">
           <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
