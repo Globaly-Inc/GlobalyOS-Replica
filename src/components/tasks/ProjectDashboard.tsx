@@ -81,7 +81,7 @@ export function ProjectDashboard({ spaceId, spaces }: ProjectDashboardProps) {
         {/* Sprint Velocity */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-medium flex items-center gap-2">Document list
+            <CardTitle className="text-base font-medium flex items-center gap-2">Document  lists
               <TrendingUp className="h-4 w-4 text-primary" />
               Sprint Velocity (Last 6 Weeks)
             </CardTitle>
