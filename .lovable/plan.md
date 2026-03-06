@@ -1,24 +1,24 @@
 
 
-## Make Logo Navigate to Public Website Home
+## Make Status Pill a Dropdown in Task Row
 
 ### Problem
-The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
+The status indicator in the task row Name column is a static badge. Users want to click it and see a dropdown of all available statuses to change the task's status inline.
 
-### Solution
+### Changes
 
-**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
-- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
-- This gives the landing page a stable URL accessible regardless of auth state
+**`src/components/tasks/TaskRow.tsx`**
+- Add `statuses` to `TaskRowProps` (array of `TaskStatusRow`)
+- Replace the static status `<span>` (lines 285-294) with a `Popover` containing a list of all statuses
+- Clicking a status option calls `handleUpdate('status_id', selectedStatusId)`
+- Each option shows the colored dot + status name, matching the current pill style
+- The trigger remains the current pill appearance (so it looks the same but is clickable)
 
-**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
-- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
+**`src/components/tasks/TaskListView.tsx`**
+- Pass the `statuses` prop to each `<TaskRow>` component (the parent already has `statuses` in its props)
 
 ### Technical Details
+- Reuse the existing `Popover` + list pattern already used for priority/assignee/category selectors
+- The `handleUpdate` function at line 236 already supports updating any field including `status_id`
+- No database or API changes needed
 
-| File | Change |
-|------|--------|
-| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
-| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
-
-This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
