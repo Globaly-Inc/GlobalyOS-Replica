@@ -1,30 +1,32 @@
 
 
-## Delete "New features" Space and Preserve Tasks
+## Add Category Icons to Task Views
 
-### What I Found
+### Summary
+Categories already store an `icon` field in the database (kebab-case lucide icon names like `mail`, `phone`, `bell`, `phone-call`). The UI currently ignores this field and only shows a colored dot or colored text. The plan is to render the actual lucide icon alongside the category name everywhere categories appear.
 
-"New features" is a **Space** (not a folder), containing **9 tasks**, no folders, and no lists. One task ("Adding task board") is linked to a list called "Test sprint" in the Marketing folder of another space.
+### Changes
 
-### Plan
+**1. Create a small utility component: `src/components/tasks/CategoryIcon.tsx`**
+- Maps the `icon` string (kebab-case lucide name) to the corresponding lucide-react component using the `icons` map from `lucide-react`.
+- Falls back to a colored dot if no icon matches.
+- Accepts `size`, `color`, and `className` props.
 
-This is a **data operation**, not a code change. I will:
+**2. Update `TaskInlineCellEditors.tsx` — CategorySelector popover**
+- Replace the small colored dot (`h-2 w-2 rounded-full`) with the `CategoryIcon` component for each category option in the dropdown.
 
-1. **Move all 9 tasks** out of the "New features" space by setting their `space_id` to another existing space (e.g. "GlobalyOS" or whichever you prefer). Tasks without a `list_id` will remain unassigned to any list but will be preserved in the target space.
+**3. Update `TaskRow.tsx` — Category pill in the Name column (line ~324)**
+- Add the `CategoryIcon` before `task.category.name` in the inline category badge.
 
-2. **Delete the "New features" space** record from `task_spaces`.
+**4. Update `TaskRow.tsx` — Standalone Category column cell (line ~363)**
+- Add the icon next to the category name text in the standalone column.
 
-### Question Before Proceeding
+**5. Update `TaskBoardView.tsx` — Board card category badge (line ~414)**
+- Replace the small colored dot with the `CategoryIcon` in the board card badge.
 
-Which space should the 9 tasks be moved to?
+**6. Update `TaskListView.tsx` — Inline creation row category cell (line ~204)**
+- Add icon next to category name in the inline creation row.
 
-| Space | Icon |
-|-------|------|
-| Content Management | 📁 |
-| Engineering | 🚀 |
-| Globaly App | ⚡ |
-| GlobalyOS | (custom) |
-| Product Team | 🎯 |
-
-Or should I move them to a **specific list** within one of these spaces?
+### Result
+All category displays will show the matching lucide icon (like the reference image: envelope for Email, phone for Call, bell for Reminder) with the category color, matching the design pattern shown in the uploaded screenshot.
 
