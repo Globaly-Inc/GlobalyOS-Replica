@@ -234,6 +234,7 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showMoveDialog, setShowMoveDialog] = useState(false);
 
   const handleUpdate = (field: string, value: unknown) => {
     updateTask.mutate({ id: task.id, [field]: value });
@@ -482,6 +483,12 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-36">
+              <DropdownMenuItem
+                onClick={(e) => { e.stopPropagation(); setShowMoveDialog(true); }}
+              >
+                <FolderInput className="h-3.5 w-3.5 mr-2" />
+                Move to
+              </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
                 onClick={(e) => { e.stopPropagation(); setShowDeleteDialog(true); }}
