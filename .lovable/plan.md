@@ -1,16 +1,24 @@
 
 
-## Add Folder Selection to Create List Dialog
+## Make Logo Navigate to Public Website Home
 
-### Change
+### Problem
+The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
 
-**`src/components/tasks/CreateListDialog.tsx`**:
-- Import `useTaskFolders` to fetch all folders for the given space
-- Add a `selectedFolderId` state, initialized from the `folderId` prop (so if triggered from a folder context, it's pre-selected)
-- Add a `Select` dropdown below the name input with options:
-  - "No folder (space level)" — places the list directly under the space
-  - One option per folder in the space (showing folder icon + name)
-- Use `selectedFolderId` instead of the raw `folderId` prop when creating the list
+### Solution
 
-This is a single-file change. No other files need modification since the dialog already accepts `folderId` as a prop and the creation logic already supports it.
+**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
+- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
+- This gives the landing page a stable URL accessible regardless of auth state
 
+**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
+- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
+
+### Technical Details
+
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
+| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
+
+This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
