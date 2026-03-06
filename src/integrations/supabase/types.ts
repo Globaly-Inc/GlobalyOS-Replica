@@ -20875,6 +20875,67 @@ export type Database = {
           },
         ]
       }
+      task_custom_fields: {
+        Row: {
+          created_at: string
+          field_key: string
+          field_name: string
+          field_type: string
+          id: string
+          is_required: boolean
+          options: Json | null
+          organization_id: string
+          sort_order: number
+          space_id: string
+        }
+        Insert: {
+          created_at?: string
+          field_key: string
+          field_name: string
+          field_type?: string
+          id?: string
+          is_required?: boolean
+          options?: Json | null
+          organization_id: string
+          sort_order?: number
+          space_id: string
+        }
+        Update: {
+          created_at?: string
+          field_key?: string
+          field_name?: string
+          field_type?: string
+          id?: string
+          is_required?: boolean
+          options?: Json | null
+          organization_id?: string
+          sort_order?: number
+          space_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_custom_fields_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_custom_fields_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_custom_fields_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "task_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_entity_departments: {
         Row: {
           created_at: string
@@ -21474,6 +21535,7 @@ export type Database = {
           category_id: string | null
           completed_at: string | null
           created_at: string
+          custom_fields: Json | null
           description: string | null
           due_date: string | null
           id: string
@@ -21499,6 +21561,7 @@ export type Database = {
           category_id?: string | null
           completed_at?: string | null
           created_at?: string
+          custom_fields?: Json | null
           description?: string | null
           due_date?: string | null
           id?: string
@@ -21524,6 +21587,7 @@ export type Database = {
           category_id?: string | null
           completed_at?: string | null
           created_at?: string
+          custom_fields?: Json | null
           description?: string | null
           due_date?: string | null
           id?: string
