@@ -255,35 +255,61 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
 
   const renderCell = (col: ColumnConfig) => {
     switch (col.key) {
-      case 'name':
+      case 'name': {
+        const tags = task.tags || [];
+        const visibleTags = tags.slice(0, 2);
+        const overflowCount = tags.length - 2;
         return (
-          <div className="flex items-center gap-1.5 min-w-0">
-            {task.status && (
-              <span
-                className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0"
-                style={{
-                  backgroundColor: `${task.status.color}20`,
-                  color: task.status.color || '#6b7280',
-                }}
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <div className="flex items-center gap-1.5 min-w-0">
+              {task.status && (
+                <span
+                  className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0"
+                  style={{
+                    backgroundColor: `${task.status.color}20`,
+                    color: task.status.color || '#6b7280',
+                  }}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: task.status.color || '#6b7280' }} />
+                  {task.status.name}
+                </span>
+              )}
+              {task.category && (
+                <span
+                  className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0"
+                  style={{
+                    backgroundColor: `${task.category.color}20`,
+                    color: task.category.color || '#6b7280',
+                  }}
+                >
+                  {task.category.name}
+                </span>
+              )}
+              <span className="truncate font-medium">{task.title}</span>
+            </div>
+            {tags.length > 0 && (
+              <TagsSelector
+                value={tags}
+                allTags={allTags}
+                onChange={(val) => handleUpdate('tags', val)}
               >
-                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: task.status.color || '#6b7280' }} />
-                {task.status.name}
-              </span>
+                <button className="flex items-center gap-1 hover:opacity-80 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                  {visibleTags.map(tag => (
+                    <Badge key={tag} variant="outline" className="text-[10px] h-4 px-1 shrink-0">
+                      {tag}
+                    </Badge>
+                  ))}
+                  {overflowCount > 0 && (
+                    <Badge variant="secondary" className="text-[10px] h-4 px-1 shrink-0">
+                      +{overflowCount}
+                    </Badge>
+                  )}
+                </button>
+              </TagsSelector>
             )}
-            {task.category && (
-              <span
-                className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0"
-                style={{
-                  backgroundColor: `${task.category.color}20`,
-                  color: task.category.color || '#6b7280',
-                }}
-              >
-                {task.category.name}
-              </span>
-            )}
-            <span className="truncate font-medium">{task.title}</span>
           </div>
         );
+      }
       case 'category':
         return (
           <CategorySelector

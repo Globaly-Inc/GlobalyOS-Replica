@@ -30,7 +30,7 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: 'name', label: 'Name', visible: true },
   { key: 'category', label: 'Category', visible: false },
   { key: 'assignee', label: 'Assignee', visible: true },
-  { key: 'tags', label: 'Tags', visible: true },
+  { key: 'tags', label: 'Tags', visible: false },
   { key: 'comments', label: 'Comments', visible: true },
   { key: 'attachments', label: 'Attachments', visible: true },
   { key: 'priority', label: 'Priority', visible: true },
