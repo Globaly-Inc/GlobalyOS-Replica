@@ -1,24 +1,23 @@
 
 
-## Make Logo Navigate to Public Website Home
+## Fix: Tag selection visual state persisting when moving to Done button
 
 ### Problem
-The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
+In the `TagsSelector`, when a user selects a tag (e.g. "Internal"), the visual "selected" indicator disappears as they move their cursor down toward the "Done" button. The tag should remain visually selected until explicitly toggled off or the popover is closed.
 
-### Solution
+### Root Cause
+The `cmdk` library's `CommandItem` applies a `data-[selected='true']:bg-accent` style for the currently keyboard/mouse-highlighted item. When the user's cursor leaves the tag items and moves to the "Done" button (which is outside the `Command` component), cmdk removes the `data-selected` attribute from all items. The custom `bg-primary/10` class for checked tags gets visually overridden by cmdk's highlight system during hover and then loses all emphasis once the cursor exits. The result is the tag looks "deselected" visually even though it's still in the `value` array.
 
-**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
-- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
-- This gives the landing page a stable URL accessible regardless of auth state
+### Fix (1 file)
 
-**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
-- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
+**`src/components/tasks/TaskInlineCellEditors.tsx`** — Strengthen the selected-tag styling so it uses inline styles or higher-specificity classes that persist regardless of cmdk's `data-selected` state:
 
-### Technical Details
+1. For each `CommandItem` in the tags list, apply a persistent visual indicator for selected tags using a combination of:
+   - A left border or background that isn't overridden by `data-selected`
+   - Keep the `Check` icon opacity logic as-is (already correct)
+   - Add `font-medium` or a subtle left-border accent to selected items so they remain visually distinct even when cmdk removes its highlight
 
-| File | Change |
-|------|--------|
-| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
-| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
+2. Specifically, change the selected item className from `'bg-primary/10 text-primary'` to use `!bg-primary/10 !text-primary` (Tailwind `!important` modifiers) so the style isn't overridden by cmdk's `data-selected` accent styling.
 
-This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
+This is a CSS specificity fix — no logic changes needed since the `value.includes(tag)` check is already correct.
+
