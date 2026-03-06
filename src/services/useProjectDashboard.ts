@@ -5,7 +5,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { startOfWeek, subWeeks, format } from 'date-fns';
+import type { TaskSpaceRow } from '@/types/task';
 import type { TaskSpaceRow } from '@/types/task';
 
 interface SubProjectData {
