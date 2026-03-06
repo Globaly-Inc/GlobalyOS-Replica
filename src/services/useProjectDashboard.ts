@@ -67,7 +67,7 @@ export const useProjectDashboardData = (
       // Fetch all non-archived tasks across the project hierarchy
       const { data: tasks, error } = await supabase
         .from('tasks')
-        .select('id, space_id, status_id, assignee_id, completed_at, created_at, task_statuses(name)')
+        .select('id, title, space_id, status_id, assignee_id, completed_at, created_at, task_statuses(name)')
         .in('space_id', allDescendantIds)
         .eq('is_archived', false);
 
