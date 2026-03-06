@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { useUpdateTask, useDeleteTask } from '@/services/useTasks';
+import { useUpdateTask, useDeleteTask, useTaskComments, useCreateTaskComment } from '@/services/useTasks';
 import { useTaskAttachments, useUploadTaskAttachment, useDeleteTaskAttachment } from '@/services/useTaskAttachments';
 import { supabase } from '@/integrations/supabase/client';
 import { PrioritySelector, CategorySelector, AssigneeSelector, DueDateSelector, TagsSelector } from './TaskInlineCellEditors';
@@ -15,7 +15,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import type { TaskWithRelations, TaskCategoryRow } from '@/types/task';
 import type { ColumnConfig } from './TaskColumnCustomizer';
 import { format, parseISO } from 'date-fns';
-import { MoreHorizontal, Trash2, Paperclip, Download, FileIcon } from 'lucide-react';
+import { MoreHorizontal, Trash2, Paperclip, Download, FileIcon, MessageSquare, Send } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { useRelativeTime } from '@/hooks/useRelativeTime';
 import { toast } from 'sonner';
 
 const formatFileSize = (bytes: number | null) => {
@@ -250,11 +252,7 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
           </TagsSelector>
         );
       case 'comments':
-        return (
-          <span className="text-xs text-muted-foreground text-center">
-            {task.comment_count || 0}
-          </span>
-        );
+        return <CommentCell taskId={task.id} organizationId={task.organization_id} count={task.comment_count || 0} />;
       case 'attachments':
         return <AttachmentCell taskId={task.id} organizationId={task.organization_id} count={task.attachment_count || 0} />;
       case 'priority':
