@@ -70,6 +70,7 @@ export const TaskDetailPage = ({ taskId, onClose, onPrev, onNext }: TaskDetailPa
   const [newChecklistItem, setNewChecklistItem] = useState('');
   const [commentText, setCommentText] = useState('');
   const [newTag, setNewTag] = useState('');
+  const tagInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (task) setDescription(task.description || '');
@@ -121,7 +122,7 @@ export const TaskDetailPage = ({ taskId, onClose, onPrev, onNext }: TaskDetailPa
     setCommentText('');
   };
 
-  const tagInputRef = useRef<HTMLInputElement>(null);
+
 
   const handleAddTag = () => {
     const tag = newTag.trim();
