@@ -1,24 +1,21 @@
 
 
-## Make Logo Navigate to Public Website Home
+## Add Tags Under Task Name + Hide Tags Column
 
-### Problem
-The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
+### Changes
 
-### Solution
+**1. `src/components/tasks/TaskRow.tsx`** — Update the `name` cell (lines 258-285)
 
-**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
-- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
-- This gives the landing page a stable URL accessible regardless of auth state
+Change layout from single-row to `flex-col`. Add a second row below the title showing tags inline with a `TagsSelector` popover. Show max 2 tag badges + a "+N" badge for overflow. The tags are interactive (click opens the existing `TagsSelector` to add/remove).
 
-**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
-- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
+```text
+Row 1: [● Status] [Category] Task Title
+Row 2: [tag1] [tag2] [+1]        ← only if tags exist, clickable to manage
+```
 
-### Technical Details
+- Reuse the existing `TagsSelector` component wrapping the tags display
+- Show first 2 tags as small outline badges, then `+N` if more exist
+- Entire tags row is the trigger for the `TagsSelector` popover
 
-| File | Change |
-|------|--------|
-| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
-| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
+**2. `src/components/tasks/TaskColumnCustomizer.tsx`** — Set `tags` column `visible: false` by default (line 250 area / DEFAULT_COLUMNS), since tags now appear under the task name.
 
-This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
