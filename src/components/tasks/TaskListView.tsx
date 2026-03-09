@@ -99,6 +99,8 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
     setInlineAssigneeId(null);
     setInlineDueDate(null);
     setInlineTags([]);
+    setInlineRelatedEntityType(null);
+    setInlineRelatedEntityId(null);
   };
 
   const handleStartInline = (statusId: string) => {
