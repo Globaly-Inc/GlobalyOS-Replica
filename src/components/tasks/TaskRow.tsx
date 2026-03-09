@@ -385,18 +385,28 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
                   </PopoverContent>
                 </Popover>
               )}
-              {task.category && (
-                <span
-                  className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0"
+              <CategorySelector
+                value={task.category_id}
+                categories={categories}
+                onChange={(id) => handleUpdate('category_id', id)}
+              >
+                <button
+                  type="button"
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0 hover:opacity-80 transition-opacity"
                   style={{
-                    backgroundColor: `${task.category.color}20`,
-                    color: task.category.color || '#6b7280',
+                    backgroundColor: task.category ? `${task.category.color}20` : undefined,
+                    color: task.category?.color || 'hsl(var(--muted-foreground))',
                   }}
                 >
-                  <CategoryIcon iconName={task.category.icon} fallbackColor={task.category.color} size={10} />
-                  {task.category.name}
-                </span>
-              )}
+                  {task.category ? (
+                    <>
+                      <CategoryIcon iconName={task.category.icon} fallbackColor={task.category.color} size={10} />
+                      {task.category.name}
+                    </>
+                  ) : '—'}
+                </button>
+              </CategorySelector>
               <span className="truncate font-medium">{task.title}</span>
             </div>
             {tags.length > 0 && (
