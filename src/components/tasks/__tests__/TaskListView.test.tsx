@@ -16,6 +16,11 @@ vi.mock('@/services/useTasks', () => ({
   useDeleteTask: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useTaskComments: () => ({ data: [], isLoading: false }),
   useCreateTaskComment: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useTaskSpaces: () => ({ data: [], isLoading: false }),
+  useTaskFolders: () => ({ data: [], isLoading: false }),
+  useTaskLists: () => ({ data: [], isLoading: false }),
+  useMoveTask: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useReorderStatuses: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 vi.mock('@/services/useTaskAttachments', () => ({
