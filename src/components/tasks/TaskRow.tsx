@@ -408,25 +408,24 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
                   ) : '—'}
                 </button>
               </CategorySelector>
-              <RelatedToPopover
-                entityType={task.related_entity_type}
-                entityId={task.related_entity_id}
-                onUpdate={(type, id) => {
-                  handleUpdate('related_entity_type', type);
-                  handleUpdate('related_entity_id', id);
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={(e) => e.stopPropagation()}
-                  className={cn(
-                    "text-[10px] hover:underline cursor-pointer w-fit",
-                    task.related_entity_type ? "text-primary" : "text-muted-foreground"
-                  )}
+              {task.related_entity_type && (
+                <RelatedToPopover
+                  entityType={task.related_entity_type}
+                  entityId={task.related_entity_id}
+                  onUpdate={(type, id) => {
+                    handleUpdate('related_entity_type', type);
+                    handleUpdate('related_entity_id', id);
+                  }}
                 >
-                  {task.related_entity_type ? 'Related to' : '+ Add relation'}
-                </button>
-              </RelatedToPopover>
+                  <button
+                    type="button"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-[10px] text-primary hover:underline cursor-pointer w-fit"
+                  >
+                    Related to
+                  </button>
+                </RelatedToPopover>
+              )}
               <span className="font-medium break-words whitespace-normal">{task.title}</span>
             </div>
             {tags.length > 0 && (
