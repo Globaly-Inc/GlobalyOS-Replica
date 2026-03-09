@@ -188,18 +188,37 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
     switch (col.key) {
       case 'name':
         return (
-          <input
-            ref={inputRef}
-            className="w-full bg-transparent outline-none text-sm font-medium placeholder:text-muted-foreground"
-            placeholder="Task name..."
-            value={inlineTitle}
-            onChange={(e) => setInlineTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleCreateInline(statusId);
-              if (e.key === 'Escape') resetInline();
-            }}
-            onClick={(e) => e.stopPropagation()}
-          />
+          <div className="flex flex-col gap-0.5">
+            <RelatedToPopover
+              entityType={inlineRelatedEntityType}
+              entityId={inlineRelatedEntityId}
+              onUpdate={(type, id) => {
+                setInlineRelatedEntityType(type);
+                setInlineRelatedEntityId(id);
+              }}
+            >
+              <button
+                type="button"
+                className="flex items-center gap-1 text-[10px] text-primary hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Link2 className="h-2.5 w-2.5" />
+                {inlineRelatedEntityId ? 'Related' : 'Related to'}
+              </button>
+            </RelatedToPopover>
+            <input
+              ref={inputRef}
+              className="w-full bg-transparent outline-none text-sm font-medium placeholder:text-muted-foreground"
+              placeholder="Task name..."
+              value={inlineTitle}
+              onChange={(e) => setInlineTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleCreateInline(statusId);
+                if (e.key === 'Escape') resetInline();
+              }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
         );
       case 'category':
         return (
