@@ -208,14 +208,46 @@ const CommentCell = ({ taskId, organizationId, count }: { taskId: string; organi
   );
 };
 
-const CustomFieldCell = ({ value, onChange }: { value: string; onChange: (val: string) => void }) => {
+const CustomFieldCell = ({ value, onChange, fieldType = 'text', options }: { value: string; onChange: (val: string) => void; fieldType?: 'text' | 'number' | 'date' | 'select'; options?: string[] | null }) => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(value ?? ''));
 
+  // Select field type
+  if (fieldType === 'select') {
+    return (
+      <select
+        className="w-full bg-transparent outline-none text-xs border-none cursor-pointer text-foreground h-full"
+        value={String(value ?? '')}
+        onChange={(e) => { e.stopPropagation(); onChange(e.target.value); }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <option value="">—</option>
+        {(options || []).map((opt) => (
+          <option key={opt} value={opt}>{opt}</option>
+        ))}
+      </select>
+    );
+  }
+
+  // Date field type
+  if (fieldType === 'date') {
+    return (
+      <input
+        type="date"
+        className="w-full bg-transparent outline-none text-xs border-none cursor-pointer text-foreground"
+        value={String(value ?? '')}
+        onChange={(e) => { e.stopPropagation(); onChange(e.target.value); }}
+        onClick={(e) => e.stopPropagation()}
+      />
+    );
+  }
+
+  // Text / Number inline editing
   if (editing) {
     return (
       <input
         autoFocus
+        type={fieldType === 'number' ? 'number' : 'text'}
         className="w-full bg-transparent outline-none text-xs border-b border-input"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
@@ -259,9 +291,10 @@ interface TaskRowProps {
   onToggleSelect?: (taskId: string) => void;
   allTags?: string[];
   isAllTasksMode?: boolean;
+  customFieldDefs?: import('@/services/useTaskCustomFields').TaskCustomField[];
 }
 
-export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories = [], statuses = [], members = [], spaceId, selected, onToggleSelect, allTags = [], isAllTasksMode }: TaskRowProps) => {
+export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories = [], statuses = [], members = [], spaceId, selected, onToggleSelect, allTags = [], isAllTasksMode, customFieldDefs = [] }: TaskRowProps) => {
   const priority = priorityConfig[task.priority] || priorityConfig.normal;
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
@@ -488,9 +521,12 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
           const fieldKey = col.key.replace('custom_', '');
           const customFields = (task as any).custom_fields as Record<string, any> | null;
           const value = customFields?.[fieldKey] ?? '';
+          const fieldDef = customFieldDefs.find(f => f.field_key === fieldKey);
           return (
             <CustomFieldCell
               value={value}
+              fieldType={fieldDef?.field_type}
+              options={fieldDef?.options}
               onChange={(newVal) => {
                 const updated = { ...(customFields || {}), [fieldKey]: newVal };
                 handleUpdate('custom_fields', updated);

@@ -1,33 +1,24 @@
 
 
-## Fix: Custom Fields Not Editable in Task List View
+## Make Logo Navigate to Public Website Home
 
-### Root Cause
+### Problem
+The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
 
-The `CustomFieldCell` component in `TaskRow.tsx` is a simple text-only editor. It has no awareness of the field's **type** (`text`, `number`, `date`, `select`) or its **options** (for select fields). So while clicking the cell technically allows text input, it does not render the appropriate control (date picker, number input, or dropdown) for non-text fields. More critically, the field definitions from `task_custom_fields` are never passed down to `TaskRow`, so there is no way for the cell to know what type of editor to show.
+### Solution
 
-### Plan
+**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
+- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
+- This gives the landing page a stable URL accessible regardless of auth state
 
-**1. Pass custom field definitions to `TaskRow`**
+**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
+- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
 
-- Add a `customFieldDefs?: TaskCustomField[]` prop to `TaskRowProps`.
-- The parent component that renders `TaskRow` already has access to the space's custom fields — thread them through.
+### Technical Details
 
-**2. Upgrade `CustomFieldCell` to be type-aware**
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
+| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
 
-Replace the current generic text-input cell with a component that accepts `fieldType` and `options` props, then renders:
-
-- **`text`**: Current inline text input (no change).
-- **`number`**: Inline number input (`type="number"`).
-- **`date`**: A date picker popover (reuse the existing `DueDateSelector` pattern or a simple date input).
-- **`select`**: A `Select` dropdown populated with `options` from the field definition.
-
-**3. Wire up the field definition lookup**
-
-In the `default` case of the column renderer (line 485), look up the matching field definition by `fieldKey` from the new `customFieldDefs` prop and pass `fieldType` and `options` to the upgraded `CustomFieldCell`.
-
-### Files Changed
-
-- **`src/components/tasks/TaskRow.tsx`**: Upgrade `CustomFieldCell` to handle all four field types; add `customFieldDefs` prop to `TaskRowProps`; pass field metadata when rendering custom field cells.
-- **Parent component(s)** that render `TaskRow` (e.g., `TaskListView` or equivalent): Pass the `customFieldDefs` from the existing `useTaskCustomFields` hook.
-
+This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
