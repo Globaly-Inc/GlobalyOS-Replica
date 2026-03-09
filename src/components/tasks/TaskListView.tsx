@@ -19,6 +19,7 @@ import { format, parseISO } from 'date-fns';
 import type { TaskStatusRow, TaskWithRelations, TaskCategoryRow } from '@/types/task';
 import type { ColumnConfig } from './TaskColumnCustomizer';
 import { useColumnResize } from '@/hooks/useColumnResize';
+import { RelatedToPopover } from './RelatedToPopover';
 
 const priorityConfig: Record<string, { label: string; className: string }> = {
   urgent: { label: 'Urgent', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
