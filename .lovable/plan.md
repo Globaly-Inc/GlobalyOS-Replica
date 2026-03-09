@@ -1,23 +1,24 @@
 
 
-## Allow Task Title to Wrap to Multiple Lines
+## Make Logo Navigate to Public Website Home
 
 ### Problem
-The task title `<span>` on line 410 has the `truncate` class, which forces single-line display with ellipsis for long titles.
+The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
 
-### Plan
+### Solution
 
-**File: `src/components/tasks/TaskRow.tsx` (line 410)**
+**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
+- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
+- This gives the landing page a stable URL accessible regardless of auth state
 
-Replace `truncate` with classes that allow multi-line wrapping:
+**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
+- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
 
-```tsx
-// Before
-<span className="truncate font-medium">{task.title}</span>
+### Technical Details
 
-// After
-<span className="font-medium break-words whitespace-normal">{task.title}</span>
-```
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
+| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
 
-This removes the single-line truncation and lets long task titles flow naturally across multiple lines. The parent flex-col layout already supports variable-height content.
-
+This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
