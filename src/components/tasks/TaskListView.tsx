@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { TaskRow } from './TaskRow';
 import { useEmployees } from '@/services/useEmployees';
 import { useCreateTask, useBulkDeleteTasks } from '@/services/useTasks';
+import { useTaskCustomFields } from '@/services/useTaskCustomFields';
 import { PrioritySelector, CategorySelector, AssigneeSelector, DueDateSelector, TagsSelector } from './TaskInlineCellEditors';
 import CategoryIcon from './CategoryIcon';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
