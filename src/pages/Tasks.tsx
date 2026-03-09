@@ -264,6 +264,7 @@ const Tasks = () => {
                   categories={categories}
                   filters={filters}
                   onFiltersChange={setFilters}
+                  spaceId={activeSpaceId || undefined}
                 />
 
                 {hasActiveFilters && (

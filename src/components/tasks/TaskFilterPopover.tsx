@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { SlidersHorizontal, X } from 'lucide-react';
+import { SlidersHorizontal, Trash2, Check, Bookmark, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { useTaskSavedFilters } from '@/hooks/useTaskSavedFilters';
+import { toast } from '@/hooks/use-toast';
 import type { TaskStatusRow, TaskCategoryRow, TaskFilters, TaskPriority } from '@/types/task';
 
 const PRIORITIES: { value: TaskPriority; label: string }[] = [
@@ -21,10 +23,15 @@ interface TaskFilterPopoverProps {
   categories: TaskCategoryRow[];
   filters: TaskFilters;
   onFiltersChange: (filters: TaskFilters) => void;
+  spaceId?: string;
 }
 
-export const TaskFilterPopover = ({ statuses, categories, filters, onFiltersChange }: TaskFilterPopoverProps) => {
+export const TaskFilterPopover = ({ statuses, categories, filters, onFiltersChange, spaceId }: TaskFilterPopoverProps) => {
   const [open, setOpen] = useState(false);
+  const [savingName, setSavingName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  const { savedFilters, saveFilter, deleteFilter } = useTaskSavedFilters(spaceId);
 
   const activeCount = [
     filters.status_ids?.length,
@@ -42,6 +49,30 @@ export const TaskFilterPopover = ({ statuses, categories, filters, onFiltersChan
 
   const clearAll = () => {
     onFiltersChange({});
+  };
+
+  const handleSaveFilter = () => {
+    const name = savingName.trim();
+    if (!name) return;
+    saveFilter.mutate(
+      { name, filters },
+      {
+        onSuccess: () => {
+          setSavingName('');
+          setIsSaving(false);
+          toast({ title: 'Filter saved' });
+        },
+      }
+    );
+  };
+
+  const handleApplyFilter = (saved: { filters: TaskFilters }) => {
+    onFiltersChange(saved.filters);
+  };
+
+  const handleDeleteFilter = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    deleteFilter.mutate(id);
   };
 
   return (
@@ -142,6 +173,71 @@ export const TaskFilterPopover = ({ statuses, categories, filters, onFiltersChan
                 </div>
               </div>
             </FilterSection>
+
+            {/* Saved Filters */}
+            {(savedFilters.length > 0 || activeCount > 0) && (
+              <>
+                <Separator />
+                <FilterSection title="Saved Filters">
+                  {savedFilters.map(sf => (
+                    <button
+                      key={sf.id}
+                      type="button"
+                      onClick={() => handleApplyFilter(sf)}
+                      className="flex items-center gap-2 w-full py-1 px-1 -mx-1 rounded hover:bg-muted/50 group cursor-pointer"
+                    >
+                      <Bookmark className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="text-sm truncate flex-1 text-left">{sf.name}</span>
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteFilter(sf.id, e)}
+                        className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-destructive/10 transition-opacity"
+                      >
+                        <Trash2 className="h-3 w-3 text-destructive" />
+                      </button>
+                    </button>
+                  ))}
+
+                  {activeCount > 0 && (
+                    <>
+                      {isSaving ? (
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <Input
+                            autoFocus
+                            value={savingName}
+                            onChange={(e) => setSavingName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveFilter();
+                              if (e.key === 'Escape') { setIsSaving(false); setSavingName(''); }
+                            }}
+                            placeholder="Filter name..."
+                            className="h-7 text-xs flex-1"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            disabled={!savingName.trim() || saveFilter.isPending}
+                            onClick={handleSaveFilter}
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setIsSaving(true)}
+                          className="flex items-center gap-2 w-full py-1 px-1 -mx-1 rounded hover:bg-muted/50 text-muted-foreground cursor-pointer mt-1"
+                        >
+                          <Plus className="h-3 w-3" />
+                          <span className="text-xs">Save current filters</span>
+                        </button>
+                      )}
+                    </>
+                  )}
+                </FilterSection>
+              </>
+            )}
           </div>
         </ScrollArea>
       </PopoverContent>
