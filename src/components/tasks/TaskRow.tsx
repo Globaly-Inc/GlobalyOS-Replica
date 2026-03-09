@@ -521,9 +521,12 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
           const fieldKey = col.key.replace('custom_', '');
           const customFields = (task as any).custom_fields as Record<string, any> | null;
           const value = customFields?.[fieldKey] ?? '';
+          const fieldDef = customFieldDefs.find(f => f.field_key === fieldKey);
           return (
             <CustomFieldCell
               value={value}
+              fieldType={fieldDef?.field_type}
+              options={fieldDef?.options}
               onChange={(newVal) => {
                 const updated = { ...(customFields || {}), [fieldKey]: newVal };
                 handleUpdate('custom_fields', updated);
