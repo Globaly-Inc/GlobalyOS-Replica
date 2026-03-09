@@ -407,6 +407,12 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
                   ) : '—'}
                 </button>
               </CategorySelector>
+              {task.related_entity_type && (
+                <Badge variant="outline" className="text-[10px] h-4 gap-1 px-1.5 text-muted-foreground w-fit">
+                  <Link2 className="h-2.5 w-2.5" />
+                  {task.related_entity_type.charAt(0).toUpperCase() + task.related_entity_type.slice(1)}
+                </Badge>
+              )}
               <span className="font-medium break-words whitespace-normal">{task.title}</span>
             </div>
             {tags.length > 0 && (
