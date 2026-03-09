@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -13,11 +13,13 @@ import {
 import {
   SortableContext,
   verticalListSortingStrategy,
+  horizontalListSortingStrategy,
   useSortable,
+  arrayMove,
 } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { MoreHorizontal, Plus, Trash2, X } from 'lucide-react';
+import { GripVertical, MoreHorizontal, Plus, Trash2, X } from 'lucide-react';
 import CategoryIcon from './CategoryIcon';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -29,7 +31,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { TaskBulkActionsBar } from './TaskBulkActionsBar';
 import { cn } from '@/lib/utils';
-import { useUpdateTask, useDeleteTask, useBulkDeleteTasks } from '@/services/useTasks';
+import { useUpdateTask, useDeleteTask, useBulkDeleteTasks, useReorderStatuses } from '@/services/useTasks';
 import type { TaskStatusRow, TaskWithRelations, TaskCategoryRow } from '@/types/task';
 import { toast } from 'sonner';
 
@@ -54,10 +56,19 @@ interface TaskBoardViewProps {
 
 export const TaskBoardView = ({ statuses, tasks, categories, spaceId, onTaskClick, onAddTaskInStatus, onAddTaskWithTitle, isAllTasksMode, statusIdMap }: TaskBoardViewProps) => {
   const [activeTask, setActiveTask] = useState<TaskWithRelations | null>(null);
+  const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [columnOrder, setColumnOrder] = useState<string[]>([]);
   const updateTask = useUpdateTask();
   const bulkDelete = useBulkDeleteTasks();
+  const reorderStatuses = useReorderStatuses();
+
+  // Sync columnOrder from statuses prop
+  useEffect(() => {
+    const sorted = [...statuses].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    setColumnOrder(sorted.map(s => s.id));
+  }, [statuses]);
 
   const selectionActive = selectedTaskIds.size > 0;
 
@@ -66,28 +77,68 @@ export const TaskBoardView = ({ statuses, tasks, categories, spaceId, onTaskClic
     useSensor(KeyboardSensor)
   );
 
+  const columnSortableIds = useMemo(() => columnOrder.map(id => `column-${id}`), [columnOrder]);
+
+  const statusMap = useMemo(() => {
+    const m = new Map<string, TaskStatusRow>();
+    statuses.forEach(s => m.set(s.id, s));
+    return m;
+  }, [statuses]);
+
   const handleDragStart = (event: DragStartEvent) => {
-    const task = tasks.find(t => t.id === event.active.id);
-    if (task) setActiveTask(task);
+    const id = event.active.id as string;
+    if (id.startsWith('column-')) {
+      setActiveColumnId(id.replace('column-', ''));
+    } else {
+      const task = tasks.find(t => t.id === id);
+      if (task) setActiveTask(task);
+    }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
-    setActiveTask(null);
     const { active, over } = event;
+    setActiveTask(null);
+    setActiveColumnId(null);
     if (!over) return;
 
-    const taskId = active.id as string;
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    // Column drag
+    if (activeId.startsWith('column-') && overId.startsWith('column-')) {
+      const fromStatusId = activeId.replace('column-', '');
+      const toStatusId = overId.replace('column-', '');
+      if (fromStatusId === toStatusId) return;
+
+      const oldIndex = columnOrder.indexOf(fromStatusId);
+      const newIndex = columnOrder.indexOf(toStatusId);
+      if (oldIndex === -1 || newIndex === -1) return;
+
+      const newOrder = arrayMove(columnOrder, oldIndex, newIndex);
+      setColumnOrder(newOrder);
+
+      const updates = newOrder.map((id, i) => ({ id, sort_order: i }));
+      reorderStatuses.mutate({ updates, spaceId });
+      return;
+    }
+
+    // Task drag
+    const taskId = activeId;
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
 
     let targetStatusId: string | null = null;
-    const overStatus = statuses.find(s => s.id === over.id);
-    if (overStatus) {
-      targetStatusId = overStatus.id;
+    if (overId.startsWith('column-')) {
+      targetStatusId = overId.replace('column-', '');
     } else {
-      const overTask = tasks.find(t => t.id === over.id);
-      if (overTask) {
-        targetStatusId = overTask.status_id;
+      const overStatus = statuses.find(s => s.id === overId);
+      if (overStatus) {
+        targetStatusId = overStatus.id;
+      } else {
+        const overTask = tasks.find(t => t.id === overId);
+        if (overTask) {
+          targetStatusId = overTask.status_id;
+        }
       }
     }
 
@@ -123,22 +174,15 @@ export const TaskBoardView = ({ statuses, tasks, categories, spaceId, onTaskClic
     setShowBulkDeleteDialog(false);
   };
 
-  const tasksByStatus = (() => {
+  const getTasksForStatus = useCallback((status: TaskStatusRow) => {
     if (!isAllTasksMode || !statusIdMap) {
-      return statuses.map(status => ({
-        status,
-        tasks: tasks.filter(t => t.status_id === status.id),
-      }));
+      return tasks.filter(t => t.status_id === status.id);
     }
-    // In all-tasks mode, use statusIdMap to collect all equivalent status IDs per representative
-    return statuses.map(status => {
-      const allIds = new Set(statusIdMap.get(status.id) || [status.id]);
-      return {
-        status,
-        tasks: tasks.filter(t => allIds.has(t.status_id)),
-      };
-    });
-  })();
+    const allIds = new Set(statusIdMap.get(status.id) || [status.id]);
+    return tasks.filter(t => allIds.has(t.status_id));
+  }, [tasks, isAllTasksMode, statusIdMap]);
+
+  const activeColumn = activeColumnId ? statusMap.get(activeColumnId) : null;
 
   return (
     <>
@@ -148,27 +192,42 @@ export const TaskBoardView = ({ statuses, tasks, categories, spaceId, onTaskClic
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-4 h-full overflow-x-auto pb-4">
-          {tasksByStatus.map(({ status, tasks: columnTasks }) => (
-            <BoardColumn
-              key={status.id}
-              status={status}
-              tasks={columnTasks}
-              categories={categories}
-              spaceId={spaceId}
-              onTaskClick={onTaskClick}
-              onAddTask={() => onAddTaskInStatus?.(status.id)}
-              onAddTaskWithTitle={onAddTaskWithTitle ? (title) => onAddTaskWithTitle(status.id, title) : undefined}
-              selectionActive={selectionActive}
-              selectedTaskIds={selectedTaskIds}
-              onToggleSelect={handleToggleSelect}
-              isAllTasksMode={isAllTasksMode}
-            />
-          ))}
-        </div>
+        <SortableContext items={columnSortableIds} strategy={horizontalListSortingStrategy}>
+          <div className="flex gap-4 h-full overflow-x-auto pb-4">
+            {columnOrder.map(statusId => {
+              const status = statusMap.get(statusId);
+              if (!status) return null;
+              const columnTasks = getTasksForStatus(status);
+              return (
+                <SortableBoardColumn
+                  key={status.id}
+                  status={status}
+                  tasks={columnTasks}
+                  categories={categories}
+                  spaceId={spaceId}
+                  onTaskClick={onTaskClick}
+                  onAddTask={() => onAddTaskInStatus?.(status.id)}
+                  onAddTaskWithTitle={onAddTaskWithTitle ? (title) => onAddTaskWithTitle(status.id, title) : undefined}
+                  selectionActive={selectionActive}
+                  selectedTaskIds={selectedTaskIds}
+                  onToggleSelect={handleToggleSelect}
+                  isAllTasksMode={isAllTasksMode}
+                />
+              );
+            })}
+          </div>
+        </SortableContext>
 
         <DragOverlay>
           {activeTask && <TaskCard task={activeTask} onClick={() => {}} isDragging spaceId={spaceId} selectionActive={false} selected={false} onToggleSelect={() => {}} />}
+          {activeColumn && (
+            <div className="w-72 shrink-0 bg-muted/60 rounded-lg border opacity-80 shadow-lg p-3">
+              <div className="flex items-center gap-2">
+                <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: activeColumn.color || '#6b7280' }} />
+                <span className="text-sm font-medium">{activeColumn.name}</span>
+              </div>
+            </div>
+          )}
         </DragOverlay>
       </DndContext>
 
@@ -200,6 +259,23 @@ export const TaskBoardView = ({ statuses, tasks, categories, spaceId, onTaskClic
   );
 };
 
+// ─── Sortable Column Wrapper ───
+
+const SortableBoardColumn = (props: BoardColumnProps) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: `column-${props.status.id}` });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className={cn(isDragging && 'opacity-50')}>
+      <BoardColumn {...props} dragHandleProps={{ ...attributes, ...listeners }} />
+    </div>
+  );
+};
+
 // ─── Column ───
 
 interface BoardColumnProps {
@@ -214,9 +290,10 @@ interface BoardColumnProps {
   selectedTaskIds: Set<string>;
   onToggleSelect: (taskId: string) => void;
   isAllTasksMode?: boolean;
+  dragHandleProps?: Record<string, any>;
 }
 
-const BoardColumn = ({ status, tasks, categories, spaceId, onTaskClick, onAddTask, onAddTaskWithTitle, selectionActive, selectedTaskIds, onToggleSelect, isAllTasksMode }: BoardColumnProps) => {
+const BoardColumn = ({ status, tasks, categories, spaceId, onTaskClick, onAddTask, onAddTaskWithTitle, selectionActive, selectedTaskIds, onToggleSelect, isAllTasksMode, dragHandleProps }: BoardColumnProps) => {
   const taskIds = tasks.map(t => t.id);
   const { setNodeRef: setDropRef } = useDroppable({ id: status.id });
   const [isAddingInline, setIsAddingInline] = useState(false);
@@ -255,7 +332,15 @@ const BoardColumn = ({ status, tasks, categories, spaceId, onTaskClick, onAddTas
   return (
     <div className="w-72 shrink-0 flex flex-col bg-muted/30 rounded-lg border" ref={setDropRef}>
       {/* Column header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b">
+      <div className="flex items-center gap-2 px-3 py-2.5 border-b group/col-header">
+        {dragHandleProps && (
+          <div
+            {...dragHandleProps}
+            className="flex items-center justify-center w-4 h-6 cursor-grab active:cursor-grabbing opacity-0 group-hover/col-header:opacity-100 transition-opacity shrink-0"
+          >
+            <GripVertical className="h-3 w-3 text-muted-foreground" />
+          </div>
+        )}
         <div
           className="h-2.5 w-2.5 rounded-full shrink-0"
           style={{ backgroundColor: status.color || '#6b7280' }}
