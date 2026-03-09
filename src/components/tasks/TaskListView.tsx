@@ -396,6 +396,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                     onToggleSelect={selectionActive ? handleToggleSelect : undefined}
                     allTags={allTags}
                     isAllTasksMode={isAllTasksMode}
+                    customFieldDefs={customFieldDefs}
                   />
                 ))}
 
