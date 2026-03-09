@@ -21311,6 +21311,61 @@ export type Database = {
           },
         ]
       }
+      task_saved_filters: {
+        Row: {
+          created_at: string
+          created_by: string
+          filters: Json
+          id: string
+          name: string
+          organization_id: string
+          space_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          filters?: Json
+          id?: string
+          name: string
+          organization_id: string
+          space_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          filters?: Json
+          id?: string
+          name?: string
+          organization_id?: string
+          space_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_saved_filters_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_saved_filters_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_saved_filters_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "task_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_sharing_permissions: {
         Row: {
           created_at: string
