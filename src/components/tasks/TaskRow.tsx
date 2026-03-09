@@ -291,6 +291,7 @@ interface TaskRowProps {
   onToggleSelect?: (taskId: string) => void;
   allTags?: string[];
   isAllTasksMode?: boolean;
+  customFieldDefs?: import('@/services/useTaskCustomFields').TaskCustomField[];
 }
 
 export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories = [], statuses = [], members = [], spaceId, selected, onToggleSelect, allTags = [], isAllTasksMode }: TaskRowProps) => {
