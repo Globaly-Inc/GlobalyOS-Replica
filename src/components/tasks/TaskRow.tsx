@@ -20,6 +20,7 @@ import { format, parseISO } from 'date-fns';
 import { MoreHorizontal, Trash2, Paperclip, Download, FileIcon, MessageSquare, Send, X, FolderInput } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { MoveTaskDialog } from './MoveTaskDialog';
+import { RelatedToPopover } from './RelatedToPopover';
 import { useRelativeTime } from '@/hooks/useRelativeTime';
 import { toast } from 'sonner';
 
@@ -407,12 +408,23 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
                   ) : '—'}
                 </button>
               </CategorySelector>
-              {task.related_entity_type && (
-                <Badge variant="outline" className="text-[10px] h-4 gap-1 px-1.5 text-muted-foreground w-fit">
+              <RelatedToPopover
+                entityType={task.related_entity_type}
+                entityId={task.related_entity_id}
+                onUpdate={(type, id) => {
+                  handleUpdate('related_entity_type', type);
+                  handleUpdate('related_entity_id', id);
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded hover:bg-muted transition-colors text-muted-foreground w-fit"
+                >
                   <Link2 className="h-2.5 w-2.5" />
-                  {task.related_entity_type.charAt(0).toUpperCase() + task.related_entity_type.slice(1)}
-                </Badge>
-              )}
+                  <span>Related to: {task.related_entity_type ? task.related_entity_type.charAt(0).toUpperCase() + task.related_entity_type.slice(1) : 'None'}</span>
+                </button>
+              </RelatedToPopover>
               <span className="font-medium break-words whitespace-normal">{task.title}</span>
             </div>
             {tags.length > 0 && (
