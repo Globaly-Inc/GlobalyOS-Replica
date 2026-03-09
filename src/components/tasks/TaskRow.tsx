@@ -18,6 +18,7 @@ import { ChevronRight, Link2 } from 'lucide-react';
 import type { ColumnConfig } from './TaskColumnCustomizer';
 import { format, parseISO } from 'date-fns';
 import { MoreHorizontal, Trash2, Paperclip, Download, FileIcon, MessageSquare, Send, X, FolderInput } from 'lucide-react';
+import { RelatedToPopover } from './RelatedToPopover';
 import { Input } from '@/components/ui/input';
 import { MoveTaskDialog } from './MoveTaskDialog';
 import { useRelativeTime } from '@/hooks/useRelativeTime';
