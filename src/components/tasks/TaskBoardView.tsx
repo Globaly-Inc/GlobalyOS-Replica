@@ -259,6 +259,23 @@ export const TaskBoardView = ({ statuses, tasks, categories, spaceId, onTaskClic
   );
 };
 
+// ─── Sortable Column Wrapper ───
+
+const SortableBoardColumn = (props: BoardColumnProps) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: `column-${props.status.id}` });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className={cn(isDragging && 'opacity-50')}>
+      <BoardColumn {...props} dragHandleProps={{ ...attributes, ...listeners }} />
+    </div>
+  );
+};
+
 // ─── Column ───
 
 interface BoardColumnProps {
@@ -273,9 +290,10 @@ interface BoardColumnProps {
   selectedTaskIds: Set<string>;
   onToggleSelect: (taskId: string) => void;
   isAllTasksMode?: boolean;
+  dragHandleProps?: Record<string, any>;
 }
 
-const BoardColumn = ({ status, tasks, categories, spaceId, onTaskClick, onAddTask, onAddTaskWithTitle, selectionActive, selectedTaskIds, onToggleSelect, isAllTasksMode }: BoardColumnProps) => {
+const BoardColumn = ({ status, tasks, categories, spaceId, onTaskClick, onAddTask, onAddTaskWithTitle, selectionActive, selectedTaskIds, onToggleSelect, isAllTasksMode, dragHandleProps }: BoardColumnProps) => {
   const taskIds = tasks.map(t => t.id);
   const { setNodeRef: setDropRef } = useDroppable({ id: status.id });
   const [isAddingInline, setIsAddingInline] = useState(false);
@@ -314,7 +332,15 @@ const BoardColumn = ({ status, tasks, categories, spaceId, onTaskClick, onAddTas
   return (
     <div className="w-72 shrink-0 flex flex-col bg-muted/30 rounded-lg border" ref={setDropRef}>
       {/* Column header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b">
+      <div className="flex items-center gap-2 px-3 py-2.5 border-b group/col-header">
+        {dragHandleProps && (
+          <div
+            {...dragHandleProps}
+            className="flex items-center justify-center w-4 h-6 cursor-grab active:cursor-grabbing opacity-0 group-hover/col-header:opacity-100 transition-opacity shrink-0"
+          >
+            <GripVertical className="h-3 w-3 text-muted-foreground" />
+          </div>
+        )}
         <div
           className="h-2.5 w-2.5 rounded-full shrink-0"
           style={{ backgroundColor: status.color || '#6b7280' }}
