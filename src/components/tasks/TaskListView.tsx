@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { ChevronDown, ChevronRight, Plus, X, Paperclip, Check } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, X, Paperclip, Check, MessageSquare } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -345,7 +345,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                           (col.key === 'comments' || col.key === 'attachments') && 'text-center'
                         )}
                       >
-                        {col.key === 'comments' ? '💬' : col.key === 'attachments' ? '📎' : col.label}
+                        {col.key === 'comments' ? <MessageSquare className="h-4 w-4 text-muted-foreground mx-auto" /> : col.key === 'attachments' ? '📎' : col.label}
                         {/* Resize handle — skip for the last column and 'name' (flex) */}
                         {col.key !== 'name' && idx < visibleColumns.length - 1 && (
                           <div
