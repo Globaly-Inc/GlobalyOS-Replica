@@ -235,6 +235,22 @@ export const useDeleteTaskStatus = () => {
   });
 };
 
+export const useReorderStatuses = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ updates, spaceId }: { updates: { id: string; sort_order: number }[]; spaceId: string }) => {
+      const promises = updates.map(({ id, sort_order }) =>
+        supabase.from('task_statuses').update({ sort_order }).eq('id', id)
+      );
+      const results = await Promise.all(promises);
+      const err = results.find(r => r.error);
+      if (err?.error) throw err.error;
+      return spaceId;
+    },
+    onSuccess: (spaceId) => qc.invalidateQueries({ queryKey: ['task-statuses', spaceId] }),
+  });
+};
+
 // ─── Categories ───
 
 export const useTaskCategories = (spaceId: string | undefined) => {

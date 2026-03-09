@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -13,11 +13,13 @@ import {
 import {
   SortableContext,
   verticalListSortingStrategy,
+  horizontalListSortingStrategy,
   useSortable,
+  arrayMove,
 } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { MoreHorizontal, Plus, Trash2, X } from 'lucide-react';
+import { GripVertical, MoreHorizontal, Plus, Trash2, X } from 'lucide-react';
 import CategoryIcon from './CategoryIcon';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -29,7 +31,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { TaskBulkActionsBar } from './TaskBulkActionsBar';
 import { cn } from '@/lib/utils';
-import { useUpdateTask, useDeleteTask, useBulkDeleteTasks } from '@/services/useTasks';
+import { useUpdateTask, useDeleteTask, useBulkDeleteTasks, useReorderStatuses } from '@/services/useTasks';
 import type { TaskStatusRow, TaskWithRelations, TaskCategoryRow } from '@/types/task';
 import { toast } from 'sonner';
 
