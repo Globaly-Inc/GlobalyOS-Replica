@@ -294,7 +294,7 @@ interface TaskRowProps {
   customFieldDefs?: import('@/services/useTaskCustomFields').TaskCustomField[];
 }
 
-export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories = [], statuses = [], members = [], spaceId, selected, onToggleSelect, allTags = [], isAllTasksMode }: TaskRowProps) => {
+export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories = [], statuses = [], members = [], spaceId, selected, onToggleSelect, allTags = [], isAllTasksMode, customFieldDefs = [] }: TaskRowProps) => {
   const priority = priorityConfig[task.priority] || priorityConfig.normal;
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
