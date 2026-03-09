@@ -1,33 +1,24 @@
 
 
-## Redesign "Related to" Popover with Keep/Change Radio Flow
+## Make Logo Navigate to Public Website Home
 
 ### Problem
-Currently, clicking "Related to" immediately shows entity type buttons to pick a new relation. The user wants it to first show the **current relation details**, then offer radio options to either **keep it** or **change/add a new one**.
+The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
 
-### Plan
+### Solution
 
-**File: `src/components/tasks/RelatedToPopover.tsx`**
+**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
+- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
+- This gives the landing page a stable URL accessible regardless of auth state
 
-Redesign the popover's internal flow into a two-phase UI:
+**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
+- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
 
-**Phase 1 — Current Relation Display (default view when popover opens):**
-- Fetch and display the current entity's name/details (reuse existing query patterns from the entity lists)
-- Show two radio buttons:
-  - **"Keep current"** (selected by default) — clicking "Done" closes popover, no changes
-  - **"Change / Add new"** — reveals Phase 2 inline
+### Technical Details
 
-**Phase 2 — Entity Picker (shown when "Change / Add new" radio is selected):**
-- Show the existing entity type selector (Employee, Department, CRM Contact, etc.)
-- Then the search + entity list as it works today
-- Selecting a new entity updates the task and closes the popover
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
+| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
 
-**Implementation details:**
-- Add a `mode` state: `'view' | 'pick'` controlled by radio selection
-- Add a small `CurrentEntityDisplay` component that fetches the entity name based on `entityType` + `entityId` (simple queries similar to existing lists)
-- Use `RadioGroup` / `RadioGroupItem` from the existing UI components
-- Add a "Done" button in the footer when in "Keep current" mode
-- When no current relation exists (`entityId` is null), skip Phase 1 and go directly to the entity picker
-
-**No other files need changes** — the `TaskRow.tsx` integration stays the same since only the popover's internal content changes.
-
+This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.

@@ -1,20 +1,23 @@
-import { useState, useMemo } from 'react';
-import { Search, X } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { Search, X, User, Building, Briefcase, Users, Link2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 import { useEmployees } from '@/services/useEmployees';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useQuery } from '@tanstack/react-query';
 
 const ENTITY_TYPES = [
-  { value: 'employee', label: 'Employee' },
-  { value: 'department', label: 'Department' },
-  { value: 'contact', label: 'CRM Contact' },
-  { value: 'company', label: 'CRM Company' },
-  { value: 'deal', label: 'CRM Deal' },
+  { value: 'employee', label: 'Employee', icon: User },
+  { value: 'department', label: 'Department', icon: Users },
+  { value: 'contact', label: 'CRM Contact', icon: User },
+  { value: 'company', label: 'CRM Company', icon: Building },
+  { value: 'deal', label: 'CRM Deal', icon: Briefcase },
 ] as const;
 
 type EntityType = typeof ENTITY_TYPES[number]['value'];
@@ -28,14 +31,22 @@ interface RelatedToPopoverProps {
 
 export const RelatedToPopover = ({ entityType, entityId, onUpdate, children }: RelatedToPopoverProps) => {
   const [open, setOpen] = useState(false);
-  const [selectedType, setSelectedType] = useState<EntityType | null>((entityType as EntityType) || null);
+  const [mode, setMode] = useState<'view' | 'pick'>(entityId ? 'view' : 'pick');
+  const [selectedType, setSelectedType] = useState<EntityType | null>(null);
   const [search, setSearch] = useState('');
+
+  // Reset state when popover opens
+  useEffect(() => {
+    if (open) {
+      setMode(entityId ? 'view' : 'pick');
+      setSelectedType(null);
+      setSearch('');
+    }
+  }, [open, entityId]);
 
   const handleSelect = (type: string, id: string) => {
     onUpdate(type, id);
     setOpen(false);
-    setSearch('');
-    setSelectedType(null);
   };
 
   const handleClear = () => {
@@ -48,7 +59,10 @@ export const RelatedToPopover = ({ entityType, entityId, onUpdate, children }: R
       <PopoverTrigger asChild>{children}</PopoverTrigger>
       <PopoverContent className="w-72 p-0" align="start">
         <div className="px-3 py-2 border-b flex items-center justify-between">
-          <span className="text-sm font-medium">Related To</span>
+          <div className="flex items-center gap-1.5">
+            <Link2 className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-sm font-medium">Related To</span>
+          </div>
           {entityId && (
             <button className="text-xs text-muted-foreground hover:text-destructive" onClick={handleClear}>
               <X className="h-3.5 w-3.5" />
@@ -56,44 +70,129 @@ export const RelatedToPopover = ({ entityType, entityId, onUpdate, children }: R
           )}
         </div>
 
-        {!selectedType ? (
-          <div className="p-2 space-y-0.5">
-            {ENTITY_TYPES.map(t => (
-              <button
-                key={t.value}
-                className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors"
-                onClick={() => setSelectedType(t.value)}
-              >
-                {t.label}
-              </button>
-            ))}
+        {mode === 'view' && entityId && entityType ? (
+          <div className="p-3 space-y-3">
+            {/* Current entity display */}
+            <div className="rounded-md border bg-muted/30 p-2.5">
+              <CurrentEntityDisplay entityType={entityType} entityId={entityId} />
+            </div>
+
+            {/* Radio options */}
+            <RadioGroup
+              defaultValue="keep"
+              onValueChange={(v) => {
+                if (v === 'change') {
+                  setMode('pick');
+                }
+              }}
+            >
+              <div className="flex items-center space-x-2 py-1">
+                <RadioGroupItem value="keep" id="keep-current" />
+                <Label htmlFor="keep-current" className="text-xs cursor-pointer">Keep current</Label>
+              </div>
+              <div className="flex items-center space-x-2 py-1">
+                <RadioGroupItem value="change" id="change-relation" />
+                <Label htmlFor="change-relation" className="text-xs cursor-pointer">Change / Add new</Label>
+              </div>
+            </RadioGroup>
+
+            <Button size="sm" variant="outline" className="w-full h-7 text-xs" onClick={() => setOpen(false)}>
+              Done
+            </Button>
           </div>
         ) : (
           <>
-            <div className="p-2 border-b">
-              <div className="flex items-center gap-2 mb-2">
-                <Badge variant="outline" className="text-[10px] cursor-pointer" onClick={() => setSelectedType(null)}>
-                  ← {ENTITY_TYPES.find(t => t.value === selectedType)?.label}
-                </Badge>
+            {!selectedType ? (
+              <div className="p-2 space-y-0.5">
+                {ENTITY_TYPES.map(t => {
+                  const Icon = t.icon;
+                  return (
+                    <button
+                      key={t.value}
+                      className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-muted transition-colors flex items-center gap-2"
+                      onClick={() => setSelectedType(t.value)}
+                    >
+                      <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                      {t.label}
+                    </button>
+                  );
+                })}
               </div>
-              <div className="relative">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search..."
-                  className="h-7 text-xs pl-7"
-                  autoFocus
-                />
-              </div>
-            </div>
-            <ScrollArea className="max-h-[200px]">
-              <EntityList type={selectedType} search={search} onSelect={(id) => handleSelect(selectedType, id)} />
-            </ScrollArea>
+            ) : (
+              <>
+                <div className="p-2 border-b">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant="outline" className="text-[10px] cursor-pointer" onClick={() => setSelectedType(null)}>
+                      ← {ENTITY_TYPES.find(t => t.value === selectedType)?.label}
+                    </Badge>
+                  </div>
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search..."
+                      className="h-7 text-xs pl-7"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+                <ScrollArea className="max-h-[200px]">
+                  <EntityList type={selectedType} search={search} onSelect={(id) => handleSelect(selectedType, id)} />
+                </ScrollArea>
+              </>
+            )}
           </>
         )}
       </PopoverContent>
     </Popover>
+  );
+};
+
+/* ─── Current entity name display ─── */
+const CurrentEntityDisplay = ({ entityType, entityId }: { entityType: string; entityId: string }) => {
+  const { currentOrg } = useOrganization();
+  const { data: employees = [] } = useEmployees({ status: 'active', includeOffice: false });
+
+  const { data: entityName } = useQuery({
+    queryKey: ['related-entity-name', entityType, entityId, currentOrg?.id],
+    queryFn: async () => {
+      if (entityType === 'employee') {
+        const emp = employees.find((e: any) => e.id === entityId);
+        return emp ? (emp as any).profiles?.full_name || 'Unknown' : 'Unknown';
+      }
+      if (entityType === 'department') {
+        const { data } = await supabase.from('departments').select('name').eq('id', entityId).single();
+        return data?.name || 'Unknown';
+      }
+      if (entityType === 'contact') {
+        const { data } = await supabase.from('crm_contacts').select('first_name, last_name').eq('id', entityId).single();
+        return data ? `${data.first_name} ${data.last_name || ''}`.trim() : 'Unknown';
+      }
+      if (entityType === 'company') {
+        const { data } = await supabase.from('crm_companies').select('name').eq('id', entityId).single();
+        return data?.name || 'Unknown';
+      }
+      if (entityType === 'deal') {
+        const { data } = await supabase.from('crm_deals').select('title').eq('id', entityId).single();
+        return data?.title || 'Unknown';
+      }
+      return 'Unknown';
+    },
+    enabled: !!entityId && !!entityType,
+  });
+
+  const typeLabel = ENTITY_TYPES.find(t => t.value === entityType)?.label || entityType;
+  const TypeIcon = ENTITY_TYPES.find(t => t.value === entityType)?.icon || Link2;
+
+  return (
+    <div className="flex items-center gap-2">
+      <TypeIcon className="h-3.5 w-3.5 text-primary shrink-0" />
+      <div className="min-w-0">
+        <p className="text-xs text-muted-foreground">{typeLabel}</p>
+        <p className="text-sm font-medium truncate">{entityName || '…'}</p>
+      </div>
+    </div>
   );
 };
 
