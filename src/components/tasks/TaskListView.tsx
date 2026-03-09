@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { ChevronDown, ChevronRight, Plus, X, Paperclip, Check, MessageSquare } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, X, Paperclip, Check, MessageSquare, Link2 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,7 @@ import { format, parseISO } from 'date-fns';
 import type { TaskStatusRow, TaskWithRelations, TaskCategoryRow } from '@/types/task';
 import type { ColumnConfig } from './TaskColumnCustomizer';
 import { useColumnResize } from '@/hooks/useColumnResize';
+import { RelatedToPopover } from './RelatedToPopover';
 
 const priorityConfig: Record<string, { label: string; className: string }> = {
   urgent: { label: 'Urgent', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
@@ -50,6 +51,8 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
   const [inlineAssigneeId, setInlineAssigneeId] = useState<string | null>(null);
   const [inlineDueDate, setInlineDueDate] = useState<string | null>(null);
   const [inlineTags, setInlineTags] = useState<string[]>([]);
+  const [inlineRelatedEntityType, setInlineRelatedEntityType] = useState<string | null>(null);
+  const [inlineRelatedEntityId, setInlineRelatedEntityId] = useState<string | null>(null);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -96,6 +99,8 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
     setInlineAssigneeId(null);
     setInlineDueDate(null);
     setInlineTags([]);
+    setInlineRelatedEntityType(null);
+    setInlineRelatedEntityId(null);
   };
 
   const handleStartInline = (statusId: string) => {
@@ -117,6 +122,8 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
         assignee_id: inlineAssigneeId,
         due_date: inlineDueDate,
         tags: inlineTags.length > 0 ? inlineTags : undefined,
+        related_entity_type: inlineRelatedEntityType,
+        related_entity_id: inlineRelatedEntityId,
       });
       toast.success('Task created');
       resetInline();
@@ -181,18 +188,37 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
     switch (col.key) {
       case 'name':
         return (
-          <input
-            ref={inputRef}
-            className="w-full bg-transparent outline-none text-sm font-medium placeholder:text-muted-foreground"
-            placeholder="Task name..."
-            value={inlineTitle}
-            onChange={(e) => setInlineTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleCreateInline(statusId);
-              if (e.key === 'Escape') resetInline();
-            }}
-            onClick={(e) => e.stopPropagation()}
-          />
+          <div className="flex flex-col gap-0.5">
+            <RelatedToPopover
+              entityType={inlineRelatedEntityType}
+              entityId={inlineRelatedEntityId}
+              onUpdate={(type, id) => {
+                setInlineRelatedEntityType(type);
+                setInlineRelatedEntityId(id);
+              }}
+            >
+              <button
+                type="button"
+                className="flex items-center gap-1 text-[10px] text-primary hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Link2 className="h-2.5 w-2.5" />
+                {inlineRelatedEntityId ? 'Related' : 'Related to'}
+              </button>
+            </RelatedToPopover>
+            <input
+              ref={inputRef}
+              className="w-full bg-transparent outline-none text-sm font-medium placeholder:text-muted-foreground"
+              placeholder="Task name..."
+              value={inlineTitle}
+              onChange={(e) => setInlineTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleCreateInline(statusId);
+                if (e.key === 'Escape') resetInline();
+              }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
         );
       case 'category':
         return (
