@@ -2,9 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useProjectDashboardData } from '@/services/useProjectDashboard';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { CheckCircle2, Users, FolderOpen, Loader2, Paperclip, Download, FileIcon } from 'lucide-react';
+import { CheckCircle2, Users, FolderOpen, List, Loader2, Paperclip, Download, FileIcon } from 'lucide-react';
 import type { TaskSpaceRow } from '@/types/task';
-import { isImageIcon } from '@/components/tasks/SpaceIconPicker';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 
@@ -147,10 +146,10 @@ export function ProjectDashboard({ spaceId, spaces }: ProjectDashboardProps) {
                   <div key={sp.id} className="space-y-1">
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-medium flex items-center gap-1.5">
-                        {isImageIcon(sp.icon) ? (
-                          <img src={sp.icon} alt="" className="h-4 w-4 rounded object-cover inline" />
+                        {sp.type === 'folder' ? (
+                          <FolderOpen className="h-4 w-4 text-muted-foreground" />
                         ) : (
-                          <span>{sp.icon || '📂'}</span>
+                          <List className="h-4 w-4 text-muted-foreground" />
                         )}
                         {sp.name}
                       </span>

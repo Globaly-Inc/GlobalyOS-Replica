@@ -5,12 +5,12 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import type { TaskSpaceRow } from '@/types/task';
 
 interface SubProjectData {
   id: string;
   name: string;
   icon: string | null;
+  type: 'folder' | 'list';
   totalTasks: number;
   completedTasks: number;
   completionRate: number;
@@ -40,73 +40,115 @@ export interface ProjectDashboardData {
   tasksByAssignee: AssigneeData[];
 }
 
-function collectDescendantIds(spaceId: string, spaces: TaskSpaceRow[]): string[] {
-  const ids: string[] = [spaceId];
-  const children = spaces.filter(s => s.parent_id === spaceId);
-  for (const child of children) {
-    ids.push(...collectDescendantIds(child.id, spaces));
-  }
-  return ids;
-}
-
 export const useProjectDashboardData = (
   projectSpaceId: string | null,
-  spaces: TaskSpaceRow[],
+  _spaces: unknown[],
 ) => {
-  const directChildren = spaces.filter(s => s.parent_id === projectSpaceId);
-  const allDescendantIds = projectSpaceId ? collectDescendantIds(projectSpaceId, spaces) : [];
-
   return useQuery({
-    queryKey: ['project-dashboard', projectSpaceId, allDescendantIds.length],
+    queryKey: ['project-dashboard', projectSpaceId],
     queryFn: async (): Promise<ProjectDashboardData> => {
-      if (!projectSpaceId || allDescendantIds.length === 0) {
+      if (!projectSpaceId) {
         return { totalTasks: 0, completedTasks: 0, completionRate: 0, subProjects: [], attachments: [], tasksByAssignee: [] };
       }
 
-      // Fetch all non-archived tasks across the project hierarchy
-      const { data: tasks, error } = await supabase
-        .from('tasks')
-        .select('id, title, space_id, status_id, assignee_id, completed_at, created_at, task_statuses(name)')
-        .in('space_id', allDescendantIds)
-        .eq('is_archived', false);
+      // Fetch folders, lists, and tasks in parallel
+      const [foldersRes, listsRes, tasksRes] = await Promise.all([
+        supabase
+          .from('task_folders')
+          .select('id, name')
+          .eq('space_id', projectSpaceId)
+          .order('sort_order', { ascending: true }),
+        supabase
+          .from('task_lists')
+          .select('id, name, folder_id')
+          .eq('space_id', projectSpaceId),
+        supabase
+          .from('tasks')
+          .select('id, title, list_id, status_id, assignee_id, completed_at, created_at, task_statuses(name)')
+          .eq('space_id', projectSpaceId)
+          .eq('is_archived', false),
+      ]);
 
-      if (error) throw error;
+      if (foldersRes.error) throw foldersRes.error;
+      if (listsRes.error) throw listsRes.error;
+      if (tasksRes.error) throw tasksRes.error;
 
-      const allTasks = tasks || [];
-      const completedTasks = allTasks.filter(t => {
+      const folders = foldersRes.data || [];
+      const lists = listsRes.data || [];
+      const allTasks = tasksRes.data || [];
+
+      // Build list_id → folder_id map
+      const listFolderMap = new Map<string, string | null>();
+      for (const l of lists) {
+        listFolderMap.set(l.id, l.folder_id);
+      }
+
+      // Completion helpers
+      const isCompleted = (t: typeof allTasks[0]) => {
         const status = t.task_statuses as any;
         return status?.name?.toLowerCase() === 'completed';
-      });
+      };
 
-      // Completion rate
+      const completedTasks = allTasks.filter(isCompleted);
       const totalCount = allTasks.length;
       const completedCount = completedTasks.length;
       const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
-      // Sub-projects
-      const subProjects: SubProjectData[] = directChildren.map(child => {
-        const childIds = collectDescendantIds(child.id, spaces);
-        const childTasks = allTasks.filter(t => childIds.includes(t.space_id));
-        const childCompleted = childTasks.filter(t => {
-          const status = t.task_statuses as any;
-          return status?.name?.toLowerCase() === 'completed';
-        });
-        return {
-          id: child.id,
-          name: child.name,
-          icon: child.icon,
-          totalTasks: childTasks.length,
-          completedTasks: childCompleted.length,
-          completionRate: childTasks.length > 0 ? Math.round((childCompleted.length / childTasks.length) * 100) : 0,
-        };
-      });
+      // Group tasks by list_id
+      const tasksByList = new Map<string, typeof allTasks>();
+      for (const t of allTasks) {
+        if (!t.list_id) continue;
+        const arr = tasksByList.get(t.list_id) || [];
+        arr.push(t);
+        tasksByList.set(t.list_id, arr);
+      }
 
-      // Fetch attachments for all tasks in the project
+      // Build sub-project entries
+      const subProjects: SubProjectData[] = [];
+
+      // Folders: aggregate tasks from all child lists
+      const folderIds = new Set(folders.map(f => f.id));
+      for (const folder of folders) {
+        const childListIds = lists.filter(l => l.folder_id === folder.id).map(l => l.id);
+        let folderTotal = 0;
+        let folderCompleted = 0;
+        for (const lid of childListIds) {
+          const lt = tasksByList.get(lid) || [];
+          folderTotal += lt.length;
+          folderCompleted += lt.filter(isCompleted).length;
+        }
+        subProjects.push({
+          id: folder.id,
+          name: folder.name,
+          icon: null,
+          type: 'folder',
+          totalTasks: folderTotal,
+          completedTasks: folderCompleted,
+          completionRate: folderTotal > 0 ? Math.round((folderCompleted / folderTotal) * 100) : 0,
+        });
+      }
+
+      // Unfiled lists (no folder)
+      const unfiledLists = lists.filter(l => !l.folder_id || !folderIds.has(l.folder_id));
+      for (const list of unfiledLists) {
+        const lt = tasksByList.get(list.id) || [];
+        const listCompleted = lt.filter(isCompleted).length;
+        subProjects.push({
+          id: list.id,
+          name: list.name,
+          icon: null,
+          type: 'list',
+          totalTasks: lt.length,
+          completedTasks: listCompleted,
+          completionRate: lt.length > 0 ? Math.round((listCompleted / lt.length) * 100) : 0,
+        });
+      }
+
+      // Fetch attachments
       const taskIds = allTasks.map(t => t.id);
       const taskTitleMap = new Map(allTasks.map(t => [t.id, t.title || 'Untitled']));
       let attachments: AttachmentData[] = [];
       if (taskIds.length > 0) {
-        // Batch fetch in chunks of 50
         for (let i = 0; i < taskIds.length; i += 50) {
           const chunk = taskIds.slice(i, i + 50);
           const { data: atts } = await supabase
@@ -129,16 +171,13 @@ export const useProjectDashboardData = (
       }
 
       // Tasks by assignee
-      const assigneeIds = new Set<string>();
       const assigneeCounts = new Map<string, number>();
       for (const t of allTasks) {
         const id = t.assignee_id || '__unassigned';
-        assigneeIds.add(id);
         assigneeCounts.set(id, (assigneeCounts.get(id) || 0) + 1);
       }
 
-      // Fetch assignee names
-      const realIds = Array.from(assigneeIds).filter(id => id !== '__unassigned');
+      const realIds = Array.from(assigneeCounts.keys()).filter(id => id !== '__unassigned');
       let nameMap = new Map<string, string>();
       if (realIds.length > 0) {
         const { data: employees } = await supabase
@@ -169,7 +208,7 @@ export const useProjectDashboardData = (
         tasksByAssignee,
       };
     },
-    enabled: !!projectSpaceId && allDescendantIds.length > 0,
+    enabled: !!projectSpaceId,
     staleTime: 60_000,
   });
 };

@@ -1,33 +1,24 @@
 
 
-## Fix: Show Folders and Lists as Sub-projects in Project Dashboard
+## Make Logo Navigate to Public Website Home
 
 ### Problem
-The "Sub-projects" card looks for **child spaces** (`spaces.filter(s => s.parent_id === spaceId)`), but the actual data hierarchy is **Space → Folders → Task Lists → Tasks**. Since there are no nested spaces, sub-projects is always empty.
+The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
 
-### Fix in `src/services/useProjectDashboard.ts`
+### Solution
 
-Replace the current sub-project logic with:
+**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
+- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
+- This gives the landing page a stable URL accessible regardless of auth state
 
-1. **Fetch folders** for the space from `task_folders` where `space_id = projectSpaceId`.
-2. **Fetch task lists** for the space from `task_lists` where `space_id = projectSpaceId`.
-3. **Build sub-project entries** from:
-   - Each **folder** — aggregate task counts from all lists where `folder_id` matches that folder.
-   - Each **unfiled list** (where `folder_id` is null) — show as its own entry.
-4. For each entry, compute `totalTasks` and `completedTasks` by filtering the already-fetched `allTasks` array by matching `list_id`.
-5. Update the task query to select `list_id` alongside existing fields so we can group by list.
+**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
+- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
 
-Also update the `SubProjectData` interface to add a `type: 'folder' | 'list'` field for the UI to distinguish them.
+### Technical Details
 
-### Fix in `src/components/tasks/ProjectDashboard.tsx`
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
+| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
 
-- Use `FolderOpen` icon for folder entries, `List` icon for standalone list entries (instead of relying on `sp.icon`).
-
-### Fix query `enabled` condition
-
-Currently: `enabled: !!projectSpaceId && allDescendantIds.length > 0`. Since `allDescendantIds` only has the space itself (no children), this works — but the task query uses `.in('space_id', allDescendantIds)` which is correct since tasks reference the space directly.
-
-### Summary of changes
-- **`useProjectDashboard.ts`**: Fetch `task_folders` + `task_lists` for the space; build sub-project entries from folders (aggregated) and unfiled lists; add `list_id` to task select; add `type` to `SubProjectData`.
-- **`ProjectDashboard.tsx`**: Show folder vs list icon based on `type` field.
-
+This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
