@@ -122,6 +122,8 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
         assignee_id: inlineAssigneeId,
         due_date: inlineDueDate,
         tags: inlineTags.length > 0 ? inlineTags : undefined,
+        related_entity_type: inlineRelatedEntityType,
+        related_entity_id: inlineRelatedEntityId,
       });
       toast.success('Task created');
       resetInline();
