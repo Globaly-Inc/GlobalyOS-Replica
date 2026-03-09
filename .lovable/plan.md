@@ -1,36 +1,24 @@
 
 
-## Replace Badge with Interactive "Related to" Text + Popover
+## Make Logo Navigate to Public Website Home
 
-### What changes
+### Problem
+The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
 
-**File: `src/components/tasks/TaskRow.tsx` (lines 410-415)**
+### Solution
 
-Replace the static `Badge` with the existing `RelatedToPopover` component wrapping a clickable "Related to" text link. Show it only when the task has a related entity.
+**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
+- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
+- This gives the landing page a stable URL accessible regardless of auth state
 
-1. Import `RelatedToPopover` from `./RelatedToPopover`
-2. Replace lines 410-415 with:
+**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
+- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
 
-```tsx
-{task.related_entity_type && (
-  <RelatedToPopover
-    entityType={task.related_entity_type}
-    entityId={task.related_entity_id}
-    onUpdate={(type, id) => {
-      handleUpdate('related_entity_type', type);
-      handleUpdate('related_entity_id', id);
-    }}
-  >
-    <button
-      type="button"
-      onClick={(e) => e.stopPropagation()}
-      className="text-[10px] text-primary hover:underline cursor-pointer w-fit"
-    >
-      Related to
-    </button>
-  </RelatedToPopover>
-)}
-```
+### Technical Details
 
-This shows plain "Related to" text (no badge) that, when clicked, opens the existing `RelatedToPopover` where the user can see the current contact and choose to keep it, change it, or link a different entity type.
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
+| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
 
+This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.

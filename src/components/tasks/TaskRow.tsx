@@ -18,6 +18,7 @@ import { ChevronRight, Link2 } from 'lucide-react';
 import type { ColumnConfig } from './TaskColumnCustomizer';
 import { format, parseISO } from 'date-fns';
 import { MoreHorizontal, Trash2, Paperclip, Download, FileIcon, MessageSquare, Send, X, FolderInput } from 'lucide-react';
+import { RelatedToPopover } from './RelatedToPopover';
 import { Input } from '@/components/ui/input';
 import { MoveTaskDialog } from './MoveTaskDialog';
 import { useRelativeTime } from '@/hooks/useRelativeTime';
@@ -408,10 +409,22 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
                 </button>
               </CategorySelector>
               {task.related_entity_type && (
-                <Badge variant="outline" className="text-[10px] h-4 gap-1 px-1.5 text-muted-foreground w-fit">
-                  <Link2 className="h-2.5 w-2.5" />
-                  {task.related_entity_type.charAt(0).toUpperCase() + task.related_entity_type.slice(1)}
-                </Badge>
+                <RelatedToPopover
+                  entityType={task.related_entity_type}
+                  entityId={task.related_entity_id}
+                  onUpdate={(type, id) => {
+                    handleUpdate('related_entity_type', type);
+                    handleUpdate('related_entity_id', id);
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-[10px] text-primary hover:underline cursor-pointer w-fit"
+                  >
+                    Related to
+                  </button>
+                </RelatedToPopover>
               )}
               <span className="font-medium break-words whitespace-normal">{task.title}</span>
             </div>
