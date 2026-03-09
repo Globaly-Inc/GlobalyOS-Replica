@@ -14,7 +14,7 @@ import { PrioritySelector, CategorySelector, AssigneeSelector, DueDateSelector, 
 import CategoryIcon from './CategoryIcon';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { TaskWithRelations, TaskCategoryRow, TaskStatusRow } from '@/types/task';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Link2 } from 'lucide-react';
 import type { ColumnConfig } from './TaskColumnCustomizer';
 import { format, parseISO } from 'date-fns';
 import { MoreHorizontal, Trash2, Paperclip, Download, FileIcon, MessageSquare, Send, X, FolderInput } from 'lucide-react';
@@ -407,6 +407,12 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
                   ) : '—'}
                 </button>
               </CategorySelector>
+              {task.related_entity_type && (
+                <Badge variant="outline" className="text-[10px] h-4 gap-1 px-1.5 text-muted-foreground w-fit">
+                  <Link2 className="h-2.5 w-2.5" />
+                  {task.related_entity_type.charAt(0).toUpperCase() + task.related_entity_type.slice(1)}
+                </Badge>
+              )}
               <span className="font-medium break-words whitespace-normal">{task.title}</span>
             </div>
             {tags.length > 0 && (
