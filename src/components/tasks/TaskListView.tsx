@@ -56,6 +56,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
 
   const createTask = useCreateTask();
   const bulkDelete = useBulkDeleteTasks();
+  const { data: customFieldDefs = [] } = useTaskCustomFields(spaceId);
 
   const { data: employeesData } = useEmployees({ status: 'active' });
   const members = ((employeesData || []) as any[]).map((e: any) => ({
