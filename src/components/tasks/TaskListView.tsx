@@ -42,7 +42,7 @@ interface TaskListViewProps {
 }
 
 export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onTaskClick, columns, isAllTasksMode, statusIdMap }: TaskListViewProps) => {
-  const { handleMouseDown: handleColResize, getGridTemplate } = useColumnResize(spaceId);
+  const { handleMouseDown: handleColResize, handleDoubleClick: handleColDblClick, getGridTemplate } = useColumnResize(spaceId);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [addingInStatusId, setAddingInStatusId] = useState<string | null>(null);
   const [inlineTitle, setInlineTitle] = useState('');
@@ -379,6 +379,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                           className="absolute right-0 top-0 h-full w-[5px] cursor-col-resize z-10 group hover:bg-primary/20 transition-colors"
                           style={{ transform: 'translateX(50%)' }}
                           onMouseDown={(e) => handleColResize(e, col.key)}
+                          onDoubleClick={(e) => handleColDblClick(e, col.key)}
                         >
                           <div className="absolute right-[2px] top-1/2 -translate-y-1/2 h-3 w-px bg-border group-hover:bg-primary transition-colors" />
                         </div>
