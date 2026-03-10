@@ -408,22 +408,6 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
                   ) : '—'}
                 </button>
               </CategorySelector>
-              <RelatedToPopover
-                entityType={task.related_entity_type}
-                entityId={task.related_entity_id}
-                onUpdate={(type, id) => {
-                  handleUpdate('related_entity_type', type);
-                  handleUpdate('related_entity_id', id);
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={(e) => e.stopPropagation()}
-                  className="text-[10px] text-primary hover:underline cursor-pointer w-fit"
-                >
-                  Related to
-                </button>
-              </RelatedToPopover>
               <span className="font-medium break-words whitespace-normal">{task.title}</span>
             </div>
             {tags.length > 0 && (
@@ -453,6 +437,26 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
           </div>
         );
       }
+      case 'related_to':
+        return (
+          <RelatedToPopover
+            entityType={task.related_entity_type}
+            entityId={task.related_entity_id}
+            onUpdate={(type, id) => {
+              handleUpdate('related_entity_type', type);
+              handleUpdate('related_entity_id', id);
+            }}
+          >
+            <button
+              type="button"
+              onClick={(e) => e.stopPropagation()}
+              className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer w-fit"
+            >
+              <Link2 className="h-3 w-3" />
+              {task.related_entity_id ? 'Linked' : '—'}
+            </button>
+          </RelatedToPopover>
+        );
       case 'category':
         return (
           <CategorySelector

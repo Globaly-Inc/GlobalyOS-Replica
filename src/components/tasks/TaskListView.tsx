@@ -189,23 +189,6 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
       case 'name':
         return (
           <div className="flex flex-col gap-0.5">
-            <RelatedToPopover
-              entityType={inlineRelatedEntityType}
-              entityId={inlineRelatedEntityId}
-              onUpdate={(type, id) => {
-                setInlineRelatedEntityType(type);
-                setInlineRelatedEntityId(id);
-              }}
-            >
-              <button
-                type="button"
-                className="flex items-center gap-1 text-[10px] text-primary hover:underline"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Link2 className="h-2.5 w-2.5" />
-                {inlineRelatedEntityId ? 'Related' : 'Related to'}
-              </button>
-            </RelatedToPopover>
             <input
               ref={inputRef}
               className="w-full bg-transparent outline-none text-sm font-medium placeholder:text-muted-foreground"
@@ -219,6 +202,26 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
               onClick={(e) => e.stopPropagation()}
             />
           </div>
+        );
+      case 'related_to':
+        return (
+          <RelatedToPopover
+            entityType={inlineRelatedEntityType}
+            entityId={inlineRelatedEntityId}
+            onUpdate={(type, id) => {
+              setInlineRelatedEntityType(type);
+              setInlineRelatedEntityId(id);
+            }}
+          >
+            <button
+              type="button"
+              className="flex items-center gap-1 text-xs text-primary hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Link2 className="h-3 w-3" />
+              {inlineRelatedEntityId ? 'Linked' : '—'}
+            </button>
+          </RelatedToPopover>
         );
       case 'category':
         return (
