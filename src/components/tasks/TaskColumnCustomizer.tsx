@@ -34,15 +34,16 @@ export interface ColumnConfig {
 
 const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: 'name', label: 'Name', visible: true },
-  { key: 'related_to', label: 'Related To', visible: true },
-  { key: 'category', label: 'Category', visible: false },
   { key: 'assignee', label: 'Assignee', visible: true },
-  { key: 'tags', label: 'Tags', visible: false },
+  { key: 'due_date', label: 'Due Date', visible: true },
   { key: 'comments', label: 'Comments', visible: true },
-  { key: 'attachments', label: 'Attachments', visible: true },
   { key: 'priority', label: 'Priority', visible: true },
-  { key: 'due_date', label: 'Due Date', visible: false },
+  { key: 'related_to', label: 'Related To', visible: true },
+  { key: 'attachments', label: 'Attachments', visible: true },
 ];
+
+// Keys hidden from the column customizer (rendered inline in Name column)
+const HIDDEN_FROM_CUSTOMIZER = new Set(['category', 'tags']);
 
 interface SortableColumnItemProps {
   col: ColumnConfig;
