@@ -23,6 +23,9 @@ interface TaskInnerSidebarProps {
 
 export const TaskInnerSidebar = ({ selection, onSelect }: TaskInnerSidebarProps) => {
   const { data: spaces = [] } = useTaskSpaces();
+  const { data: favoriteTasks = [] } = useTaskFavoritesWithDetails();
+  const toggleFavorite = useToggleTaskFavorite();
+  const [favoritesExpanded, setFavoritesExpanded] = useState(true);
   const [expandedSpaces, setExpandedSpaces] = useState<Set<string>>(new Set());
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [showCreateSpace, setShowCreateSpace] = useState(false);
