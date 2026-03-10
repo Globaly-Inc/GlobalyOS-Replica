@@ -42,7 +42,7 @@ interface TaskListViewProps {
 }
 
 export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onTaskClick, columns, isAllTasksMode, statusIdMap }: TaskListViewProps) => {
-  const { handleMouseDown: handleColResize, getGridTemplate } = useColumnResize(spaceId);
+  const { handleMouseDown: handleColResize, handleDoubleClick: handleColDblClick, getGridTemplate } = useColumnResize(spaceId);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [addingInStatusId, setAddingInStatusId] = useState<string | null>(null);
   const [inlineTitle, setInlineTitle] = useState('');
