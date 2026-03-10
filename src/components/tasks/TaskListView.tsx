@@ -416,9 +416,15 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                   >
                     {selectionActive && <div />}
                     {visibleColumns.map(col => (
-                      <div key={col.key}>{renderInlineCell(col, status.id)}</div>
+                      <div
+                        key={col.key}
+                        className={cn(
+                          col.key === 'name' && 'sticky left-0 z-20 bg-primary/5'
+                        )}
+                        style={col.key === 'name' && selectionActive ? { left: '28px' } : undefined}
+                      >{renderInlineCell(col, status.id)}</div>
                     ))}
-                    <div className="flex items-center justify-center gap-0.5">
+                    <div className="flex items-center justify-center gap-0.5 sticky right-0 z-20 bg-primary/5">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handleCreateInline(status.id)}>

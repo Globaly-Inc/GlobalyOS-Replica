@@ -584,11 +584,14 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
         {cols.map(col => (
           <div key={col.key} className={cn(
             'flex items-center min-w-0',
-            (col.key === 'comments' || col.key === 'attachments') && 'justify-center'
-          )}>{renderCell(col)}</div>
+            (col.key === 'comments' || col.key === 'attachments') && 'justify-center',
+            col.key === 'name' && 'sticky left-0 z-20 bg-card group-hover:bg-muted/30'
+          )}
+          style={col.key === 'name' && onToggleSelect ? { left: '28px' } : undefined}
+          >{renderCell(col)}</div>
         ))}
-        {/* Actions column - always rendered at the end */}
-        <div className="flex justify-end">
+        {/* Actions column - sticky right */}
+        <div className="flex justify-end sticky right-0 z-20 bg-card group-hover:bg-muted/30">
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
               <button className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity">
