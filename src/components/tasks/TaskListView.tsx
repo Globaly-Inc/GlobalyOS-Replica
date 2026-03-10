@@ -372,9 +372,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                         className={cn(
                           'relative select-none',
                           (col.key === 'comments' || col.key === 'attachments') && 'text-center',
-                          col.key === 'name' && ''
                         )}
-                        style={col.key === 'name' && selectionActive ? { left: '28px' } : undefined}
                       >
                         {col.key === 'comments' ? <MessageSquare className="h-4 w-4 text-muted-foreground mx-auto" /> : col.key === 'attachments' ? '📎' : col.label}
                         {/* Resize handle for every column */}
