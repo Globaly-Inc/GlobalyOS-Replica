@@ -589,9 +589,7 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
           <div key={col.key} data-col-key={col.key} className={cn(
             'flex items-center min-w-0',
             (col.key === 'comments' || col.key === 'attachments') && 'justify-center',
-            col.key === 'name' && 'sticky left-0 z-20 bg-card shadow-[2px_0_4px_-2px_hsl(var(--border))]'
           )}
-          style={col.key === 'name' && onToggleSelect ? { left: '28px' } : undefined}
           >{renderCell(col)}</div>
         ))}
         {/* Actions column */}

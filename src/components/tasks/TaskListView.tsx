@@ -372,9 +372,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                         className={cn(
                           'relative select-none',
                           (col.key === 'comments' || col.key === 'attachments') && 'text-center',
-                          col.key === 'name' && 'sticky left-0 z-20 bg-background shadow-[2px_0_4px_-2px_hsl(var(--border))]'
                         )}
-                        style={col.key === 'name' && selectionActive ? { left: '28px' } : undefined}
                       >
                         {col.key === 'comments' ? <MessageSquare className="h-4 w-4 text-muted-foreground mx-auto" /> : col.key === 'attachments' ? '📎' : col.label}
                         {/* Resize handle for every column */}
@@ -420,13 +418,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                   >
                     {selectionActive && <div />}
                     {visibleColumns.map(col => (
-                      <div
-                        key={col.key}
-                        className={cn(
-                          col.key === 'name' && 'sticky left-0 z-20 bg-card shadow-[2px_0_4px_-2px_hsl(var(--border))]'
-                        )}
-                        style={col.key === 'name' && selectionActive ? { left: '28px' } : undefined}
-                      >{renderInlineCell(col, status.id)}</div>
+                      <div key={col.key}>{renderInlineCell(col, status.id)}</div>
                     ))}
                     <div className="flex items-center justify-center gap-0.5">
                       <Tooltip>
