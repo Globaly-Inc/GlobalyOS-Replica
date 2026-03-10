@@ -14,7 +14,8 @@ import { TaskInnerSidebar } from '../components/tasks/TaskInnerSidebar';
 import { ManageDialog } from '../components/tasks/ManageDialog';
 import { TaskDetailPage } from '../components/tasks/TaskDetailPage';
 import { TaskFilterPopover } from '../components/tasks/TaskFilterPopover';
-import { TaskColumnCustomizer, getDefaultColumns } from '../components/tasks/TaskColumnCustomizer';
+import { TaskColumnCustomizer } from '../components/tasks/TaskColumnCustomizer';
+import { usePersistedColumns } from '@/hooks/usePersistedColumns';
 import { AddTaskDialog } from '../components/tasks/AddTaskDialog';
 import { FolderSummaryView } from '../components/tasks/FolderSummaryView';
 import { useTaskListRealtime } from '@/services/useTaskDetailRealtime';
@@ -33,7 +34,6 @@ const Tasks = () => {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [filters, setFilters] = useState<TaskFilters>({});
-  const [columns, setColumns] = useState(getDefaultColumns());
 
   const { data: spaces = [] } = useTaskSpaces();
   const { data: currentEmployee } = useCurrentEmployee();
@@ -50,6 +50,7 @@ const Tasks = () => {
     return null;
   }, [selection]);
 
+  const [columns, setColumns] = usePersistedColumns(activeSpaceId);
   const activeListId = isListView ? selection.id : null;
 
   useTaskListRealtime(activeSpaceId);
