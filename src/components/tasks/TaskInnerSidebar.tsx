@@ -103,6 +103,63 @@ export const TaskInnerSidebar = ({ selection, onSelect }: TaskInnerSidebarProps)
         </div>
       </div>
 
+      {/* Favorites Section */}
+      {favoriteTasks.length > 0 && (
+        <div className="px-3 pt-2 pb-1">
+          <Collapsible open={favoritesExpanded} onOpenChange={setFavoritesExpanded}>
+            <div className="flex items-center justify-between">
+              <CollapsibleTrigger className="flex items-center gap-1.5 group cursor-pointer">
+                <Star className="h-3.5 w-3.5 text-orange-500 fill-orange-500" />
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Favorites</span>
+                {favoritesExpanded
+                  ? <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                  : <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                }
+              </CollapsibleTrigger>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="p-0.5 text-muted-foreground hover:text-foreground transition-opacity">
+                    <MoreHorizontal className="h-3.5 w-3.5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuItem onClick={() => setFavoritesExpanded(!favoritesExpanded)}>
+                    {favoritesExpanded ? 'Collapse' : 'Expand'}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <CollapsibleContent>
+              <div className="mt-1 space-y-0.5">
+                {favoriteTasks.map(fav => (
+                  <div
+                    key={fav.task_id}
+                    className="group flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer text-sm transition-colors text-muted-foreground hover:bg-muted hover:text-foreground"
+                    onClick={() => {
+                      if (fav.list_id) {
+                        onSelect({ type: 'list', id: fav.list_id, spaceId: fav.space_id });
+                      }
+                    }}
+                  >
+                    <List className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate flex-1">{fav.name}</span>
+                    <button
+                      className="p-0.5 opacity-0 group-hover:opacity-100 text-orange-500 transition-opacity shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFavorite.mutate(fav.task_id);
+                      }}
+                    >
+                      <Star className="h-3 w-3 fill-orange-500" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
+      )}
+
       <div className="px-3 pt-3 pb-1 flex items-center justify-between">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Spaces</p>
         <Button
