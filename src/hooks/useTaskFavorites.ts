@@ -30,6 +30,40 @@ export const useIsTaskFavorite = (taskId: string) => {
   return favoriteIds.includes(taskId);
 };
 
+export interface FavoriteTaskDetail {
+  task_id: string;
+  name: string;
+  list_id: string | null;
+  space_id: string | null;
+}
+
+export const useTaskFavoritesWithDetails = () => {
+  const { currentOrg } = useOrganization();
+  const { data: currentEmployee } = useCurrentEmployee();
+
+  return useQuery({
+    queryKey: ['task-favorites-details', currentOrg?.id, currentEmployee?.id],
+    queryFn: async (): Promise<FavoriteTaskDetail[]> => {
+      if (!currentOrg?.id || !currentEmployee?.id) return [];
+
+      const { data, error } = await supabase
+        .from('task_favorites')
+        .select('task_id, tasks:task_id(name, list_id)')
+        .eq('organization_id', currentOrg.id)
+        .eq('employee_id', currentEmployee.id);
+
+      if (error) throw error;
+      return (data || []).map((d: any) => ({
+        task_id: d.task_id,
+        name: d.tasks?.name ?? 'Untitled',
+        list_id: d.tasks?.list_id ?? null,
+        space_id: null,
+      }));
+    },
+    enabled: !!currentOrg?.id && !!currentEmployee?.id,
+  });
+};
+
 export const useToggleTaskFavorite = () => {
   const queryClient = useQueryClient();
   const { currentOrg } = useOrganization();

@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Plus, User, MoreHorizontal, Trash2, FolderOpen, List, Pencil, Share2, FolderPlus, ListPlus, ArrowRightLeft } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, User, MoreHorizontal, Trash2, FolderOpen, List, Pencil, Share2, FolderPlus, ListPlus, ArrowRightLeft, Star } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useTaskSpaces, useDeleteTaskSpace, useUpdateTaskSpace, useTaskFolders, useUpdateTaskFolder, useDeleteTaskFolder, useTaskLists, useCreateTaskList, useUpdateTaskList, useDeleteTaskList } from '@/services/useTasks';
+import { useTaskFavoritesWithDetails, useToggleTaskFavorite } from '@/hooks/useTaskFavorites';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { CreateSpaceDialog } from './CreateSpaceDialog';
 import { CreateFolderDialog } from './CreateFolderDialog';
 import { CreateListDialog } from './CreateListDialog';
@@ -21,6 +23,9 @@ interface TaskInnerSidebarProps {
 
 export const TaskInnerSidebar = ({ selection, onSelect }: TaskInnerSidebarProps) => {
   const { data: spaces = [] } = useTaskSpaces();
+  const { data: favoriteTasks = [] } = useTaskFavoritesWithDetails();
+  const toggleFavorite = useToggleTaskFavorite();
+  const [favoritesExpanded, setFavoritesExpanded] = useState(true);
   const [expandedSpaces, setExpandedSpaces] = useState<Set<string>>(new Set());
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [showCreateSpace, setShowCreateSpace] = useState(false);
@@ -97,6 +102,63 @@ export const TaskInnerSidebar = ({ selection, onSelect }: TaskInnerSidebarProps)
           <span>My Tasks</span>
         </div>
       </div>
+
+      {/* Favorites Section */}
+      {favoriteTasks.length > 0 && (
+        <div className="px-3 pt-2 pb-1">
+          <Collapsible open={favoritesExpanded} onOpenChange={setFavoritesExpanded}>
+            <div className="flex items-center justify-between">
+              <CollapsibleTrigger className="flex items-center gap-1.5 group cursor-pointer">
+                <Star className="h-3.5 w-3.5 text-orange-500 fill-orange-500" />
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Favorites</span>
+                {favoritesExpanded
+                  ? <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                  : <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                }
+              </CollapsibleTrigger>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="p-0.5 text-muted-foreground hover:text-foreground transition-opacity">
+                    <MoreHorizontal className="h-3.5 w-3.5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuItem onClick={() => setFavoritesExpanded(!favoritesExpanded)}>
+                    {favoritesExpanded ? 'Collapse' : 'Expand'}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <CollapsibleContent>
+              <div className="mt-1 space-y-0.5">
+                {favoriteTasks.map(fav => (
+                  <div
+                    key={fav.task_id}
+                    className="group flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer text-sm transition-colors text-muted-foreground hover:bg-muted hover:text-foreground"
+                    onClick={() => {
+                      if (fav.list_id) {
+                        onSelect({ type: 'list', id: fav.list_id, spaceId: fav.space_id });
+                      }
+                    }}
+                  >
+                    <List className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate flex-1">{fav.name}</span>
+                    <button
+                      className="p-0.5 opacity-0 group-hover:opacity-100 text-orange-500 transition-opacity shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFavorite.mutate(fav.task_id);
+                      }}
+                    >
+                      <Star className="h-3 w-3 fill-orange-500" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
+      )}
 
       <div className="px-3 pt-3 pb-1 flex items-center justify-between">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Spaces</p>
