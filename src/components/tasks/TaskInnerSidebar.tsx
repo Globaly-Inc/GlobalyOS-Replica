@@ -157,7 +157,6 @@ export const TaskInnerSidebar = ({ selection, onSelect }: TaskInnerSidebarProps)
             </CollapsibleContent>
           </Collapsible>
         </div>
-      )}
 
       <div className="px-3 pt-3 pb-1 flex items-center justify-between">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Spaces</p>
