@@ -625,7 +625,21 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
           >{renderCell(col)}</div>
         ))}
         {/* Actions column */}
-        <div className="flex justify-end">
+        <div className="flex items-center justify-end gap-0.5">
+          <button
+            className={cn(
+              "p-1 rounded transition-all",
+              isFavorite
+                ? "text-orange-500 opacity-100"
+                : "text-muted-foreground hover:text-orange-400 opacity-0 group-hover:opacity-100"
+            )}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleFavorite.mutate(task.id);
+            }}
+          >
+            <Star className="h-3.5 w-3.5" fill={isFavorite ? 'currentColor' : 'none'} />
+          </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
               <button className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity">
