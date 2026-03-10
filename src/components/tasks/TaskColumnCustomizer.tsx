@@ -135,6 +135,9 @@ export const TaskColumnCustomizer = ({ columns, onColumnsChange, spaceId }: Task
     return [...columns, ...extras];
   })();
 
+  // Filter out category/tags from the UI list
+  const displayColumns = mergedColumns.filter(c => !HIDDEN_FROM_CUSTOMIZER.has(c.key));
+
   const customFieldKeys = new Set(customFields.map(f => `custom_${f.field_key}`));
 
   const toggleColumn = (key: string) => {
