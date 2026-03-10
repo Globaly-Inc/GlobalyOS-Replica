@@ -14,7 +14,10 @@ import { PrioritySelector, CategorySelector, AssigneeSelector, DueDateSelector, 
 import CategoryIcon from './CategoryIcon';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { TaskWithRelations, TaskCategoryRow, TaskStatusRow } from '@/types/task';
-import { ChevronRight, Link2 } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
+import { RelatedEntityName } from './RelatedEntityName';
+import { RelatedEntityCard } from './RelatedEntityCard';
 import type { ColumnConfig } from './TaskColumnCustomizer';
 import { format, parseISO } from 'date-fns';
 import { MoreHorizontal, Trash2, Paperclip, Download, FileIcon, MessageSquare, Send, X, FolderInput } from 'lucide-react';
