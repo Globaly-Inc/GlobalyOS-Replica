@@ -82,8 +82,8 @@ export const TaskInnerSidebar = ({ selection, onSelect }: TaskInnerSidebarProps)
 
   return (
     <div className="w-60 border-r bg-muted/30 flex flex-col h-full shrink-0">
-      <div className="px-3 pt-0 pb-2">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Workspace</p>
+      <div className="px-3 pt-1 pb-1">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Workspace</p>
         <div
           className={cn(
             'flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer text-sm transition-colors',
