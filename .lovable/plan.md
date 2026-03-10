@@ -1,16 +1,24 @@
 
 
-## Plan: Fix RelatedToPopover Click Propagation in Task List
+## Make Logo Navigate to Public Website Home
 
-### Root Cause
-React synthetic events bubble through portals via the React tree. Clicks inside `PopoverContent` bubble to the row's `onClick`, opening the task detail dialog and unmounting the popover before the search phase renders.
+### Problem
+The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
 
-### Fix
-**File: `src/components/tasks/RelatedToPopover.tsx`** — Add `onClick={(e) => e.stopPropagation()}` to `PopoverContent`.
+### Solution
 
-```tsx
-<PopoverContent className="w-72 p-0" align="start" onClick={(e) => e.stopPropagation()}>
-```
+**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
+- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
+- This gives the landing page a stable URL accessible regardless of auth state
 
-Single-line change. Fixes all three flows: blank cell → type selection → search/select, and editing existing relations. No side effects in `TaskDetailPage.tsx`.
+**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
+- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
 
+### Technical Details
+
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
+| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
+
+This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
