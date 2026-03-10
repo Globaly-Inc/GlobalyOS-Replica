@@ -423,7 +423,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                       <div
                         key={col.key}
                         className={cn(
-                          col.key === 'name' && 'sticky left-0 z-20 bg-card shadow-[2px_0_4px_-2px_hsl(var(--border))]'
+                          false
                         )}
                         style={col.key === 'name' && selectionActive ? { left: '28px' } : undefined}
                       >{renderInlineCell(col, status.id)}</div>
