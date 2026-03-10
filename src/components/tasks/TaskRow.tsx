@@ -567,7 +567,10 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
             value={task.due_date}
             onChange={(val) => handleUpdate('due_date', val)}
           >
-            <button className="text-xs text-muted-foreground hover:text-foreground transition-colors text-left w-full">
+            <button className={cn(
+              "text-xs transition-colors text-left w-full",
+              task.due_date && new Date(task.due_date) < new Date() ? "text-red-500 hover:text-red-600" : "text-muted-foreground hover:text-foreground"
+            )}>
               {task.due_date ? format(parseISO(task.due_date), 'MMM d') : '—'}
             </button>
           </DueDateSelector>
