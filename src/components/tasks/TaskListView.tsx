@@ -372,7 +372,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                         className={cn(
                           'relative select-none',
                           (col.key === 'comments' || col.key === 'attachments') && 'text-center',
-                          col.key === 'name' && 'sticky left-0 z-20 bg-background shadow-[2px_0_4px_-2px_hsl(var(--border))]'
+                          col.key === 'name' && ''
                         )}
                         style={col.key === 'name' && selectionActive ? { left: '28px' } : undefined}
                       >
