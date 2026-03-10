@@ -582,7 +582,7 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
           </div>
         )}
         {cols.map(col => (
-          <div key={col.key} className={cn(
+          <div key={col.key} data-col-key={col.key} className={cn(
             'flex items-center min-w-0',
             (col.key === 'comments' || col.key === 'attachments') && 'justify-center',
             col.key === 'name' && 'sticky left-0 z-20 bg-card group-hover:bg-muted/30'
