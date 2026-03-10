@@ -187,9 +187,11 @@ const Tasks = () => {
     return null;
   }, [isAllTasksMode, isSpaceView, activeSpace, isFolderView]);
 
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
-      <TaskInnerSidebar selection={selection} onSelect={handleSelect} />
+      {sidebarOpen && <TaskInnerSidebar selection={selection} onSelect={handleSelect} />}
 
       {/* Task Detail Dialog */}
       <Dialog open={!!selectedTaskId} onOpenChange={(open) => { if (!open) setSelectedTaskId(null); }}>
