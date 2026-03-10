@@ -34,7 +34,6 @@ const Tasks = () => {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [filters, setFilters] = useState<TaskFilters>({});
-  const [columns, setColumns] = usePersistedColumns(activeSpaceId);
 
   const { data: spaces = [] } = useTaskSpaces();
   const { data: currentEmployee } = useCurrentEmployee();
@@ -51,6 +50,7 @@ const Tasks = () => {
     return null;
   }, [selection]);
 
+  const [columns, setColumns] = usePersistedColumns(activeSpaceId);
   const activeListId = isListView ? selection.id : null;
 
   useTaskListRealtime(activeSpaceId);
