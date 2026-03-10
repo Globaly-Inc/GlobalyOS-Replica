@@ -85,6 +85,42 @@ export function useColumnResize(persistKey?: string) {
     document.addEventListener('mouseup', onMouseUp);
   }, []); // No dependencies — uses refs only
 
+  // Double-click to auto-fit column width to content
+  const handleDoubleClick = useCallback((e: React.MouseEvent, colKey: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Find all cells for this column by data attribute
+    const cells = document.querySelectorAll(`[data-col-key="${colKey}"]`);
+    let maxWidth = MIN_WIDTH;
+
+    cells.forEach(cell => {
+      // Temporarily remove width constraint to measure natural content width
+      const el = cell as HTMLElement;
+      const prevWidth = el.style.width;
+      const prevMinWidth = el.style.minWidth;
+      const prevMaxWidth = el.style.maxWidth;
+      el.style.width = 'auto';
+      el.style.minWidth = 'auto';
+      el.style.maxWidth = 'none';
+      // scrollWidth gives the content width
+      const contentWidth = el.scrollWidth + 16; // 16px padding buffer
+      el.style.width = prevWidth;
+      el.style.minWidth = prevMinWidth;
+      el.style.maxWidth = prevMaxWidth;
+      maxWidth = Math.max(maxWidth, contentWidth);
+    });
+
+    const fitWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, maxWidth));
+    setWidths(prev => {
+      const next = { ...prev, [colKey]: fitWidth };
+      if (storageKeyRef.current) {
+        saveWidths(storageKeyRef.current, next);
+      }
+      return next;
+    });
+  }, []);
+
   const getColumnWidth = useCallback((colKey: string): number => {
     return widths[colKey] || DEFAULT_WIDTHS[colKey] || 100;
   }, [widths]);
@@ -97,5 +133,5 @@ export function useColumnResize(persistKey?: string) {
     return (hasSelection ? '28px ' : '') + cols.join(' ') + ' 40px';
   }, [widths]);
 
-  return { widths, handleMouseDown, getGridTemplate, getColumnWidth };
+  return { widths, handleMouseDown, handleDoubleClick, getGridTemplate, getColumnWidth };
 }
