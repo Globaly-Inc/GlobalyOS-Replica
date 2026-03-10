@@ -146,11 +146,13 @@ export const TaskColumnCustomizer = ({ columns, onColumnsChange, spaceId }: Task
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    if (over && active.id !== over.id) {
-      const oldIndex = mergedColumns.findIndex(c => c.key === active.id);
-      const newIndex = mergedColumns.findIndex(c => c.key === over.id);
-      onColumnsChange(arrayMove(mergedColumns, oldIndex, newIndex));
-    }
+    if (!over || active.id === over.id) return;
+    // Prevent moving Name or moving anything before Name
+    if (active.id === 'name') return;
+    const oldIndex = mergedColumns.findIndex(c => c.key === active.id);
+    const newIndex = mergedColumns.findIndex(c => c.key === over.id);
+    if (newIndex === 0) return; // can't place before Name
+    onColumnsChange(arrayMove(mergedColumns, oldIndex, newIndex));
   };
 
   const handleAddField = () => {
