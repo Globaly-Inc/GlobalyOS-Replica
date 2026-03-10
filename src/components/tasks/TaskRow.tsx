@@ -14,7 +14,10 @@ import { PrioritySelector, CategorySelector, AssigneeSelector, DueDateSelector, 
 import CategoryIcon from './CategoryIcon';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { TaskWithRelations, TaskCategoryRow, TaskStatusRow } from '@/types/task';
-import { ChevronRight, Link2 } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
+import { RelatedEntityName } from './RelatedEntityName';
+import { RelatedEntityCard } from './RelatedEntityCard';
 import type { ColumnConfig } from './TaskColumnCustomizer';
 import { format, parseISO } from 'date-fns';
 import { MoreHorizontal, Trash2, Paperclip, Download, FileIcon, MessageSquare, Send, X, FolderInput } from 'lucide-react';
@@ -447,14 +450,30 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
               handleUpdate('related_entity_id', id);
             }}
           >
-            <button
-              type="button"
-              onClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer w-fit"
-            >
-              <Link2 className="h-3 w-3" />
-              {task.related_entity_id ? 'Linked' : '—'}
-            </button>
+            {task.related_entity_type && task.related_entity_id ? (
+              <HoverCard openDelay={300} closeDelay={100}>
+                <HoverCardTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-xs text-foreground truncate w-full text-left hover:text-primary transition-colors cursor-pointer"
+                  >
+                    <RelatedEntityName entityType={task.related_entity_type} entityId={task.related_entity_id} />
+                  </button>
+                </HoverCardTrigger>
+                <HoverCardContent side="top" align="start" className="w-72 p-0" onClick={(e) => e.stopPropagation()}>
+                  <RelatedEntityCard entityType={task.related_entity_type} entityId={task.related_entity_id} />
+                </HoverCardContent>
+              </HoverCard>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => e.stopPropagation()}
+                className="text-xs text-muted-foreground cursor-pointer"
+              >
+                —
+              </button>
+            )}
           </RelatedToPopover>
         );
       case 'category':

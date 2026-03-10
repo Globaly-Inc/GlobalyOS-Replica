@@ -1,49 +1,24 @@
 
 
-## Plan: Related Entity Name + Hover Card in Task List
+## Make Logo Navigate to Public Website Home
 
-### Current Behavior
-The `related_to` column shows a generic "Linked" or "—" text with a `Link2` icon. Clicking always opens the `RelatedToPopover`.
+### Problem
+The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
 
-### New Behavior
-1. **When a related entity exists**: Show the entity name as plain text (truncated). On hover, display a `HoverCard` with the existing `RelatedEntityCard` contact card. Clicking opens the `RelatedToPopover` for changing/removing the relation.
-2. **When no entity is linked**: Show "—". Clicking opens the `RelatedToPopover` selector (same as current).
+### Solution
 
-### Implementation
+**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
+- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
+- This gives the landing page a stable URL accessible regardless of auth state
 
-#### 1. Create `RelatedEntityName` helper component (in `TaskRow.tsx` or separate file)
-- A small component that takes `entityType` and `entityId`, uses the existing hooks (`useCRMContact`, `useCRMCompany`, `useCRMDeal`, `useEmployees`) to fetch and return just the display name.
-- For `contact`: `first_name + last_name`
-- For `company`: `name`
-- For `deal`: `title`
-- For `employee`: `full_name` from profiles
-- For `department`: department `name`
-
-#### 2. Update `related_to` case in `TaskRow.tsx` `renderCell`
-- Replace the current simple button with:
-  - **If entity exists**: Wrap in `HoverCard` (from `@radix-ui/react-hover-card`). The trigger shows the entity name text. The `HoverCardContent` renders the existing `RelatedEntityCard`. The whole thing is also wrapped in `RelatedToPopover` so clicking opens the editor.
-  - **If no entity**: Show "—" button wrapped in `RelatedToPopover` (unchanged).
-
-#### 3. Apply same pattern in `TaskListView.tsx` inline creation row
-- For the inline row, keep the current `RelatedToPopover` trigger since inline rows won't have saved entities yet.
+**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
+- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
 
 ### Technical Details
 
-**New component** (`src/components/tasks/RelatedEntityName.tsx`):
-- Hooks into existing data fetchers per entity type
-- Returns a string or null
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
+| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
 
-**Files to edit**:
-- `src/components/tasks/TaskRow.tsx` — update `related_to` case to use `HoverCard` + `RelatedEntityName` + `RelatedEntityCard`
-- `src/components/tasks/RelatedEntityName.tsx` — new file, small hook-based component returning entity display name
-
-**Key structure** for the cell:
-```
-RelatedToPopover (click to edit)
-  └─ HoverCard
-       ├─ HoverCardTrigger: <span>{entityName}</span>
-       └─ HoverCardContent: <RelatedEntityCard />
-```
-
-When no entity is selected, it falls back to the current "—" + `RelatedToPopover` click-to-select behavior.
-
+This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
