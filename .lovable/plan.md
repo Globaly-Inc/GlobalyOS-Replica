@@ -1,19 +1,24 @@
 
 
-## Plan: Reduce Gap Between Top Nav and Workspace Label
+## Make Logo Navigate to Public Website Home
 
-The sidebar container at line 85 has `pt-4` (1rem / 16px) top padding, creating the large gap. Reducing it to `pt-1` (4px) will minimize the distance between the top navigation bar and the "WORKSPACE" heading.
+### Problem
+The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
 
-**File: `src/components/tasks/TaskInnerSidebar.tsx`** (line 85)
+### Solution
 
-Change `pt-4` to `pt-1`:
-```tsx
-// Before
-<div className="px-3 pt-4 pb-2">
+**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
+- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
+- This gives the landing page a stable URL accessible regardless of auth state
 
-// After
-<div className="px-3 pt-1 pb-2">
-```
+**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
+- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
 
-Single-line change. No other files affected.
+### Technical Details
 
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
+| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
+
+This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
