@@ -211,10 +211,15 @@ const Tasks = () => {
         {/* Header */}
         <div className="px-6 pt-4 pb-0">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-semibold flex items-center gap-2">
-              {pageIcon}
-              {pageTitle}
-            </h1>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSidebarOpen(prev => !prev)}>
+                {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+              </Button>
+              <h1 className="text-xl font-semibold flex items-center gap-2">
+                {pageIcon}
+                {pageTitle}
+              </h1>
+            </div>
             <div className="flex items-center gap-2">
               {showTaskContent && !isAllTasksMode && activeSpaceId && (
                 <>
