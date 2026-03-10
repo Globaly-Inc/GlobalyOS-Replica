@@ -6,6 +6,7 @@ export interface ColumnWidths {
 
 const DEFAULT_WIDTHS: Record<string, number> = {
   name: 300,
+  related_to: 140,
   category: 120,
   assignee: 100,
   tags: 120,
