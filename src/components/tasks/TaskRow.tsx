@@ -441,7 +441,31 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
         );
       }
       case 'related_to':
-        return (
+        return task.related_entity_type && task.related_entity_id ? (
+          <HoverCard openDelay={300} closeDelay={100}>
+            <RelatedToPopover
+              entityType={task.related_entity_type}
+              entityId={task.related_entity_id}
+              onUpdate={(type, id) => {
+                handleUpdate('related_entity_type', type);
+                handleUpdate('related_entity_id', id);
+              }}
+            >
+              <HoverCardTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-xs text-foreground truncate w-full text-left hover:text-primary transition-colors cursor-pointer"
+                >
+                  <RelatedEntityName entityType={task.related_entity_type} entityId={task.related_entity_id} />
+                </button>
+              </HoverCardTrigger>
+            </RelatedToPopover>
+            <HoverCardContent side="top" align="start" className="w-72 p-0" onClick={(e) => e.stopPropagation()}>
+              <RelatedEntityCard entityType={task.related_entity_type} entityId={task.related_entity_id} />
+            </HoverCardContent>
+          </HoverCard>
+        ) : (
           <RelatedToPopover
             entityType={task.related_entity_type}
             entityId={task.related_entity_id}
@@ -450,30 +474,13 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
               handleUpdate('related_entity_id', id);
             }}
           >
-            {task.related_entity_type && task.related_entity_id ? (
-              <HoverCard openDelay={300} closeDelay={100}>
-                <HoverCardTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={(e) => e.stopPropagation()}
-                    className="text-xs text-foreground truncate w-full text-left hover:text-primary transition-colors cursor-pointer"
-                  >
-                    <RelatedEntityName entityType={task.related_entity_type} entityId={task.related_entity_id} />
-                  </button>
-                </HoverCardTrigger>
-                <HoverCardContent side="top" align="start" className="w-72 p-0" onClick={(e) => e.stopPropagation()}>
-                  <RelatedEntityCard entityType={task.related_entity_type} entityId={task.related_entity_id} />
-                </HoverCardContent>
-              </HoverCard>
-            ) : (
-              <button
-                type="button"
-                onClick={(e) => e.stopPropagation()}
-                className="text-xs text-muted-foreground cursor-pointer"
-              >
-                —
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={(e) => e.stopPropagation()}
+              className="text-xs text-muted-foreground cursor-pointer"
+            >
+              —
+            </button>
           </RelatedToPopover>
         );
       case 'category':

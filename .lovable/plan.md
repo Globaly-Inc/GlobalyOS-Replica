@@ -1,51 +1,24 @@
 
 
-## Plan: Fix RelatedTo Popover Not Opening in Task List Row
+## Make Logo Navigate to Public Website Home
 
-### Root Cause
-In `TaskRow.tsx`, the `RelatedToPopover` wraps a `HoverCard` as its child. Inside `RelatedToPopover`, `PopoverTrigger asChild` receives `<HoverCard>` (a context provider, not a DOM element). Radix's `Slot` cannot compose with a non-DOM provider component, so the PopoverTrigger never registers the click. The click bubbles up to the row's `onClick` handler, which opens the task detail dialog.
+### Problem
+The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
 
-### Fix: Restructure nesting in `TaskRow.tsx`
+### Solution
 
-Swap the order so `HoverCard` wraps `RelatedToPopover`, and the button serves as trigger for both via proper Slot forwarding:
+**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
+- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
+- This gives the landing page a stable URL accessible regardless of auth state
 
-```tsx
-case 'related_to':
-  return task.related_entity_type && task.related_entity_id ? (
-    <HoverCard openDelay={300} closeDelay={100}>
-      <RelatedToPopover
-        entityType={task.related_entity_type}
-        entityId={task.related_entity_id}
-        onUpdate={(type, id) => {
-          handleUpdate('related_entity_type', type);
-          handleUpdate('related_entity_id', id);
-        }}
-      >
-        <HoverCardTrigger asChild>
-          <button
-            type="button"
-            onClick={(e) => e.stopPropagation()}
-            className="text-xs text-foreground truncate w-full text-left hover:text-primary transition-colors cursor-pointer"
-          >
-            <RelatedEntityName entityType={...} entityId={...} />
-          </button>
-        </HoverCardTrigger>
-      </RelatedToPopover>
-      <HoverCardContent side="top" align="start" className="w-72 p-0" onClick={(e) => e.stopPropagation()}>
-        <RelatedEntityCard entityType={...} entityId={...} />
-      </HoverCardContent>
-    </HoverCard>
-  ) : (
-    <RelatedToPopover ...>
-      <button onClick={(e) => e.stopPropagation()} className="text-xs text-muted-foreground cursor-pointer">
-        —
-      </button>
-    </RelatedToPopover>
-  );
-```
+**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
+- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
 
-**Why this works**: `PopoverTrigger asChild` now receives `HoverCardTrigger asChild > button` — a proper Slot chain that resolves to the DOM `<button>`. Both triggers compose correctly: hover shows the card, click opens the popover.
+### Technical Details
 
-### File changed
-- `src/components/tasks/TaskRow.tsx` — restructure the `related_to` case nesting (lines 443-478)
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
+| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
 
+This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
