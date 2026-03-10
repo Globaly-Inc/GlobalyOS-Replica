@@ -594,8 +594,8 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
           style={col.key === 'name' && onToggleSelect ? { left: '28px' } : undefined}
           >{renderCell(col)}</div>
         ))}
-        {/* Actions column - sticky right */}
-        <div className="flex justify-end sticky right-0 z-20 bg-card group-hover:bg-muted/30">
+        {/* Actions column */}
+        <div className="flex justify-end">
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
               <button className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity">
