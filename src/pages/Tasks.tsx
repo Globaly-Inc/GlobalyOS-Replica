@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, Plus, Settings, LayoutList, Columns3, X, User, FolderOpen } from 'lucide-react';
+import { Search, Plus, Settings, LayoutList, Columns3, X, User, FolderOpen, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useCurrentEmployee } from '@/services/useCurrentEmployee';
 import { ProjectDashboard } from '../components/tasks/ProjectDashboard';
 import { isImageIcon } from '../components/tasks/SpaceIconPicker';
