@@ -206,8 +206,8 @@ export const TaskColumnCustomizer = ({ columns, onColumnsChange, spaceId }: Task
         </div>
         <div className="p-2 space-y-0.5 max-h-[300px] overflow-y-auto">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={mergedColumns.map(c => c.key)} strategy={verticalListSortingStrategy}>
-              {mergedColumns.map(col => {
+            <SortableContext items={displayColumns.map(c => c.key)} strategy={verticalListSortingStrategy}>
+              {displayColumns.map(col => {
                 const isCustom = customFieldKeys.has(col.key);
                 const fieldDef = isCustom ? customFields.find(f => `custom_${f.field_key}` === col.key) : null;
                 return (
