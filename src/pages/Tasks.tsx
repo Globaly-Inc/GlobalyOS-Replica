@@ -34,7 +34,7 @@ const Tasks = () => {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [filters, setFilters] = useState<TaskFilters>({});
-  const [columns, setColumns] = useState(getDefaultColumns());
+  const [columns, setColumns] = usePersistedColumns(activeSpaceId);
 
   const { data: spaces = [] } = useTaskSpaces();
   const { data: currentEmployee } = useCurrentEmployee();
