@@ -418,13 +418,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                   >
                     {selectionActive && <div />}
                     {visibleColumns.map(col => (
-                      <div
-                        key={col.key}
-                        className={cn(
-                          false
-                        )}
-                        style={col.key === 'name' && selectionActive ? { left: '28px' } : undefined}
-                      >{renderInlineCell(col, status.id)}</div>
+                      <div key={col.key}>{renderInlineCell(col, status.id)}</div>
                     ))}
                     <div className="flex items-center justify-center gap-0.5">
                       <Tooltip>
