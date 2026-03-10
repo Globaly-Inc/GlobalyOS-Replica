@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, Plus, Settings, LayoutList, Columns3, X, User, FolderOpen } from 'lucide-react';
+import { Search, Plus, Settings, LayoutList, Columns3, X, User, FolderOpen, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useCurrentEmployee } from '@/services/useCurrentEmployee';
 import { ProjectDashboard } from '../components/tasks/ProjectDashboard';
 import { isImageIcon } from '../components/tasks/SpaceIconPicker';
@@ -187,9 +187,11 @@ const Tasks = () => {
     return null;
   }, [isAllTasksMode, isSpaceView, activeSpace, isFolderView]);
 
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
-      <TaskInnerSidebar selection={selection} onSelect={handleSelect} />
+      {sidebarOpen && <TaskInnerSidebar selection={selection} onSelect={handleSelect} />}
 
       {/* Task Detail Dialog */}
       <Dialog open={!!selectedTaskId} onOpenChange={(open) => { if (!open) setSelectedTaskId(null); }}>
@@ -209,10 +211,15 @@ const Tasks = () => {
         {/* Header */}
         <div className="px-6 pt-4 pb-0">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-semibold flex items-center gap-2">
-              {pageIcon}
-              {pageTitle}
-            </h1>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSidebarOpen(prev => !prev)}>
+                {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+              </Button>
+              <h1 className="text-xl font-semibold flex items-center gap-2">
+                {pageIcon}
+                {pageTitle}
+              </h1>
+            </div>
             <div className="flex items-center gap-2">
               {showTaskContent && !isAllTasksMode && activeSpaceId && (
                 <>
