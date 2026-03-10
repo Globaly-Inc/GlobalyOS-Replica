@@ -53,6 +53,7 @@ interface SortableColumnItemProps {
 }
 
 const SortableColumnItem = ({ col, onToggle, onDelete, isCustom }: SortableColumnItemProps) => {
+  const isLocked = col.key === 'name';
   const {
     attributes,
     listeners,
@@ -60,7 +61,7 @@ const SortableColumnItem = ({ col, onToggle, onDelete, isCustom }: SortableColum
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: col.key });
+  } = useSortable({ id: col.key, disabled: isLocked });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -73,16 +74,21 @@ const SortableColumnItem = ({ col, onToggle, onDelete, isCustom }: SortableColum
       style={style}
       className={cn(
         'flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted/50',
-        isDragging && 'opacity-50 z-50 bg-background shadow-lg'
+        isDragging && 'opacity-50 z-50 bg-background shadow-lg',
+        isLocked && 'opacity-60'
       )}
     >
-      <div
-        {...attributes}
-        {...listeners}
-        className="cursor-grab active:cursor-grabbing shrink-0"
-      >
-        <GripVertical className="h-3.5 w-3.5 text-muted-foreground/40" />
-      </div>
+      {isLocked ? (
+        <div className="shrink-0 w-3.5" />
+      ) : (
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing shrink-0"
+        >
+          <GripVertical className="h-3.5 w-3.5 text-muted-foreground/40" />
+        </div>
+      )}
       <span className="text-sm flex-1 truncate">{col.label}</span>
       {isCustom && onDelete && (
         <button onClick={onDelete} className="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0">
@@ -92,7 +98,7 @@ const SortableColumnItem = ({ col, onToggle, onDelete, isCustom }: SortableColum
       <Switch
         checked={col.visible}
         onCheckedChange={() => onToggle(col.key)}
-        disabled={col.key === 'name'}
+        disabled={isLocked}
         className="scale-75"
       />
     </div>
