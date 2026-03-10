@@ -104,7 +104,6 @@ export const TaskInnerSidebar = ({ selection, onSelect }: TaskInnerSidebarProps)
       </div>
 
       {/* Favorites Section */}
-      {favoriteTasks.length > 0 && (
         <div className="px-3 pt-2 pb-1">
           <Collapsible open={favoritesExpanded} onOpenChange={setFavoritesExpanded}>
             <div className="flex items-center justify-between">
