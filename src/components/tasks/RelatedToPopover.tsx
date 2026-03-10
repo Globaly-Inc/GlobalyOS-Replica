@@ -57,7 +57,7 @@ export const RelatedToPopover = ({ entityType, entityId, onUpdate, children }: R
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent className="w-72 p-0" align="start">
+      <PopoverContent className="w-72 p-0" align="start" onClick={(e) => e.stopPropagation()}>
         <div className="px-3 py-2 border-b flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <Link2 className="h-3.5 w-3.5 text-muted-foreground" />
