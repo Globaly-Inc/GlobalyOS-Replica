@@ -372,7 +372,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                         className={cn(
                           'relative select-none',
                           (col.key === 'comments' || col.key === 'attachments') && 'text-center',
-                          col.key === 'name' && 'sticky left-0 z-20 bg-muted/20'
+                          col.key === 'name' && 'sticky left-0 z-20 bg-card'
                         )}
                         style={col.key === 'name' && selectionActive ? { left: '28px' } : undefined}
                       >
@@ -388,8 +388,8 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                         </div>
                       </span>
                     ))}
-                    {/* Actions header - sticky right */}
-                    <span className="sticky right-0 z-20 bg-muted/20" />
+                    {/* Actions header */}
+                    <span />
                   </div>
                 )}
 
