@@ -303,6 +303,8 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
   const priority = priorityConfig[task.priority] || priorityConfig.normal;
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
+  const isFavorite = useIsTaskFavorite(task.id);
+  const toggleFavorite = useToggleTaskFavorite();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showMoveDialog, setShowMoveDialog] = useState(false);
 
