@@ -450,14 +450,30 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
               handleUpdate('related_entity_id', id);
             }}
           >
-            <button
-              type="button"
-              onClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer w-fit"
-            >
-              <Link2 className="h-3 w-3" />
-              {task.related_entity_id ? 'Linked' : '—'}
-            </button>
+            {task.related_entity_type && task.related_entity_id ? (
+              <HoverCard openDelay={300} closeDelay={100}>
+                <HoverCardTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-xs text-foreground truncate w-full text-left hover:text-primary transition-colors cursor-pointer"
+                  >
+                    <RelatedEntityName entityType={task.related_entity_type} entityId={task.related_entity_id} />
+                  </button>
+                </HoverCardTrigger>
+                <HoverCardContent side="top" align="start" className="w-72 p-0" onClick={(e) => e.stopPropagation()}>
+                  <RelatedEntityCard entityType={task.related_entity_type} entityId={task.related_entity_id} />
+                </HoverCardContent>
+              </HoverCard>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => e.stopPropagation()}
+                className="text-xs text-muted-foreground cursor-pointer"
+              >
+                —
+              </button>
+            )}
           </RelatedToPopover>
         );
       case 'category':
