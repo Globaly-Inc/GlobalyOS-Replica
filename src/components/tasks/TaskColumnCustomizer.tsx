@@ -34,15 +34,16 @@ export interface ColumnConfig {
 
 const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: 'name', label: 'Name', visible: true },
-  { key: 'related_to', label: 'Related To', visible: true },
-  { key: 'category', label: 'Category', visible: false },
   { key: 'assignee', label: 'Assignee', visible: true },
-  { key: 'tags', label: 'Tags', visible: false },
+  { key: 'due_date', label: 'Due Date', visible: true },
   { key: 'comments', label: 'Comments', visible: true },
-  { key: 'attachments', label: 'Attachments', visible: true },
   { key: 'priority', label: 'Priority', visible: true },
-  { key: 'due_date', label: 'Due Date', visible: false },
+  { key: 'related_to', label: 'Related To', visible: true },
+  { key: 'attachments', label: 'Attachments', visible: true },
 ];
+
+// Keys hidden from the column customizer (rendered inline in Name column)
+const HIDDEN_FROM_CUSTOMIZER = new Set(['category', 'tags']);
 
 interface SortableColumnItemProps {
   col: ColumnConfig;
@@ -52,6 +53,7 @@ interface SortableColumnItemProps {
 }
 
 const SortableColumnItem = ({ col, onToggle, onDelete, isCustom }: SortableColumnItemProps) => {
+  const isLocked = col.key === 'name';
   const {
     attributes,
     listeners,
@@ -59,7 +61,7 @@ const SortableColumnItem = ({ col, onToggle, onDelete, isCustom }: SortableColum
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: col.key });
+  } = useSortable({ id: col.key, disabled: isLocked });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -72,16 +74,21 @@ const SortableColumnItem = ({ col, onToggle, onDelete, isCustom }: SortableColum
       style={style}
       className={cn(
         'flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted/50',
-        isDragging && 'opacity-50 z-50 bg-background shadow-lg'
+        isDragging && 'opacity-50 z-50 bg-background shadow-lg',
+        isLocked && 'opacity-60'
       )}
     >
-      <div
-        {...attributes}
-        {...listeners}
-        className="cursor-grab active:cursor-grabbing shrink-0"
-      >
-        <GripVertical className="h-3.5 w-3.5 text-muted-foreground/40" />
-      </div>
+      {isLocked ? (
+        <div className="shrink-0 w-3.5" />
+      ) : (
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing shrink-0"
+        >
+          <GripVertical className="h-3.5 w-3.5 text-muted-foreground/40" />
+        </div>
+      )}
       <span className="text-sm flex-1 truncate">{col.label}</span>
       {isCustom && onDelete && (
         <button onClick={onDelete} className="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0">
@@ -91,7 +98,7 @@ const SortableColumnItem = ({ col, onToggle, onDelete, isCustom }: SortableColum
       <Switch
         checked={col.visible}
         onCheckedChange={() => onToggle(col.key)}
-        disabled={col.key === 'name'}
+        disabled={isLocked}
         className="scale-75"
       />
     </div>
@@ -128,6 +135,9 @@ export const TaskColumnCustomizer = ({ columns, onColumnsChange, spaceId }: Task
     return [...columns, ...extras];
   })();
 
+  // Filter out category/tags from the UI list
+  const displayColumns = mergedColumns.filter(c => !HIDDEN_FROM_CUSTOMIZER.has(c.key));
+
   const customFieldKeys = new Set(customFields.map(f => `custom_${f.field_key}`));
 
   const toggleColumn = (key: string) => {
@@ -139,11 +149,13 @@ export const TaskColumnCustomizer = ({ columns, onColumnsChange, spaceId }: Task
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    if (over && active.id !== over.id) {
-      const oldIndex = mergedColumns.findIndex(c => c.key === active.id);
-      const newIndex = mergedColumns.findIndex(c => c.key === over.id);
-      onColumnsChange(arrayMove(mergedColumns, oldIndex, newIndex));
-    }
+    if (!over || active.id === over.id) return;
+    // Prevent moving Name or moving anything before Name
+    if (active.id === 'name') return;
+    const oldIndex = mergedColumns.findIndex(c => c.key === active.id);
+    const newIndex = mergedColumns.findIndex(c => c.key === over.id);
+    if (newIndex === 0) return; // can't place before Name
+    onColumnsChange(arrayMove(mergedColumns, oldIndex, newIndex));
   };
 
   const handleAddField = () => {
@@ -197,8 +209,8 @@ export const TaskColumnCustomizer = ({ columns, onColumnsChange, spaceId }: Task
         </div>
         <div className="p-2 space-y-0.5 max-h-[300px] overflow-y-auto">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={mergedColumns.map(c => c.key)} strategy={verticalListSortingStrategy}>
-              {mergedColumns.map(col => {
+            <SortableContext items={displayColumns.map(c => c.key)} strategy={verticalListSortingStrategy}>
+              {displayColumns.map(col => {
                 const isCustom = customFieldKeys.has(col.key);
                 const fieldDef = isCustom ? customFields.find(f => `custom_${f.field_key}` === col.key) : null;
                 return (
