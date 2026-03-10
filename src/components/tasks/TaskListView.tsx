@@ -372,7 +372,7 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                         className={cn(
                           'relative select-none',
                           (col.key === 'comments' || col.key === 'attachments') && 'text-center',
-                          col.key === 'name' && 'sticky left-0 z-20 bg-muted/20'
+                          col.key === 'name' && 'sticky left-0 z-20 bg-background shadow-[2px_0_4px_-2px_hsl(var(--border))]'
                         )}
                         style={col.key === 'name' && selectionActive ? { left: '28px' } : undefined}
                       >
@@ -388,8 +388,8 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                         </div>
                       </span>
                     ))}
-                    {/* Actions header - sticky right */}
-                    <span className="sticky right-0 z-20 bg-muted/20" />
+                    {/* Actions header */}
+                    <span />
                   </div>
                 )}
 
@@ -423,12 +423,12 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                       <div
                         key={col.key}
                         className={cn(
-                          col.key === 'name' && 'sticky left-0 z-20 bg-primary/5'
+                          col.key === 'name' && 'sticky left-0 z-20 bg-card shadow-[2px_0_4px_-2px_hsl(var(--border))]'
                         )}
                         style={col.key === 'name' && selectionActive ? { left: '28px' } : undefined}
                       >{renderInlineCell(col, status.id)}</div>
                     ))}
-                    <div className="flex items-center justify-center gap-0.5 sticky right-0 z-20 bg-primary/5">
+                    <div className="flex items-center justify-center gap-0.5">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handleCreateInline(status.id)}>
