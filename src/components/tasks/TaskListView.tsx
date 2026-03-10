@@ -42,7 +42,7 @@ interface TaskListViewProps {
 }
 
 export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onTaskClick, columns, isAllTasksMode, statusIdMap }: TaskListViewProps) => {
-  const { handleMouseDown: handleColResize, getGridTemplate } = useColumnResize();
+  const { handleMouseDown: handleColResize, getGridTemplate } = useColumnResize(spaceId);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [addingInStatusId, setAddingInStatusId] = useState<string | null>(null);
   const [inlineTitle, setInlineTitle] = useState('');
@@ -368,42 +368,24 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                         key={col.key}
                         className={cn(
                           'relative select-none',
-                          (col.key === 'comments' || col.key === 'attachments') && 'text-center'
+                          (col.key === 'comments' || col.key === 'attachments') && 'text-center',
+                          col.key === 'name' && 'sticky left-0 z-20 bg-muted/20'
                         )}
+                        style={col.key === 'name' && selectionActive ? { left: '28px' } : undefined}
                       >
                         {col.key === 'comments' ? <MessageSquare className="h-4 w-4 text-muted-foreground mx-auto" /> : col.key === 'attachments' ? '📎' : col.label}
-                        {/* Resize handle — skip for the last column and 'name' (flex) */}
-                        {col.key !== 'name' && idx < visibleColumns.length - 1 && (
-                          <div
-                            className="absolute right-0 top-0 h-full w-[5px] cursor-col-resize z-10 group hover:bg-primary/20 transition-colors"
-                            style={{ transform: 'translateX(50%)' }}
-                            onMouseDown={(e) => handleColResize(e, col.key)}
-                          >
-                            <div className="absolute right-[2px] top-1/2 -translate-y-1/2 h-3 w-px bg-border group-hover:bg-primary transition-colors" />
-                          </div>
-                        )}
-                        {/* Right-edge resize handle for last non-name column */}
-                        {col.key !== 'name' && idx === visibleColumns.length - 1 && (
-                          <div
-                            className="absolute right-0 top-0 h-full w-[5px] cursor-col-resize z-10 group hover:bg-primary/20 transition-colors"
-                            style={{ transform: 'translateX(50%)' }}
-                            onMouseDown={(e) => handleColResize(e, col.key)}
-                          >
-                            <div className="absolute right-[2px] top-1/2 -translate-y-1/2 h-3 w-px bg-border group-hover:bg-primary transition-colors" />
-                          </div>
-                        )}
-                        {/* Resize handle on the right edge of 'name' column */}
-                        {col.key === 'name' && visibleColumns.length > 1 && (
-                          <div
-                            className="absolute right-0 top-0 h-full w-[5px] cursor-col-resize z-10 group hover:bg-primary/20 transition-colors"
-                            style={{ transform: 'translateX(50%)' }}
-                            onMouseDown={(e) => handleColResize(e, visibleColumns[idx + 1]?.key)}
-                          >
-                            <div className="absolute right-[2px] top-1/2 -translate-y-1/2 h-3 w-px bg-border group-hover:bg-primary transition-colors" />
-                          </div>
-                        )}
+                        {/* Resize handle for every column */}
+                        <div
+                          className="absolute right-0 top-0 h-full w-[5px] cursor-col-resize z-10 group hover:bg-primary/20 transition-colors"
+                          style={{ transform: 'translateX(50%)' }}
+                          onMouseDown={(e) => handleColResize(e, col.key)}
+                        >
+                          <div className="absolute right-[2px] top-1/2 -translate-y-1/2 h-3 w-px bg-border group-hover:bg-primary transition-colors" />
+                        </div>
                       </span>
                     ))}
+                    {/* Actions header - sticky right */}
+                    <span className="sticky right-0 z-20 bg-muted/20" />
                   </div>
                 )}
 
@@ -434,9 +416,15 @@ export const TaskListView = ({ statuses, tasks, categories, spaceId, listId, onT
                   >
                     {selectionActive && <div />}
                     {visibleColumns.map(col => (
-                      <div key={col.key}>{renderInlineCell(col, status.id)}</div>
+                      <div
+                        key={col.key}
+                        className={cn(
+                          col.key === 'name' && 'sticky left-0 z-20 bg-primary/5'
+                        )}
+                        style={col.key === 'name' && selectionActive ? { left: '28px' } : undefined}
+                      >{renderInlineCell(col, status.id)}</div>
                     ))}
-                    <div className="flex items-center justify-center gap-0.5">
+                    <div className="flex items-center justify-center gap-0.5 sticky right-0 z-20 bg-primary/5">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handleCreateInline(status.id)}>
