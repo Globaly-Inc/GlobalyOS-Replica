@@ -347,14 +347,16 @@ export const VirtualizedMessageList = forwardRef<VirtualizedMessageListHandle, V
   }), [scrollToBottom, scrollToMessage, isAtBottom, showScrollToBottom]);
 
   // Handle scroll events from react-window for detecting position
-  const handleScroll = useCallback(({ scrollOffset, scrollSize, viewportSize }: { scrollOffset: number; scrollSize: number; viewportSize: number }) => {
-    const distanceFromBottom = scrollSize - scrollOffset - viewportSize;
+  const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    const target = event.currentTarget;
+    const { scrollTop, scrollHeight, clientHeight } = target;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
     const atBottom = distanceFromBottom < 100;
     setIsAtBottom(atBottom);
     setShowScrollToBottom(!atBottom);
 
     // Load more when near top
-    if (scrollOffset < 200 && hasMoreMessages && !isLoadingMore && !isLoadingMoreRef.current && onLoadMore) {
+    if (scrollTop < 200 && hasMoreMessages && !isLoadingMore && !isLoadingMoreRef.current && onLoadMore) {
       isLoadingMoreRef.current = true;
       onLoadMore();
     }
