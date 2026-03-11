@@ -696,4 +696,5 @@ const ListItem = ({ list, isSelected, onSelect, onDelete, onShare, onRename, onM
       </DropdownMenuContent>
     </DropdownMenu>
   </div>
-);
+  );
+};
