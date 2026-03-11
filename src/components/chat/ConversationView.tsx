@@ -66,7 +66,7 @@ import {
   useUpdateSpaceNotification,
 } from "@/services/chat";
 import { useMessageStars, useToggleMessageStar } from "@/hooks/useMessageStars";
-import { useChatInfiniteScroll } from "@/hooks/useChatInfiniteScroll";
+import type { VirtualizedMessageListHandle } from "./VirtualizedMessageList";
 import { useTeamPresence } from "@/services/useTeamData";
 
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
