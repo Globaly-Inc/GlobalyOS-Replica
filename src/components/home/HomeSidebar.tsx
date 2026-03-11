@@ -1,8 +1,9 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { Calendar, Palmtree, Cake, Award, CalendarDays } from "lucide-react";
+import { Calendar, Palmtree, Cake, Award, CalendarDays, X } from "lucide-react";
 import { OrgLink } from "@/components/OrgLink";
 import { format, parseISO } from "date-fns";
 import { CardSkeleton } from "@/components/ui/card-skeleton";
@@ -13,6 +14,7 @@ import { FeatureSetupGuide } from "@/components/home/FeatureSetupGuide";
 import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
 import type { PersonOnLeave, UpcomingTeamLeave, UpcomingEvent, UpcomingCalendarEvent } from "@/hooks/useHomeData";
+import { useGoogleCalendarStatus, useGoogleCalendarConnect } from "@/hooks/useGoogleCalendarStatus";
 
 const AllPendingLeavesCard = lazy(() => import("@/components/home/AllPendingLeavesCard").then(m => ({ default: m.AllPendingLeavesCard })));
 const NotCheckedInCard = lazy(() => import("@/components/home/NotCheckedInCard").then(m => ({ default: m.NotCheckedInCard })));

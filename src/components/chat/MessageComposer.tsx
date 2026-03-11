@@ -37,6 +37,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import ChatAIAssist from "./ChatAIAssist";
 import { useCreateMeetLink } from "@/hooks/useGoogleMeet";
+import { useGoogleCalendarStatus, useGoogleCalendarConnect } from "@/hooks/useGoogleCalendarStatus";
 import { toast as sonnerToast } from "sonner";
 
 import EmojiPicker from "@/components/ui/EmojiPicker";
