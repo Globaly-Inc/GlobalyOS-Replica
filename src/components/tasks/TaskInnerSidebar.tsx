@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useTaskSpaces, useDeleteTaskSpace, useUpdateTaskSpace, useTaskFolders, useUpdateTaskFolder, useDeleteTaskFolder, useTaskLists, useCreateTaskList, useUpdateTaskList, useDeleteTaskList } from '@/services/useTasks';
-import { useTaskFavoritesWithDetails, useToggleTaskFavorite } from '@/hooks/useTaskFavorites';
+import { useListFavoritesWithDetails, useToggleListFavorite, useIsListFavorite } from '@/hooks/useTaskFavorites';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { CreateSpaceDialog } from './CreateSpaceDialog';
 import { CreateFolderDialog } from './CreateFolderDialog';
@@ -23,8 +23,8 @@ interface TaskInnerSidebarProps {
 
 export const TaskInnerSidebar = ({ selection, onSelect }: TaskInnerSidebarProps) => {
   const { data: spaces = [] } = useTaskSpaces();
-  const { data: favoriteTasks = [] } = useTaskFavoritesWithDetails();
-  const toggleFavorite = useToggleTaskFavorite();
+  const { data: favoriteLists = [] } = useListFavoritesWithDetails();
+  const toggleFavorite = useToggleListFavorite();
   const [favoritesExpanded, setFavoritesExpanded] = useState(true);
   const [expandedSpaces, setExpandedSpaces] = useState<Set<string>>(new Set());
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
@@ -130,26 +130,24 @@ export const TaskInnerSidebar = ({ selection, onSelect }: TaskInnerSidebarProps)
             </div>
             <CollapsibleContent>
               <div className="mt-1 space-y-0.5">
-                {favoriteTasks.length === 0 ? (
-                  <p className="text-xs text-muted-foreground/60 px-2 py-1.5 italic">Star a task to add it here</p>
+                {favoriteLists.length === 0 ? (
+                  <p className="text-xs text-muted-foreground/60 px-2 py-1.5 italic">Star a list to add it here</p>
                 ) : (
-                  favoriteTasks.map(fav => (
+                  favoriteLists.map(fav => (
                     <div
-                      key={fav.task_id}
+                      key={fav.list_id}
                       className="group flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer text-sm transition-colors text-muted-foreground hover:bg-muted hover:text-foreground"
                       onClick={() => {
-                        if (fav.list_id) {
-                          onSelect({ type: 'list', id: fav.list_id, spaceId: fav.space_id });
-                        }
+                        onSelect({ type: 'list', id: fav.list_id, spaceId: fav.space_id });
                       }}
                     >
-                      <Star className="h-3.5 w-3.5 shrink-0 text-orange-500 fill-orange-500" />
+                      <List className="h-3.5 w-3.5 shrink-0 text-orange-500" />
                       <span className="truncate flex-1">{fav.name}</span>
                       <button
                         className="p-0.5 opacity-0 group-hover:opacity-100 text-orange-500 transition-opacity shrink-0"
                         onClick={(e) => {
                           e.stopPropagation();
-                          toggleFavorite.mutate(fav.task_id);
+                          toggleFavorite.mutate(fav.list_id);
                         }}
                       >
                         <Star className="h-3 w-3 fill-orange-500" />
@@ -615,7 +613,11 @@ interface ListItemProps {
   depth: number;
 }
 
-const ListItem = ({ list, isSelected, onSelect, onDelete, onShare, onRename, onMove, folders, currentFolderId, isRenaming, renameValue, onRenameValueChange, onRenameSubmit, onRenameCancel, depth }: ListItemProps) => (
+const ListItem = ({ list, isSelected, onSelect, onDelete, onShare, onRename, onMove, folders, currentFolderId, isRenaming, renameValue, onRenameValueChange, onRenameSubmit, onRenameCancel, depth }: ListItemProps) => {
+  const isFavorite = useIsListFavorite(list.id);
+  const toggleFavorite = useToggleListFavorite();
+
+  return (
   <div
     className={cn(
       'group flex items-center gap-1.5 pr-2 py-1 rounded-md cursor-pointer text-sm transition-colors',
@@ -641,6 +643,20 @@ const ListItem = ({ list, isSelected, onSelect, onDelete, onShare, onRename, onM
     ) : (
       <span className="truncate flex-1">{list.name}</span>
     )}
+    <button
+      className={cn(
+        "p-0.5 transition-all shrink-0",
+        isFavorite
+          ? "text-orange-500 opacity-100"
+          : "text-muted-foreground hover:text-orange-400 opacity-0 group-hover:opacity-100"
+      )}
+      onClick={(e) => {
+        e.stopPropagation();
+        toggleFavorite.mutate(list.id);
+      }}
+    >
+      <Star className="h-3 w-3" fill={isFavorite ? 'currentColor' : 'none'} />
+    </button>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button className="p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -680,4 +696,5 @@ const ListItem = ({ list, isSelected, onSelect, onDelete, onShare, onRename, onM
       </DropdownMenuContent>
     </DropdownMenu>
   </div>
-);
+  );
+};

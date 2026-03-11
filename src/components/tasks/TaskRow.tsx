@@ -20,8 +20,7 @@ import { RelatedEntityName } from './RelatedEntityName';
 import { RelatedEntityCard } from './RelatedEntityCard';
 import type { ColumnConfig } from './TaskColumnCustomizer';
 import { format, parseISO } from 'date-fns';
-import { MoreHorizontal, Trash2, Paperclip, Download, FileIcon, MessageSquare, Send, X, FolderInput, Star } from 'lucide-react';
-import { useIsTaskFavorite, useToggleTaskFavorite } from '@/hooks/useTaskFavorites';
+import { MoreHorizontal, Trash2, Paperclip, Download, FileIcon, MessageSquare, Send, X, FolderInput } from 'lucide-react';
 import { RelatedToPopover } from './RelatedToPopover';
 import { Input } from '@/components/ui/input';
 import { MoveTaskDialog } from './MoveTaskDialog';
@@ -303,8 +302,6 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
   const priority = priorityConfig[task.priority] || priorityConfig.normal;
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
-  const isFavorite = useIsTaskFavorite(task.id);
-  const toggleFavorite = useToggleTaskFavorite();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showMoveDialog, setShowMoveDialog] = useState(false);
 
@@ -626,20 +623,6 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
         ))}
         {/* Actions column */}
         <div className="flex items-center justify-end gap-0.5">
-          <button
-            className={cn(
-              "p-1 rounded transition-all",
-              isFavorite
-                ? "text-orange-500 opacity-100"
-                : "text-muted-foreground hover:text-orange-400 opacity-0 group-hover:opacity-100"
-            )}
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleFavorite.mutate(task.id);
-            }}
-          >
-            <Star className="h-3.5 w-3.5" fill={isFavorite ? 'currentColor' : 'none'} />
-          </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
               <button className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity">

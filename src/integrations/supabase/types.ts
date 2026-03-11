@@ -21280,6 +21280,66 @@ export type Database = {
           },
         ]
       }
+      task_list_favorites: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          list_id: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          list_id: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          list_id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_list_favorites_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_list_favorites_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_list_favorites_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "task_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_list_favorites_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_list_favorites_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_lists: {
         Row: {
           access_scope: string
