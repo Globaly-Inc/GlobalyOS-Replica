@@ -63,7 +63,7 @@ serve(async (req: Request) => {
   );
 
   // ── ACTION: initiate ──
-  if (action === "initiate") {
+  if (resolvedAction === "initiate") {
     // Verify the user is authenticated
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
