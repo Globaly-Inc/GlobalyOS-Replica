@@ -37,6 +37,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import ChatAIAssist from "./ChatAIAssist";
 import { useCreateMeetLink } from "@/hooks/useGoogleMeet";
+import { useGoogleCalendarStatus, useGoogleCalendarConnect } from "@/hooks/useGoogleCalendarStatus";
 import { toast as sonnerToast } from "sonner";
 
 import EmojiPicker from "@/components/ui/EmojiPicker";
@@ -692,30 +693,14 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
               </Popover>
 
               {/* Google Meet */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn(
-                  "text-muted-foreground hover:text-foreground",
-                  isMobile ? "h-10 w-10" : "h-8 w-8"
-                )}
-                disabled={createMeetLink.isPending || sendMessage.isPending || isUploading}
-                title="Start Google Meet"
-                onClick={async () => {
-                  try {
-                    const link = await createMeetLink.mutateAsync();
-                    // Insert the meet link into the message
-                    setMessage((prev) => (prev ? `${prev}\n${link}` : link));
-                    sonnerToast.success('Meet link created');
-                  } catch {}
+              <GoogleMeetButton
+                onMeetLink={(link) => {
+                  setMessage((prev) => (prev ? `${prev}\n${link}` : link));
+                  sonnerToast.success('Meet link created');
                 }}
-              >
-                {createMeetLink.isPending ? (
-                  <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <VideoIcon className={cn("text-green-600", isMobile ? "h-5 w-5" : "h-4 w-4")} />
-                )}
-              </Button>
+                disabled={sendMessage.isPending || isUploading}
+                isMobile={isMobile}
+              />
 
               {/* Emoji */}
               <EmojiPicker
@@ -801,5 +786,56 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
 });
 
 MessageComposer.displayName = "MessageComposer";
+
+/** Inline sub-component: handles connect-or-create for Google Meet */
+function GoogleMeetButton({
+  onMeetLink,
+  disabled,
+  isMobile,
+}: {
+  onMeetLink: (link: string) => void;
+  disabled: boolean;
+  isMobile: boolean;
+}) {
+  const { isGoogleConnected, isLoading: statusLoading } = useGoogleCalendarStatus();
+  const connectGoogle = useGoogleCalendarConnect();
+  const createMeetLink = useCreateMeetLink();
+
+  const isPending = connectGoogle.isPending || createMeetLink.isPending || statusLoading;
+
+  const handleClick = async () => {
+    if (!isGoogleConnected) {
+      // Redirect to Google OAuth
+      connectGoogle.mutate();
+      return;
+    }
+    try {
+      const link = await createMeetLink.mutateAsync();
+      onMeetLink(link);
+    } catch {
+      // error toast handled by hook
+    }
+  };
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className={cn(
+        "text-muted-foreground hover:text-foreground",
+        isMobile ? "h-10 w-10" : "h-8 w-8"
+      )}
+      disabled={isPending || disabled}
+      title={isGoogleConnected ? "Start Google Meet" : "Connect Google to use Meet"}
+      onClick={handleClick}
+    >
+      {isPending ? (
+        <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+      ) : (
+        <VideoIcon className={cn("text-green-600", isMobile ? "h-5 w-5" : "h-4 w-4")} />
+      )}
+    </Button>
+  );
+}
 
 export default MessageComposer;

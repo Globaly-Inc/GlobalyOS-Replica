@@ -1,26 +1,24 @@
 
 
-## Plan: Auto-connect Google Calendar from Meet Button + Home Page Connect Card
+## Make Logo Navigate to Public Website Home
 
 ### Problem
-When users click the Google Meet button in the chat composer without having connected Google Calendar, they get a 400 error. There is also no visible prompt to connect Google on the Home page.
+The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
 
-### Changes
+### Solution
 
-**1. Create a shared hook: `src/hooks/useGoogleCalendarStatus.ts`**
-- Wraps `useIntegrationSettings` to expose a simple `isGoogleConnected` boolean (checks `google_calendar_connected === true`)
-- Also re-exports `useGoogleCalendarConnect` for easy access
+**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
+- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
+- This gives the landing page a stable URL accessible regardless of auth state
 
-**2. Update Google Meet button in `src/components/chat/MessageComposer.tsx` (line 694-718)**
-- Import `useGoogleCalendarStatus` and `useGoogleCalendarConnect`
-- On click: if not connected, call `connectGoogle.mutateAsync()` (triggers OAuth redirect) instead of trying to create a Meet link
-- Show appropriate loading state during connection
+**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
+- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
 
-**3. Add "Connect Google" card to `src/components/home/HomeSidebar.tsx`**
-- At the top of the sidebar (before `PendingLeaveApprovals`), render a new card when `isGoogleConnected` is false
-- Card shows Google icon, brief text ("Connect your Google account to use Meet, Calendar sync, and Gmail"), and a "Connect Google" button
-- Clicking the button triggers `useGoogleCalendarConnect` (same OAuth flow used in Scheduler Integrations)
-- Card is dismissible and only shown to users with an employee profile
+### Technical Details
 
-**4. No database changes required** — uses the existing `scheduler_integration_settings` table and `google-calendar-auth` edge function
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
+| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
 
+This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
