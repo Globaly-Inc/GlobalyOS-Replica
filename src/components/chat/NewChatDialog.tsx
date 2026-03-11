@@ -18,6 +18,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { showErrorToast } from "@/lib/errorUtils";
+import { isSpaceOrGroupNameTaken } from "@/lib/chatNameUtils";
 import type { ActiveChat } from "@/types/chat";
 
 interface NewChatDialogProps {

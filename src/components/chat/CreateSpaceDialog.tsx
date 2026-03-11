@@ -14,6 +14,8 @@ import { useCreateSpace } from "@/services/chat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { showErrorToast } from "@/lib/errorUtils";
 import { toast } from "sonner";
+import { isSpaceOrGroupNameTaken } from "@/lib/chatNameUtils";
+import { useOrganization } from "@/hooks/useOrganization";
 import type { ActiveChat } from "@/types/chat";
 import SpaceImagePicker from "./SpaceImagePicker";
 import AccessScopeSelector, { type AccessScope } from "./AccessScopeSelector";
