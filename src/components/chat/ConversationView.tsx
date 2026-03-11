@@ -133,7 +133,7 @@ const ConversationView = ({
 }: ConversationViewProps) => {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<{ addFiles: (files: File[]) => void } | null>(null);
-  const initialScrollDoneRef = useRef(false);
+  const virtualizedListRef = useRef<VirtualizedMessageListHandle>(null);
   const { data: currentEmployee } = useCurrentEmployee();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
