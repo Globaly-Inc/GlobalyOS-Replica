@@ -268,6 +268,7 @@ export const VirtualizedMessageList = forwardRef<VirtualizedMessageListHandle, V
   isLoadingMore,
   hasMoreMessages,
   onLoadMore,
+  onScrollStateChange,
 }, ref) => {
   const listRef = useListRef();
   const [isAtBottom, setIsAtBottom] = useState(true);
