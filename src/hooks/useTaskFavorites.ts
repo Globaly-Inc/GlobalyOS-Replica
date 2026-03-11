@@ -3,105 +3,103 @@ import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useCurrentEmployee } from '@/services/useCurrentEmployee';
 
-export const useTaskFavorites = () => {
+export const useListFavorites = () => {
   const { currentOrg } = useOrganization();
   const { data: currentEmployee } = useCurrentEmployee();
 
   return useQuery({
-    queryKey: ['task-favorites', currentOrg?.id, currentEmployee?.id],
+    queryKey: ['list-favorites', currentOrg?.id, currentEmployee?.id],
     queryFn: async () => {
       if (!currentOrg?.id || !currentEmployee?.id) return [];
 
       const { data, error } = await supabase
-        .from('task_favorites')
-        .select('task_id')
+        .from('task_list_favorites')
+        .select('list_id')
         .eq('organization_id', currentOrg.id)
         .eq('employee_id', currentEmployee.id);
 
       if (error) throw error;
-      return (data || []).map((d: any) => d.task_id as string);
+      return (data || []).map((d: any) => d.list_id as string);
     },
     enabled: !!currentOrg?.id && !!currentEmployee?.id,
   });
 };
 
-export const useIsTaskFavorite = (taskId: string) => {
-  const { data: favoriteIds = [] } = useTaskFavorites();
-  return favoriteIds.includes(taskId);
+export const useIsListFavorite = (listId: string) => {
+  const { data: favoriteIds = [] } = useListFavorites();
+  return favoriteIds.includes(listId);
 };
 
-export interface FavoriteTaskDetail {
-  task_id: string;
+export interface FavoriteListDetail {
+  list_id: string;
   name: string;
-  list_id: string | null;
   space_id: string | null;
 }
 
-export const useTaskFavoritesWithDetails = () => {
+export const useListFavoritesWithDetails = () => {
   const { currentOrg } = useOrganization();
   const { data: currentEmployee } = useCurrentEmployee();
 
   return useQuery({
-    queryKey: ['task-favorites-details', currentOrg?.id, currentEmployee?.id],
-    queryFn: async (): Promise<FavoriteTaskDetail[]> => {
+    queryKey: ['list-favorites-details', currentOrg?.id, currentEmployee?.id],
+    queryFn: async (): Promise<FavoriteListDetail[]> => {
       if (!currentOrg?.id || !currentEmployee?.id) return [];
 
       const { data, error } = await supabase
-        .from('task_favorites')
-        .select('task_id, tasks:task_id(title, list_id, space_id)')
+        .from('task_list_favorites')
+        .select('list_id, task_lists:list_id(name, space_id)')
         .eq('organization_id', currentOrg.id)
         .eq('employee_id', currentEmployee.id);
 
       if (error) throw error;
       return (data || []).map((d: any) => ({
-        task_id: d.task_id,
-        name: d.tasks?.title ?? 'Untitled',
-        list_id: d.tasks?.list_id ?? null,
-        space_id: d.tasks?.space_id ?? null,
+        list_id: d.list_id,
+        name: d.task_lists?.name ?? 'Untitled',
+        space_id: d.task_lists?.space_id ?? null,
       }));
     },
     enabled: !!currentOrg?.id && !!currentEmployee?.id,
   });
 };
 
-export const useToggleTaskFavorite = () => {
+export const useToggleListFavorite = () => {
   const queryClient = useQueryClient();
   const { currentOrg } = useOrganization();
   const { data: currentEmployee } = useCurrentEmployee();
 
   return useMutation({
-    mutationFn: async (taskId: string) => {
+    mutationFn: async (listId: string) => {
       if (!currentOrg?.id || !currentEmployee?.id) throw new Error('Not authenticated');
 
       const { data: existing } = await supabase
-        .from('task_favorites')
+        .from('task_list_favorites')
         .select('id')
         .eq('employee_id', currentEmployee.id)
-        .eq('task_id', taskId)
+        .eq('list_id', listId)
         .maybeSingle();
 
       if (existing) {
         const { error } = await supabase
-          .from('task_favorites')
+          .from('task_list_favorites')
           .delete()
           .eq('id', existing.id);
         if (error) throw error;
-        return { action: 'removed' as const, taskId };
+        return { action: 'removed' as const, listId };
       } else {
         const { error } = await supabase
-          .from('task_favorites')
+          .from('task_list_favorites')
           .insert({
             employee_id: currentEmployee.id,
             organization_id: currentOrg.id,
-            task_id: taskId,
+            list_id: listId,
           });
         if (error) throw error;
-        return { action: 'added' as const, taskId };
+        return { action: 'added' as const, listId };
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['task-favorites'] });
-      queryClient.invalidateQueries({ queryKey: ['task-favorites-details'] });
+      queryClient.invalidateQueries({ queryKey: ['list-favorites'] });
+      queryClient.invalidateQueries({ queryKey: ['list-favorites-details'] });
     },
   });
 };
