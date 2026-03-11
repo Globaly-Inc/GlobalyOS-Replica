@@ -188,7 +188,7 @@ const SpaceMembersDialog = ({
               <div className="space-y-1">
                 {filteredMembers.map((member) => {
                   const canRemove = canRemoveMember(member);
-                  const isInvited = isManuallyInvited(member);
+                  const isSynced = isAutoSynced(member);
 
                   return (
                     <div
