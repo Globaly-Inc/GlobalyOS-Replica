@@ -48,16 +48,16 @@ export const useTaskFavoritesWithDetails = () => {
 
       const { data, error } = await supabase
         .from('task_favorites')
-        .select('task_id, tasks:task_id(name, list_id)')
+        .select('task_id, tasks:task_id(title, list_id, space_id)')
         .eq('organization_id', currentOrg.id)
         .eq('employee_id', currentEmployee.id);
 
       if (error) throw error;
       return (data || []).map((d: any) => ({
         task_id: d.task_id,
-        name: d.tasks?.name ?? 'Untitled',
+        name: d.tasks?.title ?? 'Untitled',
         list_id: d.tasks?.list_id ?? null,
-        space_id: null,
+        space_id: d.tasks?.space_id ?? null,
       }));
     },
     enabled: !!currentOrg?.id && !!currentEmployee?.id,
