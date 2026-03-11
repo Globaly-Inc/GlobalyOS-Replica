@@ -530,37 +530,7 @@ const ConversationView = ({
     };
   }, [conversationId, spaceId, queryClient, currentEmployee?.id]);
 
-  // Auto-scroll to bottom on new messages only if already at bottom
-  useEffect(() => {
-    if (isAtBottom && messages.length > 0) {
-      scrollToBottom();
-    }
-  }, [messages.length, isAtBottom, scrollToBottom]);
-
-  // Initial scroll to bottom when messages first load
-  useEffect(() => {
-    if (messages.length > 0 && !initialScrollDoneRef.current && !isLoading) {
-      if (highlightMessageId) {
-        // Wait for messages to render, then scroll to the highlighted message
-        setTimeout(() => {
-          const messageElement = document.getElementById(`message-${highlightMessageId}`);
-          if (messageElement) {
-            messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            messageElement.classList.add('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
-            setTimeout(() => {
-              messageElement.classList.remove('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
-            }, 2500);
-          }
-        }, 100);
-      } else {
-        // Scroll to bottom on initial load
-        setTimeout(() => {
-          scrollToBottom();
-        }, 50);
-      }
-      initialScrollDoneRef.current = true;
-    }
-  }, [messages.length, isLoading, highlightMessageId, scrollToBottom]);
+  // No longer need manual scroll effects — VirtualizedMessageList handles all scrolling internally
 
   const getInitials = (name: string) => {
     return name
