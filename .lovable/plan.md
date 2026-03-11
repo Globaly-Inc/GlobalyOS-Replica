@@ -1,24 +1,48 @@
 
 
-## Make Logo Navigate to Public Website Home
+## Plan: Fix Chat Scroll-to-Bottom and Flicker Issues
 
-### Problem
-The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
+### Root Cause
 
-### Solution
+There are **two competing scroll systems** causing both bugs:
 
-**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
-- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
-- This gives the landing page a stable URL accessible regardless of auth state
+1. **`ConversationView`** wraps messages in a native scrollable `div` (line 751-753) with `overflow-y-auto`, managed by `useChatInfiniteScroll`
+2. **`VirtualizedMessageList`** uses `react-window`'s `List` component which manages its own virtual scroll internally
 
-**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
-- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
+The `scrollToBottom()` from `useChatInfiniteScroll` sets `scrollTop` on the outer div, but react-window doesn't respond to that — it has its own scroll position. This means:
+- **Bug 1**: Initial load calls `scrollToBottom()` on the outer div, but the virtualized list renders at position 0 (top/middle), so the user sees messages in the middle
+- **Bug 2**: After sending a message, the realtime handler swaps temp messages for real ones, react-window re-renders and resets scroll position, causing flicker
 
-### Technical Details
+### Fix Strategy
 
-| File | Change |
-|------|--------|
-| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
-| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
+Remove the dual-scroll conflict by letting react-window be the sole scroll controller, and expose scroll control via ref.
 
-This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
+### Changes
+
+**1. `src/components/chat/VirtualizedMessageList.tsx`**
+- Accept a `ref` via `forwardRef` that exposes `{ scrollToBottom, scrollToMessage, isAtBottom }` methods
+- On initial mount (not just length change), scroll to the last item using `listRef.current.scrollToRow({ index: last, align: 'end' })`
+- Track `isAtBottom` by listening to the List's `onScroll` prop
+- When items change and user is at bottom, auto-scroll to bottom
+- Handle the "load older messages" scroll preservation by detecting when items are prepended
+- Add smooth scroll-like behavior with a CSS transition on the container
+
+**2. `src/components/chat/ConversationView.tsx`**
+- Remove the outer scrollable `div` with `overflow-y-auto` (line 751-753) — replace with a simple non-scrolling container
+- Remove `useChatInfiniteScroll` hook usage — move the "load more on scroll near top" logic into VirtualizedMessageList's `onScroll` handler
+- Get `scrollToBottom`, `isAtBottom`, `showScrollToBottom` from the VirtualizedMessageList ref instead
+- Update the `ScrollToBottom` button to call the ref's `scrollToBottom`
+- Remove the `initialScrollDoneRef` and duplicate scroll effects (lines 549-579)
+
+**3. `src/hooks/useChatInfiniteScroll.ts`**
+- Remove or simplify — it won't be needed since react-window handles scrolling
+
+**4. `src/components/chat/ScrollToBottom.tsx`**
+- Add a subtle slide-up animation when appearing
+
+### Result
+- Opening any chat immediately shows the latest messages at the bottom
+- Sending a message keeps scroll at bottom with no flicker
+- Scrolling up still triggers loading older messages
+- Scroll-to-bottom button works reliably
+
