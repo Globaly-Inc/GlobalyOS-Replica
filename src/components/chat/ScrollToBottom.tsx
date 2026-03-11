@@ -11,7 +11,7 @@ const ScrollToBottom = ({ visible, onClick, unreadCount = 0 }: ScrollToBottomPro
   if (!visible) return null;
 
   return (
-    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
+    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 animate-in slide-in-from-bottom-4 fade-in duration-200">
       <Button
         variant="secondary"
         size="sm"

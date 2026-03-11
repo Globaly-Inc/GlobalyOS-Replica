@@ -66,7 +66,7 @@ import {
   useUpdateSpaceNotification,
 } from "@/services/chat";
 import { useMessageStars, useToggleMessageStar } from "@/hooks/useMessageStars";
-import { useChatInfiniteScroll } from "@/hooks/useChatInfiniteScroll";
+import type { VirtualizedMessageListHandle } from "./VirtualizedMessageList";
 import { useTeamPresence } from "@/services/useTeamData";
 
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
@@ -133,7 +133,7 @@ const ConversationView = ({
 }: ConversationViewProps) => {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<{ addFiles: (files: File[]) => void } | null>(null);
-  const initialScrollDoneRef = useRef(false);
+  const virtualizedListRef = useRef<VirtualizedMessageListHandle>(null);
   const { data: currentEmployee } = useCurrentEmployee();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
@@ -174,6 +174,7 @@ const ConversationView = ({
   const [showTransferAdminDialog, setShowTransferAdminDialog] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   
   const conversationId = activeChat.type === 'conversation' ? activeChat.id : null;
   const spaceId = activeChat.type === 'space' ? activeChat.id : null;
@@ -209,27 +210,11 @@ const ConversationView = ({
         {
           onSuccess: (result) => {
             setHasMoreMessages(result.hasMore);
-            preserveScrollPosition();
           }
         }
       );
     }
   }, [messages, hasMoreMessages, loadOlderMessages, conversationId, spaceId]);
-
-  // Infinite scroll hook
-  const {
-    scrollContainerRef,
-    scrollToBottom,
-    preserveScrollPosition,
-    isAtBottom,
-    showScrollToBottom,
-    handleScroll,
-  } = useChatInfiniteScroll({
-    onLoadMore: handleLoadOlderMessages,
-    hasMore: hasMoreMessages,
-    isLoading: loadOlderMessages.isPending,
-    threshold: 200,
-  });
   
   // Check if current user is a space admin and calculate admin count
   const currentMembership = spaceMembers.find(m => m.employee_id === currentEmployee?.id);
@@ -292,7 +277,7 @@ const ConversationView = ({
       markAsRead.mutate({ conversationId: conversationId || undefined, spaceId: spaceId || undefined });
     }
     // Reset scroll tracking for new conversations
-    initialScrollDoneRef.current = false;
+    // VirtualizedMessageList handles this internally via its own refs
     setHasMoreMessages(true);
   }, [conversationId, spaceId]);
 
@@ -546,37 +531,7 @@ const ConversationView = ({
     };
   }, [conversationId, spaceId, queryClient, currentEmployee?.id]);
 
-  // Auto-scroll to bottom on new messages only if already at bottom
-  useEffect(() => {
-    if (isAtBottom && messages.length > 0) {
-      scrollToBottom();
-    }
-  }, [messages.length, isAtBottom, scrollToBottom]);
-
-  // Initial scroll to bottom when messages first load
-  useEffect(() => {
-    if (messages.length > 0 && !initialScrollDoneRef.current && !isLoading) {
-      if (highlightMessageId) {
-        // Wait for messages to render, then scroll to the highlighted message
-        setTimeout(() => {
-          const messageElement = document.getElementById(`message-${highlightMessageId}`);
-          if (messageElement) {
-            messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            messageElement.classList.add('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
-            setTimeout(() => {
-              messageElement.classList.remove('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
-            }, 2500);
-          }
-        }, 100);
-      } else {
-        // Scroll to bottom on initial load
-        setTimeout(() => {
-          scrollToBottom();
-        }, 50);
-      }
-      initialScrollDoneRef.current = true;
-    }
-  }, [messages.length, isLoading, highlightMessageId, scrollToBottom]);
+  // No longer need manual scroll effects — VirtualizedMessageList handles all scrolling internally
 
   const getInitials = (name: string) => {
     return name
@@ -748,11 +703,7 @@ const ConversationView = ({
 
         {/* Messages */}
         <div className="flex-1 relative overflow-hidden">
-          <div 
-            ref={scrollContainerRef}
-            className="absolute inset-0 overflow-y-auto px-1 md:px-4 py-4"
-            onScroll={handleScroll}
-          >
+          <div className="absolute inset-0">
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
                 <p className="text-muted-foreground">Loading messages...</p>
@@ -812,6 +763,7 @@ const ConversationView = ({
               </div>
             ) : (
               <VirtualizedMessageList
+                ref={virtualizedListRef}
                 groupedMessages={groupedMessages}
                 reactions={reactions}
                 messageStars={messageStars}
@@ -824,6 +776,8 @@ const ConversationView = ({
                 isEditPending={editMessage.isPending}
                 isLoadingMore={loadOlderMessages.isPending}
                 hasMoreMessages={hasMoreMessages}
+                onLoadMore={handleLoadOlderMessages}
+                onScrollStateChange={setShowScrollToBottom}
               />
             )}
           </div>
@@ -831,7 +785,7 @@ const ConversationView = ({
           {/* Scroll to bottom button */}
           <ScrollToBottom 
             visible={showScrollToBottom} 
-            onClick={scrollToBottom}
+            onClick={() => virtualizedListRef.current?.scrollToBottom()}
           />
         </div>
 

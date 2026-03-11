@@ -2,9 +2,12 @@
  * VirtualizedMessageList - Performance-optimized message rendering
  * Only renders visible messages (~15 nodes) instead of entire history (500+)
  * Uses react-window v2 for virtualization with dynamic row heights
+ * 
+ * This component is the SOLE scroll controller for the chat message area.
+ * It exposes scroll methods via forwardRef for parent components.
  */
 
-import React, { useRef, useCallback, useEffect, useMemo } from 'react';
+import React, { useRef, useCallback, useEffect, useMemo, useState, useImperativeHandle, forwardRef } from 'react';
 import { List, useDynamicRowHeight, useListRef, type ListImperativeAPI } from 'react-window';
 import MessageBubble from './MessageBubble';
 import DateSeparator from './DateSeparator';
@@ -22,6 +25,13 @@ interface MessageCallbacks {
   onReply: (message: ChatMessage) => void;
 }
 
+export interface VirtualizedMessageListHandle {
+  scrollToBottom: () => void;
+  scrollToMessage: (messageId: string) => void;
+  isAtBottom: boolean;
+  showScrollToBottom: boolean;
+}
+
 interface VirtualizedMessageListProps {
   groupedMessages: Record<string, ChatMessage[]>;
   reactions: Record<string, Record<string, { emoji: string; users: { id: string; name: string; avatar?: string }[] }>>;
@@ -35,6 +45,8 @@ interface VirtualizedMessageListProps {
   isEditPending: boolean;
   isLoadingMore: boolean;
   hasMoreMessages: boolean;
+  onLoadMore?: () => void;
+  onScrollStateChange?: (showScrollToBottom: boolean) => void;
 }
 
 interface FlatItem {
@@ -242,7 +254,7 @@ const estimateRowHeight = (index: number, rowProps: RowProps): number => {
   return Math.min(baseHeight, 500);
 };
 
-export const VirtualizedMessageList = React.memo(({
+export const VirtualizedMessageList = forwardRef<VirtualizedMessageListHandle, VirtualizedMessageListProps>(({
   groupedMessages,
   reactions,
   messageStars,
@@ -255,13 +267,27 @@ export const VirtualizedMessageList = React.memo(({
   isEditPending,
   isLoadingMore,
   hasMoreMessages,
-}: VirtualizedMessageListProps) => {
+  onLoadMore,
+  onScrollStateChange,
+}, ref) => {
   const listRef = useListRef();
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const initialScrollDoneRef = useRef(false);
+  const prevItemCountRef = useRef(0);
+  const prevFirstMessageIdRef = useRef<string | null>(null);
+  const isLoadingMoreRef = useRef(false);
   
   const flatItems = useMemo(() => 
     flattenMessages(groupedMessages, isLoadingMore, hasMoreMessages), 
     [groupedMessages, isLoadingMore, hasMoreMessages]
   );
+
+  // Track the first message ID to detect prepended messages
+  const firstMessageId = useMemo(() => {
+    const firstMsg = flatItems.find(item => item.type === 'message');
+    return firstMsg?.message?.id || null;
+  }, [flatItems]);
   
   // Use dynamic row heights from react-window v2
   const dynamicRowHeight = useDynamicRowHeight({
@@ -293,28 +319,115 @@ export const VirtualizedMessageList = React.memo(({
     callbacks, 
     isEditPending
   ]);
-  
-  // Scroll to highlighted message
-  useEffect(() => {
-    if (highlightMessageId && listRef.current) {
-      const index = flatItems.findIndex(
-        item => item.type === 'message' && item.message?.id === highlightMessageId
-      );
-      if (index !== -1) {
-        listRef.current.scrollToRow({ index, align: 'center' });
-      }
-    }
-  }, [highlightMessageId, flatItems]);
-  
-  // Scroll to bottom when new messages arrive
-  const prevLengthRef = useRef(flatItems.length);
-  useEffect(() => {
-    // Only scroll when messages are added (not on initial load or removal)
-    if (flatItems.length > prevLengthRef.current && listRef.current) {
+
+  // Scroll to bottom helper
+  const scrollToBottom = useCallback(() => {
+    if (listRef.current && flatItems.length > 0) {
       listRef.current.scrollToRow({ index: flatItems.length - 1, align: 'end' });
+      setIsAtBottom(true);
+      setShowScrollToBottom(false);
     }
-    prevLengthRef.current = flatItems.length;
   }, [flatItems.length]);
+
+  // Scroll to a specific message
+  const scrollToMessage = useCallback((messageId: string) => {
+    if (!listRef.current) return;
+    const index = flatItems.findIndex(
+      item => item.type === 'message' && item.message?.id === messageId
+    );
+    if (index !== -1) {
+      listRef.current.scrollToRow({ index, align: 'center' });
+    }
+  }, [flatItems]);
+
+  // Expose methods to parent
+  useImperativeHandle(ref, () => ({
+    scrollToBottom,
+    scrollToMessage,
+    get isAtBottom() { return isAtBottom; },
+    get showScrollToBottom() { return showScrollToBottom; },
+  }), [scrollToBottom, scrollToMessage, isAtBottom, showScrollToBottom]);
+
+  // Handle scroll events from react-window for detecting position
+  const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    const target = event.currentTarget;
+    const { scrollTop, scrollHeight, clientHeight } = target;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    const atBottom = distanceFromBottom < 100;
+    setIsAtBottom(atBottom);
+    const shouldShow = !atBottom;
+    setShowScrollToBottom(shouldShow);
+    onScrollStateChange?.(shouldShow);
+
+    // Load more when near top
+    if (scrollTop < 200 && hasMoreMessages && !isLoadingMore && !isLoadingMoreRef.current && onLoadMore) {
+      isLoadingMoreRef.current = true;
+      onLoadMore();
+    }
+  }, [hasMoreMessages, isLoadingMore, onLoadMore, onScrollStateChange]);
+
+  // Reset loading-more ref when loading completes
+  useEffect(() => {
+    if (!isLoadingMore) {
+      isLoadingMoreRef.current = false;
+    }
+  }, [isLoadingMore]);
+
+  // Initial scroll to bottom when messages first load
+  useEffect(() => {
+    if (flatItems.length > 0 && !initialScrollDoneRef.current && listRef.current) {
+      if (highlightMessageId) {
+        // Scroll to highlighted message
+        const index = flatItems.findIndex(
+          item => item.type === 'message' && item.message?.id === highlightMessageId
+        );
+        if (index !== -1) {
+          // Small delay to let react-window measure
+          requestAnimationFrame(() => {
+            listRef.current?.scrollToRow({ index, align: 'center' });
+          });
+        }
+      } else {
+        // Scroll to bottom on initial load
+        requestAnimationFrame(() => {
+          listRef.current?.scrollToRow({ index: flatItems.length - 1, align: 'end' });
+        });
+      }
+      initialScrollDoneRef.current = true;
+    }
+  }, [flatItems.length, highlightMessageId]);
+
+  // Reset initial scroll tracking when chat changes
+  useEffect(() => {
+    initialScrollDoneRef.current = false;
+    prevItemCountRef.current = 0;
+    prevFirstMessageIdRef.current = null;
+  }, [groupedMessages === undefined]); // Reset when messages are cleared for a new chat
+
+  // Auto-scroll to bottom when new messages are appended (user is at bottom)
+  // But NOT when older messages are prepended (load more)
+  useEffect(() => {
+    if (!initialScrollDoneRef.current || flatItems.length === 0) return;
+
+    const prevCount = prevItemCountRef.current;
+    const currentCount = flatItems.length;
+
+    if (currentCount > prevCount && prevCount > 0) {
+      // Check if messages were prepended (first message ID changed = load more)
+      const wasPrepended = firstMessageId !== prevFirstMessageIdRef.current && prevFirstMessageIdRef.current !== null;
+
+      if (!wasPrepended && isAtBottom) {
+        // New messages at bottom - auto scroll
+        requestAnimationFrame(() => {
+          listRef.current?.scrollToRow({ index: flatItems.length - 1, align: 'end' });
+        });
+      }
+      // If prepended (load more), react-window handles scroll position preservation
+    }
+
+    prevItemCountRef.current = currentCount;
+    prevFirstMessageIdRef.current = firstMessageId;
+  }, [flatItems.length, firstMessageId, isAtBottom]);
   
   if (Object.keys(groupedMessages).length === 0) {
     return null;
@@ -330,6 +443,7 @@ export const VirtualizedMessageList = React.memo(({
       rowProps={rowProps}
       overscanCount={5}
       className="px-1 md:px-4"
+      onScroll={handleScroll}
     />
   );
 });
