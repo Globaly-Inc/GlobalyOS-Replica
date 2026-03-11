@@ -56,13 +56,13 @@ export const useGoogleCalendarDisconnect = () => {
     mutationFn: async () => {
       if (!currentOrg?.id || !user?.id) throw new Error('Not authenticated');
 
-      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const session = await supabase.auth.getSession();
       const accessToken = session.data.session?.access_token;
 
       const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/google-calendar-auth?action=disconnect`,
+        `${supabaseUrl}/functions/v1/google-calendar-auth?action=disconnect`,
         {
           method: 'POST',
           headers: {
