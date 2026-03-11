@@ -1,24 +1,19 @@
 
 
-## Make Logo Navigate to Public Website Home
+## Improve Favorites Section in Task Sidebar
 
-### Problem
-The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
+The existing Favorites section already exists between "My Tasks" and "Spaces" with the correct label. The improvement needed is to ensure it properly displays all favorited tasks and handles empty state gracefully.
 
-### Solution
+### Changes
 
-**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
-- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
-- This gives the landing page a stable URL accessible regardless of auth state
+**1. `src/hooks/useTaskFavorites.ts`** — Improve the `useTaskFavoritesWithDetails` hook
+- Also invalidate the `task-favorites-details` query key in `useToggleTaskFavorite` so the sidebar updates immediately when a task is favorited/unfavorited
 
-**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
-- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
+**2. `src/components/tasks/TaskInnerSidebar.tsx`** — Polish the Favorites section
+- Add an empty state message when no tasks are favorited (e.g., "Star a task to add it here")
+- Ensure the section is always visible and properly styled to match the Spaces section pattern
+- When clicking a favorited task, navigate to and highlight that task's list in the sidebar
 
-### Technical Details
+### Technical Detail
+Currently `useToggleTaskFavorite` only invalidates `['task-favorites']` but not `['task-favorites-details']`, so the sidebar list won't refresh when toggling favorites from task rows. Adding the second invalidation fixes this.
 
-| File | Change |
-|------|--------|
-| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
-| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
-
-This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
