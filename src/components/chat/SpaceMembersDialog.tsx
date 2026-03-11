@@ -129,10 +129,10 @@ const SpaceMembersDialog = ({
     return memberSource === 'manual';
   };
 
-  // Check if member was manually invited
-  const isManuallyInvited = (member: ChatSpaceMember) => {
+  // Check if member was auto-synced
+  const isAutoSynced = (member: ChatSpaceMember) => {
     const memberSource = (member as any).source;
-    return memberSource === 'manual';
+    return memberSource === 'auto_sync';
   };
 
   return (
@@ -188,7 +188,7 @@ const SpaceMembersDialog = ({
               <div className="space-y-1">
                 {filteredMembers.map((member) => {
                   const canRemove = canRemoveMember(member);
-                  const isInvited = isManuallyInvited(member);
+                  const isSynced = isAutoSynced(member);
 
                   return (
                     <div
@@ -213,10 +213,10 @@ const SpaceMembersDialog = ({
                               Admin
                             </Badge>
                           )}
-                          {isInvited && (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-sky-500/50 text-sky-600">
-                              <UserPlus className="h-3 w-3 mr-1" />
-                              Invited
+                          {isSynced && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-emerald-500/50 text-emerald-600">
+                              <RefreshCw className="h-3 w-3 mr-1" />
+                              Auto
                             </Badge>
                           )}
                           {member.employee_id === currentEmployee?.id && (
