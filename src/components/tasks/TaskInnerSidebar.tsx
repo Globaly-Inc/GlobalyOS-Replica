@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useTaskSpaces, useDeleteTaskSpace, useUpdateTaskSpace, useTaskFolders, useUpdateTaskFolder, useDeleteTaskFolder, useTaskLists, useCreateTaskList, useUpdateTaskList, useDeleteTaskList } from '@/services/useTasks';
-import { useTaskFavoritesWithDetails, useToggleTaskFavorite } from '@/hooks/useTaskFavorites';
+import { useListFavoritesWithDetails, useToggleListFavorite, useIsListFavorite } from '@/hooks/useTaskFavorites';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { CreateSpaceDialog } from './CreateSpaceDialog';
 import { CreateFolderDialog } from './CreateFolderDialog';
