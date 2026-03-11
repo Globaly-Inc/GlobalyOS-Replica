@@ -1,23 +1,24 @@
 
 
-## Fix: Auto-add Members on Space Creation + Make Dialogs Scrollable
+## Make Logo Navigate to Public Website Home
 
 ### Problem
-When creating a space with department/project filters, the UI shows the matching member count but the mutation (`useSpaceMutations.ts`) never actually adds those members. The `addAllMembers` flag is accepted but ignored — only the `members` scope path inserts members. The full logic exists in the legacy `useChat.ts` but the refactored `useSpaceMutations.ts` (which is actually used) is missing it.
+The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
 
-### Changes
+### Solution
 
-**1. `src/services/chat/mutations/useSpaceMutations.ts`** — Add the missing `addAllMembers` logic
+**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
+- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
+- This gives the landing page a stable URL accessible regardless of auth state
 
-Port the member-fetching logic from `useChat.ts` (lines 806-882) into `useSpaceMutations.ts` after the existing member/association inserts:
-- For `company` scope: fetch all active employees and insert as members
-- For `custom` scope: fetch employees filtered by selected offices, departments, and projects (AND logic), then insert as members
-- For legacy `offices`/`projects` scopes: fetch matching employees
-- Exclude the creator (auto-added by DB trigger) from the insert
-- Also add any `memberIds` passed for the `custom` scope with `inviteAdditionalMembers`
+**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
+- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
 
-**2. Dialog scrollability** — Both `CreateSpaceDialog.tsx` and `SpaceSettingsDialog.tsx` already use `ScrollArea` with `max-h-[90vh]` and `flex flex-col` layout, so they should already be scrollable. No changes needed there — the existing implementation handles this correctly.
+### Technical Details
 
-### Technical Detail
-The root cause is a refactoring gap: when `useChat.ts` was split into modular files under `services/chat/mutations/`, the `addAllMembers` block (~75 lines) was not carried over to `useSpaceMutations.ts`. The fix is to copy that logic into the mutation after the space and association inserts.
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
+| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
 
+This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.

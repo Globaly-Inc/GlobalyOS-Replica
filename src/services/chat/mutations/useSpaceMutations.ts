@@ -120,6 +120,81 @@ export const useCreateSpace = () => {
         );
       }
 
+      // Add all members if requested (for non-manual scopes)
+      if (addAllMembers && accessScope !== 'members') {
+        let employeesToAdd: string[] = [];
+        
+        if (accessScope === 'company') {
+          const { data } = await supabase
+            .from('employees')
+            .select('id')
+            .eq('organization_id', currentOrg.id)
+            .eq('status', 'active');
+          employeesToAdd = data?.map(e => e.id) || [];
+        } else if (accessScope === 'custom') {
+          const { data: allEmployees } = await supabase
+            .from('employees')
+            .select('id, office_id, department_id')
+            .eq('organization_id', currentOrg.id)
+            .eq('status', 'active');
+          
+          let candidates = allEmployees || [];
+          
+          if (officeIds?.length) {
+            candidates = candidates.filter(e => officeIds.includes(e.office_id || ''));
+          }
+          if (departmentIds?.length) {
+            candidates = candidates.filter(e => departmentIds.includes(e.department_id || ''));
+          }
+          if (projectIds?.length) {
+            const { data: projectEmployees } = await supabase
+              .from('employee_projects')
+              .select('employee_id')
+              .in('project_id', projectIds);
+            const projectEmpIds = new Set((projectEmployees || []).map(pe => pe.employee_id));
+            candidates = candidates.filter(e => projectEmpIds.has(e.id));
+          }
+          
+          employeesToAdd = candidates.map(e => e.id);
+          
+          // Also add any additional manually-selected members for custom scope
+          if (memberIds?.length) {
+            const extraIds = memberIds.filter(id => !employeesToAdd.includes(id));
+            employeesToAdd = [...employeesToAdd, ...extraIds];
+          }
+        } else if (accessScope === 'offices' && officeIds?.length) {
+          const { data } = await supabase
+            .from('employees')
+            .select('id')
+            .eq('organization_id', currentOrg.id)
+            .eq('status', 'active')
+            .in('office_id', officeIds);
+          employeesToAdd = data?.map(e => e.id) || [];
+        } else if (accessScope === 'projects' && projectIds?.length) {
+          const { data } = await supabase
+            .from('employee_projects')
+            .select('employee_id')
+            .in('project_id', projectIds);
+          employeesToAdd = (data || []).map((e: { employee_id: string }) => e.employee_id);
+        }
+        
+        // Insert all as members (excluding creator who's auto-added by trigger)
+        if (employeesToAdd.length > 0) {
+          const membersToInsert = employeesToAdd
+            .filter(id => id !== employeeId)
+            .map(empId => ({
+              space_id: space.id,
+              employee_id: empId,
+              organization_id: currentOrg.id,
+              role: 'member' as const
+            }));
+          
+          if (membersToInsert.length > 0) {
+            await supabase.from('chat_space_members').insert(membersToInsert);
+          }
+        }
+      }
+
       return space;
     },
     onSuccess: () => {
