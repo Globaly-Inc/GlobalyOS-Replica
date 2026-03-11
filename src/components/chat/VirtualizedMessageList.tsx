@@ -355,14 +355,16 @@ export const VirtualizedMessageList = forwardRef<VirtualizedMessageListHandle, V
     const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
     const atBottom = distanceFromBottom < 100;
     setIsAtBottom(atBottom);
-    setShowScrollToBottom(!atBottom);
+    const shouldShow = !atBottom;
+    setShowScrollToBottom(shouldShow);
+    onScrollStateChange?.(shouldShow);
 
     // Load more when near top
     if (scrollTop < 200 && hasMoreMessages && !isLoadingMore && !isLoadingMoreRef.current && onLoadMore) {
       isLoadingMoreRef.current = true;
       onLoadMore();
     }
-  }, [hasMoreMessages, isLoadingMore, onLoadMore]);
+  }, [hasMoreMessages, isLoadingMore, onLoadMore, onScrollStateChange]);
 
   // Reset loading-more ref when loading completes
   useEffect(() => {
