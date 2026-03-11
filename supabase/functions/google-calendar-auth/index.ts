@@ -46,7 +46,16 @@ serve(async (req: Request) => {
   }
 
   const url = new URL(req.url);
-  const action = url.searchParams.get("action");
+  let action = url.searchParams.get("action");
+
+  // Also support action from request body (for supabase.functions.invoke which can't set query params)
+  if (!action && req.method === "POST") {
+    try {
+      const clonedReq = req.clone();
+      const body = await clonedReq.json().catch(() => ({}));
+      if (body.action) action = body.action;
+    } catch {}
+  }
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
