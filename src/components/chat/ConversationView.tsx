@@ -276,7 +276,7 @@ const ConversationView = ({
       markAsRead.mutate({ conversationId: conversationId || undefined, spaceId: spaceId || undefined });
     }
     // Reset scroll tracking for new conversations
-    initialScrollDoneRef.current = false;
+    // VirtualizedMessageList handles this internally via its own refs
     setHasMoreMessages(true);
   }, [conversationId, spaceId]);
 
