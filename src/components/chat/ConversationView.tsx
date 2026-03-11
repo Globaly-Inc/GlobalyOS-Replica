@@ -762,6 +762,7 @@ const ConversationView = ({
               </div>
             ) : (
               <VirtualizedMessageList
+                ref={virtualizedListRef}
                 groupedMessages={groupedMessages}
                 reactions={reactions}
                 messageStars={messageStars}
@@ -774,6 +775,7 @@ const ConversationView = ({
                 isEditPending={editMessage.isPending}
                 isLoadingMore={loadOlderMessages.isPending}
                 hasMoreMessages={hasMoreMessages}
+                onLoadMore={handleLoadOlderMessages}
               />
             )}
           </div>
