@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
+import { lovable } from '@/integrations/lovable/index';
 import { useToast } from '@/hooks/use-toast';
 
 interface GoogleAuthButtonProps {
@@ -11,39 +11,15 @@ interface GoogleAuthButtonProps {
 export const GoogleAuthButton = ({ mode = 'signin', className }: GoogleAuthButtonProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [isEnabled, setIsEnabled] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    const checkGoogleAuth = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke('get-auth-providers');
-        if (!error && data?.providers?.google) {
-          setIsEnabled(true);
-        } else {
-          setIsEnabled(false);
-        }
-      } catch {
-        setIsEnabled(false);
-      }
-    };
-    checkGoogleAuth();
-  }, []);
 
   const handleGoogleAuth = async () => {
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        },
+      const result = await lovable.auth.signInWithOAuth('google', {
+        redirect_uri: window.location.origin,
       });
 
-      if (error) throw error;
+      if (result?.error) throw result.error;
     } catch (error: any) {
       toast({
         title: "Authentication failed",
@@ -53,11 +29,6 @@ export const GoogleAuthButton = ({ mode = 'signin', className }: GoogleAuthButto
       setLoading(false);
     }
   };
-
-  // Don't render if Google auth is not enabled or still checking
-  if (isEnabled !== true) {
-    return null;
-  }
 
   return (
     <Button
