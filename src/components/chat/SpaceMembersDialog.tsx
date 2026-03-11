@@ -129,10 +129,10 @@ const SpaceMembersDialog = ({
     return memberSource === 'manual';
   };
 
-  // Check if member was manually invited
-  const isManuallyInvited = (member: ChatSpaceMember) => {
+  // Check if member was auto-synced
+  const isAutoSynced = (member: ChatSpaceMember) => {
     const memberSource = (member as any).source;
-    return memberSource === 'manual';
+    return memberSource === 'auto_sync';
   };
 
   return (
