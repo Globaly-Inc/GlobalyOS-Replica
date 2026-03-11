@@ -123,6 +123,9 @@ const TeamMemberProfile = () => {
   // Get current position from position history (source of truth)
   const currentPosition = positionHistory.find(p => p.is_current);
 
+  // Online status
+  const { isOnline } = useOnlineStatus(id);
+
   // Fetch work location for WFH request button
   const { data: workLocation } = useEmployeeWorkLocation(id);
   
