@@ -1,13 +1,24 @@
 
 
-## Plan: Stop Google Meet from opening in new tab
+## Make Logo Navigate to Public Website Home
 
-**Problem**: When clicking the Google Meet button in the chat composer, the Meet link is created and inserted into the message text, but it also opens in a new browser tab via `window.open()`. The user wants it to only insert the link into the message without auto-opening.
+### Problem
+The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
 
-**Change**: Remove line 709 in `src/components/chat/MessageComposer.tsx`:
-```
-window.open(link, '_blank', 'noopener,noreferrer');
-```
+### Solution
 
-This is the only location that auto-opens the Meet link. The InboxComposer does not have this behavior.
+**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
+- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
+- This gives the landing page a stable URL accessible regardless of auth state
 
+**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
+- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
+
+### Technical Details
+
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
+| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
+
+This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
