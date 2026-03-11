@@ -115,7 +115,8 @@ export const useCreateSpace = () => {
             space_id: space.id,
             employee_id: empId,
             organization_id: currentOrg.id,
-            role: 'member'
+            role: 'member',
+            source: 'space_creation' as const,
           }))
         );
       }
