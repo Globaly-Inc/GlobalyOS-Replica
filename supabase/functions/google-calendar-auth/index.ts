@@ -251,7 +251,7 @@ serve(async (req: Request) => {
   }
 
   // ── ACTION: disconnect ──
-  if (action === "disconnect") {
+  if (resolvedAction === "disconnect") {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
