@@ -704,9 +704,8 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
                 onClick={async () => {
                   try {
                     const link = await createMeetLink.mutateAsync();
-                    // Insert the meet link as a message and open in new tab
+                    // Insert the meet link into the message
                     setMessage((prev) => (prev ? `${prev}\n${link}` : link));
-                    window.open(link, '_blank', 'noopener,noreferrer');
                     sonnerToast.success('Meet link created');
                   } catch {}
                 }}
