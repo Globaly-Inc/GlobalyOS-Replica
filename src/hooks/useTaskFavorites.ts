@@ -101,6 +101,7 @@ export const useToggleTaskFavorite = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['task-favorites'] });
+      queryClient.invalidateQueries({ queryKey: ['task-favorites-details'] });
     },
   });
 };
