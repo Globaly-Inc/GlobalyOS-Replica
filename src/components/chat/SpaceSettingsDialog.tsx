@@ -260,6 +260,14 @@ const SpaceSettingsDialog = ({
     }
 
     try {
+      // Check uniqueness if name changed
+      if (name.trim() !== space?.name?.trim() && currentOrg?.id) {
+        if (await isSpaceOrGroupNameTaken(currentOrg.id, name, spaceId)) {
+          toast.error("A space or group with this name already exists");
+          return;
+        }
+      }
+
       await updateSpace.mutateAsync({
         spaceId,
         name: name.trim(),

@@ -121,6 +121,15 @@ const NewChatDialog = ({ open, onOpenChange, onChatCreated }: NewChatDialogProps
       setIsUploading(true);
       const isGroup = selectedEmployees.length > 1;
 
+      // Check uniqueness for group chats with a name
+      if (isGroup && groupName.trim() && currentOrg?.id) {
+        if (await isSpaceOrGroupNameTaken(currentOrg.id, groupName)) {
+          toast.error("A space or group with this name already exists");
+          setIsUploading(false);
+          return;
+        }
+      }
+
       // FOR 1:1 CHATS: Check if conversation already exists
       if (!isGroup) {
         const targetEmployeeId = selectedEmployees[0];

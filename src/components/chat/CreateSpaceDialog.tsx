@@ -99,6 +99,10 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
     }
 
     try {
+      if (currentOrg?.id && await isSpaceOrGroupNameTaken(currentOrg.id, name)) {
+        toast.error("A space or group with this name already exists");
+        return;
+      }
       const space = await createSpace.mutateAsync({
         name: name.trim(),
         description: description.trim() || undefined,
