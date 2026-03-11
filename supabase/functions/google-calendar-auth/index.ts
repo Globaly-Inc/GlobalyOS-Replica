@@ -84,10 +84,9 @@ serve(async (req: Request) => {
 
     const userId = claimsData.claims.sub as string;
 
-    // Read org_id from body
-    const body = await req.json().catch(() => ({}));
-    const orgId = body.organization_id;
-    const source = body.source || 'scheduler'; // 'scheduler' or 'inbox'
+    // Read org_id from parsed body
+    const orgId = parsedBody.organization_id as string;
+    const source = (parsedBody.source as string) || 'scheduler'; // 'scheduler' or 'inbox'
     if (!orgId) {
       return new Response(JSON.stringify({ error: "organization_id required" }), {
         status: 400,
