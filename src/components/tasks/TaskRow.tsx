@@ -421,10 +421,10 @@ export const TaskRow = ({ task, onClick, visibleColumns, gridStyle, categories =
                 
                 <button className="flex items-center gap-1 hover:opacity-80 transition-opacity" onClick={(e) => e.stopPropagation()}>
                   {visibleTags.map((tag) =>
-                  <Badge key={tag} variant="outline" className="text-[10px] h-4 px-1 shrink-0 gap-0.5 group/tag bg-primary-light text-primary-dark py-[2px] border-primary-light">
+                  <Badge key={tag} variant="outline" className="text-[10px] h-4 px-1 shrink-0 gap-0.5 group/tag text-primary-dark py-[2px] border-primary-light bg-red-200">
                       {tag}
                       <X
-                      className="h-2.5 w-2.5 cursor-pointer text-muted-foreground hover:text-destructive transition-opacity"
+                      className="h-2.5 w-2.5 opacity-0 group-hover/tag:opacity-100 cursor-pointer text-muted-foreground hover:text-destructive transition-opacity"
                       onClick={(e) => {e.stopPropagation();e.preventDefault();handleUpdate('tags', tags.filter((t) => t !== tag));}} />
                     
                     </Badge>
