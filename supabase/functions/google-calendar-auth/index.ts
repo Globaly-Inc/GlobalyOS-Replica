@@ -113,7 +113,7 @@ serve(async (req: Request) => {
   }
 
   // ── ACTION: callback ──
-  if (action === "callback") {
+  if (resolvedAction === "callback") {
     const code = url.searchParams.get("code");
     const stateParam = url.searchParams.get("state");
     const error = url.searchParams.get("error");
