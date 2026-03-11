@@ -174,6 +174,7 @@ const ConversationView = ({
   const [showTransferAdminDialog, setShowTransferAdminDialog] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   
   const conversationId = activeChat.type === 'conversation' ? activeChat.id : null;
   const spaceId = activeChat.type === 'space' ? activeChat.id : null;
