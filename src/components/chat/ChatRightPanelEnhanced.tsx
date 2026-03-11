@@ -828,9 +828,10 @@ const ChatRightPanelEnhanced = ({ activeChat, onClose, onBack, isMobileOverlay =
                                     Admin
                                   </span>
                                 )}
-                                {spaceId && memberSource === 'manual' && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-600 shrink-0">
-                                    Manual
+                                {spaceId && memberSource === 'auto_sync' && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 shrink-0 flex items-center gap-0.5">
+                                    <RefreshCw className="h-2.5 w-2.5" />
+                                    Auto
                                   </span>
                                 )}
                               </div>
