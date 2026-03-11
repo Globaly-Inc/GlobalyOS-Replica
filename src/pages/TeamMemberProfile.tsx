@@ -28,6 +28,7 @@ import { EditProjectsDialog } from "@/components/dialogs/EditProjectsDialog";
 import { EditAvatarDialog } from "@/components/dialogs/EditAvatarDialog";
 import { EditStatusDialog } from "@/components/dialogs/EditStatusDialog";
 import { SetResignationDialog } from "@/components/dialogs/SetResignationDialog";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { EditableField } from "@/components/EditableField";
 import { EditableDateField } from "@/components/EditableDateField";
 import { Mail, Phone, MapPin, Calendar, User, Sparkles, ArrowLeft, Users, Building, CreditCard, FileText, AlertCircle, Building2, Heart, TrendingUp, GraduationCap, Clock, History, FolderKanban, Palmtree, FolderOpen, Search, Trophy, Pencil, Settings2, Plus, ClipboardList, Target, Star, Home, Activity, Globe, UserX } from "lucide-react";
@@ -121,6 +122,9 @@ const TeamMemberProfile = () => {
 
   // Get current position from position history (source of truth)
   const currentPosition = positionHistory.find(p => p.is_current);
+
+  // Online status
+  const { isOnline } = useOnlineStatus(id);
 
   // Fetch work location for WFH request button
   const { data: workLocation } = useEmployeeWorkLocation(id);
@@ -727,12 +731,17 @@ const TeamMemberProfile = () => {
             {/* Left side - Employee Info */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch flex-1 min-w-0">
               <div className="group relative flex items-center">
-                <Avatar className="h-28 w-28 border-4 border-primary/10">
-                  <AvatarImage src={employee.profiles.avatar_url || undefined} alt={employee.profiles.full_name} />
-                  <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground text-3xl font-bold">
-                    {employee.profiles.full_name.split(" ").map((n: string) => n[0]).join("")}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="relative">
+                  <Avatar className="h-28 w-28 border-4 border-primary/10">
+                    <AvatarImage src={employee.profiles.avatar_url || undefined} alt={employee.profiles.full_name} />
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-primary-dark text-primary-foreground text-3xl font-bold">
+                      {employee.profiles.full_name.split(" ").map((n: string) => n[0]).join("")}
+                    </AvatarFallback>
+                  </Avatar>
+                  {isOnline && (
+                    <span className="absolute top-1 right-1 h-5 w-5 rounded-full bg-green-500 border-2 border-card" />
+                  )}
+                </div>
                 {(isAdminOrHR || isOwnProfile) && <span className="absolute -bottom-1 -right-1 hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
                     <EditAvatarDialog userId={employee.user_id} currentAvatarUrl={employee.profiles.avatar_url} userName={employee.profiles.full_name} onSuccess={loadEmployee} />
                   </span>}

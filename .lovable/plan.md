@@ -1,29 +1,24 @@
 
 
-## Add Online Status Dot to Team Member Profile Avatar
+## Make Logo Navigate to Public Website Home
 
-The main profile avatar on `TeamMemberProfile.tsx` (the large h-28 avatar at line 730) does not show an online status indicator, unlike other places in the app (EmployeeCard, WorkflowKanbanCard, PostCard, etc.).
+### Problem
+The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
 
-### Change
+### Solution
 
-**File: `src/pages/TeamMemberProfile.tsx`**
+**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
+- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
+- This gives the landing page a stable URL accessible regardless of auth state
 
-1. Import `useOnlineStatus` from `@/hooks/useOnlineStatus`
-2. Call `useOnlineStatus(employee?.id)` to get the `isOnline` flag
-3. Add a green dot overlay on the avatar (positioned bottom-left or top-right to avoid conflicting with the existing edit button at bottom-right), matching the pattern used elsewhere:
-   ```tsx
-   <div className="group relative flex items-center">
-     <div className="relative">
-       <Avatar className="h-28 w-28 border-4 border-primary/10">
-         ...
-       </Avatar>
-       {isOnline && (
-         <span className="absolute top-0 right-0 h-4 w-4 rounded-full bg-green-500 border-2 border-card" />
-       )}
-     </div>
-     {/* existing edit button */}
-   </div>
-   ```
+**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
+- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
 
-This is a small, isolated change — one file, three additions (import, hook call, dot element).
+### Technical Details
 
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
+| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
+
+This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.
