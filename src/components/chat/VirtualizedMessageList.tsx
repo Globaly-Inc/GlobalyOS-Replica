@@ -46,6 +46,7 @@ interface VirtualizedMessageListProps {
   isLoadingMore: boolean;
   hasMoreMessages: boolean;
   onLoadMore?: () => void;
+  onScrollStateChange?: (showScrollToBottom: boolean) => void;
 }
 
 interface FlatItem {
