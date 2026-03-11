@@ -115,7 +115,8 @@ export const useCreateSpace = () => {
             space_id: space.id,
             employee_id: empId,
             organization_id: currentOrg.id,
-            role: 'member'
+            role: 'member',
+            source: 'space_creation' as const,
           }))
         );
       }
@@ -134,7 +135,7 @@ export const useCreateSpace = () => {
         } else if (accessScope === 'custom') {
           const { data: allEmployees } = await supabase
             .from('employees')
-            .select('id, office_id, department_id')
+            .select('id, office_id, department')
             .eq('organization_id', currentOrg.id)
             .eq('status', 'active');
           
@@ -144,7 +145,13 @@ export const useCreateSpace = () => {
             candidates = candidates.filter(e => officeIds.includes(e.office_id || ''));
           }
           if (departmentIds?.length) {
-            candidates = candidates.filter(e => departmentIds.includes(e.department_id || ''));
+            // Fetch department names from department UUIDs since employees store department as string
+            const { data: departments } = await supabase
+              .from('departments')
+              .select('name')
+              .in('id', departmentIds);
+            const deptNames = new Set((departments || []).map(d => d.name?.toLowerCase()));
+            candidates = candidates.filter(e => deptNames.has((e.department || '').toLowerCase()));
           }
           if (projectIds?.length) {
             const { data: projectEmployees } = await supabase
@@ -186,7 +193,8 @@ export const useCreateSpace = () => {
               space_id: space.id,
               employee_id: empId,
               organization_id: currentOrg.id,
-              role: 'member' as const
+              role: 'member' as const,
+              source: 'auto_sync' as const,
             }));
           
           if (membersToInsert.length > 0) {
