@@ -782,8 +782,8 @@ const ConversationView = ({
 
           {/* Scroll to bottom button */}
           <ScrollToBottom 
-            visible={showScrollToBottom} 
-            onClick={scrollToBottom}
+            visible={virtualizedListRef.current?.showScrollToBottom ?? false} 
+            onClick={() => virtualizedListRef.current?.scrollToBottom()}
           />
         </div>
 
