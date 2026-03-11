@@ -56,6 +56,7 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
   
   const createSpace = useCreateSpace();
   const { data: currentEmployee } = useCurrentEmployee();
+  const { currentOrg } = useOrganization();
 
   const validateForm = (): string | null => {
     if (!name.trim()) {
