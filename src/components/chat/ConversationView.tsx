@@ -209,27 +209,11 @@ const ConversationView = ({
         {
           onSuccess: (result) => {
             setHasMoreMessages(result.hasMore);
-            preserveScrollPosition();
           }
         }
       );
     }
   }, [messages, hasMoreMessages, loadOlderMessages, conversationId, spaceId]);
-
-  // Infinite scroll hook
-  const {
-    scrollContainerRef,
-    scrollToBottom,
-    preserveScrollPosition,
-    isAtBottom,
-    showScrollToBottom,
-    handleScroll,
-  } = useChatInfiniteScroll({
-    onLoadMore: handleLoadOlderMessages,
-    hasMore: hasMoreMessages,
-    isLoading: loadOlderMessages.isPending,
-    threshold: 200,
-  });
   
   // Check if current user is a space admin and calculate admin count
   const currentMembership = spaceMembers.find(m => m.employee_id === currentEmployee?.id);
