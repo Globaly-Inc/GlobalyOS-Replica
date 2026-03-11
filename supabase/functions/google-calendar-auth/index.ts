@@ -46,16 +46,16 @@ serve(async (req: Request) => {
   }
 
   const url = new URL(req.url);
-  let action = url.searchParams.get("action");
+  const action = url.searchParams.get("action");
 
-  // Also support action from request body (for supabase.functions.invoke which can't set query params)
-  if (!action && req.method === "POST") {
-    try {
-      const clonedReq = req.clone();
-      const body = await clonedReq.json().catch(() => ({}));
-      if (body.action) action = body.action;
-    } catch {}
+  // Parse body once upfront (used by initiate, disconnect, and body-based action routing)
+  let parsedBody: Record<string, unknown> = {};
+  if (req.method === "POST") {
+    try { parsedBody = await req.json(); } catch { parsedBody = {}; }
   }
+
+  // Support action from body when not in query params (supabase.functions.invoke)
+  const resolvedAction = action || (parsedBody.action as string | null);
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
