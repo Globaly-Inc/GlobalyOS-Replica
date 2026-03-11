@@ -192,7 +192,8 @@ export const useCreateSpace = () => {
               space_id: space.id,
               employee_id: empId,
               organization_id: currentOrg.id,
-              role: 'member' as const
+              role: 'member' as const,
+              source: 'auto_sync' as const,
             }));
           
           if (membersToInsert.length > 0) {
