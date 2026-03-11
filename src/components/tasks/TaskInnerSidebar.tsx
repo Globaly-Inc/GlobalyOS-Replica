@@ -613,7 +613,11 @@ interface ListItemProps {
   depth: number;
 }
 
-const ListItem = ({ list, isSelected, onSelect, onDelete, onShare, onRename, onMove, folders, currentFolderId, isRenaming, renameValue, onRenameValueChange, onRenameSubmit, onRenameCancel, depth }: ListItemProps) => (
+const ListItem = ({ list, isSelected, onSelect, onDelete, onShare, onRename, onMove, folders, currentFolderId, isRenaming, renameValue, onRenameValueChange, onRenameSubmit, onRenameCancel, depth }: ListItemProps) => {
+  const isFavorite = useIsListFavorite(list.id);
+  const toggleFavorite = useToggleListFavorite();
+
+  return (
   <div
     className={cn(
       'group flex items-center gap-1.5 pr-2 py-1 rounded-md cursor-pointer text-sm transition-colors',
@@ -639,6 +643,20 @@ const ListItem = ({ list, isSelected, onSelect, onDelete, onShare, onRename, onM
     ) : (
       <span className="truncate flex-1">{list.name}</span>
     )}
+    <button
+      className={cn(
+        "p-0.5 transition-all shrink-0",
+        isFavorite
+          ? "text-orange-500 opacity-100"
+          : "text-muted-foreground hover:text-orange-400 opacity-0 group-hover:opacity-100"
+      )}
+      onClick={(e) => {
+        e.stopPropagation();
+        toggleFavorite.mutate(list.id);
+      }}
+    >
+      <Star className="h-3 w-3" fill={isFavorite ? 'currentColor' : 'none'} />
+    </button>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button className="p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={(e) => e.stopPropagation()}>
