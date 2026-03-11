@@ -702,11 +702,7 @@ const ConversationView = ({
 
         {/* Messages */}
         <div className="flex-1 relative overflow-hidden">
-          <div 
-            ref={scrollContainerRef}
-            className="absolute inset-0 overflow-y-auto px-1 md:px-4 py-4"
-            onScroll={handleScroll}
-          >
+          <div className="absolute inset-0">
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
                 <p className="text-muted-foreground">Loading messages...</p>
