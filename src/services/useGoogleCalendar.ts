@@ -17,29 +17,19 @@ export const useGoogleCalendarConnect = (source: 'scheduler' | 'inbox' = 'schedu
     mutationFn: async () => {
       if (!currentOrg?.id || !user?.id) throw new Error('Not authenticated');
 
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const session = await supabase.auth.getSession();
-      const accessToken = session.data.session?.access_token;
+      const { data, error } = await supabase.functions.invoke('google-calendar-auth', {
+        body: {
+          action: 'initiate',
+          organization_id: currentOrg.id,
+          source,
+        },
+      });
 
-      const res = await fetch(
-        `${supabaseUrl}/functions/v1/google-calendar-auth?action=initiate`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`,
-            'apikey': anonKey,
-          },
-          body: JSON.stringify({ organization_id: currentOrg.id, source }),
-        }
-      );
-
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || 'Failed to initiate connection');
+      if (error) throw error;
+      if (!data?.auth_url) throw new Error(data?.error || 'Failed to initiate connection');
 
       // Redirect to Google OAuth
-      window.location.href = result.auth_url;
+      window.location.href = data.auth_url;
     },
     onError: (error: any) => {
       toast.error(error.message || 'Failed to connect Google Calendar');
@@ -56,26 +46,15 @@ export const useGoogleCalendarDisconnect = () => {
     mutationFn: async () => {
       if (!currentOrg?.id || !user?.id) throw new Error('Not authenticated');
 
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const session = await supabase.auth.getSession();
-      const accessToken = session.data.session?.access_token;
+      const { data, error } = await supabase.functions.invoke('google-calendar-auth', {
+        body: {
+          action: 'disconnect',
+          organization_id: currentOrg.id,
+        },
+      });
 
-      const res = await fetch(
-        `${supabaseUrl}/functions/v1/google-calendar-auth?action=disconnect`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`,
-            'apikey': anonKey,
-          },
-          body: JSON.stringify({ organization_id: currentOrg.id }),
-        }
-      );
-
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || 'Failed to disconnect');
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['scheduler_integration_settings'] });
