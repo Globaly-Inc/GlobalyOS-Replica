@@ -48,7 +48,7 @@ export const useTaskFavoritesWithDetails = () => {
 
       const { data, error } = await supabase
         .from('task_favorites')
-        .select('task_id, tasks:task_id(name, list_id)')
+        .select('task_id, tasks:task_id(title, list_id, space_id)')
         .eq('organization_id', currentOrg.id)
         .eq('employee_id', currentEmployee.id);
 
