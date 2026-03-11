@@ -23,6 +23,7 @@ import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { showErrorToast } from "@/lib/errorUtils";
+import { isSpaceOrGroupNameTaken } from "@/lib/chatNameUtils";
 
 interface EditGroupChatDialogProps {
   open: boolean;
@@ -176,6 +177,16 @@ const EditGroupChatDialog = ({
   const handleSave = async () => {
     try {
       setIsUploading(true);
+
+      // Check uniqueness if name changed
+      if (name.trim() && name.trim() !== currentName.trim() && currentOrg?.id) {
+        if (await isSpaceOrGroupNameTaken(currentOrg.id, name, undefined, conversationId)) {
+          toast.error("A space or group with this name already exists");
+          setIsUploading(false);
+          return;
+        }
+      }
+
       let iconUrl: string | undefined = undefined;
 
       // Upload new icon if provided

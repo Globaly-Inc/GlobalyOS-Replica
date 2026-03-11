@@ -1,52 +1,24 @@
 
 
-## Enforce Unique Names for Spaces and Group Chats
+## Make Logo Navigate to Public Website Home
 
 ### Problem
-Users can create Spaces and Group Chats with duplicate names, leading to confusion. Names should be unique across both spaces and group conversations within an organization.
+The GlobalyOS logo in the app header (`Layout.tsx`, line 117-122) currently calls `navigate("/")`, which redirects authenticated users back to their org dashboard via `RootRedirect`. The user wants the logo to open the public website landing page instead.
 
-### Changes
+### Solution
 
-**1. `src/components/chat/CreateSpaceDialog.tsx`** — Add uniqueness validation before creating a space
-- In the `validateForm` function (or in `handleCreate` before calling the mutation), query both `chat_spaces` (non-archived, same org) and `chat_conversations` (where `is_group = true`, same org) to check if the trimmed name already exists (case-insensitive)
-- Show a toast error like "A space or group with this name already exists" if a match is found
+**1. Add a dedicated `/home` route for the public landing page** (`src/App.tsx`)
+- Add `<Route path="/home" element={<Landing />} />` alongside the other public website routes
+- This gives the landing page a stable URL accessible regardless of auth state
 
-**2. `src/components/chat/NewChatDialog.tsx`** — Add uniqueness validation before creating a group chat
-- In `handleCreate`, when `isGroup` is true and `groupName` is provided, query both `chat_spaces` and `chat_conversations` (group only) for the same org to check for duplicate names
-- Show a toast error if a match is found and prevent creation
+**2. Update the logo button in `src/components/Layout.tsx`** (line 118)
+- Change `onClick={() => navigate("/")}` to `onClick={() => navigate("/home")}`
 
-**3. `src/components/chat/EditGroupChatDialog.tsx`** — Add uniqueness validation when renaming a group
-- Before saving the updated name, run the same cross-table uniqueness check (excluding the current conversation's own ID)
+### Technical Details
 
-**4. `src/components/chat/SpaceSettingsDialog.tsx`** — Add uniqueness validation when renaming a space
-- Before saving the updated name, run the same cross-table uniqueness check (excluding the current space's own ID)
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Add `/home` route pointing to the `Landing` page component (next to existing public routes, around line 308) |
+| `src/components/Layout.tsx` (line 118) | Change `navigate("/")` to `navigate("/home")` |
 
-### Technical Detail
-Each validation will perform two quick queries:
-```typescript
-// Check spaces
-const { data: existingSpace } = await supabase
-  .from('chat_spaces')
-  .select('id')
-  .eq('organization_id', orgId)
-  .ilike('name', name.trim())
-  .is('archived_at', null)
-  .limit(1);
-
-// Check group conversations
-const { data: existingGroup } = await supabase
-  .from('chat_conversations')
-  .select('id')
-  .eq('organization_id', orgId)
-  .eq('is_group', true)
-  .ilike('name', name.trim())
-  .limit(1);
-
-if (existingSpace?.length || existingGroup?.length) {
-  toast.error("A space or group with this name already exists");
-  return;
-}
-```
-
-For edit dialogs, an additional `.neq('id', currentId)` filter excludes the item being edited.
-
+This keeps the existing `/` root behavior (org redirect for authenticated users) intact while giving the logo a direct path to the public landing page.

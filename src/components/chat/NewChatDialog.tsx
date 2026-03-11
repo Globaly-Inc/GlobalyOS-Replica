@@ -18,6 +18,7 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { showErrorToast } from "@/lib/errorUtils";
+import { isSpaceOrGroupNameTaken } from "@/lib/chatNameUtils";
 import type { ActiveChat } from "@/types/chat";
 
 interface NewChatDialogProps {
@@ -119,6 +120,15 @@ const NewChatDialog = ({ open, onOpenChange, onChatCreated }: NewChatDialogProps
     try {
       setIsUploading(true);
       const isGroup = selectedEmployees.length > 1;
+
+      // Check uniqueness for group chats with a name
+      if (isGroup && groupName.trim() && currentOrg?.id) {
+        if (await isSpaceOrGroupNameTaken(currentOrg.id, groupName)) {
+          toast.error("A space or group with this name already exists");
+          setIsUploading(false);
+          return;
+        }
+      }
 
       // FOR 1:1 CHATS: Check if conversation already exists
       if (!isGroup) {

@@ -14,6 +14,8 @@ import { useCreateSpace } from "@/services/chat";
 import { useCurrentEmployee } from "@/services/useCurrentEmployee";
 import { showErrorToast } from "@/lib/errorUtils";
 import { toast } from "sonner";
+import { isSpaceOrGroupNameTaken } from "@/lib/chatNameUtils";
+import { useOrganization } from "@/hooks/useOrganization";
 import type { ActiveChat } from "@/types/chat";
 import SpaceImagePicker from "./SpaceImagePicker";
 import AccessScopeSelector, { type AccessScope } from "./AccessScopeSelector";
@@ -54,6 +56,7 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
   
   const createSpace = useCreateSpace();
   const { data: currentEmployee } = useCurrentEmployee();
+  const { currentOrg } = useOrganization();
 
   const validateForm = (): string | null => {
     if (!name.trim()) {
@@ -96,6 +99,10 @@ const CreateSpaceDialog = ({ open, onOpenChange, onSpaceCreated }: CreateSpaceDi
     }
 
     try {
+      if (currentOrg?.id && await isSpaceOrGroupNameTaken(currentOrg.id, name)) {
+        toast.error("A space or group with this name already exists");
+        return;
+      }
       const space = await createSpace.mutateAsync({
         name: name.trim(),
         description: description.trim() || undefined,
