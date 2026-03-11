@@ -270,8 +270,7 @@ serve(async (req: Request) => {
     }
 
     const userId = claimsData.claims.sub as string;
-    const body = await req.json().catch(() => ({}));
-    const orgId = body.organization_id;
+    const orgId = parsedBody.organization_id as string;
 
     // Revoke token if possible
     const { data: settings } = await supabase
