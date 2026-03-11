@@ -777,13 +777,14 @@ const ConversationView = ({
                 isLoadingMore={loadOlderMessages.isPending}
                 hasMoreMessages={hasMoreMessages}
                 onLoadMore={handleLoadOlderMessages}
+                onScrollStateChange={setShowScrollToBottom}
               />
             )}
           </div>
 
           {/* Scroll to bottom button */}
           <ScrollToBottom 
-            visible={virtualizedListRef.current?.showScrollToBottom ?? false} 
+            visible={showScrollToBottom} 
             onClick={() => virtualizedListRef.current?.scrollToBottom()}
           />
         </div>
