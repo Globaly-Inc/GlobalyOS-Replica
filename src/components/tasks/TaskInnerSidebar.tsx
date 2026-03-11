@@ -130,26 +130,24 @@ export const TaskInnerSidebar = ({ selection, onSelect }: TaskInnerSidebarProps)
             </div>
             <CollapsibleContent>
               <div className="mt-1 space-y-0.5">
-                {favoriteTasks.length === 0 ? (
-                  <p className="text-xs text-muted-foreground/60 px-2 py-1.5 italic">Star a task to add it here</p>
+                {favoriteLists.length === 0 ? (
+                  <p className="text-xs text-muted-foreground/60 px-2 py-1.5 italic">Star a list to add it here</p>
                 ) : (
-                  favoriteTasks.map(fav => (
+                  favoriteLists.map(fav => (
                     <div
-                      key={fav.task_id}
+                      key={fav.list_id}
                       className="group flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer text-sm transition-colors text-muted-foreground hover:bg-muted hover:text-foreground"
                       onClick={() => {
-                        if (fav.list_id) {
-                          onSelect({ type: 'list', id: fav.list_id, spaceId: fav.space_id });
-                        }
+                        onSelect({ type: 'list', id: fav.list_id, spaceId: fav.space_id });
                       }}
                     >
-                      <Star className="h-3.5 w-3.5 shrink-0 text-orange-500 fill-orange-500" />
+                      <List className="h-3.5 w-3.5 shrink-0 text-orange-500" />
                       <span className="truncate flex-1">{fav.name}</span>
                       <button
                         className="p-0.5 opacity-0 group-hover:opacity-100 text-orange-500 transition-opacity shrink-0"
                         onClick={(e) => {
                           e.stopPropagation();
-                          toggleFavorite.mutate(fav.task_id);
+                          toggleFavorite.mutate(fav.list_id);
                         }}
                       >
                         <Star className="h-3 w-3 fill-orange-500" />
