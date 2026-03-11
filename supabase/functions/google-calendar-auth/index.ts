@@ -9,6 +9,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
@@ -47,13 +48,22 @@ serve(async (req: Request) => {
   const url = new URL(req.url);
   const action = url.searchParams.get("action");
 
+  // Parse body once upfront (used by initiate, disconnect, and body-based action routing)
+  let parsedBody: Record<string, unknown> = {};
+  if (req.method === "POST") {
+    try { parsedBody = await req.json(); } catch { parsedBody = {}; }
+  }
+
+  // Support action from body when not in query params (supabase.functions.invoke)
+  const resolvedAction = action || (parsedBody.action as string | null);
+
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
   // ── ACTION: initiate ──
-  if (action === "initiate") {
+  if (resolvedAction === "initiate") {
     // Verify the user is authenticated
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
@@ -74,10 +84,9 @@ serve(async (req: Request) => {
 
     const userId = claimsData.claims.sub as string;
 
-    // Read org_id from body
-    const body = await req.json().catch(() => ({}));
-    const orgId = body.organization_id;
-    const source = body.source || 'scheduler'; // 'scheduler' or 'inbox'
+    // Read org_id from parsed body
+    const orgId = parsedBody.organization_id as string;
+    const source = (parsedBody.source as string) || 'scheduler'; // 'scheduler' or 'inbox'
     if (!orgId) {
       return new Response(JSON.stringify({ error: "organization_id required" }), {
         status: 400,
@@ -104,7 +113,7 @@ serve(async (req: Request) => {
   }
 
   // ── ACTION: callback ──
-  if (action === "callback") {
+  if (resolvedAction === "callback") {
     const code = url.searchParams.get("code");
     const stateParam = url.searchParams.get("state");
     const error = url.searchParams.get("error");
@@ -242,7 +251,7 @@ serve(async (req: Request) => {
   }
 
   // ── ACTION: disconnect ──
-  if (action === "disconnect") {
+  if (resolvedAction === "disconnect") {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -261,8 +270,7 @@ serve(async (req: Request) => {
     }
 
     const userId = claimsData.claims.sub as string;
-    const body = await req.json().catch(() => ({}));
-    const orgId = body.organization_id;
+    const orgId = parsedBody.organization_id as string;
 
     // Revoke token if possible
     const { data: settings } = await supabase
