@@ -55,9 +55,9 @@ export const useTaskFavoritesWithDetails = () => {
       if (error) throw error;
       return (data || []).map((d: any) => ({
         task_id: d.task_id,
-        name: d.tasks?.name ?? 'Untitled',
+        name: d.tasks?.title ?? 'Untitled',
         list_id: d.tasks?.list_id ?? null,
-        space_id: null,
+        space_id: d.tasks?.space_id ?? null,
       }));
     },
     enabled: !!currentOrg?.id && !!currentEmployee?.id,
