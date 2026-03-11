@@ -693,30 +693,14 @@ const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(
               </Popover>
 
               {/* Google Meet */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn(
-                  "text-muted-foreground hover:text-foreground",
-                  isMobile ? "h-10 w-10" : "h-8 w-8"
-                )}
-                disabled={createMeetLink.isPending || sendMessage.isPending || isUploading}
-                title="Start Google Meet"
-                onClick={async () => {
-                  try {
-                    const link = await createMeetLink.mutateAsync();
-                    // Insert the meet link into the message
-                    setMessage((prev) => (prev ? `${prev}\n${link}` : link));
-                    sonnerToast.success('Meet link created');
-                  } catch {}
+              <GoogleMeetButton
+                onMeetLink={(link) => {
+                  setMessage((prev) => (prev ? `${prev}\n${link}` : link));
+                  sonnerToast.success('Meet link created');
                 }}
-              >
-                {createMeetLink.isPending ? (
-                  <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <VideoIcon className={cn("text-green-600", isMobile ? "h-5 w-5" : "h-4 w-4")} />
-                )}
-              </Button>
+                disabled={sendMessage.isPending || isUploading}
+                isMobile={isMobile}
+              />
 
               {/* Emoji */}
               <EmojiPicker
