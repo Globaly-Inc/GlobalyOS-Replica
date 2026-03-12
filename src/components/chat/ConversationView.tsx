@@ -454,7 +454,11 @@ const ConversationView = ({
               return [...filtered, { ...newMessage, sender: senderData, attachments: attachmentsToUse }];
             }
           );
-        }
+
+          // Always auto-scroll to bottom for new messages
+          setTimeout(() => {
+            virtualizedListRef.current?.scrollToBottom();
+          }, 50);
       )
       .on(
         'postgres_changes',
