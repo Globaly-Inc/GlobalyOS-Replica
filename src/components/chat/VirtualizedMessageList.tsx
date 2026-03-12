@@ -33,6 +33,7 @@ export interface VirtualizedMessageListHandle {
 }
 
 interface VirtualizedMessageListProps {
+  chatKey: string; // conversation or space ID — used to reset scroll on chat switch
   groupedMessages: Record<string, ChatMessage[]>;
   reactions: Record<string, Record<string, { emoji: string; users: { id: string; name: string; avatar?: string }[] }>>;
   messageStars: { message_id: string }[];
@@ -255,6 +256,7 @@ const estimateRowHeight = (index: number, rowProps: RowProps): number => {
 };
 
 export const VirtualizedMessageList = forwardRef<VirtualizedMessageListHandle, VirtualizedMessageListProps>(({
+  chatKey,
   groupedMessages,
   reactions,
   messageStars,
@@ -277,6 +279,7 @@ export const VirtualizedMessageList = forwardRef<VirtualizedMessageListHandle, V
   const prevItemCountRef = useRef(0);
   const prevFirstMessageIdRef = useRef<string | null>(null);
   const isLoadingMoreRef = useRef(false);
+  const prevChatKeyRef = useRef<string>(chatKey);
   
   const flatItems = useMemo(() => 
     flattenMessages(groupedMessages, isLoadingMore, hasMoreMessages), 
@@ -320,14 +323,26 @@ export const VirtualizedMessageList = forwardRef<VirtualizedMessageListHandle, V
     isEditPending
   ]);
 
-  // Scroll to bottom helper
+  // Reliable scroll to bottom with double-rAF + fallback for dynamic height measurement
   const scrollToBottom = useCallback(() => {
-    if (listRef.current && flatItems.length > 0) {
-      listRef.current.scrollToRow({ index: flatItems.length - 1, align: 'end' });
-      setIsAtBottom(true);
-      setShowScrollToBottom(false);
-    }
-  }, [flatItems.length]);
+    if (!listRef.current || flatItems.length === 0) return;
+    const lastIndex = flatItems.length - 1;
+    
+    // First attempt: immediate
+    listRef.current.scrollToRow({ index: lastIndex, align: 'end' });
+    
+    // Second attempt: after one frame (react-window measures)
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToRow({ index: lastIndex, align: 'end' });
+      // Third attempt: after another frame (dynamic heights settle)
+      requestAnimationFrame(() => {
+        listRef.current?.scrollToRow({ index: lastIndex, align: 'end' });
+        setIsAtBottom(true);
+        setShowScrollToBottom(false);
+        onScrollStateChange?.(false);
+      });
+    });
+  }, [flatItems.length, onScrollStateChange]);
 
   // Scroll to a specific message
   const scrollToMessage = useCallback((messageId: string) => {
@@ -353,7 +368,7 @@ export const VirtualizedMessageList = forwardRef<VirtualizedMessageListHandle, V
     const target = event.currentTarget;
     const { scrollTop, scrollHeight, clientHeight } = target;
     const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-    const atBottom = distanceFromBottom < 100;
+    const atBottom = distanceFromBottom < 150; // wider threshold
     setIsAtBottom(atBottom);
     const shouldShow = !atBottom;
     setShowScrollToBottom(shouldShow);
@@ -373,6 +388,19 @@ export const VirtualizedMessageList = forwardRef<VirtualizedMessageListHandle, V
     }
   }, [isLoadingMore]);
 
+  // Reset scroll tracking when chatKey changes (switching conversations)
+  useEffect(() => {
+    if (chatKey !== prevChatKeyRef.current) {
+      initialScrollDoneRef.current = false;
+      prevItemCountRef.current = 0;
+      prevFirstMessageIdRef.current = null;
+      setIsAtBottom(true);
+      setShowScrollToBottom(false);
+      onScrollStateChange?.(false);
+      prevChatKeyRef.current = chatKey;
+    }
+  }, [chatKey, onScrollStateChange]);
+
   // Initial scroll to bottom when messages first load
   useEffect(() => {
     if (flatItems.length > 0 && !initialScrollDoneRef.current && listRef.current) {
@@ -382,30 +410,29 @@ export const VirtualizedMessageList = forwardRef<VirtualizedMessageListHandle, V
           item => item.type === 'message' && item.message?.id === highlightMessageId
         );
         if (index !== -1) {
-          // Small delay to let react-window measure
           requestAnimationFrame(() => {
             listRef.current?.scrollToRow({ index, align: 'center' });
           });
         }
       } else {
-        // Scroll to bottom on initial load
+        // Double-rAF + setTimeout fallback for reliable initial scroll
+        const lastIndex = flatItems.length - 1;
         requestAnimationFrame(() => {
-          listRef.current?.scrollToRow({ index: flatItems.length - 1, align: 'end' });
+          listRef.current?.scrollToRow({ index: lastIndex, align: 'end' });
+          requestAnimationFrame(() => {
+            listRef.current?.scrollToRow({ index: lastIndex, align: 'end' });
+          });
         });
+        // Fallback after dynamic heights have been measured
+        setTimeout(() => {
+          listRef.current?.scrollToRow({ index: lastIndex, align: 'end' });
+        }, 150);
       }
       initialScrollDoneRef.current = true;
     }
-  }, [flatItems.length, highlightMessageId]);
+  }, [flatItems.length, highlightMessageId, chatKey]);
 
-  // Reset initial scroll tracking when chat changes
-  useEffect(() => {
-    initialScrollDoneRef.current = false;
-    prevItemCountRef.current = 0;
-    prevFirstMessageIdRef.current = null;
-  }, [groupedMessages === undefined]); // Reset when messages are cleared for a new chat
-
-  // Auto-scroll to bottom when new messages are appended (user is at bottom)
-  // But NOT when older messages are prepended (load more)
+  // Always auto-scroll when new messages arrive (both own and others')
   useEffect(() => {
     if (!initialScrollDoneRef.current || flatItems.length === 0) return;
 
@@ -416,10 +443,13 @@ export const VirtualizedMessageList = forwardRef<VirtualizedMessageListHandle, V
       // Check if messages were prepended (first message ID changed = load more)
       const wasPrepended = firstMessageId !== prevFirstMessageIdRef.current && prevFirstMessageIdRef.current !== null;
 
-      if (!wasPrepended && isAtBottom) {
-        // New messages at bottom - auto scroll
+      if (!wasPrepended) {
+        // New messages at bottom - always auto scroll
         requestAnimationFrame(() => {
           listRef.current?.scrollToRow({ index: flatItems.length - 1, align: 'end' });
+          requestAnimationFrame(() => {
+            listRef.current?.scrollToRow({ index: flatItems.length - 1, align: 'end' });
+          });
         });
       }
       // If prepended (load more), react-window handles scroll position preservation
@@ -427,7 +457,7 @@ export const VirtualizedMessageList = forwardRef<VirtualizedMessageListHandle, V
 
     prevItemCountRef.current = currentCount;
     prevFirstMessageIdRef.current = firstMessageId;
-  }, [flatItems.length, firstMessageId, isAtBottom]);
+  }, [flatItems.length, firstMessageId]);
   
   if (Object.keys(groupedMessages).length === 0) {
     return null;
