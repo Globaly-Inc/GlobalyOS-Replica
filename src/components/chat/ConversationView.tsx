@@ -459,6 +459,7 @@ const ConversationView = ({
           setTimeout(() => {
             virtualizedListRef.current?.scrollToBottom();
           }, 50);
+        }
       )
       .on(
         'postgres_changes',
