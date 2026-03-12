@@ -1,0 +1,1 @@
+import{d7 as t}from"./index-ckjZnHAL.js";import"./vendor-editor-CxdtVjO1.js";import"./vendor-charts-LTecantw.js";import"./vendor-radix-Dg-TEZCg.js";import"./vendor-supabase-BvfXSNuG.js";const a=t("SmartphoneCharging",[["rect",{width:"14",height:"20",x:"5",y:"2",rx:"2",ry:"2",key:"1yt0o3"}],["path",{d:"M12.667 8 10 12h4l-2.667 4",key:"h9lk2d"}]]);export{a as default};

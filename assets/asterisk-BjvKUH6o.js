@@ -1,0 +1,1 @@
+import{d7 as t}from"./index-ckjZnHAL.js";import"./vendor-editor-CxdtVjO1.js";import"./vendor-charts-LTecantw.js";import"./vendor-radix-Dg-TEZCg.js";import"./vendor-supabase-BvfXSNuG.js";const d=t("Asterisk",[["path",{d:"M12 6v12",key:"1vza4d"}],["path",{d:"M17.196 9 6.804 15",key:"1ah31z"}],["path",{d:"m6.804 9 10.392 6",key:"1b6pxd"}]]);export{d as default};

@@ -1,0 +1,1 @@
+import{d7 as t}from"./index-ckjZnHAL.js";import"./vendor-editor-CxdtVjO1.js";import"./vendor-charts-LTecantw.js";import"./vendor-radix-Dg-TEZCg.js";import"./vendor-supabase-BvfXSNuG.js";const p=t("ArrowBigLeftDash",[["path",{d:"M19 15V9",key:"1hci5f"}],["path",{d:"M15 15h-3v4l-7-7 7-7v4h3v6z",key:"16tjna"}]]);export{p as default};

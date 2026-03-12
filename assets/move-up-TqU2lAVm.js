@@ -1,0 +1,1 @@
+import{d7 as o}from"./index-ckjZnHAL.js";import"./vendor-editor-CxdtVjO1.js";import"./vendor-charts-LTecantw.js";import"./vendor-radix-Dg-TEZCg.js";import"./vendor-supabase-BvfXSNuG.js";const i=o("MoveUp",[["path",{d:"M8 6L12 2L16 6",key:"1yvkyx"}],["path",{d:"M12 2V22",key:"r89rzk"}]]);export{i as default};

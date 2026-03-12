@@ -1,0 +1,1 @@
+import{d7 as r}from"./index-ckjZnHAL.js";import"./vendor-editor-CxdtVjO1.js";import"./vendor-charts-LTecantw.js";import"./vendor-radix-Dg-TEZCg.js";import"./vendor-supabase-BvfXSNuG.js";const a=r("Cylinder",[["ellipse",{cx:"12",cy:"5",rx:"9",ry:"3",key:"msslwz"}],["path",{d:"M3 5v14a9 3 0 0 0 18 0V5",key:"aqi0yr"}]]);export{a as default};

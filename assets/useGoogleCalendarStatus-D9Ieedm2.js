@@ -1,0 +1,1 @@
+import{u as t}from"./useScheduler-xaNoNhJ9.js";import"./index-ckjZnHAL.js";const r=()=>{const{data:e,isLoading:o}=t();return{isGoogleConnected:e?.google_calendar_connected===!0,isLoading:o}};export{r as u};

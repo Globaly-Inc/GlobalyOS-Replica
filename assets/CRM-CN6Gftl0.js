@@ -1,0 +1,1 @@
+import{j as t}from"./vendor-editor-CxdtVjO1.js";import{ak as o,f8 as a}from"./index-ckjZnHAL.js";import"./vendor-charts-LTecantw.js";import"./vendor-radix-Dg-TEZCg.js";import"./vendor-supabase-BvfXSNuG.js";const c=()=>{const{orgCode:r}=o();return t.jsx(a,{to:`/org/${r}/crm/contacts`,replace:!0})};export{c as default};

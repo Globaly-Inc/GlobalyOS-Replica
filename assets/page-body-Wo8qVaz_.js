@@ -1,0 +1,1 @@
+import{j as m}from"./vendor-editor-CxdtVjO1.js";import{c as o}from"./index-ckjZnHAL.js";function t({children:s,className:a,mobileBottomPadding:e=!1}){return m.jsx("div",{className:o("space-y-4 md:space-y-6",e&&"pb-24 md:pb-6",a),children:s})}export{t as P};

@@ -1,0 +1,1 @@
+import{d7 as i}from"./index-ckjZnHAL.js";import"./vendor-editor-CxdtVjO1.js";import"./vendor-charts-LTecantw.js";import"./vendor-radix-Dg-TEZCg.js";import"./vendor-supabase-BvfXSNuG.js";const m=i("WifiZero",[["path",{d:"M12 20h.01",key:"zekei9"}]]);export{m as default};
