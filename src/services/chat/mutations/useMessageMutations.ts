@@ -123,18 +123,15 @@ export const useSendMessage = () => {
     },
     onSettled: (data, error, variables) => {
       if (data && !error) {
+        // Only clean up temp messages — do NOT invalidate chat-messages.
+        // The realtime handler in ConversationView merges the real message
+        // via delta sync. Invalidating here causes a full refetch that
+        // resets react-window's scroll position (flicker bug).
         queryClient.setQueryData<ChatMessage[]>(
           ['chat-messages', variables.conversationId, variables.spaceId],
           (old) => {
             if (!old) return old;
-            const filtered = old.filter(m => !m.id.startsWith('temp-'));
-            const exists = filtered.some(m => m.id === data.id);
-            if (!exists) {
-              queryClient.invalidateQueries({ 
-                queryKey: ['chat-messages', variables.conversationId, variables.spaceId] 
-              });
-            }
-            return filtered;
+            return old.filter(m => !m.id.startsWith('temp-'));
           }
         );
 

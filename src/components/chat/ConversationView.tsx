@@ -764,6 +764,7 @@ const ConversationView = ({
             ) : (
               <VirtualizedMessageList
                 ref={virtualizedListRef}
+                chatKey={conversationId || spaceId || ''}
                 groupedMessages={groupedMessages}
                 reactions={reactions}
                 messageStars={messageStars}
